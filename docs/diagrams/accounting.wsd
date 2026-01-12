@@ -1,0 +1,163 @@
+@startuml Accounting Domain
+skinparam backgroundColor #FAFAFA
+
+title SWEN - Accounting Domain (Bounded Context)
+
+skinparam class {
+  BackgroundColor<<Value Object>> #E8F4FD
+  BackgroundColor<<Entity>> #FFF2CC
+  BackgroundColor<<Aggregate>> #D5E8D4
+  BackgroundColor<<Service>> #FFE6CC
+  BackgroundColor<<Repository>> #F8CECC
+  BackgroundColor<<Enum>> #E1BEE7
+  BorderColor #333333
+}
+
+package "Value Objects" <<Rectangle>> {
+
+  class Money <<Value Object>> {
+    +amount: Decimal
+    +currency: str
+    --
+    +add()
+    +subtract()
+    +multiply()
+    +is_negative()
+    +is_positive()
+    +is_zero()
+  }
+
+  class AccountNumber <<Value Object>> {
+    +value: str
+    --
+    +is_valid_iban()
+  }
+}
+
+package "Enums" <<Rectangle>> {
+
+  enum AccountType <<Enum>> {
+    ASSET
+    LIABILITY
+    EQUITY
+    INCOME
+    EXPENSE
+    --
+    +is_debit_normal()
+    +is_credit_normal()
+  }
+}
+
+package "Entities" <<Rectangle>> {
+
+  class Account <<Entity>> {
+    +id: UUID
+    +name: str
+    +account_type: AccountType
+    +account_number: AccountNumber
+    +is_active: bool
+    +parent_id: UUID
+    --
+    +deactivate()
+  }
+
+  class JournalEntry <<Entity>> {
+    +id: UUID
+    +account: Account
+    +debit: Money
+    +credit: Money
+    --
+    +is_debit()
+    +is_credit()
+    +amount()
+  }
+}
+
+package "Aggregates" <<Rectangle>> {
+
+  class Transaction <<Aggregate>> {
+    +id: UUID
+    +description: str
+    +date: datetime
+    +entries: List[JournalEntry]
+    +is_posted: bool
+    +metadata: dict
+    --
+    +add_debit(account, amount)
+    +add_credit(account, amount)
+    +is_balanced()
+    +post()
+    +unpost()
+  }
+}
+
+package "Repository Interfaces" <<Rectangle>> {
+
+  interface AccountRepository <<Repository>> {
+    +save(account)
+    +find_by_id(id)
+    +find_by_iban(iban)
+    +find_all_active()
+    +find_by_type(type)
+  }
+
+  interface TransactionRepository <<Repository>> {
+    +save(transaction)
+    +find_by_id(id)
+    +find_by_account(account_id)
+    +find_by_date_range(start, end)
+  }
+}
+
+package "Domain Services" <<Rectangle>> {
+
+  class AccountBalanceService <<Service>> {
+    +calculate_balance(account, transactions)
+    +get_trial_balance(accounts, transactions)
+  }
+
+  class ChartOfAccountsService <<Service>> {
+    +create_standard_chart()
+    +get_balance_sheet_accounts()
+    +get_income_statement_accounts()
+  }
+}
+
+' Relationships
+Account --> AccountType : has
+Account --> AccountNumber : has
+Account --> Money : default currency
+
+JournalEntry --> Account : belongs to
+JournalEntry --> Money : debit/credit
+
+Transaction o-- JournalEntry : contains 2+
+
+AccountBalanceService ..> Account : queries
+AccountBalanceService ..> Transaction : queries
+
+ChartOfAccountsService ..> AccountRepository : uses
+
+AccountRepository ..> Account : persists
+TransactionRepository ..> Transaction : persists
+
+note right of Transaction
+  **Aggregate Root**
+  Ensures double-entry consistency:
+  • Minimum 2 entries
+  • Total debits = Total credits
+end note
+
+note right of AccountType
+  **Normal Balance:**
+  • Assets & Expenses → Debit
+  • Liabilities, Equity, Income → Credit
+end note
+
+note bottom
+  **Double-Entry Bookkeeping:**
+  Every transaction affects at least two accounts.
+  Assets = Liabilities + Equity
+end note
+
+@enduml

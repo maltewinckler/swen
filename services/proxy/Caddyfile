@@ -1,0 +1,83 @@
+# SWEN - Caddy Reverse Proxy
+#
+# Used by:
+#   - docker compose --profile proxy up
+#   - docker compose -f docker-compose.yml -f docker/proxy-examples/caddy/docker-compose.override.yml up
+#
+# Routes:
+#   /api/*  → backend (FastAPI)
+#   /health → backend
+#   /*      → frontend (React)
+#
+# For production with HTTPS:
+#   1. Replace ":80" below with your domain (e.g., "swen.example.com")
+#   2. Ensure ports 80 and 443 are publicly accessible
+#   3. Set cookie_secure: true in config.yaml
+#   4. Caddy will automatically obtain Let's Encrypt certificates
+
+:80 {
+	# API requests → Backend
+	handle /api/* {
+		reverse_proxy backend:8000 {
+			# Extended timeout for bank sync (TAN can take up to 5 minutes)
+			transport http {
+				response_header_timeout 360s
+				dial_timeout 60s
+			}
+		}
+	}
+
+	# Health check endpoint
+	handle /health {
+		reverse_proxy backend:8000
+	}
+
+	# Everything else → Frontend
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	# Logging
+	log {
+		output stdout
+		format console
+	}
+}
+
+# ============================================
+# PRODUCTION EXAMPLE (uncomment and customize)
+# ============================================
+# Replace ":80" above with your domain - Caddy handles HTTPS automatically!
+#
+# swen.example.com {
+# 	handle /api/* {
+# 		reverse_proxy backend:8000 {
+# 			transport http {
+# 				response_header_timeout 360s
+# 				dial_timeout 60s
+# 			}
+# 		}
+# 	}
+#
+# 	handle /health {
+# 		reverse_proxy backend:8000
+# 	}
+#
+# 	handle {
+# 		reverse_proxy frontend:3000
+# 	}
+#
+# 	# Security headers
+# 	header {
+# 		X-Frame-Options "SAMEORIGIN"
+# 		X-Content-Type-Options "nosniff"
+# 		X-XSS-Protection "1; mode=block"
+# 		Referrer-Policy "strict-origin-when-cross-origin"
+# 	}
+#
+# 	log {
+# 		output stdout
+# 		format json
+# 	}
+# }
+

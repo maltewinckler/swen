@@ -1,0 +1,120 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: swen-postgres
+    restart: unless-stopped
+    env_file:
+      - ./config/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - swenetwork
+
+  backend:
+    build:
+      context: .
+      dockerfile: services/backend/Dockerfile
+    container_name: swen-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount config directory for .env file and fints_institute.csv
+      - ./config:/app/config:ro
+    env_file:
+      - ./config/.env
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - swenetwork
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: swen-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      # Persist downloaded models
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - swenetwork
+
+  frontend:
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
+    container_name: swen-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - swenetwork
+
+  # Caddy Reverse Proxy (optional, use --profile proxy)
+  proxy:
+    image: caddy:2-alpine
+    container_name: swen-proxy
+    restart: unless-stopped
+    profiles:
+      - proxy
+    ports:
+      - "8080:80"    # Use 8080 for rootless containers (or 80 if root)
+      - "8443:443"   # Use 8443 for rootless containers (or 443 if root)
+    volumes:
+      - ./services/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - swenetwork
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  swenetwork:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  ollama-data:
+    driver: local
+  # Caddy volumes (used when --profile proxy is enabled)
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local

@@ -1,0 +1,78 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE / Editor
+.vscode
+.idea
+*.swp
+*.swo
+.cursor
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+env
+.eggs
+*.egg-info
+.mypy_cache
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+.hypothesis
+.ruff_cache
+
+# Node.js / Frontend
+services/frontend/node_modules
+services/frontend/dist
+services/frontend/.vite
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database (will be mounted as volume for mysql)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Tests
+tests
+pytest.ini
+.coveragerc
+
+# Notebooks
+notebooks
+*.ipynb
+
+# Examples
+examples
+
+# Docker files (not needed in context for itself)
+docker-compose*.yml
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~

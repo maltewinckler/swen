@@ -1,0 +1,14 @@
+{
+  "include": [
+    "src/swen",
+    "src/swen_auth",
+    "src/swen_config",
+    "tests"
+  ],
+  "extraPaths": [
+    "src"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic"
+}

@@ -1,0 +1,67 @@
+# OS / Editor
+.DS_Store
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+**.env
+.env.local
+*.local
+
+# Python / Backend
+__pycache__
+.venv
+*.pyc
+*.pyo
+.coverage
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Node / Frontend
+node_modules
+.npm-cache
+
+# Vite
+.vite
+
+# TanStack Router
+.tanstack
+services/frontend/src/routeTree.gen.ts
+
+# Build output
+services/frontend/dist
+services/frontend/dist-ssr
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Swen specific
+data/
+
+# Config files (keep .env.example tracked)
+config/config.yaml
+config/config.dev.yaml
+config/.env
+config/.env.dev
+config/.env.local
+notebooks/
+_deprecated/
+docs/_untracked/
+examples/
+# add institue list specifically
+config/fints_institute.csv
+
+# Database
+**.db
+
+# Data exports
+**.csv

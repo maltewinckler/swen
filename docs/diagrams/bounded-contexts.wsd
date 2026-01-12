@@ -1,0 +1,77 @@
+@startuml Bounded Contexts
+skinparam backgroundColor #FAFAFA
+
+title SWEN - Bounded Contexts
+
+skinparam package {
+  BackgroundColor<<core>> #E8F5E9
+  BackgroundColor<<support>> #E3F2FD
+  BackgroundColor<<generic>> #F5F5F5
+  BorderColor #333333
+  RoundCorner 5
+}
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #666666
+  RoundCorner 3
+}
+
+' Core Domain
+package "Accounting" <<core>> {
+  rectangle "Account" as acc
+  rectangle "Transaction" as txn
+  rectangle "JournalEntry" as je
+  rectangle "Money" as money
+}
+
+package "Banking" <<core>> {
+  rectangle "BankAccount" as ba
+  rectangle "BankTransaction" as bt
+  rectangle "Credentials" as cred
+  rectangle "TANChallenge" as tan
+}
+
+' Supporting Domain
+package "Integration" <<support>> {
+  rectangle "AccountMapping" as am
+  rectangle "TransactionImport" as ti
+  rectangle "TransferIdentity" as trid
+}
+
+' Generic Subdomains
+package "Security" <<generic>> {
+  rectangle "EncryptedCredentials" as ec
+  rectangle "EncryptionService" as es
+}
+
+package "User" <<generic>> {
+  rectangle "UserPreferences" as up
+  rectangle "DashboardSettings" as ds
+}
+
+' Relationships
+Banking -[#2E7D32,thickness=2]-> Integration : provides\nraw data
+Integration -[#2E7D32,thickness=2]-> Accounting : creates\ntransactions
+
+am ..> ba : maps IBAN to
+am ..> acc : Asset Account
+
+ti ..> bt : imports from
+ti ..> txn : creates
+
+Security ..> cred : encrypts
+User ..> Accounting : configures\ndefaults
+
+' Legend
+legend right
+  |= Color |= Context Type |
+  | <#E8F5E9> | Core Domain |
+  | <#E3F2FD> | Supporting Domain |
+  | <#F5F5F5> | Generic Subdomain |
+endlegend
+
+note "**Data Flow:**\nBank → BankTransaction → Integration → Transaction → Accounting\n\n**Integration Context** bridges the external banking world\nwith the internal accounting system, handling:\n• Account mapping (IBAN → Asset Account)\n• Duplicate detection\n• Internal transfer reconciliation\n• Counter-account resolution" as DataFlowNote
+
+@enduml
+
