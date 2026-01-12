@@ -1,0 +1,214 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   DESIGN TOKENS - Dark Theme (Default)
+   ============================================ */
+:root {
+  /* Background Layers */
+  --bg-base: #0a0a0b;
+  --bg-surface: #121214;
+  --bg-elevated: #1a1a1d;
+  --bg-hover: #232326;
+
+  /* Borders */
+  --border-subtle: #27272a;
+  --border-default: #3f3f46;
+  --border-focus: #52525b;
+
+  /* Text */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-disabled: #52525b;
+
+  /* Accent Colors */
+  --accent-primary: #3b82f6;
+  --accent-success: #22c55e;
+  --accent-danger: #ef4444;
+  --accent-warning: #f59e0b;
+  --accent-info: #06b6d4;
+
+  /* Chart Colors */
+  --chart-1: #8b5cf6;
+  --chart-2: #ec4899;
+  --chart-3: #14b8a6;
+  --chart-4: #f97316;
+  --chart-5: #84cc16;
+
+  /* Timing */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+}
+
+/* Light Theme Override */
+.light {
+  --bg-base: #ffffff;
+  --bg-surface: #f9fafb;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f3f4f6;
+
+  --border-subtle: #e5e7eb;
+  --border-default: #d1d5db;
+  --border-focus: #9ca3af;
+
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --text-disabled: #d1d5db;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Focus styles */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-primary);
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.3);
+    color: var(--text-primary);
+  }
+
+  /* Scrollbar styling (webkit) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: var(--bg-base);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-default);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-focus);
+  }
+}
+
+/* ============================================
+   COMPONENT UTILITIES
+   ============================================
+   Note: Most component styles are defined in React components
+   using Tailwind classes. Only add CSS here for:
+   - Styles that can't be expressed in Tailwind
+   - Complex animations
+   - Third-party component overrides
+   ============================================ */
+@layer components {
+  /* Skeleton loading animation */
+  .skeleton {
+    background-color: var(--bg-hover);
+    border-radius: 4px;
+    animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-fade-out {
+    animation: fadeOut 0.2s ease-in;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Staggered animations */
+  .animate-stagger-1 { animation-delay: 50ms; }
+  .animate-stagger-2 { animation-delay: 100ms; }
+  .animate-stagger-3 { animation-delay: 150ms; }
+  .animate-stagger-4 { animation-delay: 200ms; }
+  .animate-stagger-5 { animation-delay: 250ms; }
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbar but allow scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area for devices with notches (iPhone etc.) */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}

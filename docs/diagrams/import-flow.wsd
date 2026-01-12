@@ -1,0 +1,108 @@
+@startuml Transaction Import Flow
+skinparam backgroundColor #FAFAFA
+
+title Transaction Import Flow
+
+skinparam participant {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #FBC02D
+}
+
+actor User
+participant "API/CLI" as Presentation
+participant "TransactionSyncCommand" as Sync
+participant "BankConnectionPort" as Bank
+participant "TransactionImportService" as Import
+participant "TransferReconciliation\nService" as Reconcile
+participant "CounterAccount\nResolutionService" as Categorize
+participant "Ollama" as AI
+participant "TransactionRepository" as Repo
+
+User -> Presentation : Trigger sync
+activate Presentation
+
+Presentation -> Sync : execute(account_iban, date_range)
+activate Sync
+
+== Bank Connection ==
+
+Sync -> Bank : connect(credentials)
+Bank --> Sync : connected
+
+Sync -> Bank : fetch_transactions(iban, dates)
+note right: May require TAN\napproval from user
+Bank --> Sync : List[BankTransaction]
+
+== Import Loop (per transaction) ==
+
+loop for each BankTransaction
+
+  Sync -> Import : import_transaction(bank_txn)
+  activate Import
+
+  Import -> Import : check_duplicate()
+  alt is duplicate
+    Import --> Sync : DUPLICATE
+  else new transaction
+
+    Import -> Reconcile : check_internal_transfer()
+    activate Reconcile
+    note right
+      Checks if counterparty IBAN
+      belongs to user's accounts
+    end note
+
+    alt is internal transfer
+      Reconcile -> Reconcile : find_matching_transaction()
+      alt match found
+        Reconcile --> Import : reconcile with existing
+      else no match yet
+        Reconcile --> Import : create pending transfer
+      end
+    else external transaction
+      Reconcile --> Import : not a transfer
+    end
+    deactivate Reconcile
+
+    Import -> Categorize : resolve_counter_account()
+    activate Categorize
+
+    alt has AI provider
+      Categorize -> AI : categorize(description, counterparty)
+      AI --> Categorize : suggested account
+    else rule-based fallback
+      Categorize -> Categorize : apply_rules()
+    end
+
+    Categorize --> Import : ResolutionResult
+    deactivate Categorize
+
+    Import -> Import : create_double_entry_transaction()
+    note right
+      Debit/Credit based on amount sign
+      Asset account ↔ Counter-account
+    end note
+
+    Import -> Repo : save(transaction)
+    Import --> Sync : SUCCESS
+
+  end
+  deactivate Import
+
+end
+
+Sync -> Bank : disconnect()
+
+Sync --> Presentation : ImportSummary
+deactivate Sync
+
+Presentation --> User : Display results
+deactivate Presentation
+
+@enduml
+

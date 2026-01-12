@@ -1,0 +1,134 @@
+@startuml Banking Domain
+skinparam backgroundColor #FAFAFA
+
+title SWEN - Banking Domain (Bounded Context)
+
+skinparam class {
+  BackgroundColor<<Value Object>> #E8F4FD
+  BackgroundColor<<Port>> #F8CECC
+  BackgroundColor<<Enum>> #E1BEE7
+  BorderColor #333333
+}
+
+package "Value Objects" <<Rectangle>> {
+
+  class BankAccount <<Value Object>> {
+    +iban: str
+    +account_number: str
+    +blz: str
+    +account_holder: str
+    +account_type: str
+    +balance: Decimal
+    +currency: str
+    +balance_date: datetime
+  }
+
+  class BankTransaction <<Value Object>> {
+    +booking_date: date
+    +value_date: date
+    +amount: Decimal
+    +currency: str
+    +purpose: str
+    +applicant_name: str?
+    +applicant_iban: str?
+    +end_to_end_reference: str?
+    +mandate_id: str?
+    +creditor_id: str?
+    --
+    +is_internal_transfer(): bool
+    +compute_identity_hash(): str
+    +compute_transfer_hash(): str
+  }
+
+  class BankCredentials <<Value Object>> {
+    +blz: str
+    +username: str
+    +pin: str
+    +fints_url: str?
+    +tan_method: str?
+    +tan_medium: str?
+  }
+
+  class TANChallenge <<Value Object>> {
+    +challenge_text: str
+    +tan_method: str
+    +tan_method_name: str
+    +hhduc_code: str?
+    +matrix_code: bytes?
+    +reference: str
+  }
+
+  class TANMethod <<Value Object>> {
+    +code: str
+    +name: str
+    +method_type: TANMethodType
+    +medium_name: str?
+  }
+
+  class TransferResult <<Value Object>> {
+    +success: bool
+    +transactions: List[BankTransaction]
+    +error_message: str?
+  }
+}
+
+package "Enums" <<Rectangle>> {
+
+  enum TANMethodType <<Enum>> {
+    PUSH_TAN
+    PHOTO_TAN
+    CHIP_TAN_MANUAL
+    CHIP_TAN_OPTICAL
+    SMS_TAN
+    UNKNOWN
+  }
+}
+
+package "Ports" <<Rectangle>> {
+
+  interface BankConnectionPort <<Port>> {
+    +connect(credentials): bool
+    +disconnect(): void
+    +is_connected(): bool
+    +fetch_accounts(): List[BankAccount]
+    +fetch_transactions(iban, dates): List[BankTransaction]
+    +set_tan_callback(callback): void
+    +set_tan_method(method): void
+    +get_tan_methods(credentials): List[TANMethod]
+  }
+}
+
+' Relationships
+BankTransaction ..> BankAccount : fetched from
+TANMethod --> TANMethodType : has
+TANChallenge ..> TANMethod : references
+BankConnectionPort ..> BankCredentials : uses
+BankConnectionPort ..> BankAccount : returns
+BankConnectionPort ..> BankTransaction : returns
+BankConnectionPort ..> TANChallenge : emits
+BankConnectionPort ..> TANMethod : returns
+
+note right of BankTransaction
+  **Identity Hash:** Used for deduplication
+  (booking_date + amount + purpose + counterparty)
+
+  **Transfer Hash:** Used to match internal transfers
+  (abs(amount) + both IBANs sorted)
+end note
+
+note right of BankConnectionPort
+  **Port Interface**
+  Implemented by infrastructure adapters:
+  • GeldstromAdapter (FinTS/HBCI)
+  • Future: PSD2 adapter
+end note
+
+note bottom
+  **Banking Context Responsibility:**
+  Represents the external banking world.
+  All objects are immutable value objects —
+  we don't control bank data, we only read it.
+end note
+
+@enduml
+

@@ -1,0 +1,18 @@
+{
+    "flake8.enabled": false,
+    "pylint.enabled": false,
+    "python.defaultInterpreterPath": "${workspaceFolder}/services/backend/.venv/bin/python",
+    "python.analysis.extraPaths": ["${workspaceFolder}/services/backend/src"],
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        }
+    },
+    "makefile.configureOnOpen": false,
+    "python.languageServer": "None",
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.diagnosticMode": "workspace"
+}

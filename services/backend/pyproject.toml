@@ -1,0 +1,108 @@
+[tool.poetry]
+name = "swen-backend"
+version = "0.1.0"
+description = "SWEN - Personal finance management backend"
+authors = ["Malte Winckler <malte@nichts-ist-einfach.de>"]
+packages = [
+    { include = "swen", from = "src" },
+    { include = "swen_auth", from = "src" },
+    { include = "swen_config", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.14"
+python-dotenv = "^1.2.1"
+pydantic = "^2.11.7"
+sqlalchemy = "^2.0.42"
+sqlmodel = "^0.0.24"
+pydantic-settings = "^2.10.1"
+PyYAML = "^6.0.2"
+tenacity = "^9.1.2"
+dkb-robo = "^0.31.2"
+aiosqlite = "^0.21.0"
+greenlet = "^3.2.4"
+cryptography = "^46.0.3"
+typer = {extras = ["all"], version = ">=0.20.0"}
+rich = "^13.7.0"
+geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "main"}
+# Authentication (swen_auth)
+bcrypt = "^4.0.0"
+PyJWT = "^2.8.0"
+# REST API
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+python-multipart = "^0.0.12"  # For form data support
+email-validator = "^2.0.0"    # For Pydantic EmailStr
+# Excel export
+openpyxl = ">=3.1.0"
+asyncpg = "^0.31.0"
+
+[tool.poetry.scripts]
+swen = "swen.presentation.cli.app:cli"
+swen-api = "uvicorn:main"
+# Database management
+db-init = "swen.infrastructure.persistence.sqlalchemy.init_db:db_init"
+db-drop = "swen.infrastructure.persistence.sqlalchemy.init_db:db_drop"
+db-reset = "swen.infrastructure.persistence.sqlalchemy.init_db:db_reset"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.2,<9"
+pytest-cov = "^4.0"
+pytest-mock = "^3.10"
+pytest-asyncio = ">=1.2"
+ipykernel = ">=6.0"
+httpx = "^0.28.1"
+ruff = "^0.14.10"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+exclude = '''
+(\.ipynb$|\.venv/|__pycache__/)
+'''
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "A002",  # id redefines python-internal id() which is fine
+    "ANN",  # Type annotations (handled by pyright)
+    "UP",
+    "TRY",
+    "BLE",  # blind exceptions
+    "TC",  # typechecking blocks
+    "FBT",
+    "T201",  # allow print (for debugging)
+    "SIM103",  # weird if then else special case
+    "PLR2004",  # never use numbers in comparisons
+    "RUF022",  # __all__ should be ordered as user wants
+    "FURB157",  # allow Decimal("0")
+    "SIM112",
+    "DTZ011",
+    "SLF001",  # unit tests ignore private member access
+    "PT028",  # allow defaults for specific functions
+    "B008",  # important for typer cli layer
+    # Docstring rules - keep NumPy style checks but ignore some strict ones
+    "D100",  # Missing docstring in public module
+    "D102",  # Missing docstring in public method (too strict for simple methods)
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D106",  # Missing docstring in public nested class
+    "D107",  # Missing docstring in __init__
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D212",  # Multi-line docstring summary should start at first line (conflicts with D213)
+    "D401",  # First line should be in imperative mood (too strict)
+]
+extend-select = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # No docstrings required in tests

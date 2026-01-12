@@ -1,0 +1,21 @@
+{
+    "recommendations": [
+        // Essential for Python development
+        "ms-python.python",
+        "ms-pyright.pyright",
+        "ms-python.debugpy",
+        // Testing and Coverage
+        "ryanluker.vscode-coverage-gutters",
+        "hbenl.vscode-test-explorer",
+        // Code Quality
+        "charliermarsh.ruff",
+        "usernamehw.errorlens",
+        // Git
+        "eamodio.gitlens",
+        // Markdown (for documentation)
+        "yzhang.markdown-all-in-one",
+        // Docker (if using containers)
+        "ms-azuretools.vscode-docker"
+    ],
+    "unwantedRecommendations": []
+}
