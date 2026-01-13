@@ -1,15 +1,20 @@
 """Unit tests for User aggregate."""
 
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
 from uuid import UUID
 
 import pytest
+
 from swen.domain.user import (
-    User,
-    UserPreferences,
+    CannotDeleteSelfError,
+    CannotDemoteSelfError,
     Email,
     InvalidEmailError,
+    User,
+    UserNotFoundError,
+    UserPreferences,
+    UserRole,
 )
 
 
@@ -69,7 +74,9 @@ class TestUser:
         user.update_preferences(show_draft_transactions=False)
 
         assert user.preferences.display_settings.show_draft_transactions is False
-        assert user.preferences.sync_settings.auto_post_transactions is False  # Unchanged
+        assert (
+            user.preferences.sync_settings.auto_post_transactions is False
+        )  # Unchanged
 
     def test_reset_preferences(self):
         """reset_preferences restores defaults."""
@@ -184,6 +191,7 @@ class TestUser:
             id=user_id,
             email="test@example.com",
             preferences=UserPreferences(),
+            role=UserRole.USER,
             created_at=created,
             updated_at=updated,
         )
@@ -192,6 +200,123 @@ class TestUser:
         assert user.email == "test@example.com"
         assert user.created_at == created
         assert user.updated_at == updated
+
+    def test_create_with_default_role(self):
+        """User.create defaults to USER role."""
+        user = User.create("test@example.com")
+
+        assert user.role == UserRole.USER
+        assert user.is_admin is False
+
+    def test_create_with_admin_role(self):
+        """User.create can create an admin."""
+        user = User.create("admin@example.com", role=UserRole.ADMIN)
+
+        assert user.role == UserRole.ADMIN
+        assert user.is_admin is True
+
+    def test_promote_to_admin(self):
+        """promote_to_admin changes role to ADMIN."""
+        user = User.create("test@example.com")
+        original_updated_at = user.updated_at
+
+        time.sleep(0.01)
+        user.promote_to_admin()
+
+        assert user.role == UserRole.ADMIN
+        assert user.is_admin is True
+        assert user.updated_at > original_updated_at
+
+    def test_demote_to_user(self):
+        """demote_to_user changes role to USER."""
+        user = User.create("admin@example.com", role=UserRole.ADMIN)
+        original_updated_at = user.updated_at
+
+        time.sleep(0.01)
+        user.demote_to_user()
+
+        assert user.role == UserRole.USER
+        assert user.is_admin is False
+        assert user.updated_at > original_updated_at
+
+    def test_reconstitute_with_string_role(self):
+        """reconstitute handles string role conversion."""
+        from uuid import uuid4
+
+        user_id = uuid4()
+        created = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        updated = datetime(2023, 6, 1, tzinfo=timezone.utc)
+
+        user = User.reconstitute(
+            id=user_id,
+            email="admin@example.com",
+            preferences=UserPreferences(),
+            role="admin",  # String instead of UserRole enum
+            created_at=created,
+            updated_at=updated,
+        )
+
+        assert user.role == UserRole.ADMIN
+        assert user.is_admin is True
+
+    def test_reconstitute_with_enum_role(self):
+        """reconstitute works with UserRole enum."""
+        from uuid import uuid4
+
+        user_id = uuid4()
+        created = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        updated = datetime(2023, 6, 1, tzinfo=timezone.utc)
+
+        user = User.reconstitute(
+            id=user_id,
+            email="test@example.com",
+            preferences=UserPreferences(),
+            role=UserRole.USER,
+            created_at=created,
+            updated_at=updated,
+        )
+
+        assert user.role == UserRole.USER
+
+
+class TestUserRole:
+    """Tests for UserRole enum."""
+
+    def test_user_role_values(self):
+        """UserRole has correct values."""
+        assert UserRole.USER.value == "user"
+        assert UserRole.ADMIN.value == "admin"
+
+    def test_user_role_from_string(self):
+        """UserRole can be created from string."""
+        assert UserRole("user") == UserRole.USER
+        assert UserRole("admin") == UserRole.ADMIN
+
+    def test_user_role_invalid_raises(self):
+        """Invalid role string raises ValueError."""
+        with pytest.raises(ValueError):
+            UserRole("superadmin")
+
+
+class TestUserExceptions:
+    """Tests for user domain exceptions."""
+
+    def test_user_not_found_error(self):
+        """UserNotFoundError contains user_id."""
+        error = UserNotFoundError("123")
+        assert error.user_id == "123"
+        assert "123" in str(error)
+
+    def test_cannot_delete_self_error(self):
+        """CannotDeleteSelfError has correct message."""
+        error = CannotDeleteSelfError()
+        assert "delete" in str(error).lower()
+        assert "own" in str(error).lower()
+
+    def test_cannot_demote_self_error(self):
+        """CannotDemoteSelfError has correct message."""
+        error = CannotDemoteSelfError()
+        assert "demote" in str(error).lower()
 
 
 class TestEmail:

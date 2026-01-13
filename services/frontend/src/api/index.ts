@@ -1,6 +1,7 @@
 export * from './client'
 export * from './auth'
 export * from './accounts'
+export * from './admin'
 export * from './ai'
 export * from './transactions'
 export * from './dashboard'
@@ -11,4 +12,3 @@ export * from './mappings'
 export * from './onboarding'
 export * from './preferences'
 export * from './exports'
-

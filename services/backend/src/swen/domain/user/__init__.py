@@ -13,7 +13,13 @@ Design notes:
 """
 
 from swen.domain.user.aggregates import User
-from swen.domain.user.exceptions import EmailAlreadyExistsError, InvalidEmailError
+from swen.domain.user.exceptions import (
+    CannotDeleteSelfError,
+    CannotDemoteSelfError,
+    EmailAlreadyExistsError,
+    InvalidEmailError,
+    UserNotFoundError,
+)
 from swen.domain.user.repositories import UserRepository
 from swen.domain.user.value_objects import (
     AVAILABLE_WIDGETS,
@@ -24,11 +30,14 @@ from swen.domain.user.value_objects import (
     Email,
     SyncSettings,
     UserPreferences,
+    UserRole,
 )
 
 __all__ = [
     "AISettings",
     "AVAILABLE_WIDGETS",
+    "CannotDeleteSelfError",
+    "CannotDemoteSelfError",
     "DEFAULT_ENABLED_WIDGETS",
     "DashboardSettings",
     "DisplaySettings",
@@ -37,6 +46,8 @@ __all__ = [
     "InvalidEmailError",
     "SyncSettings",
     "User",
+    "UserNotFoundError",
     "UserPreferences",
     "UserRepository",
+    "UserRole",
 ]

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
@@ -17,30 +17,30 @@ class RegisterRequest(BaseModel):
         description="Password (8-128 characters)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123",
-            }
-        }
-    }
+            },
+        },
+    )
 
 
 class LoginRequest(BaseModel):
     """Request schema for user login."""
 
-    email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(..., description="User's password")
+    email: EmailStr
+    password: str
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123",
-            }
-        }
-    }
+            },
+        },
+    )
 
 
 class RefreshRequest(BaseModel):
@@ -55,53 +55,44 @@ class RefreshRequest(BaseModel):
         description="Refresh token (optional - can also be sent via HttpOnly cookie)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
-                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            }
-        }
-    }
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            },
+        },
+    )
 
 
 class ChangePasswordRequest(BaseModel):
-    """Request schema for password change."""
+    """Request schema for changing a user's password."""
 
-    current_password: str = Field(..., description="Current password for verification")
-    new_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="New password (8-128 characters)",
-    )
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "current_password": "oldpassword123",
-                "new_password": "newSecurePassword456",
-            }
-        }
-    }
+
+class ForgotPasswordRequest(BaseModel):
+    """Request schema for requesting a password reset email."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request schema for resetting a password with a token."""
+
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 class UserResponse(BaseModel):
     """Response schema for user data."""
 
-    id: UUID = Field(..., description="User's unique identifier")
-    email: str = Field(..., description="User's email address")
-    created_at: datetime = Field(..., description="Account creation timestamp")
+    id: UUID
+    email: str
+    role: str
+    created_at: datetime
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "email": "user@example.com",
-                "created_at": "2024-12-05T10:30:00Z",
-            }
-        },
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenResponse(BaseModel):
@@ -112,23 +103,23 @@ class TokenResponse(BaseModel):
     The field remains for backward compatibility during migration.
     """
 
-    access_token: str = Field(..., description="JWT access token for API requests")
+    access_token: str
     refresh_token: str | None = Field(
         default=None,
         description="Deprecated: refresh token is now in HttpOnly cookie",
     )
-    token_type: str = Field(default="bearer", description="Token type (always 'bearer')")
-    expires_in: int = Field(..., description="Access token expiry in seconds (typically 3600)")
+    token_type: str = Field(default="bearer")
+    expires_in: int
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJleHAiOjE3MzMzOTg2MDB9.xxx",
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJleHAiOjE3MzMzOTg2MDB9.xxx",  # NOQA: E501
                 "token_type": "bearer",
                 "expires_in": 3600,
-            }
-        }
-    }
+            },
+        },
+    )
 
 
 class AuthResponse(BaseModel):
@@ -139,27 +130,27 @@ class AuthResponse(BaseModel):
     The field remains for backward compatibility during migration.
     """
 
-    user: UserResponse = Field(..., description="Authenticated user data")
-    access_token: str = Field(..., description="JWT access token for API requests")
+    user: UserResponse
+    access_token: str
     refresh_token: str | None = Field(
         default=None,
         description="Deprecated: refresh token is now in HttpOnly cookie",
     )
-    token_type: str = Field(default="bearer", description="Token type (always 'bearer')")
-    expires_in: int = Field(..., description="Access token expiry in seconds")
+    token_type: str = Field(default="bearer")
+    expires_in: int
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "user": {
                     "id": "550e8400-e29b-41d4-a716-446655440000",
                     "email": "user@example.com",
+                    "role": "user",
                     "created_at": "2024-12-05T10:30:00Z",
                 },
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
                 "expires_in": 3600,
-            }
-        }
-    }
-
+            },
+        },
+    )

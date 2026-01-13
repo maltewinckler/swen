@@ -16,14 +16,19 @@ target_metadata = [YourBase.metadata, AuthBase.metadata]
 """
 
 from swen_auth.persistence.sqlalchemy.base import AuthBase
-from swen_auth.persistence.sqlalchemy.models import UserCredentialModel
+from swen_auth.persistence.sqlalchemy.models import (
+    PasswordResetTokenModel,
+    UserCredentialModel,
+)
 from swen_auth.persistence.sqlalchemy.repositories import (
+    PasswordResetTokenRepositorySQLAlchemy,
     UserCredentialRepositorySQLAlchemy,
 )
 
 __all__ = [
     "AuthBase",
+    "PasswordResetTokenModel",
+    "PasswordResetTokenRepositorySQLAlchemy",
     "UserCredentialModel",
     "UserCredentialRepositorySQLAlchemy",
 ]
-

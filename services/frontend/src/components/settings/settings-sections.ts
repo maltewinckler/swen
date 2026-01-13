@@ -1,4 +1,4 @@
-import { Bell, Brain, Download, Link as LinkIcon, Lock, Palette, User } from 'lucide-react'
+import { Bell, Brain, Download, Link as LinkIcon, Lock, Palette, ShieldCheck, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type SettingsSectionId =
@@ -9,6 +9,7 @@ export type SettingsSectionId =
   | 'exports'
   | 'notifications'
   | 'appearance'
+  | 'admin'
 
 export interface SettingsSection {
   id: SettingsSectionId
@@ -61,3 +62,11 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: 'Theme and display settings',
   },
 ]
+
+// Admin-only section (shown separately)
+export const ADMIN_SECTION: SettingsSection = {
+  id: 'admin',
+  icon: ShieldCheck,
+  title: 'Administration',
+  description: 'Manage users and system settings',
+}

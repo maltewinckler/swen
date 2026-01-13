@@ -35,6 +35,7 @@ class UserModel(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
 
     # Sync settings
     auto_post_transactions: Mapped[bool] = mapped_column(default=False)
@@ -62,4 +63,4 @@ class UserModel(Base, TimestampMixin):
     ai_min_confidence: Mapped[float] = mapped_column(default=0.7)
 
     def __repr__(self) -> str:
-        return f"<UserModel(id={self.id}, email={self.email})>"
+        return f"<UserModel(id={self.id}, email={self.email}, role={self.role})>"

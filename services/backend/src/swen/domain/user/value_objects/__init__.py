@@ -10,6 +10,7 @@ from swen.domain.user.value_objects.display_settings import DisplaySettings
 from swen.domain.user.value_objects.email import Email
 from swen.domain.user.value_objects.sync_settings import SyncSettings
 from swen.domain.user.value_objects.user_preferences import UserPreferences
+from swen.domain.user.value_objects.user_role import UserRole
 
 __all__ = [
     "AISettings",
@@ -20,5 +21,5 @@ __all__ = [
     "Email",
     "SyncSettings",
     "UserPreferences",
+    "UserRole",
 ]
-

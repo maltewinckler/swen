@@ -5,36 +5,54 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 
+from swen.application.services.password_reset_service import PasswordResetService
 from swen.domain.user import EmailAlreadyExistsError, User
+from swen.infrastructure.email import EmailService
+from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
+    UserRepositorySQLAlchemy,
+)
 from swen.presentation.api.config import get_api_settings
 from swen.presentation.api.dependencies import (
     AuthService,
     CurrentUser,
     DBSession,
+    get_password_service,
 )
 from swen.presentation.api.schemas.auth import (
     AuthResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
 from swen_auth import (
     AccountLockedError,
     InvalidCredentialsError,
+    InvalidResetTokenError,
     InvalidTokenError,
     WeakPasswordError,
 )
+from swen_auth.persistence.sqlalchemy import (
+    PasswordResetTokenRepositorySQLAlchemy,
+    UserCredentialRepositorySQLAlchemy,
+)
+from swen_auth.services import PasswordHashingService
 from swen_config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Type alias for settings dependency using Annotated (modern FastAPI pattern)
+# Type aliases for dependencies using Annotated (modern FastAPI pattern)
 SettingsDep = Annotated[Settings, Depends(get_api_settings)]
+PasswordHashingServiceDep = Annotated[
+    PasswordHashingService,
+    Depends(get_password_service),
+]
 
 # Cookie name for refresh token
 REFRESH_TOKEN_COOKIE = "swen_refresh_token"  # NOQA: S105
@@ -81,20 +99,16 @@ def _create_auth_response(
     access_token: str,
     settings: Settings,
 ) -> AuthResponse:
-    """Create standardized auth response.
-
-    Note: refresh_token is no longer included in the response body.
-    It is set as an HttpOnly cookie by the endpoint.
-    """
     return AuthResponse(
         user=UserResponse(
             id=user.id,
             email=user.email,
+            role=user.role.value,
             created_at=user.created_at,
         ),
         access_token=access_token,
-        refresh_token=None,  # Now sent via HttpOnly cookie
-        expires_in=settings.jwt_access_token_expire_hours * 3600,  # hours to seconds
+        refresh_token=None,
+        expires_in=settings.jwt_access_token_expire_hours * 3600,
     )
 
 
@@ -105,6 +119,7 @@ def _create_auth_response(
     responses={
         201: {"description": "User registered successfully"},
         400: {"description": "Invalid input (weak password)"},
+        403: {"description": "Registration disabled"},
         409: {"description": "Email already registered"},
     },
 )
@@ -115,18 +130,16 @@ async def register(
     session: DBSession,
     settings: SettingsDep,
 ) -> AuthResponse:
-    """
-    Register a new user account.
+    # Check registration mode (first user is always allowed)
+    if settings.registration_mode == "admin_only":
+        user_repo = UserRepositorySQLAlchemy(session)
+        user_count = await user_repo.count()
+        if user_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is disabled. Contact an administrator.",
+            )
 
-    Creates a new user with the provided email and password.
-    Returns the user data along with an access token.
-
-    The refresh token is set as an HttpOnly cookie for security.
-
-    **Password Requirements:**
-    - Minimum 8 characters
-    - Maximum 128 characters
-    """
     try:
         user, access_token, new_refresh_token = await auth_service.register(
             email=request.email,
@@ -134,7 +147,6 @@ async def register(
         )
         await session.commit()
 
-        # Set refresh token as HttpOnly cookie
         _set_refresh_token_cookie(response, new_refresh_token, settings)
 
         logger.info("New user registered: %s", request.email)
@@ -297,6 +309,7 @@ async def get_me(user: CurrentUser) -> UserResponse:
     return UserResponse(
         id=user.id,
         email=user.email,
+        role=user.role.value,
         created_at=user.created_at,
     )
 
@@ -366,15 +379,93 @@ async def logout(
     response: Response,
     settings: SettingsDep,
 ) -> None:
-    """
-    Logout the current user.
-
-    Clears the refresh token cookie. The client should also
-    discard any stored access token.
-
-    Note: This endpoint does not require authentication as it
-    only clears the cookie. The access token remains valid until
-    it expires (stateless JWT design).
-    """
+    """Logout user."""
     _clear_refresh_token_cookie(response, settings)
     logger.debug("User logged out (refresh token cookie cleared)")
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request password reset",
+    responses={
+        202: {"description": "If the email exists, a reset link has been sent"},
+    },
+)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    session: DBSession,
+    settings: SettingsDep,
+    password_service: PasswordHashingServiceDep,
+) -> dict:
+    """Request a password reset email."""
+    user_repo = UserRepositorySQLAlchemy(session)
+    token_repo = PasswordResetTokenRepositorySQLAlchemy(session)
+    credential_repo = UserCredentialRepositorySQLAlchemy(session)
+    email_service = EmailService(settings)
+
+    service = PasswordResetService(
+        user_repository=user_repo,
+        token_repository=token_repo,
+        credential_repository=credential_repo,
+        password_service=password_service,
+        email_service=email_service,
+        frontend_base_url=settings.frontend_base_url,
+    )
+
+    await service.request_reset(request.email)
+    await session.commit()
+
+    return {"message": "If the email exists, a reset link has been sent."}
+
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Reset password with token",
+    responses={
+        204: {"description": "Password reset successfully"},
+        400: {"description": "Invalid or expired token"},
+    },
+)
+async def reset_password(
+    request: ResetPasswordRequest,
+    session: DBSession,
+    settings: SettingsDep,
+    password_service: PasswordHashingServiceDep,
+) -> None:
+    """Reset password with a token."""
+    user_repo = UserRepositorySQLAlchemy(session)
+    token_repo = PasswordResetTokenRepositorySQLAlchemy(session)
+    credential_repo = UserCredentialRepositorySQLAlchemy(session)
+    email_service = EmailService(settings)
+
+    service = PasswordResetService(
+        user_repository=user_repo,
+        token_repository=token_repo,
+        credential_repository=credential_repo,
+        password_service=password_service,
+        email_service=email_service,
+        frontend_base_url=settings.frontend_base_url,
+    )
+
+    try:
+        await service.reset_password(
+            token=request.token,
+            new_password=request.new_password,
+        )
+        await session.commit()
+        logger.info("Password reset completed")
+
+    except InvalidResetTokenError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        ) from e
+    except WeakPasswordError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password does not meet security requirements",
+        ) from e

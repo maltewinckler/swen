@@ -135,6 +135,23 @@ class Settings(BaseSettings):
     # Banking
     fints_product_id: str = ""
 
+    # Registration
+    registration_mode: Literal["open", "admin_only"] = "admin_only"
+
+    # SMTP (SMTP_ prefix)
+    smtp_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from_email: str = ""
+    smtp_from_name: str = "SWEN"
+    smtp_use_tls: bool = True
+    smtp_starttls: bool = True
+
+    # Frontend URL (for password reset links)
+    frontend_base_url: str = "http://localhost:5173"
+
     # Logging (LOG_ prefix)
     log_level: str = "INFO"
 

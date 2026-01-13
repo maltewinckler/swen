@@ -72,6 +72,7 @@ from swen.presentation.api.exception_handlers import (  # noqa: E402
 )
 from swen.presentation.api.routers import (  # noqa: E402
     accounts_router,
+    admin_router,
     ai_router,
     analytics_router,
     auth_router,
@@ -386,6 +387,7 @@ def create_v1_router() -> APIRouter:
 
     # Mount all routers under v1
     v1_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+    v1_router.include_router(admin_router, tags=["Admin"])
     v1_router.include_router(accounts_router, prefix="/accounts", tags=["Accounts"])
     v1_router.include_router(
         credentials_router,

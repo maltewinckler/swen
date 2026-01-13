@@ -47,3 +47,19 @@ class AccountLockedError(AuthError):
             message = f"{message}. Try again after {locked_until}"
         super().__init__(message)
 
+
+class InvalidResetTokenError(AuthError):
+    """Raised when a password reset token is invalid or expired."""
+
+    def __init__(self, message: str = "Invalid or expired password reset token"):
+        super().__init__(message)
+
+
+class PasswordResetRateLimitError(AuthError):
+    """Raised when a password reset request is rate limited."""
+
+    def __init__(
+        self,
+        message: str = "Too many password reset requests. Try again later.",
+    ):
+        super().__init__(message)

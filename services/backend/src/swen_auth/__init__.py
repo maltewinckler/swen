@@ -31,10 +31,15 @@ from swen_auth.exceptions import (
     AccountLockedError,
     AuthError,
     InvalidCredentialsError,
+    InvalidResetTokenError,
     InvalidTokenError,
+    PasswordResetRateLimitError,
     WeakPasswordError,
 )
-from swen_auth.repositories import UserCredentialRepository
+from swen_auth.repositories import (
+    PasswordResetTokenRepository,
+    UserCredentialRepository,
+)
 from swen_auth.schemas import TokenPayload
 from swen_auth.services import JWTService, PasswordHashingService
 
@@ -43,14 +48,16 @@ __all__ = [
     "PasswordHashingService",
     "JWTService",
     # Repositories (interfaces)
+    "PasswordResetTokenRepository",
     "UserCredentialRepository",
     # Schemas
     "TokenPayload",
     # Exceptions
-    "AuthError",
-    "InvalidTokenError",
-    "WeakPasswordError",
-    "InvalidCredentialsError",
     "AccountLockedError",
+    "AuthError",
+    "InvalidCredentialsError",
+    "InvalidResetTokenError",
+    "InvalidTokenError",
+    "PasswordResetRateLimitError",
+    "WeakPasswordError",
 ]
-

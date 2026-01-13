@@ -31,27 +31,30 @@ class InvalidEmailError(ValueError):
 
 
 class EmailAlreadyExistsError(Exception):
-    """
-    Raised when attempting to register with an existing email.
-
-    This exception is raised during user creation when the email
-    is already associated with another user account.
-
-    Attributes
-    ----------
-    email
-        The email that already exists
-    """
+    """Email already registered."""
 
     def __init__(self, email: str) -> None:
-        """
-        Initialize the exception.
-
-        Parameters
-        ----------
-        email
-            The email address that already exists
-        """
         self.email = email
         super().__init__(f"Email already registered: {email}")
 
+
+class UserNotFoundError(Exception):
+    """User not found."""
+
+    def __init__(self, user_id: str) -> None:
+        self.user_id = user_id
+        super().__init__(f"User not found: {user_id}")
+
+
+class CannotDeleteSelfError(Exception):
+    """Cannot delete your own account."""
+
+    def __init__(self) -> None:
+        super().__init__("Cannot delete your own account")
+
+
+class CannotDemoteSelfError(Exception):
+    """Cannot demote yourself from admin."""
+
+    def __init__(self) -> None:
+        super().__init__("Cannot demote yourself from admin")

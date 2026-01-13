@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen.domain.user import EmailAlreadyExistsError, User
+from swen.domain.user import EmailAlreadyExistsError, User, UserRole
 from swen_auth import (
     AccountLockedError,
     InvalidCredentialsError,
@@ -70,14 +70,18 @@ class AuthenticationService:
         if existing_user is not None:
             raise EmailAlreadyExistsError(email)
 
+        # First user becomes admin
+        user_count = await self._user_repo.count()
+        role = UserRole.ADMIN if user_count == 0 else UserRole.USER
+
         password_hash = self._password_service.hash(password)
-        user = User.create(email)
+        user = User.create(email, role=role)
         await self._user_repo.save(user)
         await self._credential_repo.save(user_id=user.id, password_hash=password_hash)
 
         access_token, refresh_token = self._create_token_pair(user)
 
-        logger.info("User registered: %s", email)
+        logger.info("User registered: %s (role: %s)", email, role.value)
         return user, access_token, refresh_token
 
     async def login(

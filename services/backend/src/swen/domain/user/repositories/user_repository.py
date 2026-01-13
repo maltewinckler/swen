@@ -128,22 +128,12 @@ class UserRepository(ABC):
 
     @abstractmethod
     async def delete_with_all_data(self, user_id: UUID) -> None:
-        """
-        Delete a user and ALL associated data.
+        """Delete a user and all associated data."""
 
-        This method removes:
-        - User record and preferences
-        - Bank credentials
-        - Bank accounts and transactions
-        - Accounting accounts and transactions
-        - Account mappings
-        - Import history
-        - Categorization rules
+    @abstractmethod
+    async def count(self) -> int:
+        pass
 
-        Used for GDPR/data protection compliance.
-
-        Parameters
-        ----------
-        user_id
-            The user's unique identifier
-        """
+    @abstractmethod
+    async def list_all(self) -> list[User]:
+        pass

@@ -339,6 +339,20 @@ async def get_current_user_optional(
 OptionalCurrentUser = Annotated[User | None, Depends(get_current_user_optional)]
 
 
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Require admin user."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
+
+
+# Type alias for admin user
+AdminUser = Annotated[User, Depends(require_admin)]
+
+
 # -----------------------------------------------------------------------------
 # User Context & Repository Factory
 # -----------------------------------------------------------------------------

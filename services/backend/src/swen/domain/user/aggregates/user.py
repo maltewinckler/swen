@@ -1,15 +1,13 @@
-"""User aggregate root."""
-
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from typing import Any, Optional, Union
 from uuid import UUID, uuid4
 
+from swen.domain.shared.time import utc_now
 from swen.domain.user.value_objects import (
     AISettings,
     DashboardSettings,
     UserPreferences,
+    UserRole,
 )
 from swen.domain.user.value_objects.email import Email
 
@@ -22,17 +20,18 @@ class User:
     by a random UUID generated at creation time.
     """
 
-    def __init__(
+    def __init__(  # NOQA: PLR0913
         self,
         email: Union[str, Email],
         preferences: UserPreferences,
+        role: Union[str, UserRole] = UserRole.USER,
         id: Optional[UUID] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
     ):
         self._email = email if isinstance(email, Email) else Email(email)
         self._id = id if id is not None else uuid4()
-
+        self._role = role if isinstance(role, UserRole) else UserRole(role)
         self._preferences = preferences
         self._created_at = created_at or utc_now()
         self._updated_at = updated_at or utc_now()
@@ -50,6 +49,14 @@ class User:
         return self._email
 
     @property
+    def role(self) -> UserRole:
+        return self._role
+
+    @property
+    def is_admin(self) -> bool:
+        return self._role == UserRole.ADMIN
+
+    @property
     def preferences(self) -> UserPreferences:
         return self._preferences
 
@@ -60,6 +67,14 @@ class User:
     @property
     def updated_at(self) -> datetime:
         return self._updated_at
+
+    def promote_to_admin(self) -> None:
+        self._role = UserRole.ADMIN
+        self._updated_at = utc_now()
+
+    def demote_to_user(self) -> None:
+        self._role = UserRole.USER
+        self._updated_at = utc_now()
 
     def update_preferences(
         self,
@@ -124,27 +139,32 @@ class User:
         self._updated_at = utc_now()
 
     @classmethod
-    def create(cls, email: Union[str, Email]) -> "User":
+    def create(
+        cls,
+        email: Union[str, Email],
+        role: UserRole = UserRole.USER,
+    ) -> "User":
         return cls(
             email=email,
             preferences=UserPreferences(),
-            # id is None as default, so a new UUID4 will be generated
+            role=role,
         )
 
     @classmethod
-    def reconstitute(
+    def reconstitute(  # noqa: PLR0913
         cls,
         id: UUID,
         email: Union[str, Email],
         preferences: UserPreferences,
+        role: Union[str, UserRole],
         created_at: datetime,
         updated_at: datetime,
     ) -> "User":
-        """Reconstitute a User from persisted data."""
         return cls(
             id=id,
             email=email,
             preferences=preferences,
+            role=role,
             created_at=created_at,
             updated_at=updated_at,
         )

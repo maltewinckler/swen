@@ -4,7 +4,7 @@ import logging
 from typing import Optional, Union
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,6 +110,17 @@ class UserRepositorySQLAlchemy(UserRepository):
         await self.delete(user_id)
         logger.info("Deleted user and all associated data: %s", user_id)
 
+    async def count(self) -> int:
+        stmt = select(func.count()).select_from(UserModel)
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def list_all(self) -> list[User]:
+        stmt = select(UserModel).order_by(UserModel.created_at)
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        return [self._map_to_domain(model) for model in models]
+
     async def _find_model_by_id(self, user_id: UUID) -> Optional[UserModel]:
         stmt = select(UserModel).where(UserModel.id == user_id)
         result = await self._session.execute(stmt)
@@ -159,6 +170,7 @@ class UserRepositorySQLAlchemy(UserRepository):
             id=model.id,
             email=model.email,
             preferences=preferences,
+            role=model.role,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -169,6 +181,7 @@ class UserRepositorySQLAlchemy(UserRepository):
         return UserModel(
             id=user.id,
             email=user.email,
+            role=user.role.value,
             auto_post_transactions=user.preferences.sync_settings.auto_post_transactions,
             default_currency=user.preferences.sync_settings.default_currency,
             show_draft_transactions=user.preferences.display_settings.show_draft_transactions,
@@ -183,8 +196,8 @@ class UserRepositorySQLAlchemy(UserRepository):
         )
 
     def _update_model(self, model: UserModel, user: User):
-        # Note: id should never change. Email can be updated if needed.
         model.email = user.email
+        model.role = user.role.value
         model.auto_post_transactions = (
             user.preferences.sync_settings.auto_post_transactions
         )

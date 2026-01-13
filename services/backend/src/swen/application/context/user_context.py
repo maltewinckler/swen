@@ -12,27 +12,30 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class UserContext:
-    """
-    Immutable context for the current authenticated user.
-
-    This is created once per request/command execution and passed to
-    repositories. Repositories use the user_id to automatically filter
-    all queries to the current user's data.
-    """
+    """Immutable context for the current authenticated user."""
 
     user_id: UUID
     email: str
+    is_admin: bool = False
 
     @classmethod
     def create(cls, user: User) -> UserContext:
-        return cls(user_id=user.id, email=user.email)
+        return cls(user_id=user.id, email=user.email, is_admin=user.is_admin)
 
     @classmethod
-    def from_values(cls, user_id: UUID, email: str) -> UserContext:
-        return cls(user_id=user_id, email=email)
+    def from_values(
+        cls,
+        user_id: UUID,
+        email: str,
+        is_admin: bool = False,
+    ) -> UserContext:
+        return cls(user_id=user_id, email=email, is_admin=is_admin)
 
     def __str__(self) -> str:
         return f"UserContext({self.email})"
 
     def __repr__(self) -> str:
-        return f"UserContext(user_id={self.user_id}, email={self.email!r})"
+        return (
+            f"UserContext(user_id={self.user_id}, "
+            f"email={self.email!r}, is_admin={self.is_admin})"
+        )

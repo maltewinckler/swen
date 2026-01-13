@@ -24,6 +24,7 @@ class TestAuthRegister:
         assert data["user"]["email"] == "newuser@example.com"
         assert "id" in data["user"]
         assert "created_at" in data["user"]
+        assert "role" in data["user"]  # Role should be present
 
         assert "access_token" in data
         # refresh_token is now sent via HttpOnly cookie, not in body
@@ -37,16 +38,22 @@ class TestAuthRegister:
     def test_register_duplicate_email(
         self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
     ):
-        """Cannot register with an existing email."""
-        # First registration
+        """Cannot create user with duplicate email via admin endpoint."""
+        # First registration (becomes admin)
         response1 = test_client.post(
             f"{api_v1_prefix}/auth/register", json=registered_user_data
         )
         assert response1.status_code == 201
+        admin_token = response1.json()["access_token"]
 
-        # Duplicate registration
+        # Try to create another user with same email via admin endpoint
         response2 = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "email": registered_user_data["email"],
+                "password": "AnotherPassword123!",
+            },
         )
         assert response2.status_code == 409
         assert "already registered" in response2.json()["detail"].lower()
@@ -263,6 +270,7 @@ class TestAuthMe:
         assert data["email"] == registered_user_data["email"]
         assert "id" in data
         assert "created_at" in data
+        assert "role" in data  # Role should be present
 
     def test_get_me_no_token(self, test_client: TestClient, api_v1_prefix: str):
         """Cannot get user info without token."""
