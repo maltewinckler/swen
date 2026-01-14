@@ -13,6 +13,15 @@ export interface RegisterRequest {
   password: string
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  new_password: string
+}
+
 export interface AuthResponse {
   user: UserInfo
   access_token: string

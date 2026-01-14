@@ -106,11 +106,17 @@ function LoginPage() {
         </form>
       </CardContent>
 
-      <CardFooter className="justify-center">
+      <CardFooter className="flex-col gap-2">
         <p className="text-sm text-text-secondary">
           Don't have an account?{' '}
           <Link to="/register" className="text-accent-primary hover:underline font-medium">
             Create one
+          </Link>
+        </p>
+        <p className="text-sm text-text-secondary">
+          Forgot password?{' '}
+          <Link to="/forgot-password" className="text-accent-primary hover:underline font-medium">
+            Reset it
           </Link>
         </p>
       </CardFooter>

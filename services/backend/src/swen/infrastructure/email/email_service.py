@@ -27,26 +27,20 @@ PASSWORD_RESET_HTML = """
 <html>
 <head>
     <meta charset="utf-8">
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .button {{ display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; }}
-        .footer {{ margin-top: 30px; color: #6b7280; font-size: 14px; }}
-    </style>
 </head>
-<body>
-    <div class="container">
-        <h2>Password Reset Request</h2>
-        <p>You requested a password reset for your SWEN account.</p>
-        <p>Click the button below to reset your password. This link is valid for 1 hour.</p>
-        <p style="margin: 30px 0;">
-            <a href="{reset_link}" class="button">Reset Password</a>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; margin: 0; padding: 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h2 style="color: #111827; margin-top: 0;">Password Reset Request</h2>
+        <p style="color: #374151; line-height: 1.6;">You requested a password reset for your SWEN account.</p>
+        <p style="color: #374151; line-height: 1.6;">Click the button below to reset your password. This link is valid for 1 hour.</p>
+        <p style="margin: 30px 0; text-align: center;">
+            <a href="{reset_link}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Reset Password</a>
         </p>
-        <p>Or copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #6b7280;">{reset_link}</p>
-        <div class="footer">
-            <p>If you didn't request this, you can safely ignore this email.</p>
-            <p>-- SWEN</p>
+        <p style="color: #6b7280; font-size: 14px;">Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #2563eb; font-size: 14px;">{reset_link}</p>
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 13px; margin: 0;">If you didn't request this, you can safely ignore this email.</p>
+            <p style="color: #9ca3af; font-size: 13px; margin-top: 8px;">— SWEN</p>
         </div>
     </div>
 </body>
