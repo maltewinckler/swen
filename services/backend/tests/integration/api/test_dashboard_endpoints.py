@@ -1,6 +1,5 @@
 """Integration tests for dashboard endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -8,11 +7,11 @@ class TestDashboardSummary:
     """Tests for GET /api/v1/dashboard/summary."""
 
     def test_get_summary_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get dashboard summary for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/dashboard/summary", headers=auth_headers
+            f"{api_v1_prefix}/dashboard/summary", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -30,7 +29,7 @@ class TestDashboardSummary:
         assert data["posted_count"] == 0
 
     def test_get_summary_with_days_filter(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get dashboard summary with days filter."""
         response = test_client.get(
@@ -45,7 +44,7 @@ class TestDashboardSummary:
         assert "period_label" in data
 
     def test_get_summary_with_month_filter(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get dashboard summary with month filter."""
         response = test_client.get(
@@ -60,7 +59,7 @@ class TestDashboardSummary:
         assert "period_label" in data
 
     def test_get_summary_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot get dashboard summary without auth."""
         response = test_client.get(f"{api_v1_prefix}/dashboard/summary")
@@ -71,11 +70,11 @@ class TestDashboardSpending:
     """Tests for GET /api/v1/dashboard/spending."""
 
     def test_get_spending_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get spending breakdown for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/dashboard/spending", headers=auth_headers
+            f"{api_v1_prefix}/dashboard/spending", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -87,7 +86,7 @@ class TestDashboardSpending:
         assert data["categories"] == []
 
     def test_get_spending_with_filters(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get spending breakdown with filters."""
         response = test_client.get(
@@ -103,7 +102,7 @@ class TestDashboardSpending:
         assert "total_spending" in data
 
     def test_get_spending_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot get spending breakdown without auth."""
         response = test_client.get(f"{api_v1_prefix}/dashboard/spending")
@@ -114,11 +113,11 @@ class TestDashboardBalances:
     """Tests for GET /api/v1/dashboard/balances."""
 
     def test_get_balances_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get balances for new user with no accounts."""
         response = test_client.get(
-            f"{api_v1_prefix}/dashboard/balances", headers=auth_headers
+            f"{api_v1_prefix}/dashboard/balances", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -129,7 +128,7 @@ class TestDashboardBalances:
         assert data["total_assets"] == "0"
 
     def test_get_balances_with_accounts(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get balances after creating accounts."""
         # Create an asset account
@@ -145,7 +144,7 @@ class TestDashboardBalances:
         )
 
         response = test_client.get(
-            f"{api_v1_prefix}/dashboard/balances", headers=auth_headers
+            f"{api_v1_prefix}/dashboard/balances", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -156,7 +155,7 @@ class TestDashboardBalances:
         assert "total_assets" in data
 
     def test_get_balances_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot get balances without auth."""
         response = test_client.get(f"{api_v1_prefix}/dashboard/balances")

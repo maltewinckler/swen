@@ -15,16 +15,17 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+
+from swen.domain.banking.repositories import StoredBankTransaction
 from swen.domain.banking.value_objects import BankAccount, BankTransaction
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankAccountRepositorySQLAlchemy,
     BankTransactionRepositorySQLAlchemy,
 )
-from swen.domain.banking.repositories import StoredBankTransaction
 
 
-def create_user_context(user_id: str = "test-user") -> MagicMock:
-    """Create a mock UserContext for testing."""
+def create_current_user(user_id: str = "test-user") -> MagicMock:
+    """Create a mock CurrentUser for testing."""
     context = MagicMock()
     context.user_id = (
         UUID(user_id) if "-" in user_id and len(user_id) == 36 else user_id
@@ -44,8 +45,8 @@ async def test_account(async_session):
         account_type="Girokonto",
         currency="EUR",
     )
-    user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-    repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+    current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+    repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
     await repo.save(account)
     return account
 
@@ -72,7 +73,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_save_transaction(self, async_session, test_account):
         """Test saving a single transaction."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = create_test_transaction()
 
         # Act
@@ -93,7 +94,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test that transactions are saved with identity hash and sequence."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = create_test_transaction(
             booking_date=date(2025, 10, 30),
             amount=Decimal("-100.00"),
@@ -129,7 +130,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test that attempting to save the same transaction twice is idempotent."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = create_test_transaction(
             booking_date=date(2025, 10, 30),
             amount=Decimal("-100.00"),
@@ -160,7 +161,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_save_batch(self, async_session, test_account):
         """Test saving multiple transactions in batch."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transactions = [
             create_test_transaction(
                 booking_date=date(2025, 10, 28),
@@ -197,7 +198,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_save_batch_with_duplicates(self, async_session, test_account):
         """Test that save_batch gracefully handles duplicate transactions."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         # First batch - 3 transactions
         first_batch = [
@@ -266,7 +267,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_save_batch_all_duplicates(self, async_session, test_account):
         """Test that save_batch works when all transactions are duplicates."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         transactions = [
             create_test_transaction(
@@ -313,7 +314,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test that identical transactions in same batch get different sequence numbers."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         # Two identical transactions (like two Hostelworld refunds on same day)
         identical_transaction = create_test_transaction(
@@ -349,7 +350,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_find_by_id_returns_none(self, async_session):
         """Test finding non-existent transaction."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         fake_uuid = UUID("00000000-0000-0000-0000-000000000000")
 
         # Act
@@ -362,7 +363,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_find_by_account(self, async_session, test_account):
         """Test finding all transactions for an account."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transactions = [
             create_test_transaction(
                 booking_date=date(2025, 10, i),
@@ -391,7 +392,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test finding transactions within a date range."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transactions = [
             create_test_transaction(
                 booking_date=date(2025, 10, 1),
@@ -432,7 +433,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test finding transactions for account with no transactions."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         # Act
         result = await repo.find_by_account(test_account.iban)
@@ -444,7 +445,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_exists_by_bank_reference(self, async_session, test_account):
         """Test checking if transaction exists by bank reference."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = create_test_transaction(bank_reference="UNIQUE-REF-123")
         await repo.save(transaction, test_account.iban)
 
@@ -456,7 +457,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_get_latest_transaction_date(self, async_session, test_account):
         """Test getting the most recent transaction date."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transactions = [
             create_test_transaction(
                 booking_date=date(2025, 10, 1),
@@ -489,7 +490,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test getting latest date when no transactions exist."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         # Act
         result = await repo.get_latest_transaction_date(test_account.iban)
@@ -501,7 +502,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_count_by_account(self, async_session, test_account):
         """Test counting transactions for an account."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
 
         # Initially zero
         assert await repo.count_by_account(test_account.iban) == 0
@@ -526,9 +527,9 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_cascade_delete(self, async_session, test_account):
         """Test that deleting account also deletes its transactions."""
         # Arrange
-        tx_repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        acc_repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        tx_repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        acc_repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
 
         # Add transactions
         transaction = create_test_transaction()
@@ -551,7 +552,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     ):
         """Test that all transaction fields are correctly mapped."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = BankTransaction(
             booking_date=date(2025, 10, 30),
             value_date=date(2025, 10, 31),
@@ -596,7 +597,7 @@ class TestBankTransactionRepositorySQLAlchemy:
     async def test_save_raises_error_for_nonexistent_account(self, async_session):
         """Test that saving to non-existent account raises error."""
         # Arrange
-        repo = BankTransactionRepositorySQLAlchemy(async_session, create_user_context("00000000-0000-0000-0000-000000000001"))
+        repo = BankTransactionRepositorySQLAlchemy(async_session, create_current_user("00000000-0000-0000-0000-000000000001"))
         transaction = create_test_transaction()
 
         # Act & Assert

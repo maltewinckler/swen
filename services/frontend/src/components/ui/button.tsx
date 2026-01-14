@@ -41,7 +41,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-all duration-fast',
+          'inline-flex items-center justify-center font-medium transition-all duration-fast cursor-pointer',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
           variants[variant],
           sizes[size],
@@ -66,4 +66,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = 'Button'
 
 export { Button }
-

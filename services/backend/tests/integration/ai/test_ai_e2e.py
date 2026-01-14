@@ -19,9 +19,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from swen.application.context import UserContext
-from swen.application.factories import BankImportTransactionFactory
 from swen.application.commands.accounting import GenerateDefaultAccountsCommand
+from swen.application.factories import BankImportTransactionFactory
 from swen.application.services import (
     BankAccountImportService,
     TransactionImportService,
@@ -45,6 +44,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     TransactionImportRepositorySQLAlchemy,
 )
 from swen_config.settings import get_settings
+from swen.application.ports.identity import CurrentUser
 
 # Test user
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -153,9 +153,9 @@ async def db_session(e2e_engine):
 
 
 @pytest.fixture
-def user_context() -> UserContext:
-    """Provide a UserContext for the test user."""
-    return UserContext(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
+def current_user() -> CurrentUser:
+    """Provide a CurrentUser for the test user."""
+    return CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
 TEST_IBAN = "DE89370400440532013000"
@@ -163,23 +163,23 @@ TEST_IBAN_2 = "DE89370400440532013001"
 
 
 @pytest_asyncio.fixture
-async def full_setup(db_session, user_context, available_model):
+async def full_setup(db_session, current_user, available_model):
     """Complete setup with all services and AI provider."""
     # Create repositories
-    account_repo = AccountRepositorySQLAlchemy(db_session, user_context)
+    account_repo = AccountRepositorySQLAlchemy(db_session, current_user)
     transaction_repo = TransactionRepositorySQLAlchemy(
         db_session,
         account_repo,
-        user_context,
+        current_user,
     )
-    mapping_repo = AccountMappingRepositorySQLAlchemy(db_session, user_context)
-    import_repo = TransactionImportRepositorySQLAlchemy(db_session, user_context)
-    rule_repo = CounterAccountRuleRepositorySQLAlchemy(db_session, user_context)
+    mapping_repo = AccountMappingRepositorySQLAlchemy(db_session, current_user)
+    import_repo = TransactionImportRepositorySQLAlchemy(db_session, current_user)
+    rule_repo = CounterAccountRuleRepositorySQLAlchemy(db_session, current_user)
 
     # Create standard chart of accounts using command (not deprecated service)
     generate_accounts_cmd = GenerateDefaultAccountsCommand(
         account_repository=account_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
     await generate_accounts_cmd.execute()
 
@@ -194,7 +194,7 @@ async def full_setup(db_session, user_context, available_model):
     bank_account_service = BankAccountImportService(
         account_repository=account_repo,
         mapping_repository=mapping_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
 
     # Set up bank account mapping for test IBAN
@@ -233,7 +233,7 @@ async def full_setup(db_session, user_context, available_model):
     )
 
     transaction_factory = BankImportTransactionFactory(
-        user_context=user_context,
+        current_user=current_user,
         ai_provider=ai_provider,
     )
 
@@ -245,7 +245,7 @@ async def full_setup(db_session, user_context, available_model):
         account_repository=account_repo,
         transaction_repository=transaction_repo,
         import_repository=import_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
 
     yield SimpleNamespace(

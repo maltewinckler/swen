@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+
 from swen.application.dtos.analytics import MonthComparisonResult
 from swen.application.queries.analytics import MonthComparisonQuery
 

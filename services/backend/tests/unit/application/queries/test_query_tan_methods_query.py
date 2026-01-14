@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from swen.application.queries import (
     QueryTanMethodsQuery,
     TANMethodInfo,
@@ -55,7 +56,7 @@ class TestQueryTanMethodsQuery:
 
     @pytest.mark.asyncio
     async def test_execute_returns_tan_methods(
-        self, mock_bank_adapter, sample_credentials, sample_tan_methods
+        self, mock_bank_adapter, sample_credentials, sample_tan_methods,
     ):
         """Test that execute returns discovered TAN methods."""
         mock_bank_adapter.get_tan_methods.return_value = sample_tan_methods
@@ -80,7 +81,7 @@ class TestQueryTanMethodsQuery:
 
     @pytest.mark.asyncio
     async def test_execute_returns_empty_list_when_no_methods(
-        self, mock_bank_adapter, sample_credentials
+        self, mock_bank_adapter, sample_credentials,
     ):
         """Test that execute handles banks with no TAN methods."""
         mock_bank_adapter.get_tan_methods.return_value = []
@@ -93,7 +94,7 @@ class TestQueryTanMethodsQuery:
 
     @pytest.mark.asyncio
     async def test_execute_selects_decoupled_as_default(
-        self, mock_bank_adapter, sample_credentials, sample_tan_methods
+        self, mock_bank_adapter, sample_credentials, sample_tan_methods,
     ):
         """Test that decoupled method is selected as default."""
         mock_bank_adapter.get_tan_methods.return_value = sample_tan_methods
@@ -106,7 +107,7 @@ class TestQueryTanMethodsQuery:
 
     @pytest.mark.asyncio
     async def test_execute_selects_first_method_if_no_decoupled(
-        self, mock_bank_adapter, sample_credentials
+        self, mock_bank_adapter, sample_credentials,
     ):
         """Test fallback to first method when no decoupled available."""
         non_decoupled_methods = [
@@ -133,7 +134,7 @@ class TestQueryTanMethodsQuery:
 
     @pytest.mark.asyncio
     async def test_execute_propagates_adapter_exception(
-        self, mock_bank_adapter, sample_credentials
+        self, mock_bank_adapter, sample_credentials,
     ):
         """Test that adapter exceptions are propagated."""
         mock_bank_adapter.get_tan_methods.side_effect = Exception("Connection failed")

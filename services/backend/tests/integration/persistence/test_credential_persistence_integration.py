@@ -13,6 +13,7 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+
 from swen.domain.banking.value_objects import BankCredentials
 
 # Fixed UUIDs for testing
@@ -20,12 +21,15 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_USER_ID_2 = UUID("87654321-4321-8765-4321-876543218765")
 NIGHTLY_SYNC_USER_ID = UUID("abcdef01-2345-6789-abcd-ef0123456789")
 
-from swen.application.context import UserContext
+from swen.application.ports.identity import CurrentUser
 
 # Create user contexts for testing
-TEST_USER_CONTEXT = UserContext(user_id=TEST_USER_ID, email="test@example.com")
-TEST_USER_CONTEXT_2 = UserContext(user_id=TEST_USER_ID_2, email="test2@example.com")
-NIGHTLY_SYNC_USER_CONTEXT = UserContext(user_id=NIGHTLY_SYNC_USER_ID, email="nightly@example.com")
+TEST_USER_CONTEXT = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
+TEST_USER_CONTEXT_2 = CurrentUser(user_id=TEST_USER_ID_2, email="test2@example.com")
+NIGHTLY_SYNC_USER_CONTEXT = CurrentUser(user_id=NIGHTLY_SYNC_USER_ID, email="nightly@example.com")
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankCredentialRepositorySQLAlchemy,
@@ -34,8 +38,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
     StoredBankCredentialsRepositorySQLAlchemy,
 )
 from swen.infrastructure.security import FernetEncryptionService
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ============================================================================
 # Fixtures for Integration Tests
@@ -83,13 +85,13 @@ def encryption_service():
     return FernetEncryptionService(key)
 
 
-def make_credential_repository(session, encryption_service, user_context):
+def make_credential_repository(session, encryption_service, current_user):
     """Create a user-scoped credential repository."""
-    stored_repo = StoredBankCredentialsRepositorySQLAlchemy(session, user_context)
+    stored_repo = StoredBankCredentialsRepositorySQLAlchemy(session, current_user)
     return BankCredentialRepositorySQLAlchemy(
         stored_credentials_repo=stored_repo,
         encryption_service=encryption_service,
-        user_context=user_context,
+        current_user=current_user,
     )
 
 

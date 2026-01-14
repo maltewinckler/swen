@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (

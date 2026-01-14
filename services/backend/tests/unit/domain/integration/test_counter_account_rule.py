@@ -5,13 +5,13 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+
 from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.value_objects import (
     CounterAccountRule,
     PatternType,
     RuleSource,
 )
-
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")

@@ -1,19 +1,20 @@
 """Unit tests for PasswordResetService."""
 
 from datetime import timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
 
-from swen.application.services.password_reset_service import PasswordResetService
 from swen.domain.shared.time import utc_now
-from swen.domain.user import User
-from swen.infrastructure.email import EmailService
-from swen_auth import InvalidResetTokenError, PasswordResetRateLimitError
-from swen_auth.repositories import PasswordResetTokenData
-from swen_auth.services import PasswordHashingService
-
+from swen_identity import (
+    InvalidResetTokenError,
+    PasswordHashingService,
+    User,
+)
+from swen_identity.application.services import PasswordResetService
+from swen_identity.infrastructure.email import EmailService
+from swen_identity.repositories import PasswordResetTokenData
 
 TEST_EMAIL = "test@example.com"
 TEST_TOKEN = "test-token-abc123"

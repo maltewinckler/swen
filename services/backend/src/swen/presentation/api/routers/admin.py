@@ -4,21 +4,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from swen.application.commands.admin import (
-    CreateUserCommand,
-    DeleteUserCommand,
-    UpdateUserRoleCommand,
-)
-from swen.domain.user import (
-    CannotDeleteSelfError,
-    CannotDemoteSelfError,
-    EmailAlreadyExistsError,
-    UserNotFoundError,
-    UserRole,
-)
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
-    UserRepositorySQLAlchemy,
-)
 from swen.presentation.api.dependencies import (
     AdminUser,
     DBSession,
@@ -29,8 +14,23 @@ from swen.presentation.api.schemas.admin import (
     UpdateRoleRequest,
     UserSummaryResponse,
 )
-from swen_auth.persistence.sqlalchemy import UserCredentialRepositorySQLAlchemy
-from swen_auth.services import PasswordHashingService
+from swen_identity import (
+    CannotDeleteSelfError,
+    CannotDemoteSelfError,
+    EmailAlreadyExistsError,
+    PasswordHashingService,
+    UserNotFoundError,
+    UserRole,
+)
+from swen_identity.application.commands import (
+    CreateUserCommand,
+    DeleteUserCommand,
+    UpdateUserRoleCommand,
+)
+from swen_identity.infrastructure.persistence.sqlalchemy import (
+    UserCredentialRepositorySQLAlchemy,
+    UserRepositorySQLAlchemy,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+
 from swen.application.commands.accounting import DeleteTransactionCommand
 from swen.domain.accounting.exceptions import TransactionNotFoundError
 from swen.domain.shared.exceptions import BusinessRuleViolation
@@ -44,7 +45,7 @@ class TestDeleteTransactionCommand:
 
     @pytest.mark.asyncio
     async def test_delete_draft_transaction(
-        self, mock_transaction_repo, draft_transaction
+        self, mock_transaction_repo, draft_transaction,
     ):
         """Can delete a draft transaction without force."""
         mock_transaction_repo.find_by_id.return_value = draft_transaction
@@ -58,7 +59,7 @@ class TestDeleteTransactionCommand:
 
     @pytest.mark.asyncio
     async def test_delete_posted_transaction_without_force_raises(
-        self, mock_transaction_repo, posted_transaction
+        self, mock_transaction_repo, posted_transaction,
     ):
         """Raises error when deleting posted transaction without force."""
         mock_transaction_repo.find_by_id.return_value = posted_transaction
@@ -72,7 +73,7 @@ class TestDeleteTransactionCommand:
 
     @pytest.mark.asyncio
     async def test_delete_posted_transaction_with_force(
-        self, mock_transaction_repo, posted_transaction
+        self, mock_transaction_repo, posted_transaction,
     ):
         """Can delete posted transaction when force=True."""
         mock_transaction_repo.find_by_id.return_value = posted_transaction
@@ -102,7 +103,7 @@ class TestDeleteTransactionCommand:
 
     @pytest.mark.asyncio
     async def test_draft_transaction_force_does_not_unpost(
-        self, mock_transaction_repo, draft_transaction
+        self, mock_transaction_repo, draft_transaction,
     ):
         """Force flag on draft transaction doesn't attempt unpost."""
         mock_transaction_repo.find_by_id.return_value = draft_transaction

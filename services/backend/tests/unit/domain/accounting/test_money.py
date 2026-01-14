@@ -1,8 +1,10 @@
 """Tests for the Money value object."""
 
-import pytest
 from decimal import Decimal
-from swen.domain.accounting.value_objects import Money, Currency
+
+import pytest
+
+from swen.domain.accounting.value_objects import Currency, Money
 
 
 class TestMoney:

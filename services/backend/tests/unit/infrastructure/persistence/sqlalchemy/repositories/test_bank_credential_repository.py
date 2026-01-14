@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
+
 from swen.domain.banking.repositories.bank_credential_repository import (
     BankCredentialRepository,
 )
@@ -23,8 +24,8 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
 
 @dataclass(frozen=True)
-class MockUserContext:
-    """Mock UserContext for testing."""
+class MockCurrentUser:
+    """Mock CurrentUser for testing."""
 
     user_id: UUID
     email: str = "test@example.com"
@@ -48,18 +49,18 @@ def mock_stored_repo():
 
 
 @pytest.fixture
-def mock_user_context():
-    """Mock UserContext for testing."""
-    return MockUserContext(user_id=TEST_USER_ID)
+def mock_current_user():
+    """Mock CurrentUser for testing."""
+    return MockCurrentUser(user_id=TEST_USER_ID)
 
 
 @pytest.fixture
-def repository(mock_stored_repo, mock_encryption_service, mock_user_context):
+def repository(mock_stored_repo, mock_encryption_service, mock_current_user):
     """Create repository with mocked dependencies."""
     return BankCredentialRepositorySQLAlchemy(
         stored_credentials_repo=mock_stored_repo,
         encryption_service=mock_encryption_service,
-        user_context=mock_user_context,
+        current_user=mock_current_user,
     )
 
 

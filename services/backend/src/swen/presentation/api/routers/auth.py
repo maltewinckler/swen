@@ -5,16 +5,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 
-from swen.application.services.password_reset_service import PasswordResetService
-from swen.domain.user import EmailAlreadyExistsError, User
-from swen.infrastructure.email import EmailService
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
-    UserRepositorySQLAlchemy,
-)
 from swen.presentation.api.config import get_api_settings
 from swen.presentation.api.dependencies import (
+    AuthenticatedUser,
     AuthService,
-    CurrentUser,
     DBSession,
     get_password_service,
 )
@@ -29,19 +23,24 @@ from swen.presentation.api.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from swen_auth import (
+from swen_config.settings import Settings
+from swen_identity import (
     AccountLockedError,
+    EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidResetTokenError,
     InvalidTokenError,
+    PasswordHashingService,
+    User,
     WeakPasswordError,
 )
-from swen_auth.persistence.sqlalchemy import (
+from swen_identity.application.services import PasswordResetService
+from swen_identity.infrastructure.email import EmailService
+from swen_identity.infrastructure.persistence.sqlalchemy import (
     PasswordResetTokenRepositorySQLAlchemy,
     UserCredentialRepositorySQLAlchemy,
+    UserRepositorySQLAlchemy,
 )
-from swen_auth.services import PasswordHashingService
-from swen_config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +299,7 @@ async def refresh_token(
         401: {"description": "Not authenticated"},
     },
 )
-async def get_me(user: CurrentUser) -> UserResponse:
+async def get_me(user: AuthenticatedUser) -> UserResponse:
     """
     Get the current authenticated user's information.
 
@@ -326,7 +325,7 @@ async def get_me(user: CurrentUser) -> UserResponse:
 )
 async def change_password(
     request: ChangePasswordRequest,
-    user: CurrentUser,
+    user: AuthenticatedUser,
     auth_service: AuthService,
     session: DBSession,
 ) -> None:

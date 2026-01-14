@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SyncRunRequest(BaseModel):
@@ -42,8 +42,8 @@ class SyncRunRequest(BaseModel):
         description="Auto-post transactions after import (None = use user preference, typically False)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "Adaptive sync (recommended for regular use)",
@@ -67,7 +67,7 @@ class SyncRunRequest(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class AccountSyncStatsResponse(BaseModel):
@@ -83,8 +83,8 @@ class AccountSyncStatsResponse(BaseModel):
         ..., description="Transactions that failed to import (see errors)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
                 "fetched": 25,
@@ -93,7 +93,7 @@ class AccountSyncStatsResponse(BaseModel):
                 "failed": 0,
             },
         },
-    }
+    )
 
 
 class OpeningBalanceResponse(BaseModel):
@@ -108,14 +108,14 @@ class OpeningBalanceResponse(BaseModel):
         None, description="Opening balance amount (from bank statement)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
                 "amount": "1250.00",
             },
         },
-    }
+    )
 
 
 class SyncRunResponse(BaseModel):
@@ -167,8 +167,8 @@ class SyncRunResponse(BaseModel):
         description="Warning: could not create opening balance (missing equity account)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "synced_at": "2024-12-05T15:30:00Z",
@@ -201,7 +201,7 @@ class SyncRunResponse(BaseModel):
                 "opening_balance_account_missing": False,
             },
         },
-    }
+    )
 
 
 class SyncStatusResponse(BaseModel):
@@ -217,8 +217,8 @@ class SyncStatusResponse(BaseModel):
     skipped_count: int = Field(..., description="Transactions intentionally skipped")
     total_count: int = Field(..., description="Total import records in system")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success_count": 1250,
                 "failed_count": 3,
@@ -228,7 +228,7 @@ class SyncStatusResponse(BaseModel):
                 "total_count": 1352,
             },
         },
-    }
+    )
 
 
 class AccountSyncRecommendationResponse(BaseModel):
@@ -259,8 +259,8 @@ class AccountSyncRecommendationResponse(BaseModel):
         description="Number of transactions successfully imported for this account",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "First sync (no history)",
@@ -284,7 +284,7 @@ class AccountSyncRecommendationResponse(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class SyncRecommendationResponse(BaseModel):
@@ -314,8 +314,8 @@ class SyncRecommendationResponse(BaseModel):
         description="Total number of mapped bank accounts",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [
                     {
@@ -337,4 +337,4 @@ class SyncRecommendationResponse(BaseModel):
                 "total_accounts": 2,
             },
         },
-    }
+    )

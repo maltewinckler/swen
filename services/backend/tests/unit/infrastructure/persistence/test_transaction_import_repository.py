@@ -10,6 +10,9 @@ from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
 from swen.domain.integration.entities import TransactionImport
 from swen.domain.integration.value_objects import ImportStatus
 from swen.infrastructure.persistence.sqlalchemy.models.banking import (
@@ -22,11 +25,7 @@ from swen.infrastructure.persistence.sqlalchemy.models.integration import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     TransactionImportRepositorySQLAlchemy,
 )
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
-
 
 # Module-level list to store pre-created bank transaction IDs for each test
 _bank_tx_ids: list[UUID] = []
@@ -105,10 +104,10 @@ def create_test_import(**overrides) -> TransactionImport:
 class TestTransactionImportRepositorySQLAlchemy:
     """Test suite for TransactionImportRepositorySQLAlchemy."""
 
-    async def test_save_new_import(self, async_session, user_context):
+    async def test_save_new_import(self, async_session, current_user):
         """Test saving a new transaction import."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
 
         # Act
@@ -127,10 +126,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert saved_model.bank_transaction_id == transaction_import.bank_transaction_id
         assert saved_model.status == transaction_import.status
 
-    async def test_save_updates_existing_import(self, async_session, user_context):
+    async def test_save_updates_existing_import(self, async_session, current_user):
         """Test that saving an existing import updates it."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
         await repo.save(transaction_import)
         await async_session.commit()
@@ -152,10 +151,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert updated_model.status == ImportStatus.SUCCESS
         assert updated_model.accounting_transaction_id == accounting_txn_id
 
-    async def test_find_by_id(self, async_session, user_context):
+    async def test_find_by_id(self, async_session, current_user):
         """Test finding an import by ID."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
         await repo.save(transaction_import)
         await async_session.commit()
@@ -171,11 +170,11 @@ class TestTransactionImportRepositorySQLAlchemy:
         )
 
     async def test_find_by_id_returns_none_when_not_found(
-        self, async_session, user_context
+        self, async_session, current_user,
     ):
         """Test that find_by_id returns None for non-existent import."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -184,10 +183,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         # Assert
         assert found_import is None
 
-    async def test_find_by_accounting_transaction_id(self, async_session, user_context):
+    async def test_find_by_accounting_transaction_id(self, async_session, current_user):
         """Test finding import by accounting transaction ID."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         accounting_txn_id = uuid4()
         transaction_import = create_test_import(
             status=ImportStatus.SUCCESS,
@@ -203,10 +202,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert found_import is not None
         assert found_import.accounting_transaction_id == accounting_txn_id
 
-    async def test_find_by_status(self, async_session, user_context):
+    async def test_find_by_status(self, async_session, current_user):
         """Test finding all imports with a specific status."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
 
         import1 = create_test_import(
             bank_transaction_id=_get_next_bank_tx_id(),
@@ -238,10 +237,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert len(failed_imports) == 1
         assert all(i.status == ImportStatus.SUCCESS for i in success_imports)
 
-    async def test_find_failed_imports(self, async_session, user_context):
+    async def test_find_failed_imports(self, async_session, current_user):
         """Test finding all failed imports."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
 
         # Create failed import
         failed_import = create_test_import(
@@ -268,11 +267,11 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert failed_imports[0].status == ImportStatus.FAILED
 
     async def test_find_failed_imports_with_date_filter(
-        self, async_session, user_context
+        self, async_session, current_user,
     ):
         """Test finding failed imports since a specific date."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         cutoff_date = datetime.now(tz=timezone.utc) - timedelta(days=7)
 
         failed_import = create_test_import(
@@ -289,10 +288,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         # Assert
         assert len(recent_failed) >= 1
 
-    async def test_count_by_status(self, async_session, user_context):
+    async def test_count_by_status(self, async_session, current_user):
         """Test counting imports by status."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
 
         import1 = create_test_import(
             bank_transaction_id=_get_next_bank_tx_id(),
@@ -322,10 +321,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert counts.get("success", 0) == 2
         assert counts.get("failed", 0) == 1
 
-    async def test_delete_import(self, async_session, user_context):
+    async def test_delete_import(self, async_session, current_user):
         """Test deleting an import record."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
         await repo.save(transaction_import)
         await async_session.commit()
@@ -345,11 +344,11 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert result.scalar_one_or_none() is None
 
     async def test_delete_nonexistent_import_returns_false(
-        self, async_session, user_context
+        self, async_session, current_user,
     ):
         """Test that deleting a non-existent import returns False."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -359,11 +358,11 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert deleted is False
 
     async def test_domain_to_model_mapping_preserves_all_fields(
-        self, async_session, user_context
+        self, async_session, current_user,
     ):
         """Test that all domain fields are correctly mapped to model and back."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         accounting_txn_id = uuid4()
         transaction_import = create_test_import(
             bank_transaction_id=_get_next_bank_tx_id(),
@@ -389,10 +388,10 @@ class TestTransactionImportRepositorySQLAlchemy:
             tzinfo=None,
         ) == transaction_import.created_at.replace(tzinfo=None)
 
-    async def test_mark_as_duplicate(self, async_session, user_context):
+    async def test_mark_as_duplicate(self, async_session, current_user):
         """Test marking an import as duplicate."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
         await repo.save(transaction_import)
         await async_session.commit()
@@ -407,10 +406,10 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert retrieved is not None
         assert retrieved.status == ImportStatus.DUPLICATE
 
-    async def test_mark_as_skipped(self, async_session, user_context):
+    async def test_mark_as_skipped(self, async_session, current_user):
         """Test marking an import as skipped."""
         # Arrange
-        repo = TransactionImportRepositorySQLAlchemy(async_session, user_context)
+        repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
         transaction_import = create_test_import()
         await repo.save(transaction_import)
         await async_session.commit()

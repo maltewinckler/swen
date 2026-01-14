@@ -11,7 +11,7 @@ from swen.application.queries import ExportDataQuery
 from swen.application.queries.export_report_query import ExportReportQuery
 from swen.infrastructure.export import ExcelReportGenerator
 from swen.presentation.api.dependencies import RepoFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ class TransactionExportResponse(BaseModel):
     metadata: str = Field(description="JSON metadata")
     created_at: str = Field(description="Creation timestamp (ISO 8601)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "date": "2024-12-05",
@@ -50,7 +50,7 @@ class TransactionExportResponse(BaseModel):
                 "created_at": "2024-12-05T15:00:00+00:00",
             }
         }
-    }
+    )
 
 class AccountExportResponse(BaseModel):
     """Exported account data."""
@@ -64,8 +64,8 @@ class AccountExportResponse(BaseModel):
     parent_id: str = Field(description="Parent account UUID (empty if root)")
     created_at: str = Field(description="Creation timestamp (ISO 8601)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "660e8400-e29b-41d4-a716-446655440001",
                 "account_number": "4200",
@@ -77,7 +77,7 @@ class AccountExportResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00+00:00",
             }
         }
-    }
+    )
 
 class MappingExportResponse(BaseModel):
     """Exported bank account mapping data."""
@@ -88,8 +88,8 @@ class MappingExportResponse(BaseModel):
     accounting_account_id: str = Field(description="Linked accounting account UUID")
     created_at: str = Field(description="Creation timestamp (ISO 8601)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "770e8400-e29b-41d4-a716-446655440002",
                 "iban": "DE89370400440532013000",
@@ -98,7 +98,7 @@ class MappingExportResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00+00:00",
             }
         }
-    }
+    )
 
 class TransactionExportListResponse(BaseModel):
     """Response for transaction export."""
@@ -106,14 +106,14 @@ class TransactionExportListResponse(BaseModel):
     transactions: list[TransactionExportResponse]
     count: int = Field(description="Number of transactions exported")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "transactions": [],
                 "count": 0,
             }
         }
-    }
+    )
 
 class AccountExportListResponse(BaseModel):
     """Response for account export."""
@@ -121,14 +121,14 @@ class AccountExportListResponse(BaseModel):
     accounts: list[AccountExportResponse]
     count: int = Field(description="Number of accounts exported")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [],
                 "count": 0,
             }
         }
-    }
+    )
 
 class FullExportResponse(BaseModel):
     """Response for full data export (backup)."""
@@ -140,8 +140,8 @@ class FullExportResponse(BaseModel):
     account_count: int = Field(description="Number of accounts")
     mapping_count: int = Field(description="Number of bank account mappings")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "transactions": [],
                 "accounts": [],
@@ -151,7 +151,7 @@ class FullExportResponse(BaseModel):
                 "mapping_count": 0,
             }
         }
-    }
+    )
 
 DaysFilter = Annotated[
     int,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Union
 
-from swen.domain.user import Email, User, UserRepository
+from swen_identity.domain.user import Email, User, UserRepository
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -17,7 +17,7 @@ class GetCurrentUserQuery:
         self,
         user_repo: UserRepository,
         email: Optional[str] = None,
-    ) -> None:
+    ):
         self._user_repo = user_repo
         self._email = email
 
@@ -25,7 +25,7 @@ class GetCurrentUserQuery:
     def from_factory(cls, factory: RepositoryFactory) -> GetCurrentUserQuery:
         return cls(
             user_repo=factory.user_repository(),
-            email=factory.user_context.email,
+            email=factory.current_user.email,
         )
 
     async def execute(self, email: Optional[Union[str, Email]] = None) -> User:

@@ -3,16 +3,16 @@
 from uuid import UUID, uuid4
 
 import pytest
-from swen.domain.user import (
-    User,
-    UserPreferences,
-    EmailAlreadyExistsError,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Import models to register them with Base.metadata
+import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
 from swen.infrastructure.persistence.sqlalchemy.models import Base
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
+from swen_identity.domain.user import User, UserRole
+from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ class TestUserRepositorySQLAlchemy:
         assert found.id == user.id
         assert isinstance(found.id, UUID)
         assert found.email == TEST_EMAIL
-        assert found.preferences == UserPreferences()
+        assert found.role == UserRole.USER
 
     @pytest.mark.asyncio
     async def test_find_by_id_not_found(self, user_repo):
@@ -130,7 +130,7 @@ class TestUserRepositorySQLAlchemy:
 
         assert user.email == TEST_EMAIL
         assert isinstance(user.id, UUID)
-        assert user.preferences == UserPreferences()
+        assert user.role == UserRole.USER
 
         # Should be persisted
         found = await user_repo.find_by_email(TEST_EMAIL)
@@ -142,7 +142,7 @@ class TestUserRepositorySQLAlchemy:
         """get_or_create_by_email returns existing user."""
         # Create user first
         original = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        original.update_preferences(auto_post_transactions=True)
+        original.promote_to_admin()
         await user_repo.save(original)
         await session.flush()
 
@@ -150,7 +150,7 @@ class TestUserRepositorySQLAlchemy:
         retrieved = await user_repo.get_or_create_by_email(TEST_EMAIL)
 
         assert retrieved.id == original.id
-        assert retrieved.preferences.sync_settings.auto_post_transactions is True
+        assert retrieved.is_admin is True
 
     @pytest.mark.asyncio
     async def test_save_updates_existing(self, user_repo, session):
@@ -160,17 +160,13 @@ class TestUserRepositorySQLAlchemy:
         await session.flush()
 
         # Modify and save again
-        user.update_preferences(
-            auto_post_transactions=True,
-            default_currency="USD",
-        )
+        user.promote_to_admin()
         await user_repo.save(user)
         await session.flush()
 
         # Retrieve and check
         found = await user_repo.find_by_email(TEST_EMAIL)
-        assert found.preferences.sync_settings.auto_post_transactions is True
-        assert found.preferences.sync_settings.default_currency == "USD"
+        assert found.is_admin is True
 
     @pytest.mark.asyncio
     async def test_delete(self, user_repo, session):
@@ -207,27 +203,6 @@ class TestUserRepositorySQLAlchemy:
         assert found is None
 
     @pytest.mark.asyncio
-    async def test_preserves_all_preferences(self, user_repo, session):
-        """All preference fields are properly persisted and retrieved."""
-        user = User.create(TEST_EMAIL)
-        user.update_preferences(
-            auto_post_transactions=True,
-            default_currency="CHF",
-            show_draft_transactions=False,
-            default_date_range_days=90,
-        )
-
-        await user_repo.save(user)
-        await session.flush()
-
-        found = await user_repo.find_by_email(TEST_EMAIL)
-
-        assert found.preferences.sync_settings.auto_post_transactions is True
-        assert found.preferences.sync_settings.default_currency == "CHF"
-        assert found.preferences.display_settings.show_draft_transactions is False
-        assert found.preferences.display_settings.default_date_range_days == 90
-
-    @pytest.mark.asyncio
     async def test_preserves_timestamps(self, user_repo, session):
         """Timestamps are properly persisted and retrieved."""
         user = User.create(TEST_EMAIL)
@@ -259,3 +234,25 @@ class TestUserRepositorySQLAlchemy:
         assert found1 is not None
         assert found2 is not None
         assert found1.id != found2.id
+
+    @pytest.mark.asyncio
+    async def test_promote_and_demote_user(self, user_repo, session):
+        """Can promote and demote user roles."""
+        user = User.create(TEST_EMAIL)
+        assert user.role == UserRole.USER
+
+        user.promote_to_admin()
+        await user_repo.save(user)
+        await session.flush()
+
+        found = await user_repo.find_by_email(TEST_EMAIL)
+        assert found.role == UserRole.ADMIN
+        assert found.is_admin is True
+
+        found.demote_to_user()
+        await user_repo.save(found)
+        await session.flush()
+
+        found2 = await user_repo.find_by_email(TEST_EMAIL)
+        assert found2.role == UserRole.USER
+        assert found2.is_admin is False

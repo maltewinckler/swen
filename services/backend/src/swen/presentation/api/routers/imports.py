@@ -6,7 +6,7 @@ from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.queries.integration import ListImportsQuery
 from swen.presentation.api.dependencies import RepoFactory
@@ -34,8 +34,8 @@ class ImportResponse(BaseModel):
         description="When successfully imported",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "bank_transaction_id": "770e8400-e29b-41d4-a716-446655440002",
@@ -46,7 +46,7 @@ class ImportResponse(BaseModel):
                 "imported_at": "2024-12-05T15:00:01Z",
             },
         },
-    }
+    )
 
 class ImportListResponse(BaseModel):
     """Response for listing import records."""
@@ -57,8 +57,8 @@ class ImportListResponse(BaseModel):
         description="Count by status (success, failed, etc.)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "imports": [],
                 "count": 0,
@@ -71,7 +71,7 @@ class ImportListResponse(BaseModel):
                 },
             },
         },
-    }
+    )
 
 class ImportStatisticsResponse(BaseModel):
     """Overall import statistics with date range info."""
@@ -92,8 +92,8 @@ class ImportStatisticsResponse(BaseModel):
         description="Oldest successful import",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": None,
                 "total": 150,
@@ -106,7 +106,7 @@ class ImportStatisticsResponse(BaseModel):
                 "oldest_import_at": "2024-06-01T09:00:00Z",
             },
         },
-    }
+    )
 
 DaysFilter = Annotated[
     int,

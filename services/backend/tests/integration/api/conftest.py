@@ -11,8 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from swen.infrastructure.persistence.sqlalchemy.models import Base
 from swen.presentation.api.app import API_V1_PREFIX, create_app
 from swen.presentation.api.dependencies import get_db_session
-from swen_auth.persistence.sqlalchemy import AuthBase
 from swen_config.settings import Settings
+
+# IdentityBase is now same as Base
 
 
 # Generate a valid Fernet key for testing
@@ -51,9 +52,9 @@ async def test_db_engine():
     )
 
     async with engine.begin() as conn:
-        # Create all tables (both swen and swen_auth)
+        # Create all tables (both swen and swen_identity)
         await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(AuthBase.metadata.create_all)
+
 
     yield engine
 
@@ -123,7 +124,7 @@ def auth_headers(test_client, registered_user_data, api_v1_prefix) -> dict:
     """Get auth headers for a registered user."""
     # Register the user
     response = test_client.post(
-        f"{api_v1_prefix}/auth/register", json=registered_user_data
+        f"{api_v1_prefix}/auth/register", json=registered_user_data,
     )
     assert response.status_code == 201
 

@@ -29,16 +29,19 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
 from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
     StoredBankCredentialsRepositorySQLAlchemy,
 )
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
-    UserRepositorySQLAlchemy,
+from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
+    UserSettingsRepositorySQLAlchemy,
 )
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
 )
 from swen_config.settings import get_settings
+from swen_identity.infrastructure.persistence.sqlalchemy import (
+    UserRepositorySQLAlchemy,
+)
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.integration.services import AICounterAccountProvider
 
 logger = logging.getLogger(__name__)
@@ -50,11 +53,11 @@ class SQLAlchemyRepositoryFactory:
     def __init__(
         self,
         session: AsyncSession,
-        user_context: UserContext,
+        current_user: CurrentUser,
         encryption_key: bytes,
     ):
         self._session = session
-        self._user_context = user_context
+        self._current_user = current_user
         self._encryption_key = encryption_key
 
         # Cached instances (created on demand)
@@ -64,11 +67,14 @@ class SQLAlchemyRepositoryFactory:
         self._import_repo: TransactionImportRepositorySQLAlchemy | None = None
         self._rule_repo: CounterAccountRuleRepositorySQLAlchemy | None = None
         self._credential_repo: BankCredentialRepositorySQLAlchemy | None = None
+        self._bank_account_repo: BankAccountRepositorySQLAlchemy | None = None
+        self._bank_transaction_repo: BankTransactionRepositorySQLAlchemy | None = None
         self._analytics_read_adapter: SqlAlchemyAnalyticsReadAdapter | None = None
+        self._settings_repo: UserSettingsRepositorySQLAlchemy | None = None
 
     @property
-    def user_context(self) -> UserContext:
-        return self._user_context
+    def current_user(self) -> CurrentUser:
+        return self._current_user
 
     @property
     def session(self) -> AsyncSession:
@@ -78,7 +84,7 @@ class SQLAlchemyRepositoryFactory:
         if self._account_repo is None:
             self._account_repo = AccountRepositorySQLAlchemy(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
         return self._account_repo
 
@@ -87,7 +93,7 @@ class SQLAlchemyRepositoryFactory:
             self._transaction_repo = TransactionRepositorySQLAlchemy(
                 self._session,
                 self.account_repository(),
-                self._user_context,
+                self._current_user,
             )
         return self._transaction_repo
 
@@ -95,7 +101,7 @@ class SQLAlchemyRepositoryFactory:
         if self._mapping_repo is None:
             self._mapping_repo = AccountMappingRepositorySQLAlchemy(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
         return self._mapping_repo
 
@@ -103,7 +109,7 @@ class SQLAlchemyRepositoryFactory:
         if self._import_repo is None:
             self._import_repo = TransactionImportRepositorySQLAlchemy(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
         return self._import_repo
 
@@ -111,7 +117,7 @@ class SQLAlchemyRepositoryFactory:
         if self._rule_repo is None:
             self._rule_repo = CounterAccountRuleRepositorySQLAlchemy(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
         return self._rule_repo
 
@@ -122,31 +128,49 @@ class SQLAlchemyRepositoryFactory:
             )
             stored_repo = StoredBankCredentialsRepositorySQLAlchemy(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
             self._credential_repo = BankCredentialRepositorySQLAlchemy(
                 stored_repo,
                 encryption_service,
-                self._user_context,
+                self._current_user,
             )
         return self._credential_repo
 
     def bank_account_repository(self) -> BankAccountRepositorySQLAlchemy:
-        return BankAccountRepositorySQLAlchemy(self._session, self._user_context)
+        if self._bank_account_repo is None:
+            self._bank_account_repo = BankAccountRepositorySQLAlchemy(
+                self._session,
+                self._current_user,
+            )
+        return self._bank_account_repo
 
     def bank_transaction_repository(self) -> BankTransactionRepositorySQLAlchemy:
-        return BankTransactionRepositorySQLAlchemy(self._session, self._user_context)
+        if self._bank_transaction_repo is None:
+            self._bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
+                self._session,
+                self._current_user,
+            )
+        return self._bank_transaction_repo
 
     def analytics_read_port(self) -> SqlAlchemyAnalyticsReadAdapter:
         if self._analytics_read_adapter is None:
             self._analytics_read_adapter = SqlAlchemyAnalyticsReadAdapter(
                 self._session,
-                self._user_context,
+                self._current_user,
             )
         return self._analytics_read_adapter
 
     def user_repository(self) -> UserRepositorySQLAlchemy:
         return UserRepositorySQLAlchemy(self._session)
+
+    def user_settings_repository(self) -> UserSettingsRepositorySQLAlchemy:
+        if self._settings_repo is None:
+            self._settings_repo = UserSettingsRepositorySQLAlchemy(
+                self._session,
+                self._current_user,
+            )
+        return self._settings_repo
 
 
 @lru_cache(maxsize=1)

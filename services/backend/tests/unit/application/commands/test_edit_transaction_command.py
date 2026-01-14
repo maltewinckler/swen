@@ -13,7 +13,7 @@ from swen.domain.accounting.exceptions import (
     TransactionNotFoundError,
 )
 from swen.domain.accounting.value_objects import Currency, JournalEntryInput, Money
-from swen.domain.shared.exceptions import BusinessRuleViolation, ValidationError
+from swen.domain.shared.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -207,10 +207,10 @@ class TestEditTransactionCommand:
                 transaction_id=txn.id,
                 entries=[
                     JournalEntryInput.debit_entry(
-                        mock_account_repo._expense_account.id, Decimal("50.00")
+                        mock_account_repo._expense_account.id, Decimal("50.00"),
                     ),
                     JournalEntryInput.credit_entry(
-                        mock_account_repo._asset_account.id, Decimal("50.00")
+                        mock_account_repo._asset_account.id, Decimal("50.00"),
                     ),
                 ],
                 category_account_id=mock_account_repo._expense_account2.id,
@@ -358,7 +358,7 @@ class TestEditTransactionCommand:
 
         entries = [
             JournalEntryInput.debit_entry(
-                mock_account_repo._expense_account.id, Decimal("50.00")
+                mock_account_repo._expense_account.id, Decimal("50.00"),
             ),
         ]
 

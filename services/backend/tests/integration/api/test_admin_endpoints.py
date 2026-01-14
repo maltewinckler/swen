@@ -1,6 +1,5 @@
 """Integration tests for admin endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -8,7 +7,7 @@ class TestAdminListUsers:
     """Tests for GET /api/v1/admin/users."""
 
     def test_list_users_as_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can list all users."""
         # Register first user (becomes admin)
@@ -34,7 +33,7 @@ class TestAdminListUsers:
         assert "created_at" in users[0]
 
     def test_list_users_as_non_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Non-admin cannot list users."""
         # Register first user (becomes admin)
@@ -67,7 +66,7 @@ class TestAdminListUsers:
         assert response.status_code == 403
 
     def test_list_users_without_auth(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Unauthenticated request cannot list users."""
         response = test_client.get(f"{api_v1_prefix}/admin/users")
@@ -78,7 +77,7 @@ class TestAdminCreateUser:
     """Tests for POST /api/v1/admin/users."""
 
     def test_create_user_as_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can create a new user."""
         # Register first user (becomes admin)
@@ -107,7 +106,7 @@ class TestAdminCreateUser:
         assert "created_at" in data
 
     def test_create_admin_user(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can create another admin."""
         # Register first user (becomes admin)
@@ -132,7 +131,7 @@ class TestAdminCreateUser:
         assert response.json()["role"] == "admin"
 
     def test_create_user_duplicate_email(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot create user with duplicate email."""
         # Register first user (becomes admin)
@@ -155,7 +154,7 @@ class TestAdminCreateUser:
         assert response.status_code == 409
 
     def test_create_user_invalid_role(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Invalid role returns 400."""
         # Register first user (becomes admin)
@@ -178,7 +177,7 @@ class TestAdminCreateUser:
         assert response.status_code == 400
 
     def test_create_user_as_non_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Non-admin cannot create users."""
         # Register first user (becomes admin)
@@ -219,7 +218,7 @@ class TestAdminDeleteUser:
     """Tests for DELETE /api/v1/admin/users/{user_id}."""
 
     def test_delete_user_as_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can delete a user."""
         # Register first user (becomes admin)
@@ -254,7 +253,7 @@ class TestAdminDeleteUser:
         assert "todelete@example.com" not in emails
 
     def test_delete_self_fails(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin cannot delete themselves."""
         # Register first user (becomes admin)
@@ -275,7 +274,7 @@ class TestAdminDeleteUser:
         assert "delete" in response.json()["detail"].lower()
 
     def test_delete_nonexistent_user(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Deleting non-existent user returns 404."""
         # Register first user (becomes admin)
@@ -299,7 +298,7 @@ class TestAdminUpdateUserRole:
     """Tests for PATCH /api/v1/admin/users/{user_id}/role."""
 
     def test_promote_user_to_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can promote a user to admin."""
         # Register first user (becomes admin)
@@ -328,7 +327,7 @@ class TestAdminUpdateUserRole:
         assert response.json()["role"] == "admin"
 
     def test_demote_admin_to_user(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin can demote another admin to user."""
         # Register first user (becomes admin)
@@ -357,7 +356,7 @@ class TestAdminUpdateUserRole:
         assert response.json()["role"] == "user"
 
     def test_demote_self_fails(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Admin cannot demote themselves."""
         # Register first user (becomes admin)
@@ -379,7 +378,7 @@ class TestAdminUpdateUserRole:
         assert "demote" in response.json()["detail"].lower()
 
     def test_update_nonexistent_user_role(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Updating non-existent user returns 404."""
         # Register first user (becomes admin)
@@ -399,7 +398,7 @@ class TestAdminUpdateUserRole:
         assert response.status_code == 404
 
     def test_update_role_invalid_role(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Invalid role returns 400."""
         # Register first user (becomes admin)
@@ -430,7 +429,7 @@ class TestFirstUserIsAdmin:
     """Tests for first-user-is-admin behavior."""
 
     def test_first_registered_user_is_admin(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """First registered user becomes admin."""
         response = test_client.post(
@@ -442,7 +441,7 @@ class TestFirstUserIsAdmin:
         assert response.json()["user"]["role"] == "admin"
 
     def test_admin_created_user_is_not_admin_by_default(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Users created by admin are regular users by default."""
         # First user (admin)
@@ -463,7 +462,7 @@ class TestFirstUserIsAdmin:
         assert create_response.json()["role"] == "user"
 
     def test_public_registration_blocked_after_first_user(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Public registration is blocked after first user (admin_only mode)."""
         # First user (becomes admin)

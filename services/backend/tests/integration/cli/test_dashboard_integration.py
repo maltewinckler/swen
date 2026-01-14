@@ -15,17 +15,18 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.shared.time import ensure_tz_aware
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services import AccountBalanceService
 from swen.domain.accounting.value_objects import Currency, Money
+from swen.domain.shared.time import ensure_tz_aware
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Test user ID (also defined in conftest.py)
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -67,9 +68,9 @@ async def integration_session(integration_engine):
 
 
 @pytest_asyncio.fixture
-async def setup_accounts(integration_session, user_context):
+async def setup_accounts(integration_session, current_user):
     """Set up test accounts."""
-    account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+    account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
 
     # Asset accounts
     checking = Account(
@@ -204,10 +205,10 @@ class TestDashboardAccountBalances:
     async def test_empty_database_returns_no_balances(
         self,
         integration_session,
-        user_context,
+        current_user,
     ):
         """Test that empty database returns no balances."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         accounts = await account_repo.find_all_active()
 
         assert len(accounts) == 0
@@ -216,15 +217,15 @@ class TestDashboardAccountBalances:
     async def test_asset_accounts_with_no_transactions(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test asset accounts have zero balance with no transactions."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         balance_service = AccountBalanceService()
 
@@ -242,15 +243,15 @@ class TestDashboardAccountBalances:
     async def test_balance_with_income_and_expenses(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test balance calculation with both income and expenses."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         balance_service = AccountBalanceService()
         accounts = setup_accounts
@@ -303,15 +304,15 @@ class TestDashboardAccountBalances:
     async def test_multiple_asset_accounts_independent_balances(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test that multiple asset accounts have independent balances."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         balance_service = AccountBalanceService()
         accounts = setup_accounts
@@ -364,15 +365,15 @@ class TestDashboardIncomeExpenses:
     async def test_income_expense_totals(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test correct calculation of total income and expenses."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -444,15 +445,15 @@ class TestDashboardIncomeExpenses:
     async def test_date_filtering_for_income_expenses(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test that date filtering correctly limits income/expense totals."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -501,15 +502,15 @@ class TestDashboardCategorySpending:
     async def test_category_spending_grouping(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test correct grouping of expenses by category."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -568,15 +569,15 @@ class TestDashboardCategorySpending:
     async def test_category_spending_sorted_by_amount(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test that categories are sorted by spending amount."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -639,15 +640,15 @@ class TestDashboardSavingsRate:
     async def test_positive_savings_rate(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test positive savings rate calculation."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -685,15 +686,15 @@ class TestDashboardSavingsRate:
     async def test_negative_savings_rate(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test negative savings rate (spending more than income)."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -735,15 +736,15 @@ class TestDashboardRecentTransactions:
     async def test_transactions_sorted_by_date_descending(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test that recent transactions are sorted newest first."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -791,15 +792,15 @@ class TestDashboardRecentTransactions:
     async def test_limit_recent_transactions(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test that recent transactions list is limited."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -835,15 +836,15 @@ class TestDashboardMonthFiltering:
     async def test_filter_by_specific_month(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test filtering transactions to a specific month."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 
@@ -882,15 +883,15 @@ class TestDashboardMonthFiltering:
     async def test_december_to_january_transition(
         self,
         integration_session,
-        user_context,
+        current_user,
         setup_accounts,
     ):
         """Test filtering for December (year transition)."""
-        account_repo = AccountRepositorySQLAlchemy(integration_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(integration_session, current_user)
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
             account_repo,
-            user_context,
+            current_user,
         )
         accounts = setup_accounts
 

@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 
 from swen.application.commands.accounting import CreateTransactionCommand
-from swen.application.context.user_context import UserContext
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import (
@@ -15,12 +14,13 @@ from swen.domain.accounting.value_objects import (
     JournalEntryInput,
     TransactionSource,
 )
+from swen.application.ports.identity import CurrentUser
 
 
 @pytest.fixture
-def user_context() -> UserContext:
+def current_user() -> CurrentUser:
     """Create a test user context."""
-    return UserContext(user_id=uuid4(), email="test@example.com")
+    return CurrentUser(user_id=uuid4(), email="test@example.com")
 
 
 @pytest.fixture
@@ -79,13 +79,13 @@ class TestCreateTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
-        user_context,
+        current_user,
     ) -> CreateTransactionCommand:
         """Create command under test."""
         return CreateTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
     async def test_create_simple_two_entry_transaction(
@@ -230,12 +230,12 @@ class TestCreateTransactionCommand:
 
         assert txn.metadata_raw.get("source") == "manual"
 
-    async def test_from_factory(self, user_context):
+    async def test_from_factory(self, current_user):
         """Command can be created from factory."""
         factory = MagicMock()
         factory.transaction_repository.return_value = AsyncMock()
         factory.account_repository.return_value = AsyncMock()
-        factory.user_context = user_context
+        factory.current_user = current_user
 
         command = CreateTransactionCommand.from_factory(factory)
 

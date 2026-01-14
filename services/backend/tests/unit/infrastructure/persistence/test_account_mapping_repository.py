@@ -4,9 +4,11 @@ Unit tests for AccountMappingRepositorySQLAlchemy.
 Tests the persistence of account mappings that link bank accounts to accounting accounts
 """
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
+
 from swen.domain.integration.entities import AccountMapping
 from swen.infrastructure.persistence.sqlalchemy.models.integration import (
     AccountMappingModel,
@@ -14,8 +16,6 @@ from swen.infrastructure.persistence.sqlalchemy.models.integration import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
 )
-from sqlalchemy import select
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
 
 
@@ -37,10 +37,10 @@ def create_test_mapping(**overrides) -> AccountMapping:
 class TestAccountMappingRepositorySQLAlchemy:
     """Test suite for AccountMappingRepositorySQLAlchemy."""
 
-    async def test_save_new_mapping(self, async_session, user_context):
+    async def test_save_new_mapping(self, async_session, current_user):
         """Test saving a new account mapping."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
 
         # Act
@@ -61,10 +61,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert saved_model.account_name == mapping.account_name
         assert saved_model.is_active == mapping.is_active
 
-    async def test_save_updates_existing_mapping(self, async_session, user_context):
+    async def test_save_updates_existing_mapping(self, async_session, current_user):
         """Test that saving an existing mapping updates it."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -84,10 +84,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert updated_model is not None
         assert updated_model.account_name == "Updated Account Name"
 
-    async def test_find_by_id(self, async_session, user_context):
+    async def test_find_by_id(self, async_session, current_user):
         """Test finding a mapping by ID."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -101,10 +101,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert found_mapping.iban == mapping.iban
         assert found_mapping.account_name == mapping.account_name
 
-    async def test_find_by_id_returns_none_when_not_found(self, async_session, user_context):
+    async def test_find_by_id_returns_none_when_not_found(self, async_session, current_user):
         """Test that find_by_id returns None for non-existent mapping."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -113,10 +113,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         # Assert
         assert found_mapping is None
 
-    async def test_find_by_iban(self, async_session, user_context):
+    async def test_find_by_iban(self, async_session, current_user):
         """Test finding a mapping by IBAN."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -129,10 +129,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert found_mapping.id == mapping.id
         assert found_mapping.iban == mapping.iban
 
-    async def test_find_by_iban_normalizes_iban(self, async_session, user_context):
+    async def test_find_by_iban_normalizes_iban(self, async_session, current_user):
         """Test that find_by_iban normalizes IBAN (case-insensitive)."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -144,10 +144,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert found_mapping is not None
         assert found_mapping.iban == mapping.iban
 
-    async def test_find_by_accounting_account_id(self, async_session, user_context):
+    async def test_find_by_accounting_account_id(self, async_session, current_user):
         """Test finding all mappings for a specific accounting account."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         account_id = uuid4()
 
         mapping1 = create_test_mapping(
@@ -175,10 +175,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert len(mappings) == 2
         assert all(m.accounting_account_id == account_id for m in mappings)
 
-    async def test_find_all_active(self, async_session, user_context):
+    async def test_find_all_active(self, async_session, current_user):
         """Test finding all active mappings."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
 
         active_mapping = create_test_mapping(
             iban="DE89370400440532013000",
@@ -201,10 +201,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert active_mappings[0].id == active_mapping.id
         assert active_mappings[0].is_active is True
 
-    async def test_find_all(self, async_session, user_context):
+    async def test_find_all(self, async_session, current_user):
         """Test finding all mappings (active and inactive)."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
 
         mapping1 = create_test_mapping(
             iban="DE89370400440532013000",
@@ -225,10 +225,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         # Assert
         assert len(all_mappings) == 2
 
-    async def test_delete_mapping(self, async_session, user_context):
+    async def test_delete_mapping(self, async_session, current_user):
         """Test deleting a mapping."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -247,10 +247,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         result = await async_session.execute(stmt)
         assert result.scalar_one_or_none() is None
 
-    async def test_delete_nonexistent_mapping_returns_false(self, async_session, user_context):
+    async def test_delete_nonexistent_mapping_returns_false(self, async_session, current_user):
         """Test that deleting a non-existent mapping returns False."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -259,10 +259,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         # Assert
         assert deleted is False
 
-    async def test_exists_for_iban(self, async_session, user_context):
+    async def test_exists_for_iban(self, async_session, current_user):
         """Test checking if a mapping exists for an IBAN."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping()
         await repo.save(mapping)
         await async_session.commit()
@@ -275,10 +275,10 @@ class TestAccountMappingRepositorySQLAlchemy:
         assert exists is True
         assert not_exists is False
 
-    async def test_domain_to_model_mapping_preserves_all_fields(self, async_session, user_context):
+    async def test_domain_to_model_mapping_preserves_all_fields(self, async_session, current_user):
         """Test that all domain fields are correctly mapped to model and back."""
         # Arrange
-        repo = AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         mapping = create_test_mapping(
             account_name="Test Account",
             is_active=False,

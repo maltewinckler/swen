@@ -9,11 +9,12 @@ These tests demonstrate key infrastructure testing patterns:
 """
 
 from datetime import datetime, timezone
-from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+from sqlalchemy import select
+
 from swen.domain.banking.value_objects import BankAccount
 from swen.infrastructure.persistence.sqlalchemy.models.banking import (
     BankAccountModel,
@@ -21,7 +22,6 @@ from swen.infrastructure.persistence.sqlalchemy.models.banking import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankAccountRepositorySQLAlchemy,
 )
-from sqlalchemy import select
 
 
 # Helper function to create test account
@@ -39,8 +39,8 @@ def create_test_account(**overrides) -> BankAccount:
     return BankAccount(**defaults)  # type: ignore[arg-type]
 
 
-def create_user_context(user_id: str = "test-user-123") -> MagicMock:
-    """Create a mock UserContext for testing."""
+def create_current_user(user_id: str = "test-user-123") -> MagicMock:
+    """Create a mock CurrentUser for testing."""
     context = MagicMock()
     context.user_id = UUID(user_id) if "-" in user_id else user_id
     return context
@@ -53,8 +53,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_save_new_account(self, async_session):
         """Test saving a new bank account."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         account = BankAccount(
             iban="DE89370400440532013000",
             account_number="532013000",
@@ -81,8 +81,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_save_updates_existing_account(self, async_session):
         """Test that saving an existing account updates it."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         iban = "DE89370400440532013000"
 
         # Create initial account
@@ -112,8 +112,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_save_same_account_is_idempotent(self, async_session):
         """Test that saving the exact same account multiple times is idempotent."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         iban = "DE89370400440532013000"
 
         account = create_test_account(
@@ -140,8 +140,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_find_by_iban_returns_none_when_not_found(self, async_session):
         """Test finding a non-existent account returns None."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
 
         # Act
         result = await repo.find_by_iban("DE00000000000000000000")
@@ -153,8 +153,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_find_all(self, async_session):
         """Test finding all accounts for the current user."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
 
         accounts = [
             create_test_account(iban="DE89370400440532013000"),
@@ -177,8 +177,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_find_all_returns_empty_list(self, async_session):
         """Test finding accounts for user with no accounts."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
 
         # Act
         result = await repo.find_all()
@@ -190,8 +190,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_delete_account(self, async_session):
         """Test deleting an account."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         iban = "DE89370400440532013000"
 
         account = create_test_account(iban=iban)
@@ -210,8 +210,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_delete_nonexistent_account_is_noop(self, async_session):
         """Test deleting a non-existent account doesn't error."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
 
         # Act & Assert - should not raise
         await repo.delete("DE00000000000000000000")
@@ -224,13 +224,13 @@ class TestBankAccountRepositorySQLAlchemy:
         account = create_test_account(iban=iban)
 
         # Save for user A
-        user_context_a = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo_a = BankAccountRepositorySQLAlchemy(async_session, user_context_a)
+        current_user_a = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo_a = BankAccountRepositorySQLAlchemy(async_session, current_user_a)
         await repo_a.save(account)
 
         # Act & Assert - user B shouldn't see it
-        user_context_b = create_user_context("00000000-0000-0000-0000-000000000002")
-        repo_b = BankAccountRepositorySQLAlchemy(async_session, user_context_b)
+        current_user_b = create_current_user("00000000-0000-0000-0000-000000000002")
+        repo_b = BankAccountRepositorySQLAlchemy(async_session, current_user_b)
         result_user_b = await repo_b.find_by_iban(iban)
         assert result_user_b is None
 
@@ -242,8 +242,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_update_last_sync(self, async_session):
         """Test updating last sync timestamp."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         iban = "DE89370400440532013000"
 
         account = create_test_account(iban=iban)
@@ -256,7 +256,7 @@ class TestBankAccountRepositorySQLAlchemy:
         # Assert - check the database model directly (last_sync_at not exposed in domain)
         stmt = select(BankAccountModel).where(
             BankAccountModel.iban == iban,
-            BankAccountModel.user_id == user_context.user_id,
+            BankAccountModel.user_id == current_user.user_id,
         )
         result = await async_session.execute(stmt)
         model = result.scalar_one()
@@ -266,8 +266,8 @@ class TestBankAccountRepositorySQLAlchemy:
     async def test_timestamps_are_set(self, async_session):
         """Test that created_at and updated_at timestamps are set."""
         # Arrange
-        user_context = create_user_context("00000000-0000-0000-0000-000000000001")
-        repo = BankAccountRepositorySQLAlchemy(async_session, user_context)
+        current_user = create_current_user("00000000-0000-0000-0000-000000000001")
+        repo = BankAccountRepositorySQLAlchemy(async_session, current_user)
         iban = "DE89370400440532013000"
 
         account = create_test_account(iban=iban)
@@ -278,7 +278,7 @@ class TestBankAccountRepositorySQLAlchemy:
         # Assert - check the database model directly
         stmt = select(BankAccountModel).where(
             BankAccountModel.iban == iban,
-            BankAccountModel.user_id == user_context.user_id,
+            BankAccountModel.user_id == current_user.user_id,
         )
         result = await async_session.execute(stmt)
         model = result.scalar_one()

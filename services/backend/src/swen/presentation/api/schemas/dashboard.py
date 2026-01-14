@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AccountBalanceResponse(BaseModel):
@@ -16,8 +16,8 @@ class AccountBalanceResponse(BaseModel):
     balance: Decimal = Field(..., description="Current calculated balance")
     currency: str = Field(..., description="ISO 4217 currency code")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "DKB Checking Account",
@@ -25,7 +25,7 @@ class AccountBalanceResponse(BaseModel):
                 "currency": "EUR",
             }
         }
-    }
+    )
 
 
 class CategorySpendingResponse(BaseModel):
@@ -35,15 +35,15 @@ class CategorySpendingResponse(BaseModel):
     amount: Decimal = Field(..., description="Total spending amount in this category")
     currency: str = Field(default="EUR", description="ISO 4217 currency code")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "category": "Groceries",
                 "amount": "345.67",
                 "currency": "EUR",
             }
         }
-    }
+    )
 
 
 class RecentTransactionResponse(BaseModel):
@@ -56,8 +56,8 @@ class RecentTransactionResponse(BaseModel):
     currency: str = Field(..., description="ISO 4217 currency code")
     is_income: bool = Field(..., description="Direction: True = income, False = expense")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "date": "2024-12-05T14:30:00Z",
@@ -67,7 +67,7 @@ class RecentTransactionResponse(BaseModel):
                 "is_income": False,
             }
         }
-    }
+    )
 
 
 class DashboardSummaryResponse(BaseModel):
@@ -93,8 +93,8 @@ class DashboardSummaryResponse(BaseModel):
     draft_count: int = Field(..., description="Transactions pending review")
     posted_count: int = Field(..., description="Finalized transactions in period")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period_label": "December 2024",
                 "total_income": "3500.00",
@@ -142,7 +142,7 @@ class DashboardSummaryResponse(BaseModel):
                 "posted_count": 42,
             }
         }
-    }
+    )
 
 
 class SpendingBreakdownResponse(BaseModel):
@@ -154,8 +154,8 @@ class SpendingBreakdownResponse(BaseModel):
         ..., description="Spending by expense category (sorted by amount, highest first)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period_label": "December 2024",
                 "total_spending": "1847.32",
@@ -168,7 +168,7 @@ class SpendingBreakdownResponse(BaseModel):
                 ],
             }
         }
-    }
+    )
 
 
 class BalancesResponse(BaseModel):
@@ -179,8 +179,8 @@ class BalancesResponse(BaseModel):
     )
     total_assets: Decimal = Field(..., description="Sum of all asset account balances")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "balances": [
                     {
@@ -199,5 +199,5 @@ class BalancesResponse(BaseModel):
                 "total_assets": "7543.67",
             }
         }
-    }
+    )
 

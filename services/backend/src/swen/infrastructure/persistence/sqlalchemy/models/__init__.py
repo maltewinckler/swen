@@ -15,10 +15,12 @@ from swen.infrastructure.persistence.sqlalchemy.models.integration import (
     CounterAccountRuleModel,
     TransactionImportModel,
 )
+from swen.infrastructure.persistence.sqlalchemy.models.settings import (
+    UserSettingsModel,
+)
 from swen.infrastructure.persistence.sqlalchemy.models.stored_credential_model import (
     StoredCredentialModel,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.user import UserModel
 
 __all__ = [
     "Base",
@@ -31,5 +33,5 @@ __all__ = [
     "TransactionImportModel",
     "CounterAccountRuleModel",
     "StoredCredentialModel",
-    "UserModel",
+    "UserSettingsModel",
 ]

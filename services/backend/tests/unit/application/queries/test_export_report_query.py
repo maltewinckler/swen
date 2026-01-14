@@ -4,7 +4,7 @@ These tests verify the query orchestration without requiring
 a real database.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
@@ -178,7 +178,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_execute_with_days_parameter(
-        self, query, mock_analytics_port
+        self, query, mock_analytics_port,
     ):
         """Test that days parameter affects date range calculation."""
         result = await query.execute(days=30)
@@ -188,7 +188,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_execute_with_month_parameter(
-        self, query, mock_analytics_port
+        self, query, mock_analytics_port,
     ):
         """Test that month parameter sets correct period."""
         result = await query.execute(month="2024-12")
@@ -215,7 +215,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_summary_includes_income_and_expenses(
-        self, query, mock_analytics_port
+        self, query, mock_analytics_port,
     ):
         """Test that summary includes calculated income and expenses."""
         result = await query.execute()
@@ -243,7 +243,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_accounts_are_converted_to_dtos(
-        self, query, mock_account_repo
+        self, query, mock_account_repo,
     ):
         """Test that accounts are converted to AccountExportDTO."""
         result = await query.execute()
@@ -255,7 +255,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_mappings_include_resolved_account_names(
-        self, query, mock_mapping_repo, mock_account_repo
+        self, query, mock_mapping_repo, mock_account_repo,
     ):
         """Test that mappings include resolved account names."""
         # Setup mapping that references an account
@@ -282,7 +282,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_mappings_fallback_to_uuid_if_account_not_found(
-        self, query, mock_mapping_repo, mock_account_repo
+        self, query, mock_mapping_repo, mock_account_repo,
     ):
         """Test that mappings show UUID if account lookup fails."""
         user_id = uuid4()
@@ -304,7 +304,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_include_drafts_parameter_is_passed(
-        self, query, mock_transaction_repo
+        self, query, mock_transaction_repo,
     ):
         """Test that include_drafts parameter affects transaction fetching."""
         # With include_drafts=True

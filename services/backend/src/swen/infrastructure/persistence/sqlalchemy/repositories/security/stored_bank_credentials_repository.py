@@ -16,15 +16,15 @@ from swen.infrastructure.persistence.sqlalchemy.models import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 
 class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository):
     """SQLAlchemy implementation for encrypted credential storage."""
 
-    def __init__(self, session: AsyncSession, user_context: UserContext):
+    def __init__(self, session: AsyncSession, current_user: CurrentUser):
         self._session = session
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     async def save(
         self,

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from swen.application.context.user_context import UserContext
+from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import AccountNotFoundError
@@ -33,11 +33,11 @@ class CreateTransactionCommand:
         self,
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
-        self._user_context = user_context
+        self._current_user = current_user
 
     @classmethod
     def from_factory(
@@ -47,7 +47,7 @@ class CreateTransactionCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def execute(  # NOQA: PLR0913
@@ -68,7 +68,7 @@ class CreateTransactionCommand:
         # Create transaction aggregate with promoted fields
         transaction = Transaction(
             description=description,
-            user_id=self._user_context.user_id,
+            user_id=self._current_user.user_id,
             date=date or utc_now(),
             counterparty=counterparty,
             counterparty_iban=counterparty_iban,

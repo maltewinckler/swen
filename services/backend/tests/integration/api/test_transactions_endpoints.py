@@ -11,7 +11,7 @@ class TestCreateTransaction:
 
     @pytest.fixture
     def expense_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an expense account for testing."""
         response = test_client.post(
@@ -29,7 +29,7 @@ class TestCreateTransaction:
 
     @pytest.fixture
     def asset_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an asset account for testing."""
         response = test_client.post(
@@ -47,7 +47,7 @@ class TestCreateTransaction:
 
     @pytest.fixture
     def income_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an income account for testing."""
         response = test_client.post(
@@ -289,7 +289,7 @@ class TestCreateTransaction:
         assert "non-zero" in response.json()["detail"].lower()
 
     def test_create_transaction_account_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Cannot create transaction with non-existent account."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -319,7 +319,7 @@ class TestCreateTransaction:
         assert "not found" in response.json()["detail"].lower()
 
     def test_create_transaction_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot create transaction without auth."""
         response = test_client.post(
@@ -338,7 +338,7 @@ class TestCreateSimpleTransaction:
 
     @pytest.fixture
     def expense_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an expense account for testing."""
         response = test_client.post(
@@ -356,7 +356,7 @@ class TestCreateSimpleTransaction:
 
     @pytest.fixture
     def income_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an income account for testing."""
         response = test_client.post(
@@ -374,7 +374,7 @@ class TestCreateSimpleTransaction:
 
     @pytest.fixture
     def asset_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Create an asset account for testing."""
         response = test_client.post(
@@ -493,7 +493,7 @@ class TestCreateSimpleTransaction:
         assert "non-zero" in response.json()["detail"].lower()
 
     def test_create_simple_no_asset_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Cannot create simple transaction without any asset accounts."""
         # Don't create any accounts - command should fail with AccountNotFoundError
@@ -512,7 +512,7 @@ class TestCreateSimpleTransaction:
         assert "account" in response.json()["detail"].lower()
 
     def test_create_simple_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot create simple transaction without auth."""
         response = test_client.post(
@@ -530,11 +530,11 @@ class TestListTransactions:
     """Tests for GET /api/v1/transactions."""
 
     def test_list_transactions_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """List transactions returns empty for new user."""
         response = test_client.get(
-            f"{api_v1_prefix}/transactions", headers=auth_headers
+            f"{api_v1_prefix}/transactions", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -546,14 +546,14 @@ class TestListTransactions:
         assert data["posted_count"] == 0
 
     def test_list_transactions_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot list transactions without auth."""
         response = test_client.get(f"{api_v1_prefix}/transactions")
         assert response.status_code == 401
 
     def test_list_transactions_with_filters(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """List transactions accepts filter parameters."""
         response = test_client.get(
@@ -578,18 +578,18 @@ class TestGetTransaction:
     """Tests for GET /api/v1/transactions/{transaction_id}."""
 
     def test_get_transaction_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get non-existent transaction returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
         response = test_client.get(
-            f"{api_v1_prefix}/transactions/{fake_id}", headers=auth_headers
+            f"{api_v1_prefix}/transactions/{fake_id}", headers=auth_headers,
         )
 
         assert response.status_code == 404
 
     def test_get_transaction_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot get transaction without auth."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -601,18 +601,18 @@ class TestPostTransaction:
     """Tests for POST /api/v1/transactions/{transaction_id}/post."""
 
     def test_post_transaction_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Post non-existent transaction returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
         response = test_client.post(
-            f"{api_v1_prefix}/transactions/{fake_id}/post", headers=auth_headers
+            f"{api_v1_prefix}/transactions/{fake_id}/post", headers=auth_headers,
         )
 
         assert response.status_code == 404
 
     def test_post_transaction_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot post transaction without auth."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -624,18 +624,18 @@ class TestUnpostTransaction:
     """Tests for POST /api/v1/transactions/{transaction_id}/unpost."""
 
     def test_unpost_transaction_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Unpost non-existent transaction returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
         response = test_client.post(
-            f"{api_v1_prefix}/transactions/{fake_id}/unpost", headers=auth_headers
+            f"{api_v1_prefix}/transactions/{fake_id}/unpost", headers=auth_headers,
         )
 
         assert response.status_code == 404
 
     def test_unpost_transaction_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot unpost transaction without auth."""
         fake_id = "00000000-0000-0000-0000-000000000000"

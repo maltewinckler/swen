@@ -92,14 +92,14 @@ class TestAccountMappingIntegration:
     async def test_save_single_mapping_with_db_manager(
         self,
         integration_session_maker,
-        user_context,
+        current_user,
     ):
         """Test saving a single mapping using the database manager."""
         test_iban = "DE89370400440532013000"
 
         # Simulate the notebook pattern: async for session in get_session()
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Create and save mapping
             mapping = AccountMapping(
@@ -119,14 +119,14 @@ class TestAccountMappingIntegration:
 
         # Verify in new session (persisted)
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
             found = await mapping_repo.find_by_iban(test_iban)
             assert found is not None, "Mapping should persist across sessions"
 
     async def test_save_two_mappings_with_db_manager(
         self,
         integration_session_maker,
-        user_context,
+        current_user,
     ):
         """
         Test saving two mappings using database manager.
@@ -139,7 +139,7 @@ class TestAccountMappingIntegration:
 
         # First session: Save both mappings (like notebook does)
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Create first mapping
             mapping1 = AccountMapping(
@@ -174,7 +174,7 @@ class TestAccountMappingIntegration:
 
         # Second session: Verify both persist (like notebook idempotency test)
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Find both mappings
             found1 = await mapping_repo.find_by_iban(mapping1_iban)
@@ -200,7 +200,7 @@ class TestAccountMappingIntegration:
     async def test_import_multiple_bank_accounts_full_flow(
         self,
         integration_session_maker,
-        user_context,
+        current_user,
     ):
         """
         Test the complete import flow from notebook.
@@ -236,13 +236,13 @@ class TestAccountMappingIntegration:
 
         # === FIRST IMPORT ===
         async for session in get_session(integration_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
-                user_context=user_context,
+                current_user=current_user,
             )
 
             # Import both bank accounts
@@ -264,8 +264,8 @@ class TestAccountMappingIntegration:
 
         # === VERIFY PERSISTENCE ===
         async for session in get_session(integration_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Check mappings persist
             all_mappings = await mapping_repo.find_all()
@@ -292,13 +292,13 @@ class TestAccountMappingIntegration:
 
         # === TEST IDEMPOTENCY ===
         async for session in get_session(integration_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
-                user_context=user_context,
+                current_user=current_user,
             )
 
             # Count before
@@ -327,7 +327,7 @@ class TestAccountMappingIntegration:
     async def test_sequential_session_pattern(
         self,
         integration_session_maker,
-        user_context,
+        current_user,
     ):
         """
         Test the pattern of creating multiple items across sequential operations.
@@ -341,7 +341,7 @@ class TestAccountMappingIntegration:
 
         # Single session, multiple saves (like import_multiple_bank_accounts)
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Save 3 mappings sequentially
             for i, iban in enumerate([iban1, iban2, iban3], 1):
@@ -369,7 +369,7 @@ class TestAccountMappingIntegration:
 
         # Verify all persist in new session
         async for session in get_session(integration_session_maker):
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             found1 = await mapping_repo.find_by_iban(iban1)
             found2 = await mapping_repo.find_by_iban(iban2)
@@ -388,7 +388,7 @@ class TestAccountMappingIntegration:
     async def test_account_and_mapping_together(
         self,
         integration_session_maker,
-        user_context,
+        current_user,
     ):
         """
         Test creating both Account and AccountMapping in same session.
@@ -402,8 +402,8 @@ class TestAccountMappingIntegration:
         iban = "DE89370400440532013000"
 
         async for session in get_session(integration_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Create account (using IBAN as account_number for deterministic UUID)
             account = Account(
@@ -439,8 +439,8 @@ class TestAccountMappingIntegration:
 
         # Verify both persist
         async for session in get_session(integration_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Find mapping
             found_mapping = await mapping_repo.find_by_iban(iban)

@@ -46,7 +46,7 @@ class TestAccount:
         """Test creating Account with account number."""
         account_number = "4900"  # Internal accounting code
         account = Account(
-            "Groceries", AccountType.EXPENSE, account_number, TEST_USER_ID
+            "Groceries", AccountType.EXPENSE, account_number, TEST_USER_ID,
         )
 
         assert account.account_number == account_number
@@ -149,7 +149,7 @@ class TestAccount:
         """Test can_accept_transaction business rules."""
         asset_account = Account("Checking", AccountType.ASSET, "1000", TEST_USER_ID)
         expense_account = Account(
-            "Groceries", AccountType.EXPENSE, "5000", TEST_USER_ID
+            "Groceries", AccountType.EXPENSE, "5000", TEST_USER_ID,
         )
 
         # Asset accounts should accept positive amounts

@@ -1,13 +1,13 @@
 """Unit tests for AccountMappingRepositorySQLAlchemy."""
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
+
 from swen.domain.integration.entities import AccountMapping
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
 )
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
 
 
@@ -15,9 +15,9 @@ class TestAccountMappingRepositorySQLAlchemy:
     """Test AccountMappingRepository SQLAlchemy implementation."""
 
     @pytest.fixture
-    async def repository(self, async_session, user_context):
+    async def repository(self, async_session, current_user):
         """Create repository instance."""
-        return AccountMappingRepositorySQLAlchemy(async_session, user_context)
+        return AccountMappingRepositorySQLAlchemy(async_session, current_user)
 
     @pytest.fixture
     def sample_account_id_1(self):

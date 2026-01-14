@@ -28,7 +28,7 @@ from swen.domain.integration.value_objects import ResolutionResult
 from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.integration.services import AICounterAccountProvider
 
 logger = logging.getLogger(__name__)
@@ -39,15 +39,15 @@ class BankImportTransactionFactory:
 
     def __init__(
         self,
-        user_context: UserContext,
+        current_user: CurrentUser,
         ai_provider: Optional[AICounterAccountProvider] = None,
     ):
-        self._user_context = user_context
+        self._current_user = current_user
         self._ai_provider = ai_provider
 
     @property
     def _user_id(self):
-        return self._user_context.user_id
+        return self._current_user.user_id
 
     def create(  # NOQA: PLR0913
         self,

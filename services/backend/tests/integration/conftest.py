@@ -1,15 +1,14 @@
 """Integration test configuration and fixtures.
 
 This conftest provides common fixtures for integration tests, including
-the UserContext required by user-scoped repositories.
+the CurrentUser required by user-scoped repositories.
 """
 
 from uuid import UUID
 
 import pytest
 
-from swen.application.context import UserContext
-
+from swen.application.ports.identity import CurrentUser
 
 # Common test user IDs
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -23,19 +22,18 @@ BOB_USER_EMAIL = "bob@example.com"
 
 
 @pytest.fixture
-def user_context() -> UserContext:
-    """Provide a UserContext for the default test user."""
-    return UserContext(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
+def current_user() -> CurrentUser:
+    """Provide a CurrentUser for the default test user."""
+    return CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
 @pytest.fixture
-def alice_user_context() -> UserContext:
-    """Provide a UserContext for Alice (multi-user testing)."""
-    return UserContext(user_id=ALICE_USER_ID, email=ALICE_USER_EMAIL)
+def alice_current_user() -> CurrentUser:
+    """Provide a CurrentUser for Alice (multi-user testing)."""
+    return CurrentUser(user_id=ALICE_USER_ID, email=ALICE_USER_EMAIL)
 
 
 @pytest.fixture
-def bob_user_context() -> UserContext:
-    """Provide a UserContext for Bob (multi-user testing)."""
-    return UserContext(user_id=BOB_USER_ID, email=BOB_USER_EMAIL)
-
+def bob_current_user() -> CurrentUser:
+    """Provide a CurrentUser for Bob (multi-user testing)."""
+    return CurrentUser(user_id=BOB_USER_ID, email=BOB_USER_EMAIL)

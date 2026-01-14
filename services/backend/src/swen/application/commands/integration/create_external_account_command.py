@@ -17,7 +17,7 @@ from swen.domain.shared.exceptions import ValidationError
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -44,12 +44,12 @@ class CreateExternalAccountCommand:
         account_repository: AccountRepository,
         mapping_repository: AccountMappingRepository,
         transaction_repository: TransactionRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._account_repo = account_repository
         self._mapping_repo = mapping_repository
         self._transaction_repo = transaction_repository
-        self._user_context = user_context
+        self._current_user = current_user
 
     @classmethod
     def from_factory(
@@ -60,7 +60,7 @@ class CreateExternalAccountCommand:
             account_repository=factory.account_repository(),
             mapping_repository=factory.account_mapping_repository(),
             transaction_repository=factory.transaction_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def execute(
@@ -118,7 +118,7 @@ class CreateExternalAccountCommand:
                 iban=normalized_iban,
                 accounting_account_id=existing_account_by_iban.id,
                 account_name=name,
-                user_id=self._user_context.user_id,
+                user_id=self._current_user.user_id,
                 is_active=True,
             )
             await self._mapping_repo.save(mapping)
@@ -145,7 +145,7 @@ class CreateExternalAccountCommand:
             name=name,
             account_type=account_type,
             account_number=account_number,
-            user_id=self._user_context.user_id,
+            user_id=self._current_user.user_id,
             iban=normalized_iban,
             default_currency=curr,
         )
@@ -158,7 +158,7 @@ class CreateExternalAccountCommand:
             iban=normalized_iban,
             accounting_account_id=new_account.id,
             account_name=name,
-            user_id=self._user_context.user_id,
+            user_id=self._current_user.user_id,
             is_active=True,
         )
 

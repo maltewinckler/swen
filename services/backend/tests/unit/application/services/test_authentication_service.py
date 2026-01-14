@@ -6,17 +6,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen_auth import (
+from swen_identity import (
     AccountLockedError,
+    AuthenticationService,
+    EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidTokenError,
     JWTService,
     PasswordHashingService,
+    User,
+    UserRole,
     WeakPasswordError,
 )
-from swen.application.services import AuthenticationService
-from swen.domain.user import EmailAlreadyExistsError, User, UserRole
-
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_EMAIL = "test@example.com"
@@ -255,7 +256,7 @@ class TestAuthenticationServiceRefreshToken:
 
         # Act
         access_token, refresh_token = await self.service.refresh_token(
-            "valid_refresh_token"
+            "valid_refresh_token",
         )
 
         # Assert

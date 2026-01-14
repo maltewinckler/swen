@@ -1,6 +1,5 @@
 """Integration tests for accounts endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -8,7 +7,7 @@ class TestListAccounts:
     """Tests for GET /api/v1/accounts."""
 
     def test_list_accounts_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """List accounts returns empty for new user."""
         response = test_client.get(f"{api_v1_prefix}/accounts", headers=auth_headers)
@@ -20,7 +19,7 @@ class TestListAccounts:
         assert data["total"] == 0
 
     def test_list_accounts_with_data(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """List accounts returns created accounts."""
         # Create an account first
@@ -46,7 +45,7 @@ class TestListAccounts:
         assert data["accounts"][0]["account_number"] == "6001"
 
     def test_list_accounts_filter_by_type(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Filter accounts by type."""
         # Create accounts of different types
@@ -83,7 +82,7 @@ class TestListAccounts:
         assert data["accounts"][0]["account_type"] == "expense"
 
     def test_list_accounts_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot list accounts without auth."""
         response = test_client.get(f"{api_v1_prefix}/accounts")
@@ -94,7 +93,7 @@ class TestCreateAccount:
     """Tests for POST /api/v1/accounts."""
 
     def test_create_account_success(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Successfully create an account."""
         response = test_client.post(
@@ -120,7 +119,7 @@ class TestCreateAccount:
         assert "created_at" in data
 
     def test_create_account_duplicate_number(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Cannot create account with duplicate number."""
         # Create first account
@@ -149,7 +148,7 @@ class TestCreateAccount:
         assert "already exists" in response.json()["detail"].lower()
 
     def test_create_account_duplicate_name(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Cannot create account with duplicate name."""
         # Create first account
@@ -178,7 +177,7 @@ class TestCreateAccount:
         assert "already exists" in response.json()["detail"].lower()
 
     def test_create_account_invalid_type(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Cannot create account with invalid type."""
         response = test_client.post(
@@ -194,7 +193,7 @@ class TestCreateAccount:
         assert response.status_code == 400
 
     def test_create_account_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot create account without auth."""
         response = test_client.post(
@@ -212,7 +211,7 @@ class TestGetAccount:
     """Tests for GET /api/v1/accounts/{account_id}."""
 
     def test_get_account_success(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Successfully get an account by ID."""
         # Create account
@@ -229,7 +228,7 @@ class TestGetAccount:
 
         # Get account
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/{account_id}", headers=auth_headers
+            f"{api_v1_prefix}/accounts/{account_id}", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -239,12 +238,12 @@ class TestGetAccount:
         assert data["name"] == "Groceries"
 
     def test_get_account_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get non-existent account returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/{fake_id}", headers=auth_headers
+            f"{api_v1_prefix}/accounts/{fake_id}", headers=auth_headers,
         )
 
         assert response.status_code == 404
@@ -254,7 +253,7 @@ class TestUpdateAccount:
     """Tests for PATCH /api/v1/accounts/{account_id}."""
 
     def test_update_account_rename(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Successfully rename an account."""
         # Create account
@@ -283,7 +282,7 @@ class TestUpdateAccount:
         assert data["account_number"] == "6001"  # Unchanged
 
     def test_update_account_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Update non-existent account returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -300,7 +299,7 @@ class TestDeactivateAccount:
     """Tests for DELETE /api/v1/accounts/{account_id}."""
 
     def test_deactivate_account_success(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Successfully deactivate an account."""
         # Create account
@@ -317,7 +316,7 @@ class TestDeactivateAccount:
 
         # Deactivate
         response = test_client.delete(
-            f"{api_v1_prefix}/accounts/{account_id}", headers=auth_headers
+            f"{api_v1_prefix}/accounts/{account_id}", headers=auth_headers,
         )
 
         assert response.status_code == 204
@@ -340,12 +339,12 @@ class TestDeactivateAccount:
         assert list_response.json()["accounts"][0]["is_active"] is False
 
     def test_deactivate_account_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Deactivate non-existent account returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
         response = test_client.delete(
-            f"{api_v1_prefix}/accounts/{fake_id}", headers=auth_headers
+            f"{api_v1_prefix}/accounts/{fake_id}", headers=auth_headers,
         )
 
         assert response.status_code == 404
@@ -355,11 +354,11 @@ class TestBankAccounts:
     """Tests for /api/v1/accounts/bank endpoints."""
 
     def test_list_bank_accounts_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """List bank accounts returns empty for new user."""
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/bank", headers=auth_headers
+            f"{api_v1_prefix}/accounts/bank", headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -373,7 +372,7 @@ class TestAccountStats:
     """Tests for GET /api/v1/accounts/{account_id}/stats."""
 
     def test_get_stats_for_account_no_transactions(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get stats for account with no transactions."""
         # Create account
@@ -418,7 +417,7 @@ class TestAccountStats:
         assert data["period_end"] is not None  # Should have end date
 
     def test_get_stats_with_days_filter(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get stats with days filter parameter."""
         # Create account
@@ -448,7 +447,7 @@ class TestAccountStats:
         assert data["period_end"] is not None
 
     def test_get_stats_exclude_drafts(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get stats excluding draft transactions."""
         # Create account
@@ -476,7 +475,7 @@ class TestAccountStats:
         assert data["balance_includes_drafts"] is False
 
     def test_get_stats_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Get stats for non-existent account returns 404."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -488,7 +487,7 @@ class TestAccountStats:
         assert response.status_code == 404
 
     def test_get_stats_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Cannot get stats without authentication."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -499,7 +498,7 @@ class TestAccountStats:
         assert response.status_code == 401
 
     def test_get_stats_invalid_days_parameter(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str
+        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
     ):
         """Invalid days parameter returns 422."""
         # Create account

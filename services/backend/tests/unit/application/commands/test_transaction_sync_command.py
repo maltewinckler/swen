@@ -10,11 +10,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.commands.integration import TransactionSyncCommand
-from swen.application.context import UserContext
 from swen.domain.banking.value_objects import BankCredentials, TANChallenge
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.value_objects.secure_string import SecureString
+from swen.application.ports.identity import CurrentUser
 
 IBAN = "DE89370400440532013000"
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -78,14 +78,14 @@ def _make_command():
     bank_transaction_repo.save_batch_with_deduplication.return_value = []
 
     # Create user context
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
     command = TransactionSyncCommand(
         bank_adapter=adapter,
         import_service=import_service,
         mapping_repo=mapping_repo,
         import_repo=import_repo,
-        user_context=user_context,
+        current_user=current_user,
         bank_transaction_repo=bank_transaction_repo,
     )
 
@@ -473,6 +473,7 @@ def _make_mock_transaction_with_entries():
     - entries[1] = asset_account (bank account like "Girokonto")
     """
     from decimal import Decimal
+
     from swen.domain.accounting.value_objects import Money
 
     # Create mock accounts

@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
@@ -95,7 +95,7 @@ class TransactionImportService:
         account_repository: AccountRepository,
         transaction_repository: TransactionRepository,
         import_repository: TransactionImportRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
         db_session: Optional[AsyncSession] = None,
     ):
         self._bank_account_service = bank_account_import_service
@@ -105,7 +105,7 @@ class TransactionImportService:
         self._account_repo = account_repository
         self._transaction_repo = transaction_repository
         self._import_repo = import_repository
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
         self._db_session = db_session
 
     @classmethod
@@ -126,7 +126,7 @@ class TransactionImportService:
         )
 
         transaction_factory = BankImportTransactionFactory(
-            user_context=factory.user_context,
+            current_user=factory.current_user,
             ai_provider=ai_provider,
         )
 
@@ -138,7 +138,7 @@ class TransactionImportService:
             account_repository=factory.account_repository(),
             transaction_repository=factory.transaction_repository(),
             import_repository=factory.import_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
             db_session=factory.session,
         )
 

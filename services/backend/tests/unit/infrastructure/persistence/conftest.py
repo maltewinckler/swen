@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
-from swen.infrastructure.persistence.sqlalchemy.models.user import UserModel
+from swen_identity.infrastructure.persistence.sqlalchemy.models import UserModel
 
 # Fixed UUIDs for testing - ensures deterministic behavior
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -56,32 +56,30 @@ POSTGRES_TEST_URL = _build_postgres_url()
 
 
 @dataclass(frozen=True)
-class MockUserContext:
-    """Mock UserContext for testing."""
+class MockCurrentUser:
+    """Mock CurrentUser for testing."""
 
     user_id: UUID
     email: str = TEST_USER_EMAIL
 
 
 @pytest.fixture
-def user_context():
-    """Provide a test UserContext for repository tests."""
-    return MockUserContext(user_id=TEST_USER_ID)
+def current_user():
+    """Provide a test CurrentUser for repository tests."""
+    return MockCurrentUser(user_id=TEST_USER_ID)
 
 
 def _create_test_user(user_id: UUID, email: str) -> UserModel:
-    """Create a test user model with all required fields."""
+    """Create a test user model with all required fields.
+
+    Note: UserModel now only contains identity fields (id, email, role).
+    User settings are stored separately in user_settings table.
+    """
     now = datetime.now(tz=timezone.utc)
     return UserModel(
         id=user_id,
         email=email,
-        auto_post_transactions=False,
-        default_currency="EUR",
-        show_draft_transactions=True,
-        default_date_range_days=30,
-        ai_enabled=True,
-        ai_model_name="test-model",
-        ai_min_confidence=0.7,
+        role="user",
         created_at=now,
         updated_at=now,
     )
@@ -127,7 +125,11 @@ async def async_session(async_engine):
 
     This ensures complete test isolation.
     """
-    # Create all tables
+    # Import models to register them with Base.metadata
+    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
+    # Create all tables (Base.metadata includes both swen and swen_identity tables)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -164,6 +166,10 @@ async def async_session_with_transaction(async_engine):
 
     This is useful when you want to test rollback behavior explicitly.
     """
+    # Import models to register them with Base.metadata
+    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)

@@ -12,7 +12,7 @@ from swen.domain.integration.entities import AccountMapping
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
     from swen.domain.accounting.repositories import AccountRepository
     from swen.domain.integration.repositories import AccountMappingRepository
@@ -25,18 +25,18 @@ class BankAccountImportService:
         self,
         account_repository: AccountRepository,
         mapping_repository: AccountMappingRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._account_repo = account_repository
         self._mapping_repo = mapping_repository
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> BankAccountImportService:
         return cls(
             account_repository=factory.account_repository(),
             mapping_repository=factory.account_mapping_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def import_bank_account(

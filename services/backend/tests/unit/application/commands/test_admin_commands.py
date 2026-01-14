@@ -5,21 +5,20 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.admin import (
-    CreateUserCommand,
-    DeleteUserCommand,
-    UpdateUserRoleCommand,
-)
-from swen.domain.user import (
+from swen_identity import (
     CannotDeleteSelfError,
     CannotDemoteSelfError,
     EmailAlreadyExistsError,
+    PasswordHashingService,
     User,
     UserNotFoundError,
     UserRole,
 )
-from swen_auth.services import PasswordHashingService
-
+from swen_identity.application.commands import (
+    CreateUserCommand,
+    DeleteUserCommand,
+    UpdateUserRoleCommand,
+)
 
 TEST_EMAIL = "test@example.com"
 TEST_PASSWORD = "secure_password_123"

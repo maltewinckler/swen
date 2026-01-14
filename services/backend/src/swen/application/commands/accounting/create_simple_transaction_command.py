@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional
 from swen.application.commands.accounting.create_transaction_command import (
     CreateTransactionCommand,
 )
-from swen.application.context.user_context import UserContext
+from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.entities.account_type import AccountType
@@ -49,16 +49,16 @@ class CreateSimpleTransactionCommand:
         self,
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._account_repo = account_repository
-        self._user_context = user_context
+        self._current_user = current_user
 
         # Compose the underlying entry-based command
         self._create_command = CreateTransactionCommand(
             transaction_repository=transaction_repository,
             account_repository=account_repository,
-            user_context=user_context,
+            current_user=current_user,
         )
 
     @classmethod
@@ -69,7 +69,7 @@ class CreateSimpleTransactionCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def execute(  # NOQA: PLR0913

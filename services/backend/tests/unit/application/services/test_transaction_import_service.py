@@ -5,12 +5,12 @@ from uuid import UUID
 
 import pytest
 
-from swen.application.context import UserContext
 from swen.application.factories import BankImportTransactionFactory
 from swen.application.services import TransactionImportService
 from swen.application.services.transfer_reconciliation_service import (
     TransferReconciliationService,
 )
+from swen.application.ports.identity import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
@@ -24,7 +24,7 @@ def service():
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
@@ -33,7 +33,7 @@ def service():
     )
 
     transaction_factory = BankImportTransactionFactory(
-        user_context=user_context,
+        current_user=current_user,
     )
 
     svc = TransactionImportService(
@@ -44,7 +44,7 @@ def service():
         account_repository=account_repo,
         transaction_repository=transaction_repo,
         import_repository=import_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
 
     return svc, {

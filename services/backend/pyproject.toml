@@ -105,4 +105,36 @@ extend-select = ["E501"]
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "D"]  # No docstrings required in tests
+"tests/**/*.py" = [
+    "S101",     # assert is fine in tests
+    "S105",     # Hardcoded passwords OK in tests
+    "D",        # No docstrings required in tests
+    "ARG001",   # Unused function arguments (pytest fixtures)
+    "ARG002",   # Unused method arguments (pytest fixtures)
+    "PLR0913",  # Too many arguments (common with many fixtures)
+    "PLC0415",  # Import not at top level (sometimes needed for isolation)
+    "E501",     # Line too long (test assertions can be verbose)
+    "E402",     # Module level import not at top (conditional imports in tests)
+    "N817",     # CamelCase imports (TC for TestClient is fine)
+    "EM101",    # String literals in exceptions OK in tests
+    "SIM102",   # Nested if statements sometimes clearer in tests
+    "ERA001",   # Commented code OK in tests for documentation
+    "A001",     # Variable shadowing builtins OK in tests (e.g., credits)
+    "RUF100",   # Unused noqa (can happen during refactoring)
+    "RUF059",   # Unpacked variables not used (common in tuple unpacking)
+    "F841",     # Local variable assigned but never used (setup for tests)
+    "PT012",    # pytest.raises with multiple statements (sometimes needed)
+    "PERF203",  # try-except in loop (acceptable in tests)
+    "B017",     # assert blind exception (testing error paths)
+    "PT011",    # pytest.raises too broad (acceptable in some tests)
+    "S106",     # Possible hardcoded password (test data)
+    "PERF401",  # Use list comprehension (clarity over performance in tests)
+    "RUF043",   # Unnecessary tuple in exception handler
+    "PGH003",   # Use specific rule codes for type: ignore
+    "E741",     # Ambiguous variable name (l, O, I) - sometimes needed in tests
+    "PLW0603",  # Global statement (sometimes needed in test fixtures)
+    "INP001",   # Implicit namespace package (tests don't need __init__.py)
+    "RUF015",   # Prefer next() over [0] (clarity in tests)
+    "DTZ003",   # datetime.utcnow() deprecated (will fix separately)
+    "A006",     # Lambda shadowing builtins
+]

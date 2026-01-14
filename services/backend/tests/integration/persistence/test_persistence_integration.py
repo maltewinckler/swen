@@ -19,22 +19,22 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from swen.application.context import UserContext
 from swen.domain.banking.value_objects import BankAccount, BankTransaction
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     BankAccountRepositorySQLAlchemy,
     BankTransactionRepositorySQLAlchemy,
 )
+from swen.application.ports.identity import CurrentUser
 
 # Test user for integration tests
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_USER_EMAIL = "test@example.com"
 
 
-def create_test_user_context() -> UserContext:
-    """Create a UserContext for testing."""
-    return UserContext(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
+def create_test_current_user() -> CurrentUser:
+    """Create a CurrentUser for testing."""
+    return CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
 # ============================================================================
@@ -145,9 +145,9 @@ class TestAccountPersistenceIntegration:
         # Arrange - simulate receiving account from FinTS
         repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         fints_account = create_fints_like_account(
             iban="DE89370400440532013000",
@@ -182,9 +182,9 @@ class TestAccountPersistenceIntegration:
         # Arrange
         repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         accounts = [
             create_fints_like_account(
@@ -234,13 +234,13 @@ class TestTransactionPersistenceIntegration:
         # Arrange - account exists
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -289,13 +289,13 @@ class TestTransactionPersistenceIntegration:
         # Arrange - account with existing transactions
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -339,13 +339,13 @@ class TestTransactionPersistenceIntegration:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -378,13 +378,13 @@ class TestTransactionPersistenceIntegration:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -436,13 +436,13 @@ class TestTransactionPersistenceIntegration:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -487,13 +487,13 @@ class TestComplexPersistenceScenarios:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         # Simulate FinTS sync: fetch accounts
         accounts = [
@@ -543,13 +543,13 @@ class TestComplexPersistenceScenarios:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)
@@ -582,13 +582,13 @@ class TestComplexPersistenceScenarios:
         # Arrange
         acc_repo = BankAccountRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
         tx_repo = BankTransactionRepositorySQLAlchemy(
             integration_session,
-            create_test_user_context(),
+            create_test_current_user(),
         )
-        # User context is now provided via MockUserContext in repository constructor
+        # User context is now provided via MockCurrentUser in repository constructor
 
         account = create_fints_like_account()
         await acc_repo.save(account)

@@ -8,6 +8,9 @@
    DESIGN TOKENS - Dark Theme (Default)
    ============================================ */
 :root {
+  /* Color scheme for native inputs (date pickers, etc.) */
+  color-scheme: dark;
+
   /* Background Layers */
   --bg-base: #0a0a0b;
   --bg-surface: #121214;
@@ -47,6 +50,8 @@
 
 /* Light Theme Override */
 .light {
+  color-scheme: light;
+
   --bg-base: #ffffff;
   --bg-surface: #f9fafb;
   --bg-elevated: #ffffff;
@@ -107,6 +112,21 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--border-focus);
+  }
+
+  /* Date input calendar icon styling for dark mode */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.7);
+    opacity: 0.8;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
+  .light input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: none;
   }
 }
 

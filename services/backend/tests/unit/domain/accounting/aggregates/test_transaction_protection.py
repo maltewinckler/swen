@@ -126,7 +126,7 @@ class TestProtectedEntries:
         assert protected[0].account.account_type == AccountType.ASSET
 
     def test_bank_import_does_not_protect_expense_entries(
-        self, bank_import_transaction, groceries_account
+        self, bank_import_transaction, groceries_account,
     ):
         """Bank import does not protect expense entries."""
         protected = bank_import_transaction.protected_entries
@@ -224,7 +224,7 @@ class TestReplaceUnprotectedEntries:
     """Tests for replace_unprotected_entries method."""
 
     def test_replace_preserves_protected_in_bank_import(
-        self, bank_import_transaction, restaurant_account, amount
+        self, bank_import_transaction, restaurant_account, amount,
     ):
         """Replace preserves protected asset entry for bank imports."""
         # Replace groceries with restaurant
@@ -241,7 +241,7 @@ class TestReplaceUnprotectedEntries:
         assert any(e.account.name == "Restaurant" for e in entries)
 
     def test_replace_splits_category_in_bank_import(
-        self, bank_import_transaction, groceries_account, restaurant_account
+        self, bank_import_transaction, groceries_account, restaurant_account,
     ):
         """Can split into multiple categories for bank imports."""
         amount1 = Money(Decimal("30.00"), Currency("EUR"))
@@ -256,7 +256,7 @@ class TestReplaceUnprotectedEntries:
         assert len(entries) == 3  # 1 protected asset + 2 new expenses
 
     def test_replace_all_in_manual(
-        self, manual_transaction, checking_account, restaurant_account, amount
+        self, manual_transaction, checking_account, restaurant_account, amount,
     ):
         """All entries are replaced for manual transactions."""
         manual_transaction.replace_unprotected_entries([
@@ -303,7 +303,7 @@ class TestPostedTransactionProtection:
     """Tests for interaction between posting and protection."""
 
     def test_unpost_allows_category_change(
-        self, bank_import_transaction, restaurant_account, amount
+        self, bank_import_transaction, restaurant_account, amount,
     ):
         """Unposting allows changing category entries."""
         bank_import_transaction.post()

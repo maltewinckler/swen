@@ -4,17 +4,16 @@ Unit tests for AccountRepositorySQLAlchemy.
 These tests verify the persistence layer for accounting accounts.
 """
 
-from uuid import UUID
 
 import pytest
+from sqlalchemy import select
+
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.infrastructure.persistence.sqlalchemy.models import AccountModel
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     AccountRepositorySQLAlchemy,
 )
-from sqlalchemy import select
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
 
 
@@ -22,10 +21,10 @@ class TestAccountRepositorySQLAlchemy:
     """Test suite for accounting account repository."""
 
     @pytest.mark.asyncio
-    async def test_save_new_account(self, async_session, user_context):
+    async def test_save_new_account(self, async_session, current_user):
         """Test saving a new accounting account."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account(
             name="Checking Account",
             account_type=AccountType.ASSET,
@@ -46,10 +45,10 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved.is_active is True
 
     @pytest.mark.asyncio
-    async def test_save_updates_existing_account(self, async_session, user_context):
+    async def test_save_updates_existing_account(self, async_session, current_user):
         """Test that saving an existing account updates it."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account("Test Account", AccountType.EXPENSE, "5000", TEST_USER_ID)
         await repo.save(account)
 
@@ -63,10 +62,10 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved.is_active is False
 
     @pytest.mark.asyncio
-    async def test_find_by_name(self, async_session, user_context):
+    async def test_find_by_name(self, async_session, current_user):
         """Test finding an account by name."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account("Office Supplies", AccountType.EXPENSE, "5001", TEST_USER_ID)
         await repo.save(account)
 
@@ -79,10 +78,10 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved.name == "Office Supplies"
 
     @pytest.mark.asyncio
-    async def test_find_by_name_not_found(self, async_session, user_context):
+    async def test_find_by_name_not_found(self, async_session, current_user):
         """Test finding a non-existent account returns None."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
 
         # Act
         retrieved = await repo.find_by_name("NonExistent")
@@ -91,9 +90,9 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved is None
 
     @pytest.mark.asyncio
-    async def test_find_by_iban(self, async_session, user_context):
+    async def test_find_by_iban(self, async_session, current_user):
         """Find by iban should normalize and return matching account."""
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account(
             name="Bank Account",
             account_type=AccountType.ASSET,
@@ -110,11 +109,11 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved.iban == "DE89370400440532013000"
 
     @pytest.mark.asyncio
-    async def test_save_duplicate_account_number_raises_error(self, async_session, user_context):
+    async def test_save_duplicate_account_number_raises_error(self, async_session, current_user):
         """Duplicate account_number for same user should raise AccountAlreadyExistsError."""
         from swen.domain.accounting.exceptions import AccountAlreadyExistsError
 
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         a1 = Account("A1", AccountType.ASSET, "1000", TEST_USER_ID)
         a2 = Account("A2", AccountType.ASSET, "1000", TEST_USER_ID)
 
@@ -123,11 +122,11 @@ class TestAccountRepositorySQLAlchemy:
             await repo.save(a2)
 
     @pytest.mark.asyncio
-    async def test_save_duplicate_iban_raises_error(self, async_session, user_context):
+    async def test_save_duplicate_iban_raises_error(self, async_session, current_user):
         """Duplicate iban for same user should raise AccountAlreadyExistsError."""
         from swen.domain.accounting.exceptions import AccountAlreadyExistsError
 
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         a1 = Account(
             name="A1",
             account_type=AccountType.ASSET,
@@ -148,10 +147,10 @@ class TestAccountRepositorySQLAlchemy:
             await repo.save(a2)
 
     @pytest.mark.asyncio
-    async def test_find_all_active(self, async_session, user_context):
+    async def test_find_all_active(self, async_session, current_user):
         """Test finding all active accounts."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
 
         account1 = Account("Active 1", AccountType.ASSET, "1000", TEST_USER_ID)
         account2 = Account("Active 2", AccountType.EXPENSE, "5002", TEST_USER_ID)
@@ -171,10 +170,10 @@ class TestAccountRepositorySQLAlchemy:
         assert names == {"Active 1", "Active 2"}
 
     @pytest.mark.asyncio
-    async def test_find_by_type(self, async_session, user_context):
+    async def test_find_by_type(self, async_session, current_user):
         """Test finding accounts by type."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
 
         asset1 = Account("Cash", AccountType.ASSET, "1001", TEST_USER_ID)
         asset2 = Account("Bank", AccountType.ASSET, "1002", TEST_USER_ID)
@@ -193,10 +192,10 @@ class TestAccountRepositorySQLAlchemy:
         assert names == {"Cash", "Bank"}
 
     @pytest.mark.asyncio
-    async def test_delete_account(self, async_session, user_context):
+    async def test_delete_account(self, async_session, current_user):
         """Test deleting an account."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account("To Delete", AccountType.ASSET, "1003", TEST_USER_ID)
         await repo.save(account)
 
@@ -208,10 +207,10 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved is None
 
     @pytest.mark.asyncio
-    async def test_account_with_parent(self, async_session, user_context):
+    async def test_account_with_parent(self, async_session, current_user):
         """Test saving and retrieving account with parent."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
 
         parent = Account("Parent Account", AccountType.ASSET, "1004", TEST_USER_ID)
         await repo.save(parent)
@@ -228,10 +227,10 @@ class TestAccountRepositorySQLAlchemy:
         assert retrieved.parent_id == parent.id
 
     @pytest.mark.asyncio
-    async def test_domain_to_model_mapping(self, async_session, user_context):
+    async def test_domain_to_model_mapping(self, async_session, current_user):
         """Test correct mapping between domain and database model."""
         # Arrange
-        repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        repo = AccountRepositorySQLAlchemy(async_session, current_user)
         account = Account(
             name="Test Mapping",
             account_type=AccountType.ASSET,
