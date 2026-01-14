@@ -57,6 +57,7 @@ config/.env.local
 notebooks/
 _deprecated/
 docs/_untracked/
+docs/_specs/
 examples/
 # add institue list specifically
 config/fints_institute.csv
