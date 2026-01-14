@@ -6,7 +6,7 @@ optimized for frontend visualization libraries.
 
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class TimeSeriesDataPointResponse(BaseModel):
     """Single data point in a time series.
@@ -19,15 +19,15 @@ class TimeSeriesDataPointResponse(BaseModel):
     period_label: str = Field(description="Human-readable label (e.g., 'Dec 2024')")
     value: Decimal = Field(description="Numeric value for this period")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period": "2024-12",
                 "period_label": "Dec 2024",
                 "value": "3245.67",
             }
         }
-    }
+    )
 
 class CategoryDataResponse(BaseModel):
     """Category breakdown for a single period.
@@ -41,8 +41,8 @@ class CategoryDataResponse(BaseModel):
     categories: dict[str, Decimal] = Field(description="Amount per category (category name → amount)")
     total: Decimal = Field(description="Sum of all categories for this period")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period": "2024-12",
                 "period_label": "Dec 2024",
@@ -55,7 +55,7 @@ class CategoryDataResponse(BaseModel):
                 "total": "1510.17",
             }
         }
-    }
+    )
 
 class TimeSeriesResponse(BaseModel):
     """Response for simple time series data.
@@ -78,8 +78,8 @@ class TimeSeriesResponse(BaseModel):
     min_value: Decimal = Field(description="Lowest value in series (for chart scaling)")
     max_value: Decimal = Field(description="Highest value in series (for chart scaling)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "data_points": [
                     {"period": "2024-10", "period_label": "Oct 2024", "value": "3200.00"},
@@ -93,7 +93,7 @@ class TimeSeriesResponse(BaseModel):
                 "max_value": "3500.00",
             }
         }
-    }
+    )
 
 class CategoryTimeSeriesResponse(BaseModel):
     """Response for time series with category breakdown.
@@ -119,8 +119,8 @@ class CategoryTimeSeriesResponse(BaseModel):
         description="Grand total per category (for sorting legend by importance)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "data_points": [
                     {
@@ -145,7 +145,7 @@ class CategoryTimeSeriesResponse(BaseModel):
                 },
             }
         }
-    }
+    )
 
 class BreakdownItemResponse(BaseModel):
     """Single item in a breakdown (pie chart slice).
@@ -160,8 +160,8 @@ class BreakdownItemResponse(BaseModel):
     percentage: Decimal = Field(description="Percentage of total (0-100)")
     account_id: str = Field(description="Account UUID for filtering transactions")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "category": "Groceries",
                 "amount": "345.67",
@@ -169,7 +169,7 @@ class BreakdownItemResponse(BaseModel):
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
             }
         }
-    }
+    )
 
 class SpendingBreakdownResponse(BaseModel):
     """Spending distribution by expense category.
@@ -188,8 +188,8 @@ class SpendingBreakdownResponse(BaseModel):
     currency: str = Field(description="Currency code (e.g., 'EUR')")
     category_count: int = Field(description="Number of expense categories with activity")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period_label": "December 2024",
                 "items": [
@@ -217,7 +217,7 @@ class SpendingBreakdownResponse(BaseModel):
                 "category_count": 8,
             }
         }
-    }
+    )
 
 class IncomeBreakdownResponse(BaseModel):
     """Income distribution by source.
@@ -236,8 +236,8 @@ class IncomeBreakdownResponse(BaseModel):
     total: Decimal = Field(description="Total income from all sources")
     currency: str = Field(description="Currency code (e.g., 'EUR')")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period_label": "December 2024",
                 "items": [
@@ -264,7 +264,7 @@ class IncomeBreakdownResponse(BaseModel):
                 "currency": "EUR",
             }
         }
-    }
+    )
 
 class CategoryComparisonResponse(BaseModel):
     """Month-over-month comparison for a single category.
@@ -279,8 +279,8 @@ class CategoryComparisonResponse(BaseModel):
     change_amount: Decimal = Field(description="Absolute change (current - previous)")
     change_percentage: Decimal = Field(description="Percentage change (positive = increase)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "category": "Groceries",
                 "current_amount": "345.67",
@@ -289,7 +289,7 @@ class CategoryComparisonResponse(BaseModel):
                 "change_percentage": "8.02",
             }
         }
-    }
+    )
 
 class MonthComparisonResponse(BaseModel):
     """Month-over-month financial comparison.
@@ -331,8 +331,8 @@ class MonthComparisonResponse(BaseModel):
         description="Per-category spending changes",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "current_month": "December 2024",
                 "previous_month": "November 2024",
@@ -367,7 +367,7 @@ class MonthComparisonResponse(BaseModel):
                 ],
             }
         }
-    }
+    )
 
 class TopExpenseItemResponse(BaseModel):
     """A ranked expense category with statistics.
@@ -383,8 +383,8 @@ class TopExpenseItemResponse(BaseModel):
     percentage_of_total: Decimal = Field(description="Share of total spending (0-100)")
     transaction_count: int = Field(description="Number of transactions in this category")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "rank": 1,
                 "category": "Rent",
@@ -395,7 +395,7 @@ class TopExpenseItemResponse(BaseModel):
                 "transaction_count": 3,
             }
         }
-    }
+    )
 
 class TopExpensesResponse(BaseModel):
     """Ranked list of top expense categories.
@@ -418,8 +418,8 @@ class TopExpensesResponse(BaseModel):
     currency: str = Field(description="Currency code (e.g., 'EUR')")
     months_analyzed: int = Field(description="Number of months included in analysis")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "period_label": "October - December 2024",
                 "items": [
@@ -456,7 +456,7 @@ class TopExpensesResponse(BaseModel):
                 "months_analyzed": 3,
             }
         }
-    }
+    )
 
 class SankeyNodeResponse(BaseModel):
     """A node in the Sankey diagram.
@@ -469,8 +469,8 @@ class SankeyNodeResponse(BaseModel):
     category: str = Field(description="Node type: 'income', 'total', 'expense', or 'savings'")
     color: str | None = Field(default=None, description="Hex color for the node")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "income_salary",
                 "label": "Salary",
@@ -478,7 +478,7 @@ class SankeyNodeResponse(BaseModel):
                 "color": "#22c55e",
             }
         }
-    }
+    )
 
 class SankeyLinkResponse(BaseModel):
     """A link (flow) between two Sankey nodes.
@@ -490,15 +490,15 @@ class SankeyLinkResponse(BaseModel):
     target: str = Field(description="Target node ID")
     value: Decimal = Field(description="Flow amount (always positive)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "source": "income_salary",
                 "target": "total",
                 "value": "3500.00",
             }
         }
-    }
+    )
 
 class SankeyResponse(BaseModel):
     """Sankey diagram data for cash flow visualization.
@@ -525,8 +525,8 @@ class SankeyResponse(BaseModel):
     total_expenses: Decimal = Field(description="Sum of all expenses")
     net_savings: Decimal = Field(description="Income minus expenses (can be negative)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "nodes": [
                     {"id": "income_salary", "label": "Salary", "category": "income", "color": "#22c55e"},
@@ -550,4 +550,4 @@ class SankeyResponse(BaseModel):
                 "net_savings": "2250.00",
             }
         }
-    }
+    )

@@ -15,7 +15,6 @@ from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import (
     Currency,
     Money,
-    TransactionMetadata,
     TransactionSource,
 )
 
@@ -321,8 +320,9 @@ class TestLiabilityReconciliation:
         account_repo.find_by_id.return_value = liability_account
 
         # Create a bank transaction to the credit card
-        from swen.domain.banking.value_objects import BankTransaction
         from datetime import date
+
+        from swen.domain.banking.value_objects import BankTransaction
 
         bank_tx = BankTransaction(
             amount=Decimal("-50.00"),

@@ -75,6 +75,7 @@ from swen.application.queries.onboarding import (
     OnboardingStatus,
     OnboardingStatusQuery,
 )
+from swen.application.queries.settings import GetUserSettingsQuery
 from swen.application.queries.system import (
     DatabaseIntegrityQuery,
     IntegrityCheckResult,
@@ -135,6 +136,8 @@ __all__ = [
     "OnboardingStatusQuery",
     # User
     "GetCurrentUserQuery",
+    # Settings
+    "GetUserSettingsQuery",
     # System
     "DatabaseIntegrityQuery",
     "IntegrityCheckResult",

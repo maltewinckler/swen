@@ -10,10 +10,6 @@ from unittest.mock import Mock
 
 import pytest
 
-from swen.domain.banking.value_objects.bank_account import BankAccount
-from swen.domain.banking.value_objects.bank_transaction import BankTransaction
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
-
 # Import geldstrom domain models for creating test fixtures
 from geldstrom.domain import (
     Account,
@@ -23,6 +19,9 @@ from geldstrom.domain import (
     TransactionEntry,
 )
 
+from swen.domain.banking.value_objects.bank_account import BankAccount
+from swen.domain.banking.value_objects.bank_transaction import BankTransaction
+from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 
 # ═══════════════════════════════════════════════════════════════
 #                     Fixtures for Mock Data
@@ -104,7 +103,7 @@ class TestAccountMapping:
         assert result.balance == Decimal("100.00")
 
     def test_map_account_extracts_account_number_from_id(
-        self, adapter, mock_geldstrom_account
+        self, adapter, mock_geldstrom_account,
     ):
         """Should extract account number from account_id."""
         result = adapter._map_account_to_domain(mock_geldstrom_account)
@@ -394,7 +393,6 @@ class TestDatetimeToDateConversion:
     @pytest.mark.asyncio
     async def test_fetch_transactions_converts_datetime_to_date(self, adapter):
         """Should convert datetime start_date to date before calling geldstrom."""
-        from unittest.mock import AsyncMock, Mock, patch
 
         # Setup mock client
         mock_client = Mock()
@@ -433,7 +431,6 @@ class TestDatetimeToDateConversion:
     @pytest.mark.asyncio
     async def test_fetch_transactions_accepts_date_objects(self, adapter):
         """Should work correctly with date objects (no conversion needed)."""
-        from unittest.mock import Mock
 
         # Setup mock client
         mock_client = Mock()
@@ -467,7 +464,6 @@ class TestDatetimeToDateConversion:
     async def test_fetch_transactions_with_none_end_date(self, adapter):
         """Should default end_date to today (UTC) when None is passed."""
         from datetime import timezone
-        from unittest.mock import Mock
 
         # Setup mock client
         mock_client = Mock()

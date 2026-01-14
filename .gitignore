@@ -20,6 +20,7 @@ __pycache__
 .pytest_cache
 .mypy_cache
 .ruff_cache
+.cursorignore
 
 # Node / Frontend
 node_modules
@@ -56,6 +57,7 @@ config/.env.local
 notebooks/
 _deprecated/
 docs/_untracked/
+docs/_specs/
 examples/
 # add institue list specifically
 config/fints_institute.csv

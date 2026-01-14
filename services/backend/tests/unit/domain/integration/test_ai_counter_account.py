@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+
 from swen.domain.integration.value_objects import (
     AICounterAccountResult,
     CounterAccountOption,

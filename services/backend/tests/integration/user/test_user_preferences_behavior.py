@@ -1,17 +1,20 @@
-"""Integration tests for user preferences behavior edge cases.
+"""Integration tests for user settings behavior edge cases.
 
-These tests verify that user preferences correctly affect system behavior
+These tests verify that user settings correctly affect system behavior
 without unintended side effects on existing data.
 """
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
-from swen.application.commands import (
-    ResetUserPreferencesCommand,
-    UpdateUserPreferencesCommand,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Import models to register them with Base.metadata
+import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.entities.account_type import AccountType
@@ -21,19 +24,16 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,
 )
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
+from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
+    UserSettingsRepositorySQLAlchemy,
+)
+from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-
-from uuid import UUID
-
-from swen.application.context import UserContext
 
 TEST_EMAIL = "test@example.com"
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
-TEST_USER_CONTEXT = UserContext(user_id=TEST_USER_ID, email=TEST_EMAIL)
+TEST_USER_CONTEXT = CurrentUser(user_id=TEST_USER_ID, email=TEST_EMAIL)
 
 
 @pytest.fixture
@@ -72,6 +72,12 @@ def user_repo(session):
 
 
 @pytest.fixture
+def settings_repo(session):
+    """Create UserSettingsRepository instance (user-scoped)."""
+    return UserSettingsRepositorySQLAlchemy(session, TEST_USER_CONTEXT)
+
+
+@pytest.fixture
 def account_repo(session):
     """Create AccountRepository instance (user-scoped)."""
     return AccountRepositorySQLAlchemy(session, TEST_USER_CONTEXT)
@@ -83,7 +89,20 @@ def transaction_repo(session, account_repo):
     return TransactionRepositorySQLAlchemy(session, account_repo, TEST_USER_CONTEXT)
 
 
-async def create_test_accounts(account_repo, session) -> tuple[Account, Account, Account]:
+async def setup_test_user(user_repo, session) -> None:
+    """Create the test user for FK constraints."""
+    from swen_identity.domain.user import User
+
+    user = User.create(TEST_EMAIL)
+    # Override the ID to match TEST_USER_ID
+    user._id = TEST_USER_ID
+    await user_repo.save(user)
+    await session.flush()
+
+
+async def create_test_accounts(
+    account_repo, session
+) -> tuple[Account, Account, Account]:
     """Create test accounts for transactions."""
     # Asset account (bank account)
     asset_account = Account(
@@ -176,29 +195,43 @@ class TestShowDraftTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_default_shows_all_transactions_including_drafts(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """Default preference shows both posted and draft transactions."""
-        # Setup: Create accounts and transactions
+        # Setup: Create user and accounts
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
 
         # Create mix of draft and posted transactions
         draft_txn = create_expense_transaction(
-            asset, expense, Decimal("25.00"), "Draft expense", post=False
+            asset,
+            expense,
+            Decimal("25.00"),
+            "Draft expense",
+            post=False,
         )
         posted_txn = create_expense_transaction(
-            asset, expense, Decimal("50.00"), "Posted expense", post=True
+            asset,
+            expense,
+            Decimal("50.00"),
+            "Posted expense",
+            post=True,
         )
 
         await transaction_repo.save(draft_txn)
         await transaction_repo.save(posted_txn)
         await session.flush()
 
-        # Get user with default preferences
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
+        # Get settings with defaults
+        settings = await settings_repo.get_or_create()
 
         # Verify default is to show drafts
-        assert user.preferences.display_settings.show_draft_transactions is True
+        assert settings.display.show_draft_transactions is True
 
         # Fetch all transactions (simulating dashboard behavior)
         all_transactions = await transaction_repo.find_all()
@@ -210,21 +243,39 @@ class TestShowDraftTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_changing_preference_hides_drafts(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """Changing show_draft_transactions to False filters out drafts."""
-        # Setup: Create accounts and transactions
+        # Setup: Create user and accounts
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
 
         # Create mix of draft and posted transactions
         draft_txn1 = create_expense_transaction(
-            asset, expense, Decimal("25.00"), "Draft 1", post=False
+            asset,
+            expense,
+            Decimal("25.00"),
+            "Draft 1",
+            post=False,
         )
         draft_txn2 = create_expense_transaction(
-            asset, expense, Decimal("30.00"), "Draft 2", post=False
+            asset,
+            expense,
+            Decimal("30.00"),
+            "Draft 2",
+            post=False,
         )
         posted_txn = create_expense_transaction(
-            asset, expense, Decimal("50.00"), "Posted", post=True
+            asset,
+            expense,
+            Decimal("50.00"),
+            "Posted",
+            post=True,
         )
 
         await transaction_repo.save(draft_txn1)
@@ -233,20 +284,20 @@ class TestShowDraftTransactionsPreference:
         await session.flush()
 
         # First: verify with default settings (show drafts)
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.display_settings.show_draft_transactions is True
+        settings = await settings_repo.get_or_create()
+        assert settings.display.show_draft_transactions is True
 
         all_transactions = await transaction_repo.find_all()
         assert len(all_transactions) == 3
 
-        # Now: change preference to hide drafts
-        update_command = UpdateUserPreferencesCommand(user_repo)
-        await update_command.execute(email=TEST_EMAIL, show_draft_transactions=False)
+        # Now: change setting to hide drafts
+        settings.update_display(show_draft_transactions=False)
+        await settings_repo.save(settings)
         await session.flush()
 
-        # Verify preference changed
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.display_settings.show_draft_transactions is False
+        # Verify setting changed
+        settings = await settings_repo.find()
+        assert settings.display.show_draft_transactions is False
 
         # Fetch only posted transactions (simulating dashboard with new preference)
         posted_only = await transaction_repo.find_posted_transactions()
@@ -258,34 +309,51 @@ class TestShowDraftTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_toggling_preference_back_shows_drafts_again(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """Toggling preference back to True shows drafts again."""
-        # Setup: Create accounts and transactions
+        # Setup: Create user and accounts
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
 
         draft_txn = create_expense_transaction(
-            asset, expense, Decimal("25.00"), "Draft expense", post=False
+            asset,
+            expense,
+            Decimal("25.00"),
+            "Draft expense",
+            post=False,
         )
         posted_txn = create_expense_transaction(
-            asset, expense, Decimal("50.00"), "Posted expense", post=True
+            asset,
+            expense,
+            Decimal("50.00"),
+            "Posted expense",
+            post=True,
         )
 
         await transaction_repo.save(draft_txn)
         await transaction_repo.save(posted_txn)
         await session.flush()
 
-        update_command = UpdateUserPreferencesCommand(user_repo)
+        settings = await settings_repo.get_or_create()
 
         # Hide drafts
-        await update_command.execute(email=TEST_EMAIL, show_draft_transactions=False)
+        settings.update_display(show_draft_transactions=False)
+        await settings_repo.save(settings)
         await session.flush()
 
         posted_only = await transaction_repo.find_posted_transactions()
         assert len(posted_only) == 1
 
         # Show drafts again
-        await update_command.execute(email=TEST_EMAIL, show_draft_transactions=True)
+        settings = await settings_repo.find()
+        settings.update_display(show_draft_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
         all_transactions = await transaction_repo.find_all()
@@ -307,22 +375,36 @@ class TestAutoPostTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_existing_drafts_not_affected_by_enabling_auto_post(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """Enabling auto_post_transactions does NOT post existing drafts."""
-        # Setup: Create accounts and draft transactions with default settings
+        # Setup: Create user and accounts with default settings
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
 
-        # User starts with default (auto_post=False)
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is False
+        # Settings start with default (auto_post=False)
+        settings = await settings_repo.get_or_create()
+        assert settings.sync.auto_post_transactions is False
 
         # Create draft transactions (simulating import with auto_post=False)
         draft1 = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Existing draft 1", post=False
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Existing draft 1",
+            post=False,
         )
         draft2 = create_expense_transaction(
-            asset, expense, Decimal("200.00"), "Existing draft 2", post=False
+            asset,
+            expense,
+            Decimal("200.00"),
+            "Existing draft 2",
+            post=False,
         )
 
         await transaction_repo.save(draft1)
@@ -335,13 +417,13 @@ class TestAutoPostTransactionsPreference:
         assert len(drafts_before) == 2
 
         # NOW: Enable auto_post_transactions
-        update_command = UpdateUserPreferencesCommand(user_repo)
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
-        # Verify preference changed
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is True
+        # Verify setting changed
+        settings = await settings_repo.find()
+        assert settings.sync.auto_post_transactions is True
 
         # CRITICAL: Existing drafts should STILL be drafts
         all_after = await transaction_repo.find_all()
@@ -353,19 +435,32 @@ class TestAutoPostTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_already_posted_transactions_remain_posted(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """Posted transactions remain posted regardless of preference changes."""
         # Setup
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
-        await user_repo.get_or_create_by_email(TEST_EMAIL)
 
         # Create posted transactions
         posted1 = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Posted expense 1", post=True
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Posted expense 1",
+            post=True,
         )
         posted2 = create_income_transaction(
-            asset, income, Decimal("500.00"), "Posted income", post=True
+            asset,
+            income,
+            Decimal("500.00"),
+            "Posted income",
+            post=True,
         )
 
         await transaction_repo.save(posted1)
@@ -373,15 +468,20 @@ class TestAutoPostTransactionsPreference:
         await session.flush()
 
         # Toggle auto_post multiple times
-        update_command = UpdateUserPreferencesCommand(user_repo)
+        settings = await settings_repo.get_or_create()
 
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=False)
+        settings = await settings_repo.find()
+        settings.update_sync(auto_post_transactions=False)
+        await settings_repo.save(settings)
         await session.flush()
 
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings = await settings_repo.find()
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
         # Posted transactions should still be posted
@@ -391,22 +491,35 @@ class TestAutoPostTransactionsPreference:
 
     @pytest.mark.asyncio
     async def test_mixed_draft_and_posted_unaffected_by_preference_change(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """
         Mixed state of drafts and posted transactions is preserved
         when auto_post_transactions preference is changed.
         """
         # Setup
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
-        await user_repo.get_or_create_by_email(TEST_EMAIL)
 
         # Create mix of draft and posted
         draft = create_expense_transaction(
-            asset, expense, Decimal("50.00"), "Draft expense", post=False
+            asset,
+            expense,
+            Decimal("50.00"),
+            "Draft expense",
+            post=False,
         )
         posted = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Posted expense", post=True
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Posted expense",
+            post=True,
         )
 
         await transaction_repo.save(draft)
@@ -422,8 +535,9 @@ class TestAutoPostTransactionsPreference:
         assert len(posted_ids_before) == 1
 
         # Enable auto_post
-        update_command = UpdateUserPreferencesCommand(user_repo)
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings = await settings_repo.get_or_create()
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
         # Verify states are preserved
@@ -437,32 +551,46 @@ class TestAutoPostTransactionsPreference:
 
 class TestResetPreferencesNoSideEffects:
     """
-    Test Scenario 3: Resetting preferences doesn't affect transaction states.
+    Test Scenario 3: Resetting settings doesn't affect transaction states.
 
-    When user resets preferences to defaults, already-posted transactions
+    When user resets settings to defaults, already-posted transactions
     should NOT be reverted to drafts.
     """
 
     @pytest.mark.asyncio
     async def test_reset_preferences_preserves_posted_transactions(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
-        """Resetting preferences does NOT unpost transactions."""
+        """Resetting settings does NOT unpost transactions."""
         # Setup
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
 
         # User enables auto_post and creates posted transactions
-        await user_repo.get_or_create_by_email(TEST_EMAIL)
-        update_command = UpdateUserPreferencesCommand(user_repo)
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings = await settings_repo.get_or_create()
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
         # Create posted transactions
         posted1 = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Posted 1", post=True
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Posted 1",
+            post=True,
         )
         posted2 = create_expense_transaction(
-            asset, expense, Decimal("200.00"), "Posted 2", post=True
+            asset,
+            expense,
+            Decimal("200.00"),
+            "Posted 2",
+            post=True,
         )
 
         await transaction_repo.save(posted1)
@@ -473,73 +601,93 @@ class TestResetPreferencesNoSideEffects:
         all_before = await transaction_repo.find_all()
         assert all(t.is_posted for t in all_before)
 
-        # RESET preferences to defaults
-        reset_command = ResetUserPreferencesCommand(user_repo)
-        await reset_command.execute(email=TEST_EMAIL)
+        # RESET settings to defaults
+        settings = await settings_repo.find()
+        settings.reset()
+        await settings_repo.save(settings)
         await session.flush()
 
-        # Verify preferences are reset
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is False
+        # Verify settings are reset
+        settings = await settings_repo.find()
+        assert settings.sync.auto_post_transactions is False
 
         # CRITICAL: Posted transactions should STILL be posted
         all_after = await transaction_repo.find_all()
         assert len(all_after) == 2
         assert all(t.is_posted for t in all_after), (
-            "Resetting preferences should NOT unpost transactions"
+            "Resetting settings should NOT unpost transactions"
         )
 
     @pytest.mark.asyncio
     async def test_reset_preferences_preserves_mixed_states(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
-        """Resetting preferences preserves both draft and posted states."""
+        """Resetting settings preserves both draft and posted states."""
         # Setup
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
-        await user_repo.get_or_create_by_email(TEST_EMAIL)
 
         # Create mix of states
         draft1 = create_expense_transaction(
-            asset, expense, Decimal("25.00"), "Draft 1", post=False
+            asset,
+            expense,
+            Decimal("25.00"),
+            "Draft 1",
+            post=False,
         )
         draft2 = create_expense_transaction(
-            asset, expense, Decimal("30.00"), "Draft 2", post=False
+            asset,
+            expense,
+            Decimal("30.00"),
+            "Draft 2",
+            post=False,
         )
         posted1 = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Posted 1", post=True
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Posted 1",
+            post=True,
         )
         posted2 = create_expense_transaction(
-            asset, expense, Decimal("150.00"), "Posted 2", post=True
+            asset,
+            expense,
+            Decimal("150.00"),
+            "Posted 2",
+            post=True,
         )
 
         for txn in [draft1, draft2, posted1, posted2]:
             await transaction_repo.save(txn)
         await session.flush()
 
-        # Change some preferences
-        update_command = UpdateUserPreferencesCommand(user_repo)
-        await update_command.execute(
-            email=TEST_EMAIL,
-            auto_post_transactions=True,
-            show_draft_transactions=False,
-            default_currency="USD",
-        )
+        # Change some settings
+        settings = await settings_repo.get_or_create()
+        settings.update_sync(auto_post_transactions=True, default_currency="USD")
+        settings.update_display(show_draft_transactions=False)
+        await settings_repo.save(settings)
         await session.flush()
 
         # Record states before reset
         all_before = await transaction_repo.find_all()
         states_before = {str(t.id): t.is_posted for t in all_before}
 
-        # Reset preferences
-        reset_command = ResetUserPreferencesCommand(user_repo)
-        await reset_command.execute(email=TEST_EMAIL)
+        # Reset settings
+        settings = await settings_repo.find()
+        settings.reset()
+        await settings_repo.save(settings)
         await session.flush()
 
-        # Verify preferences are defaults
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is False
-        assert user.preferences.sync_settings.default_currency == "EUR"
-        assert user.preferences.display_settings.show_draft_transactions is True
+        # Verify settings are defaults
+        settings = await settings_repo.find()
+        assert settings.sync.auto_post_transactions is False
+        assert settings.sync.default_currency == "EUR"
+        assert settings.display.show_draft_transactions is True
 
         # CRITICAL: Transaction states preserved
         all_after = await transaction_repo.find_all()
@@ -552,27 +700,37 @@ class TestResetPreferencesNoSideEffects:
 
 class TestPreferenceIsolation:
     """
-    Additional edge case tests for preference isolation.
+    Additional edge case tests for settings isolation.
     """
 
     @pytest.mark.asyncio
     async def test_draft_transactions_can_still_be_manually_posted(
-        self, session, user_repo, account_repo, transaction_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
+        account_repo,
+        transaction_repo,
     ):
         """
         Even with auto_post=False, drafts can be manually posted.
         Preference only affects automatic behavior.
         """
         # Setup
+        await setup_test_user(user_repo, session)
         asset, expense, income = await create_test_accounts(account_repo, session)
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
 
         # Ensure auto_post is False
-        assert user.preferences.sync_settings.auto_post_transactions is False
+        settings = await settings_repo.get_or_create()
+        assert settings.sync.auto_post_transactions is False
 
         # Create draft
         draft = create_expense_transaction(
-            asset, expense, Decimal("100.00"), "Manual post test", post=False
+            asset,
+            expense,
+            Decimal("100.00"),
+            "Manual post test",
+            post=False,
         )
         await transaction_repo.save(draft)
         await session.flush()
@@ -592,68 +750,84 @@ class TestPreferenceIsolation:
 
     @pytest.mark.asyncio
     async def test_preferences_persist_across_sessions(
-        self, engine
+        self,
+        engine,
+        user_repo,
+        session,
     ):
-        """Preferences persist correctly across database sessions."""
+        """Settings persist correctly across database sessions."""
+        await setup_test_user(user_repo, session)
+        await session.commit()
+
         session_maker = async_sessionmaker(
             engine,
             class_=AsyncSession,
             expire_on_commit=False,
         )
 
-        # Session 1: Change preferences
+        # Session 1: Change settings
         async with session_maker() as session1:
-            repo1 = UserRepositorySQLAlchemy(session1)
-            user = await repo1.get_or_create_by_email(TEST_EMAIL)
-            user.update_preferences(
-                auto_post_transactions=True,
-                default_currency="CHF",
-                show_draft_transactions=False,
-                default_date_range_days=60,
+            settings_repo1 = UserSettingsRepositorySQLAlchemy(
+                session1, TEST_USER_CONTEXT
             )
-            await repo1.save(user)
+            settings = await settings_repo1.get_or_create()
+            settings.update_sync(auto_post_transactions=True, default_currency="CHF")
+            settings.update_display(
+                show_draft_transactions=False, default_date_range_days=60
+            )
+            await settings_repo1.save(settings)
             await session1.commit()
 
-        # Session 2: Verify preferences persisted
+        # Session 2: Verify settings persisted
         async with session_maker() as session2:
-            repo2 = UserRepositorySQLAlchemy(session2)
-            user = await repo2.get_or_create_by_email(TEST_EMAIL)
+            settings_repo2 = UserSettingsRepositorySQLAlchemy(
+                session2, TEST_USER_CONTEXT
+            )
+            settings = await settings_repo2.find()
+            assert settings is not None
 
-            assert user.preferences.sync_settings.auto_post_transactions is True
-            assert user.preferences.sync_settings.default_currency == "CHF"
-            assert user.preferences.display_settings.show_draft_transactions is False
-            assert user.preferences.display_settings.default_date_range_days == 60
+            assert settings.sync.auto_post_transactions is True
+            assert settings.sync.default_currency == "CHF"
+            assert settings.display.show_draft_transactions is False
+            assert settings.display.default_date_range_days == 60
 
     @pytest.mark.asyncio
     async def test_multiple_preference_updates_are_cumulative(
-        self, session, user_repo
+        self,
+        session,
+        user_repo,
+        settings_repo,
     ):
         """Multiple partial updates accumulate correctly."""
-        await user_repo.get_or_create_by_email(TEST_EMAIL)
-        update_command = UpdateUserPreferencesCommand(user_repo)
+        await setup_test_user(user_repo, session)
+
+        settings = await settings_repo.get_or_create()
 
         # First update: just auto_post
-        await update_command.execute(email=TEST_EMAIL, auto_post_transactions=True)
+        settings.update_sync(auto_post_transactions=True)
+        await settings_repo.save(settings)
         await session.flush()
 
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is True
-        assert user.preferences.display_settings.show_draft_transactions is True  # Default
+        settings = await settings_repo.find()
+        assert settings.sync.auto_post_transactions is True
+        assert settings.display.show_draft_transactions is True  # Default
 
         # Second update: just show_drafts
-        await update_command.execute(email=TEST_EMAIL, show_draft_transactions=False)
+        settings.update_display(show_draft_transactions=False)
+        await settings_repo.save(settings)
         await session.flush()
 
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
+        settings = await settings_repo.find()
         # Both should reflect their updates
-        assert user.preferences.sync_settings.auto_post_transactions is True
-        assert user.preferences.display_settings.show_draft_transactions is False
+        assert settings.sync.auto_post_transactions is True
+        assert settings.display.show_draft_transactions is False
 
         # Third update: just currency
-        await update_command.execute(email=TEST_EMAIL, default_currency="GBP")
+        settings.update_sync(default_currency="GBP")
+        await settings_repo.save(settings)
         await session.flush()
 
-        user = await user_repo.get_or_create_by_email(TEST_EMAIL)
-        assert user.preferences.sync_settings.auto_post_transactions is True
-        assert user.preferences.sync_settings.default_currency == "GBP"
-        assert user.preferences.display_settings.show_draft_transactions is False
+        settings = await settings_repo.find()
+        assert settings.sync.auto_post_transactions is True
+        assert settings.sync.default_currency == "GBP"
+        assert settings.display.show_draft_transactions is False

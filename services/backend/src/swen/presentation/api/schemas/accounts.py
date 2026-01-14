@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChartTemplateEnum(str, Enum):
@@ -30,8 +30,8 @@ class InitChartRequest(BaseModel):
         description="Chart template to use: 'minimal' for simple categories (~15 accounts)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "Minimal (recommended for personal use)",
@@ -39,7 +39,7 @@ class InitChartRequest(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class InitChartResponse(BaseModel):
@@ -54,8 +54,8 @@ class InitChartResponse(BaseModel):
         description="Breakdown of created accounts by type",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "New accounts created",
@@ -83,7 +83,7 @@ class InitChartResponse(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class AccountResponse(BaseModel):
@@ -119,9 +119,9 @@ class AccountResponse(BaseModel):
         description="Parent account ID for sub-accounts (null if top-level account)",
     )
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "DKB Checking Account",
@@ -135,7 +135,7 @@ class AccountResponse(BaseModel):
                 "parent_id": None,
             },
         },
-    }
+    )
 
 
 class AccountWithBalanceResponse(AccountResponse):
@@ -146,9 +146,9 @@ class AccountWithBalanceResponse(AccountResponse):
         description="Current balance (positive for assets, negative for liabilities)",
     )
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "DKB Checking Account",
@@ -161,7 +161,7 @@ class AccountWithBalanceResponse(AccountResponse):
                 "balance": "2543.67",
             },
         },
-    }
+    )
 
 
 class AccountCreateRequest(BaseModel):
@@ -189,8 +189,8 @@ class AccountCreateRequest(BaseModel):
         description="Parent account ID to create this as a sub-account (must be same type)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "Groceries",
                 "account_number": "6001",
@@ -200,7 +200,7 @@ class AccountCreateRequest(BaseModel):
                 "parent_id": None,
             },
         },
-    }
+    )
 
 
 class AccountUpdateRequest(BaseModel):
@@ -237,8 +237,8 @@ class AccountUpdateRequest(BaseModel):
         ),
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "Update name only (keep parent unchanged)",
@@ -265,7 +265,7 @@ class AccountUpdateRequest(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class AccountListResponse(BaseModel):
@@ -277,8 +277,8 @@ class AccountListResponse(BaseModel):
     total: int = Field(..., description="Total number of accounts")
     by_type: dict[str, int] = Field(..., description="Breakdown of accounts by type")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [
                     {
@@ -304,7 +304,7 @@ class AccountListResponse(BaseModel):
                 "by_type": {"asset": 1, "expense": 1},
             },
         },
-    }
+    )
 
 
 class BankAccountResponse(BaseModel):
@@ -319,8 +319,8 @@ class BankAccountResponse(BaseModel):
     currency: str = Field(..., description="Account currency code")
     is_active: bool = Field(..., description="Whether account is active")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "DKB Checking Account",
@@ -330,7 +330,7 @@ class BankAccountResponse(BaseModel):
                 "is_active": True,
             },
         },
-    }
+    )
 
 
 class BankAccountListResponse(BaseModel):
@@ -341,8 +341,8 @@ class BankAccountListResponse(BaseModel):
     )
     total: int = Field(..., description="Total number of bank accounts")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [
                     {
@@ -365,7 +365,7 @@ class BankAccountListResponse(BaseModel):
                 "total": 2,
             },
         },
-    }
+    )
 
 
 class BankAccountRenameRequest(BaseModel):
@@ -378,13 +378,13 @@ class BankAccountRenameRequest(BaseModel):
         description="New display name for the account",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "Main Checking Account",
             },
         },
-    }
+    )
 
 
 class AccountStatsResponse(BaseModel):
@@ -445,8 +445,8 @@ class AccountStatsResponse(BaseModel):
         description="End of the stats period (ISO date)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
                 "account_name": "DKB Checking Account",
@@ -468,7 +468,7 @@ class AccountStatsResponse(BaseModel):
                 "period_end": "2024-12-05",
             },
         },
-    }
+    )
 
 
 class AccountReconciliationResponse(BaseModel):
@@ -499,8 +499,8 @@ class AccountReconciliationResponse(BaseModel):
         ..., description="Whether balances match (within tolerance)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
                 "account_name": "DKB Checking Account",
@@ -514,7 +514,7 @@ class AccountReconciliationResponse(BaseModel):
                 "is_reconciled": True,
             },
         },
-    }
+    )
 
 
 class ReconciliationResponse(BaseModel):
@@ -534,8 +534,8 @@ class ReconciliationResponse(BaseModel):
         ..., description="Whether all accounts are reconciled"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [
                     {
@@ -557,4 +557,4 @@ class ReconciliationResponse(BaseModel):
                 "all_reconciled": True,
             },
         },
-    }
+    )

@@ -44,7 +44,7 @@ def _configure_logging() -> None:
 
     # Set levels for our application
     logging.getLogger("swen").setLevel(log_level)
-    logging.getLogger("swen_auth").setLevel(log_level)
+    logging.getLogger("swen_identity").setLevel(log_level)
 
     # Quiet down noisy third-party loggers
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -72,6 +72,7 @@ from swen.presentation.api.exception_handlers import (  # noqa: E402
 )
 from swen.presentation.api.routers import (  # noqa: E402
     accounts_router,
+    admin_router,
     ai_router,
     analytics_router,
     auth_router,
@@ -85,7 +86,7 @@ from swen.presentation.api.routers import (  # noqa: E402
     sync_router,
     transactions_router,
 )
-from swen_auth.persistence.sqlalchemy import AuthBase  # noqa: E402
+# IdentityBase is now same as Base
 from swen_config.settings import Settings  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -361,7 +362,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Initializing database schema...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(AuthBase.metadata.create_all)
+        
     logger.info("Database schema initialized successfully")
 
     # Check AI provider health
@@ -386,6 +387,7 @@ def create_v1_router() -> APIRouter:
 
     # Mount all routers under v1
     v1_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+    v1_router.include_router(admin_router, tags=["Admin"])
     v1_router.include_router(accounts_router, prefix="/accounts", tags=["Accounts"])
     v1_router.include_router(
         credentials_router,

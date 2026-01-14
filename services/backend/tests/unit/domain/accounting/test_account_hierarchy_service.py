@@ -329,10 +329,10 @@ class TestAccountHierarchyService:
         child_a = Account("Child A", AccountType.EXPENSE, "4010", test_user_id)
         child_b = Account("Child B", AccountType.EXPENSE, "4020", test_user_id)
         grandchild_a1 = Account(
-            "Grandchild A1", AccountType.EXPENSE, "4011", test_user_id
+            "Grandchild A1", AccountType.EXPENSE, "4011", test_user_id,
         )
         grandchild_a2 = Account(
-            "Grandchild A2", AccountType.EXPENSE, "4012", test_user_id
+            "Grandchild A2", AccountType.EXPENSE, "4012", test_user_id,
         )
 
         await mock_repo.save(root)

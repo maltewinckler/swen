@@ -9,11 +9,11 @@ from swen.application.commands.integration import (
     CreateExternalAccountCommand,
     CreateExternalAccountResult,
 )
-from swen.application.context import UserContext
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping
+from swen.application.ports.identity import CurrentUser
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -25,13 +25,13 @@ def _make_command():
     account_repo = AsyncMock()
     mapping_repo = AsyncMock()
     transaction_repo = AsyncMock()
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
     command = CreateExternalAccountCommand(
         account_repository=account_repo,
         mapping_repository=mapping_repo,
         transaction_repository=transaction_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
 
     return command, account_repo, mapping_repo, transaction_repo
@@ -597,7 +597,7 @@ class TestCreateExternalAccountCommandFromFactory:
         mock_factory.account_repository.return_value = AsyncMock()
         mock_factory.account_mapping_repository.return_value = AsyncMock()
         mock_factory.transaction_repository.return_value = AsyncMock()
-        mock_factory.user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+        mock_factory.current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
         # Act
         command = CreateExternalAccountCommand.from_factory(mock_factory)

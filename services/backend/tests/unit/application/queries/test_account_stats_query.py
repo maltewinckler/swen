@@ -30,7 +30,7 @@ def mock_balance_service():
     """Create a mock balance service."""
     service = MagicMock()
     service.calculate_balance = MagicMock(
-        return_value=Money(amount=Decimal("1000.00"), currency=Currency(code="EUR"))
+        return_value=Money(amount=Decimal("1000.00"), currency=Currency(code="EUR")),
     )
     return service
 
@@ -83,7 +83,7 @@ def create_mock_transaction(
     # Set up involves_account to check if account ID is in the list
     if account_ids:
         txn.involves_account = MagicMock(
-            side_effect=lambda acc: acc.id in account_ids
+            side_effect=lambda acc: acc.id in account_ids,
         )
     else:
         txn.involves_account = MagicMock(return_value=False)

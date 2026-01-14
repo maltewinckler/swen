@@ -1,7 +1,7 @@
 """Unit tests for TransactionListItemDTO."""
 
 from decimal import Decimal
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -9,7 +9,6 @@ import pytest
 from swen.application.dtos.accounting.transaction_list_dto import (
     TransactionListItemDTO,
     _determine_amount_and_direction,
-    _find_counter_entry,
     _find_payment_entry,
 )
 from swen.domain.accounting.entities.account_type import AccountType
@@ -128,7 +127,7 @@ class TestFindPaymentEntry:
         assert result == checking_entry
 
     def test_falls_back_to_first_entry_if_no_payment_account(
-        self, mock_account, mock_entry, mock_metadata
+        self, mock_account, mock_entry, mock_metadata,
     ):
         """Falls back to first entry if no payment account found."""
         expense1 = mock_account(AccountType.EXPENSE, "Groceries")
@@ -300,14 +299,14 @@ class TestTransactionListItemDTO:
         assert dto.counter_account == "Split"  # Multiple counter accounts
 
     def test_internal_transfer_between_assets(
-        self, mock_account, mock_entry, mock_metadata
+        self, mock_account, mock_entry, mock_metadata,
     ):
         """Internal transfer: Debit Asset1 / Credit Asset2."""
         checking = mock_account(
-            AccountType.ASSET, "Checking", iban="DE89370400440532013000"
+            AccountType.ASSET, "Checking", iban="DE89370400440532013000",
         )
         savings = mock_account(
-            AccountType.ASSET, "Savings", iban="DE12345678901234567890"
+            AccountType.ASSET, "Savings", iban="DE12345678901234567890",
         )
 
         checking_entry = mock_entry(checking, is_debit=True, amount=Decimal("500.00"))

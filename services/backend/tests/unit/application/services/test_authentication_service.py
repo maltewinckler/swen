@@ -6,17 +6,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen_auth import (
+from swen_identity import (
     AccountLockedError,
+    AuthenticationService,
+    EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidTokenError,
     JWTService,
     PasswordHashingService,
+    User,
+    UserRole,
     WeakPasswordError,
 )
-from swen.application.services import AuthenticationService
-from swen.domain.user import EmailAlreadyExistsError, User
-
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_EMAIL = "test@example.com"
@@ -45,6 +46,7 @@ class TestAuthenticationServiceRegister:
         """Test that register creates user and returns tokens."""
         # Arrange
         self.user_repo.find_by_email.return_value = None
+        self.user_repo.count.return_value = 1  # Not first user
         self.password_service.hash.return_value = "hashed_password"
         self.jwt_service.create_access_token.return_value = "access_token"
         self.jwt_service.create_refresh_token.return_value = "refresh_token"
@@ -88,6 +90,46 @@ class TestAuthenticationServiceRegister:
         # Act & Assert
         with pytest.raises(WeakPasswordError):
             await self.service.register(email=TEST_EMAIL, password="short")
+
+    @pytest.mark.asyncio
+    async def test_register_first_user_becomes_admin(self):
+        """Test that the first registered user becomes an admin."""
+        # Arrange
+        self.user_repo.find_by_email.return_value = None
+        self.user_repo.count.return_value = 0  # No users exist
+        self.password_service.hash.return_value = "hashed_password"
+        self.jwt_service.create_access_token.return_value = "access_token"
+        self.jwt_service.create_refresh_token.return_value = "refresh_token"
+
+        # Act
+        user, _, _ = await self.service.register(
+            email=TEST_EMAIL,
+            password=TEST_PASSWORD,
+        )
+
+        # Assert
+        assert user.role == UserRole.ADMIN
+        assert user.is_admin is True
+
+    @pytest.mark.asyncio
+    async def test_register_subsequent_users_not_admin(self):
+        """Test that subsequent registered users are not admins."""
+        # Arrange
+        self.user_repo.find_by_email.return_value = None
+        self.user_repo.count.return_value = 1  # One user already exists
+        self.password_service.hash.return_value = "hashed_password"
+        self.jwt_service.create_access_token.return_value = "access_token"
+        self.jwt_service.create_refresh_token.return_value = "refresh_token"
+
+        # Act
+        user, _, _ = await self.service.register(
+            email=TEST_EMAIL,
+            password=TEST_PASSWORD,
+        )
+
+        # Assert
+        assert user.role == UserRole.USER
+        assert user.is_admin is False
 
 
 class TestAuthenticationServiceLogin:
@@ -214,7 +256,7 @@ class TestAuthenticationServiceRefreshToken:
 
         # Act
         access_token, refresh_token = await self.service.refresh_token(
-            "valid_refresh_token"
+            "valid_refresh_token",
         )
 
         # Assert
@@ -323,4 +365,3 @@ class TestAuthenticationServiceChangePassword:
                 current_password="password",
                 new_password="new_password_123",
             )
-

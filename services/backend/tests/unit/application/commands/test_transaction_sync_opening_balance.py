@@ -11,7 +11,6 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.commands.integration import TransactionSyncCommand
-from swen.application.context import UserContext
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services import (
     OPENING_BALANCE_IBAN_KEY,
@@ -22,6 +21,7 @@ from swen.domain.banking.value_objects import BankCredentials, BankTransaction
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.value_objects.secure_string import SecureString
+from swen.application.ports.identity import CurrentUser
 
 IBAN = "DE89370400440532013000"
 BLZ = "37040044"
@@ -144,14 +144,14 @@ def _make_command_with_repos():
     bank_transaction_repo.save_batch_with_deduplication.return_value = []
 
     # Create user context
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
     command = TransactionSyncCommand(
         bank_adapter=adapter,
         import_service=import_service,
         mapping_repo=mapping_repo,
         import_repo=import_repo,
-        user_context=user_context,
+        current_user=current_user,
         account_repo=account_repo,
         transaction_repo=transaction_repo,
         bank_transaction_repo=bank_transaction_repo,
@@ -222,7 +222,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         # Verify
@@ -295,7 +295,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         # Verify - should NOT save new opening balance
@@ -315,7 +315,7 @@ class TestOpeningBalanceCreation:
         import_service = AsyncMock()
         mapping_repo = AsyncMock()
         import_repo = AsyncMock()
-        user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+        current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
         # NO bank_transaction_repo - should cause failure
         command = TransactionSyncCommand(
@@ -323,7 +323,7 @@ class TestOpeningBalanceCreation:
             import_service=import_service,
             mapping_repo=mapping_repo,
             import_repo=import_repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
         mapping_repo.find_by_iban.return_value = _make_mapping()
@@ -372,7 +372,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         assert result.success is True
@@ -423,7 +423,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         assert result.success is True
@@ -490,7 +490,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         assert result.success is True
@@ -551,7 +551,7 @@ class TestOpeningBalanceCreation:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         assert result.success is True
@@ -613,7 +613,7 @@ class TestOpeningBalanceIdempotency:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         # Verify find_by_metadata was called with correct parameters
@@ -671,7 +671,7 @@ class TestOpeningBalanceIdempotency:
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         # Opening balance should have been saved
@@ -687,7 +687,7 @@ class TestOpeningBalanceIdempotency:
             credentials=_make_credentials(),
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
-            # user_id is now obtained from UserContext in constructor
+            # user_id is now obtained from CurrentUser in constructor
         )
 
         # Should NOT save another opening balance

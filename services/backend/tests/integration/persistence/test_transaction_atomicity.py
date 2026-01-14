@@ -87,7 +87,7 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """
         Test that failure rolls back both account and mapping.
@@ -101,8 +101,8 @@ class TestTransactionAtomicity:
         # Attempt to create account and mapping, but fail
         with pytest.raises(ValueError, match="Simulated failure"):
             async for session in get_session(atomicity_session_maker):
-                account_repo = AccountRepositorySQLAlchemy(session, user_context)
-                mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+                account_repo = AccountRepositorySQLAlchemy(session, current_user)
+                mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
                 # Create and save account
                 account = Account(
@@ -129,8 +129,8 @@ class TestTransactionAtomicity:
 
         # Verify nothing was committed (this is the key assertion)
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Both should be None because rollback discarded everything
             account = await account_repo.find_by_account_number(iban)
@@ -144,13 +144,13 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """Test that multiple saves in one transaction rollback together."""
 
         with pytest.raises(RuntimeError, match="Intentional failure"):
             async for session in get_session(atomicity_session_maker):
-                account_repo = AccountRepositorySQLAlchemy(session, user_context)
+                account_repo = AccountRepositorySQLAlchemy(session, current_user)
 
                 # Save multiple accounts
                 accounts = [
@@ -171,7 +171,7 @@ class TestTransactionAtomicity:
 
         # Verify none were committed
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
 
             for i in range(1, 6):
                 account = await account_repo.find_by_account_number(f"ACCT{i}")
@@ -182,15 +182,15 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """Test that successful transaction commits all changes."""
         iban = "DE89370400440532013001"
 
         # Successful transaction
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Create and save account
             account = Account(
@@ -215,8 +215,8 @@ class TestTransactionAtomicity:
 
         # Verify both were committed
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             account = await account_repo.find_by_account_number(iban)
             mapping = await mapping_repo.find_by_iban(iban)
@@ -231,7 +231,7 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """
         Test that flush() makes data queryable within the same transaction.
@@ -242,8 +242,8 @@ class TestTransactionAtomicity:
         iban = "DE89370400440532013002"
 
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
-            mapping_repo = AccountMappingRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
+            mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
 
             # Create account
             account = Account(
@@ -279,14 +279,14 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """Test that bank account and transactions rollback together."""
         iban = "DE89370400440532013003"
 
         with pytest.raises(ValueError, match="Transaction failed"):
             async for session in get_session(atomicity_session_maker):
-                bank_account_repo = BankAccountRepositorySQLAlchemy(session, user_context)
+                bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
                 # Create bank account
                 bank_account = BankAccount(
@@ -309,7 +309,7 @@ class TestTransactionAtomicity:
 
         # Verify rollback
         async for session in get_session(atomicity_session_maker):
-            bank_account_repo = BankAccountRepositorySQLAlchemy(session, user_context)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             found = await bank_account_repo.find_by_iban(iban)
             assert found is None, "Bank account should have been rolled back"
@@ -319,7 +319,7 @@ class TestTransactionAtomicity:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """
         Test that if we handle exceptions internally, transaction still commits.
@@ -333,7 +333,7 @@ class TestTransactionAtomicity:
         failed_count = 0
 
         async for session in get_session(atomicity_session_maker):
-            bank_account_repo = BankAccountRepositorySQLAlchemy(session, user_context)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             for i, iban in enumerate(ibans):
                 try:
@@ -361,7 +361,7 @@ class TestTransactionAtomicity:
 
         # Verify the successful ones were committed
         async for session in get_session(atomicity_session_maker):
-            bank_account_repo = BankAccountRepositorySQLAlchemy(session, user_context)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             all_accounts = await bank_account_repo.find_all()
             assert len(all_accounts) == 4, "4 accounts should be persisted"
@@ -376,17 +376,17 @@ class TestFlushVsCommitBehavior:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """Demonstrate that flush() allows rollback."""
         iban = "FLUSH-TEST-001"
 
         with pytest.raises(RuntimeError):
             async for session in get_session(atomicity_session_maker):
-                account_repo = AccountRepositorySQLAlchemy(session, user_context)
+                account_repo = AccountRepositorySQLAlchemy(session, current_user)
 
                 account = Account(
-                    "Flush Test", AccountType.ASSET, iban, user_id=TEST_USER_ID
+                    "Flush Test", AccountType.ASSET, iban, user_id=TEST_USER_ID,
                 )
                 await account_repo.save(account)  # Calls flush()
 
@@ -399,7 +399,7 @@ class TestFlushVsCommitBehavior:
 
         # Data should be gone
         async for session in get_session(atomicity_session_maker):
-            account_repo = AccountRepositorySQLAlchemy(session, user_context)
+            account_repo = AccountRepositorySQLAlchemy(session, current_user)
             found = await account_repo.find_by_account_number(iban)
             assert found is None, "Data rolled back"
 
@@ -408,17 +408,17 @@ class TestFlushVsCommitBehavior:
         self,
         atomicity_session_maker,
         atomicity_tables,
-        user_context,
+        current_user,
     ):
         """Test that uncommitted changes are not visible in other sessions."""
         iban = "ISOLATION-TEST-001"
 
         # Start a transaction but don't complete it yet
         async for session1 in get_session(atomicity_session_maker):
-            account_repo1 = AccountRepositorySQLAlchemy(session1, user_context)
+            account_repo1 = AccountRepositorySQLAlchemy(session1, current_user)
 
             account = Account(
-                "Isolation Test", AccountType.ASSET, iban, user_id=TEST_USER_ID
+                "Isolation Test", AccountType.ASSET, iban, user_id=TEST_USER_ID,
             )
             await account_repo1.save(account)
 
@@ -432,6 +432,6 @@ class TestFlushVsCommitBehavior:
 
         # After commit, visible in new session
         async for session2 in get_session(atomicity_session_maker):
-            account_repo2 = AccountRepositorySQLAlchemy(session2, user_context)
+            account_repo2 = AccountRepositorySQLAlchemy(session2, current_user)
             found_in_session2 = await account_repo2.find_by_account_number(iban)
             assert found_in_session2 is not None, "Committed data is visible"

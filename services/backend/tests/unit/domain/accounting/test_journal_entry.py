@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+
 from swen.domain.accounting.entities import Account, AccountType, JournalEntry
 from swen.domain.accounting.value_objects import Money
 

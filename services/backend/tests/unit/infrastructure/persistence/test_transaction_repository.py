@@ -5,9 +5,10 @@ These tests verify the persistence layer for accounting transactions.
 """
 
 from decimal import Decimal
-from uuid import UUID
 
 import pytest
+from sqlalchemy import select
+
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
@@ -18,8 +19,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,
 )
-from sqlalchemy import select
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
 
 
@@ -27,9 +26,9 @@ class TestTransactionRepositorySQLAlchemy:
     """Test suite for accounting transaction repository."""
 
     @pytest.fixture
-    async def setup_accounts(self, async_session, user_context):
+    async def setup_accounts(self, async_session, current_user):
         """Set up test accounts."""
-        account_repo = AccountRepositorySQLAlchemy(async_session, user_context)
+        account_repo = AccountRepositorySQLAlchemy(async_session, current_user)
 
         checking = Account("Checking Account", AccountType.ASSET, "1000", TEST_USER_ID)
         expense = Account("Office Supplies", AccountType.EXPENSE, "5000", TEST_USER_ID)
@@ -37,7 +36,7 @@ class TestTransactionRepositorySQLAlchemy:
         await account_repo.save(checking)
         await account_repo.save(expense)
 
-        return {"checking": checking, "expense": expense, "repo": account_repo, "user_context": user_context}
+        return {"checking": checking, "expense": expense, "repo": account_repo, "current_user": current_user}
 
     @pytest.mark.asyncio
     async def test_save_new_transaction(self, async_session, setup_accounts):
@@ -45,11 +44,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction(
@@ -80,11 +79,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction("Test Transaction", TEST_USER_ID)
@@ -107,11 +106,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         # Create transactions with different counterparties
@@ -144,11 +143,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction(
@@ -176,11 +175,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         # Create posted and draft transactions
@@ -209,11 +208,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         # Create posted and draft transactions
@@ -242,11 +241,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         # Create transaction involving checking account
@@ -278,11 +277,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction("To Delete", TEST_USER_ID)
@@ -303,11 +302,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction(
@@ -340,11 +339,11 @@ class TestTransactionRepositorySQLAlchemy:
         """Ensure stored transactions keep their currency when rehydrated."""
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         usd_amount = Money(Decimal("75.00"), Currency("USD"))
@@ -371,11 +370,11 @@ class TestTransactionRepositorySQLAlchemy:
         # Arrange
         accounts = setup_accounts
         account_repo = accounts["repo"]
-        user_context = accounts["user_context"]
+        current_user = accounts["current_user"]
         transaction_repo = TransactionRepositorySQLAlchemy(
             async_session,
             account_repo,
-            user_context,
+            current_user,
         )
 
         transaction = Transaction("Cascade Test", TEST_USER_ID)
@@ -404,14 +403,15 @@ class TestJournalEntryDataIntegrity:
     """Tests for journal entry data integrity constraints and validation."""
 
     @pytest.fixture
-    async def setup_test_data(self, async_session, user_context):
+    async def setup_test_data(self, async_session, current_user):
         """Set up test accounts and transaction."""
+        from datetime import datetime, timezone
+        from uuid import uuid4
+
         from swen.infrastructure.persistence.sqlalchemy.models import (
             AccountModel,
             TransactionModel,
         )
-        from datetime import datetime, timezone
-        from uuid import uuid4
 
         # Create accounts directly in DB
         checking_id = uuid4()
@@ -427,7 +427,7 @@ class TestJournalEntryDataIntegrity:
                 default_currency="EUR",
                 is_active=True,
                 created_at=datetime.now(tz=timezone.utc),
-            )
+            ),
         )
         async_session.add(
             AccountModel(
@@ -439,7 +439,7 @@ class TestJournalEntryDataIntegrity:
                 default_currency="EUR",
                 is_active=True,
                 created_at=datetime.now(tz=timezone.utc),
-            )
+            ),
         )
 
         # Create transaction
@@ -452,7 +452,7 @@ class TestJournalEntryDataIntegrity:
                 date=datetime.now(tz=timezone.utc),
                 is_posted=False,
                 created_at=datetime.now(tz=timezone.utc),
-            )
+            ),
         )
         await async_session.flush()
 
@@ -460,7 +460,7 @@ class TestJournalEntryDataIntegrity:
             "checking_id": checking_id,
             "expense_id": expense_id,
             "tx_id": tx_id,
-            "user_context": user_context,
+            "current_user": current_user,
         }
 
     @pytest.mark.asyncio
@@ -471,6 +471,7 @@ class TestJournalEntryDataIntegrity:
     ):
         """Test that DB constraint prevents entries with both debit and credit positive."""
         from uuid import uuid4
+
         from sqlalchemy.exc import IntegrityError
 
         setup = setup_test_data
@@ -500,6 +501,7 @@ class TestJournalEntryDataIntegrity:
     ):
         """Test that DB constraint prevents entries with both debit and credit zero."""
         from uuid import uuid4
+
         from sqlalchemy.exc import IntegrityError
 
         setup = setup_test_data
@@ -548,8 +550,8 @@ class TestJournalEntryDataIntegrity:
         # Verify it's saved
         result = await async_session.execute(
             select(JournalEntryModel).where(
-                JournalEntryModel.id == valid_entry.id
-            )
+                JournalEntryModel.id == valid_entry.id,
+            ),
         )
         saved = result.scalar_one_or_none()
         assert saved is not None
@@ -583,8 +585,8 @@ class TestJournalEntryDataIntegrity:
         # Verify it's saved
         result = await async_session.execute(
             select(JournalEntryModel).where(
-                JournalEntryModel.id == valid_entry.id
-            )
+                JournalEntryModel.id == valid_entry.id,
+            ),
         )
         saved = result.scalar_one_or_none()
         assert saved is not None
@@ -625,10 +627,10 @@ class TestJournalEntryDataIntegrity:
 
         # Set up repository
         account_repo = AccountRepositorySQLAlchemy(
-            async_session, setup["user_context"]
+            async_session, setup["current_user"],
         )
         transaction_repo = TransactionRepositorySQLAlchemy(
-            async_session, account_repo, setup["user_context"]
+            async_session, account_repo, setup["current_user"],
         )
 
         # Act

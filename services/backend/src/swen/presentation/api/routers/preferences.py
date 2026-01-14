@@ -1,22 +1,23 @@
-"""Preferences router for user preference management."""
+"""Preferences router for user settings management."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from swen.application.commands.user import (
-    ResetDashboardSettingsCommand,
-    ResetUserPreferencesCommand,
-    UpdateDashboardSettingsCommand,
-    UpdateUserPreferencesCommand,
+from pydantic import BaseModel, ConfigDict, Field
+
+from swen.application.commands.settings import (
+    ResetUserSettingsCommand,
+    UpdateUserSettingsCommand,
 )
-from swen.domain.user import AVAILABLE_WIDGETS, DEFAULT_ENABLED_WIDGETS
+from swen.application.queries.settings import GetUserSettingsQuery
+from swen.domain.settings import AVAILABLE_WIDGETS, DEFAULT_ENABLED_WIDGETS
 from swen.presentation.api.dependencies import RepoFactory
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
 
 class SyncSettingsResponse(BaseModel):
     """Sync-related preferences."""
@@ -26,6 +27,7 @@ class SyncSettingsResponse(BaseModel):
     )
     default_currency: str = Field(description="Default currency code (e.g., EUR)")
 
+
 class DisplaySettingsResponse(BaseModel):
     """Display-related preferences."""
 
@@ -34,14 +36,36 @@ class DisplaySettingsResponse(BaseModel):
     )
     default_date_range_days: int = Field(description="Default days for date filters")
 
+
+class AISettingsResponse(BaseModel):
+    """AI-related preferences."""
+
+    enabled: bool = Field(description="Whether AI categorization is enabled")
+    model_name: str = Field(description="AI model name")
+    min_confidence: float = Field(description="Minimum confidence threshold")
+
+
+class DashboardSettingsResponse(BaseModel):
+    """Dashboard widget configuration."""
+
+    enabled_widgets: list[str] = Field(
+        description="List of enabled widget IDs in display order",
+    )
+    widget_settings: dict[str, dict[str, Any]] = Field(
+        description="Per-widget settings",
+    )
+
+
 class PreferencesResponse(BaseModel):
     """Full user preferences response."""
 
     sync_settings: SyncSettingsResponse
     display_settings: DisplaySettingsResponse
+    dashboard_settings: DashboardSettingsResponse
+    ai_settings: AISettingsResponse
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "sync_settings": {
                     "auto_post_transactions": False,
@@ -51,9 +75,23 @@ class PreferencesResponse(BaseModel):
                     "show_draft_transactions": True,
                     "default_date_range_days": 30,
                 },
+                "dashboard_settings": {
+                    "enabled_widgets": [
+                        "summary-cards",
+                        "spending-pie",
+                        "account-balances",
+                    ],
+                    "widget_settings": {},
+                },
+                "ai_settings": {
+                    "enabled": True,
+                    "model_name": "qwen2.5:3b",
+                    "min_confidence": 0.7,
+                },
             },
         },
-    }
+    )
+
 
 class PreferencesUpdateRequest(BaseModel):
     """Request to update user preferences.
@@ -61,35 +99,51 @@ class PreferencesUpdateRequest(BaseModel):
     All fields are optional - only provided fields will be updated.
     """
 
-    auto_post_transactions: Optional[bool] = Field(
+    # Sync settings
+    auto_post_transactions: bool | None = Field(
         None,
         description="Automatically post imported transactions",
     )
-    default_currency: Optional[str] = Field(
+    default_currency: str | None = Field(
         None,
         description="Default currency code (e.g., EUR, USD)",
     )
-    show_draft_transactions: Optional[bool] = Field(
+    # Display settings
+    show_draft_transactions: bool | None = Field(
         None,
         description="Show draft transactions in lists",
     )
-    default_date_range_days: Optional[int] = Field(
+    default_date_range_days: int | None = Field(
         None,
         ge=1,
         le=365,
         description="Default date range for filters (1-365)",
     )
+    # Dashboard settings
+    enabled_widgets: list[str] | None = Field(
+        None,
+        description="List of widget IDs in display order",
+    )
+    widget_settings: dict[str, dict[str, Any]] | None = Field(
+        None,
+        description="Per-widget settings",
+    )
+    # AI settings
+    ai_enabled: bool | None = Field(
+        None,
+        description="Enable AI categorization",
+    )
+    ai_model_name: str | None = Field(
+        None,
+        description="AI model name",
+    )
+    ai_min_confidence: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence threshold (0-1)",
+    )
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "auto_post_transactions": True,
-                "default_currency": "EUR",
-                "show_draft_transactions": False,
-                "default_date_range_days": 90,
-            },
-        },
-    }
 
 class WidgetInfoResponse(BaseModel):
     """Information about an available widget."""
@@ -101,67 +155,38 @@ class WidgetInfoResponse(BaseModel):
     enabled: bool = Field(description="Whether the widget is currently enabled")
     settings: dict[str, Any] = Field(description="Current settings for this widget")
 
-class DashboardSettingsResponse(BaseModel):
-    """Dashboard widget configuration."""
-
-    enabled_widgets: list[str] = Field(
-        description="List of enabled widget IDs in display order"
-    )
-    widget_settings: dict[str, dict[str, Any]] = Field(
-        description="Per-widget settings"
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "enabled_widgets": ["summary-cards", "spending-pie", "account-balances"],
-                "widget_settings": {
-                    "spending-pie": {"months": 3},
-                    "net-worth": {"months": 12},
-                },
-            },
-        },
-    }
-
-class DashboardSettingsUpdateRequest(BaseModel):
-    """Request to update dashboard settings.
-
-    Both fields are optional - only provided fields will be updated.
-    """
-
-    enabled_widgets: Optional[list[str]] = Field(
-        None,
-        description="List of widget IDs in display order",
-    )
-    widget_settings: Optional[dict[str, dict[str, Any]]] = Field(
-        None,
-        description="Per-widget settings (e.g., time ranges)",
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "enabled_widgets": [
-                    "summary-cards",
-                    "net-worth",
-                    "spending-pie",
-                    "income-over-time",
-                ],
-                "widget_settings": {
-                    "net-worth": {"months": 24},
-                    "spending-pie": {"months": 3},
-                },
-            },
-        },
-    }
 
 class AvailableWidgetsResponse(BaseModel):
     """List of all available widgets with their metadata."""
 
     widgets: list[WidgetInfoResponse] = Field(description="All available widgets")
     default_widgets: list[str] = Field(
-        description="Default enabled widgets for new users"
+        description="Default enabled widgets for new users",
     )
+
+
+def _settings_to_response(settings: Any) -> PreferencesResponse:
+    """Convert UserSettings to API response."""
+    return PreferencesResponse(
+        sync_settings=SyncSettingsResponse(
+            auto_post_transactions=settings.sync.auto_post_transactions,
+            default_currency=settings.sync.default_currency,
+        ),
+        display_settings=DisplaySettingsResponse(
+            show_draft_transactions=settings.display.show_draft_transactions,
+            default_date_range_days=settings.display.default_date_range_days,
+        ),
+        dashboard_settings=DashboardSettingsResponse(
+            enabled_widgets=list(settings.dashboard.enabled_widgets),
+            widget_settings=settings.dashboard.widget_settings,
+        ),
+        ai_settings=AISettingsResponse(
+            enabled=settings.ai.enabled,
+            model_name=settings.ai.model_name,
+            min_confidence=settings.ai.min_confidence,
+        ),
+    )
+
 
 @router.get(
     "",
@@ -176,23 +201,12 @@ async def get_preferences(
     """
     Get the current user's preferences.
 
-    Returns both sync settings and display settings.
+    Returns sync, display, dashboard, and AI settings.
     """
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
+    query = GetUserSettingsQuery.from_factory(factory)
+    settings = await query.execute()
+    return _settings_to_response(settings)
 
-    prefs = user.preferences
-
-    return PreferencesResponse(
-        sync_settings=SyncSettingsResponse(
-            auto_post_transactions=prefs.sync_settings.auto_post_transactions,
-            default_currency=prefs.sync_settings.default_currency,
-        ),
-        display_settings=DisplaySettingsResponse(
-            show_draft_transactions=prefs.display_settings.show_draft_transactions,
-            default_date_range_days=prefs.display_settings.default_date_range_days,
-        ),
-    )
 
 @router.patch(
     "",
@@ -210,11 +224,6 @@ async def update_preferences(
     Update user preferences.
 
     Only provided fields will be updated; others remain unchanged.
-
-    **Example:** Update only auto-post setting:
-    ```json
-    {"auto_post_transactions": true}
-    ```
     """
     # Check if any update is provided
     if all(
@@ -224,6 +233,11 @@ async def update_preferences(
             request.default_currency,
             request.show_draft_transactions,
             request.default_date_range_days,
+            request.enabled_widgets,
+            request.widget_settings,
+            request.ai_enabled,
+            request.ai_model_name,
+            request.ai_min_confidence,
         ]
     ):
         raise HTTPException(
@@ -231,34 +245,33 @@ async def update_preferences(
             detail="At least one preference must be provided",
         )
 
-    command = UpdateUserPreferencesCommand.from_factory(factory)
+    command = UpdateUserSettingsCommand.from_factory(factory)
 
     try:
-        user = await command.execute(
+        settings = await command.execute(
             auto_post_transactions=request.auto_post_transactions,
             default_currency=request.default_currency,
             show_draft_transactions=request.show_draft_transactions,
             default_date_range_days=request.default_date_range_days,
+            enabled_widgets=request.enabled_widgets,
+            widget_settings=request.widget_settings,
+            ai_enabled=request.ai_enabled,
+            ai_model_name=request.ai_model_name,
+            ai_min_confidence=request.ai_min_confidence,
         )
         await factory.session.commit()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
     except Exception:
         await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
         raise
 
     logger.info("User preferences updated")
+    return _settings_to_response(settings)
 
-    prefs = user.preferences
-    return PreferencesResponse(
-        sync_settings=SyncSettingsResponse(
-            auto_post_transactions=prefs.sync_settings.auto_post_transactions,
-            default_currency=prefs.sync_settings.default_currency,
-        ),
-        display_settings=DisplaySettingsResponse(
-            show_draft_transactions=prefs.display_settings.show_draft_transactions,
-            default_date_range_days=prefs.display_settings.default_date_range_days,
-        ),
-    )
 
 @router.post(
     "/reset",
@@ -270,32 +283,14 @@ async def update_preferences(
 async def reset_preferences(
     factory: RepoFactory,
 ) -> PreferencesResponse:
-    """
-    Reset all user preferences to default values.
-
-    **Default values:**
-    - `auto_post_transactions`: false
-    - `default_currency`: EUR
-    - `show_draft_transactions`: true
-    - `default_date_range_days`: 30
-    """
-    command = ResetUserPreferencesCommand.from_factory(factory)
-    user = await command.execute()
+    """Reset all user preferences to default values."""
+    command = ResetUserSettingsCommand.from_factory(factory)
+    settings = await command.execute()
     await factory.session.commit()
 
     logger.info("User preferences reset to defaults")
+    return _settings_to_response(settings)
 
-    prefs = user.preferences
-    return PreferencesResponse(
-        sync_settings=SyncSettingsResponse(
-            auto_post_transactions=prefs.sync_settings.auto_post_transactions,
-            default_currency=prefs.sync_settings.default_currency,
-        ),
-        display_settings=DisplaySettingsResponse(
-            show_draft_transactions=prefs.display_settings.show_draft_transactions,
-            default_date_range_days=prefs.display_settings.default_date_range_days,
-        ),
-    )
 
 @router.get(
     "/dashboard",
@@ -307,21 +302,15 @@ async def reset_preferences(
 async def get_dashboard_settings(
     factory: RepoFactory,
 ) -> DashboardSettingsResponse:
-    """
-    Get the current user's dashboard widget configuration.
-
-    Returns the list of enabled widgets (in display order) and
-    per-widget settings.
-    """
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
-
-    dashboard = user.preferences.dashboard_settings
+    """Get the current user's dashboard widget configuration."""
+    query = GetUserSettingsQuery.from_factory(factory)
+    settings = await query.execute()
 
     return DashboardSettingsResponse(
-        enabled_widgets=list(dashboard.enabled_widgets),
-        widget_settings=dashboard.widget_settings,
+        enabled_widgets=list(settings.dashboard.enabled_widgets),
+        widget_settings=settings.dashboard.widget_settings,
     )
+
 
 @router.patch(
     "/dashboard",
@@ -332,41 +321,20 @@ async def get_dashboard_settings(
     },
 )
 async def update_dashboard_settings(
-    request: DashboardSettingsUpdateRequest,
+    request: PreferencesUpdateRequest,
     factory: RepoFactory,
 ) -> DashboardSettingsResponse:
-    """
-    Update dashboard widget configuration.
-
-    Only provided fields will be updated; others remain unchanged.
-
-    **Example:** Enable specific widgets in order:
-    ```json
-    {
-        "enabled_widgets": ["summary-cards", "net-worth", "spending-pie"]
-    }
-    ```
-
-    **Example:** Update settings for a widget:
-    ```json
-    {
-        "widget_settings": {
-            "net-worth": {"months": 24}
-        }
-    }
-    ```
-    """
-    # Check if any update is provided
+    """Update dashboard widget configuration."""
     if request.enabled_widgets is None and request.widget_settings is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least enabled_widgets or widget_settings must be provided",
         )
 
-    command = UpdateDashboardSettingsCommand.from_factory(factory)
+    command = UpdateUserSettingsCommand.from_factory(factory)
 
     try:
-        user = await command.execute(
+        settings = await command.execute(
             enabled_widgets=request.enabled_widgets,
             widget_settings=request.widget_settings,
         )
@@ -381,12 +349,11 @@ async def update_dashboard_settings(
         raise
 
     logger.info("Dashboard settings updated")
-
-    dashboard = user.preferences.dashboard_settings
     return DashboardSettingsResponse(
-        enabled_widgets=list(dashboard.enabled_widgets),
-        widget_settings=dashboard.widget_settings,
+        enabled_widgets=list(settings.dashboard.enabled_widgets),
+        widget_settings=settings.dashboard.widget_settings,
     )
+
 
 @router.post(
     "/dashboard/reset",
@@ -398,27 +365,18 @@ async def update_dashboard_settings(
 async def reset_dashboard_settings(
     factory: RepoFactory,
 ) -> DashboardSettingsResponse:
-    """
-    Reset dashboard to default widget configuration.
-
-    **Default widgets:**
-    - summary-cards
-    - spending-pie
-    - account-balances
-
-    Other preferences (sync, display) are preserved.
-    """
-    command = ResetDashboardSettingsCommand.from_factory(factory)
-    user = await command.execute()
+    """Reset dashboard to default widget configuration."""
+    # Reset all settings, then return just dashboard
+    command = ResetUserSettingsCommand.from_factory(factory)
+    settings = await command.execute()
     await factory.session.commit()
 
     logger.info("Dashboard settings reset to defaults")
-
-    dashboard = user.preferences.dashboard_settings
     return DashboardSettingsResponse(
-        enabled_widgets=list(dashboard.enabled_widgets),
-        widget_settings=dashboard.widget_settings,
+        enabled_widgets=list(settings.dashboard.enabled_widgets),
+        widget_settings=settings.dashboard.widget_settings,
     )
+
 
 @router.get(
     "/dashboard/widgets",
@@ -430,20 +388,9 @@ async def reset_dashboard_settings(
 async def list_available_widgets(
     factory: RepoFactory,
 ) -> AvailableWidgetsResponse:
-    """
-    Get all available dashboard widgets with their metadata.
-
-    Returns widget info including:
-    - ID, title, description, category
-    - Whether each widget is currently enabled
-    - Current settings for each widget (with defaults applied)
-
-    Useful for building a widget configuration UI.
-    """
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
-
-    dashboard = user.preferences.dashboard_settings
+    """Get all available dashboard widgets with their metadata."""
+    query = GetUserSettingsQuery.from_factory(factory)
+    settings = await query.execute()
 
     widgets = []
     for widget_id, widget_meta in AVAILABLE_WIDGETS.items():
@@ -453,9 +400,9 @@ async def list_available_widgets(
                 title=widget_meta["title"],
                 description=widget_meta["description"],
                 category=widget_meta["category"],
-                enabled=dashboard.is_widget_enabled(widget_id),
-                settings=dashboard.get_widget_settings(widget_id),
-            )
+                enabled=settings.dashboard.is_widget_enabled(widget_id),
+                settings=settings.dashboard.get_widget_settings(widget_id),
+            ),
         )
 
     return AvailableWidgetsResponse(

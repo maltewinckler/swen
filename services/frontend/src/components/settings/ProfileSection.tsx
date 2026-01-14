@@ -4,6 +4,7 @@
  * Displays user profile information in the settings page.
  */
 
+import { ShieldCheck, User as UserIcon } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -12,6 +13,7 @@ import {
   CardContent,
   FormField,
   Input,
+  Badge,
 } from '@/components/ui'
 import type { UserInfo } from '@/types/api'
 import { formatDate } from '@/lib/utils'
@@ -30,6 +32,21 @@ export function ProfileSection({ user }: ProfileSectionProps) {
       <CardContent className="space-y-4">
         <FormField label="Email">
           <Input value={user?.email ?? ''} disabled />
+        </FormField>
+        <FormField label="Role">
+          <div className="flex items-center h-10">
+            {user?.role === 'admin' ? (
+              <Badge variant="warning">
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Administrator
+              </Badge>
+            ) : (
+              <Badge variant="default">
+                <UserIcon className="h-3 w-3 mr-1" />
+                User
+              </Badge>
+            )}
+          </div>
         </FormField>
         <FormField label="Member since">
           <Input

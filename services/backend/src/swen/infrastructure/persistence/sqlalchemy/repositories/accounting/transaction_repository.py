@@ -1,6 +1,6 @@
 """SQLAlchemy implementation of TransactionRepository.
 
-This implementation is user-scoped via UserContext, meaning all queries
+This implementation is user-scoped via CurrentUser, meaning all queries
 automatically filter by the current user's user_id.
 """
 
@@ -29,7 +29,7 @@ from swen.infrastructure.persistence.sqlalchemy.models import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         self,
         session: AsyncSession,
         account_repository: AccountRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._session = session
         self._account_repo = account_repository
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     async def save(self, transaction: Transaction) -> None:
         # Check if transaction already exists

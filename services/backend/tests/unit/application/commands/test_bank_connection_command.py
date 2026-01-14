@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
 import pytest
+
 from swen.application.commands import BankConnectionCommand
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.shared.value_objects.secure_string import SecureString
-
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 

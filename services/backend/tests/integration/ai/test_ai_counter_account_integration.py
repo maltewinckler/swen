@@ -7,22 +7,19 @@ and will be skipped if Ollama is not available.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from swen.application.context import UserContext
+from swen.application.commands.accounting import GenerateDefaultAccountsCommand
 from swen.application.factories.bank_import_transaction_factory import (
     BankImportTransactionFactory,
 )
-from swen.application.commands.accounting import GenerateDefaultAccountsCommand
 from swen.application.services import BankAccountImportService, TransactionImportService
 from swen.application.services.transfer_reconciliation_service import (
     TransferReconciliationService,
@@ -44,7 +41,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
-
+from swen.application.ports.identity import CurrentUser
 
 # Test user
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -110,7 +107,7 @@ def skip_if_no_model(ollama_model_available):
     """Skip test if no suitable model is available."""
     if not ollama_model_available:
         pytest.skip(
-            "No suitable model available. Pull with: ollama pull qwen2.5:3b"
+            "No suitable model available. Pull with: ollama pull qwen2.5:3b",
         )
 
 
@@ -146,19 +143,19 @@ async def db_session(integration_engine):
 
 
 @pytest.fixture
-def user_context() -> UserContext:
-    """Provide a UserContext for the test user."""
-    return UserContext(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
+def current_user() -> CurrentUser:
+    """Provide a CurrentUser for the test user."""
+    return CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
 @pytest_asyncio.fixture
-async def repositories(db_session, user_context):
+async def repositories(db_session, current_user):
     """Wire repositories together and seed standard chart of accounts."""
-    account_repo = AccountRepositorySQLAlchemy(db_session, user_context)
+    account_repo = AccountRepositorySQLAlchemy(db_session, current_user)
     # Use the command instead of the deprecated domain service
     generate_accounts_cmd = GenerateDefaultAccountsCommand(
         account_repository=account_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
     await generate_accounts_cmd.execute()
 
@@ -168,13 +165,13 @@ async def repositories(db_session, user_context):
         transaction_repo=TransactionRepositorySQLAlchemy(
             db_session,
             account_repo,
-            user_context,
+            current_user,
         ),
-        mapping_repo=AccountMappingRepositorySQLAlchemy(db_session, user_context),
-        import_repo=TransactionImportRepositorySQLAlchemy(db_session, user_context),
-        rule_repo=CounterAccountRuleRepositorySQLAlchemy(db_session, user_context),
+        mapping_repo=AccountMappingRepositorySQLAlchemy(db_session, current_user),
+        import_repo=TransactionImportRepositorySQLAlchemy(db_session, current_user),
+        rule_repo=CounterAccountRuleRepositorySQLAlchemy(db_session, current_user),
         user_id=TEST_USER_ID,
-        user_context=user_context,
+        current_user=current_user,
     )
 
 
@@ -426,7 +423,7 @@ class TestTransactionImportWithAIIntegration:
         return BankAccountImportService(
             account_repository=repositories.account_repo,
             mapping_repository=repositories.mapping_repo,
-            user_context=repositories.user_context,
+            current_user=repositories.current_user,
         )
 
     @pytest_asyncio.fixture
@@ -470,7 +467,7 @@ class TestTransactionImportWithAIIntegration:
         )
 
         transaction_factory = BankImportTransactionFactory(
-            user_context=repositories.user_context,
+            current_user=repositories.current_user,
             ai_provider=ai_provider,
         )
 
@@ -482,7 +479,7 @@ class TestTransactionImportWithAIIntegration:
             account_repository=repositories.account_repo,
             transaction_repository=repositories.transaction_repo,
             import_repository=repositories.import_repo,
-            user_context=repositories.user_context,
+            current_user=repositories.current_user,
         )
 
     @pytest.mark.asyncio

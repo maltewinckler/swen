@@ -7,7 +7,6 @@ import httpx
 import pytest
 
 from swen.domain.integration.value_objects import (
-    DownloadProgress,
     ModelStatus,
 )
 from swen.infrastructure.integration.ai import OllamaModelRegistry
@@ -131,7 +130,7 @@ class TestListModels:
                 "models": [
                     {"name": "qwen2.5:3b", "size": 1_900_000_000},
                     {"name": "custom-model:latest", "size": 500_000_000},
-                ]
+                ],
             },
         )
 
@@ -174,7 +173,7 @@ class TestListModels:
                 "models": [
                     {"name": "zz-custom:latest", "size": 100_000_000},
                     {"name": "qwen2.5:3b", "size": 1_900_000_000},
-                ]
+                ],
             },
         )
 
@@ -198,7 +197,7 @@ class TestGetModelInfo:
             json={
                 "models": [
                     {"name": "qwen2.5:3b", "size": 1_900_000_000},
-                ]
+                ],
             },
         )
 

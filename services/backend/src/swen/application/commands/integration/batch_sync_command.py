@@ -17,8 +17,9 @@ from swen.application.dtos.integration import (
     SyncProgressEvent,
     SyncStartedEvent,
 )
-from swen.application.queries import GetCurrentUserQuery, ListAccountMappingsQuery
+from swen.application.queries import ListAccountMappingsQuery
 from swen.domain.banking.repositories import BankCredentialRepository
+from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.iban import extract_blz_from_iban
 from swen.domain.shared.time import utc_now
 
@@ -33,20 +34,18 @@ OPENING_BALANCE_ACCOUNT_NUMBER = "2000"
 class BatchSyncCommand:
     """Orchestrate multi-account syncs and aggregate results."""
 
-    def __init__(  # NOQA: PLR0913
+    def __init__(
         self,
         sync_command: TransactionSyncCommand,
-        user_query: GetCurrentUserQuery,
+        settings_repo: UserSettingsRepository,
         mapping_query: ListAccountMappingsQuery,
         credential_repo: BankCredentialRepository,
-        email: str,
         opening_balance_account_exists: bool,
     ):
         self._sync_command = sync_command
-        self._user_query = user_query
+        self._settings_repo = settings_repo
         self._mapping_query = mapping_query
         self._credential_repo = credential_repo
-        self._email = email
         self._opening_balance_account_exists = opening_balance_account_exists
 
     @classmethod
@@ -58,10 +57,9 @@ class BatchSyncCommand:
 
         return cls(
             sync_command=TransactionSyncCommand.from_factory(factory),
-            user_query=GetCurrentUserQuery.from_factory(factory),
+            settings_repo=factory.user_settings_repository(),
             mapping_query=ListAccountMappingsQuery.from_factory(factory),
             credential_repo=factory.credential_repository(),
-            email=factory.user_context.email,
             opening_balance_account_exists=opening_balance_account is not None,
         )
 
@@ -84,10 +82,10 @@ class BatchSyncCommand:
         else:
             start_date, end_date = self._calculate_date_range(days)
 
-        # Determine auto_post from user preference if not overridden
+        # Determine auto_post from user settings if not overridden
         if auto_post is None:
-            user = await self._user_query.execute(self._email)
-            auto_post = user.preferences.sync_settings.auto_post_transactions
+            settings = await self._settings_repo.get_or_create()
+            auto_post = settings.sync.auto_post_transactions
 
         # Create result DTO
         result = BatchSyncResult(
@@ -193,8 +191,8 @@ class BatchSyncCommand:
             start_date, end_date = self._calculate_date_range(days)
 
         if auto_post is None:
-            user = await self._user_query.execute(self._email)
-            auto_post = user.preferences.sync_settings.auto_post_transactions
+            settings = await self._settings_repo.get_or_create()
+            auto_post = settings.sync.auto_post_transactions
 
         result = BatchSyncResult(
             synced_at=synced_at,

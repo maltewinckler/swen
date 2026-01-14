@@ -14,7 +14,7 @@ from swen.domain.banking.value_objects import BankAccount
 from swen.infrastructure.persistence.sqlalchemy.models import BankAccountModel
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 class BankAccountRepositorySQLAlchemy(BankAccountRepository):
     """SQLAlchemy implementation of bank account repository."""
 
-    def __init__(self, session: AsyncSession, user_context: UserContext):
+    def __init__(self, session: AsyncSession, current_user: CurrentUser):
         self._session = session
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     async def save(self, bank_account: BankAccount):
         model = await self._find_model_by_iban(bank_account.iban)

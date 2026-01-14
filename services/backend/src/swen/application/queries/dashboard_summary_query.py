@@ -19,8 +19,8 @@ from swen.domain.accounting.repositories import (
     TransactionRepository,
 )
 from swen.domain.accounting.services import AccountBalanceService
+from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.time import ensure_tz_aware, utc_now
-from swen.domain.user import UserRepository
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -53,13 +53,11 @@ class DashboardSummaryQuery:
         self,
         account_repository: AccountRepository,
         transaction_repository: TransactionRepository,
-        user_repository: Optional[UserRepository] = None,
-        email: Optional[str] = None,
+        settings_repository: Optional[UserSettingsRepository] = None,
     ):
         self._account_repo = account_repository
         self._transaction_repo = transaction_repository
-        self._user_repo = user_repository
-        self._email = email
+        self._settings_repo = settings_repository
         self._balance_service = AccountBalanceService()
 
     @classmethod
@@ -67,20 +65,16 @@ class DashboardSummaryQuery:
         return cls(
             account_repository=factory.account_repository(),
             transaction_repository=factory.transaction_repository(),
-            user_repository=factory.user_repository(),
-            email=factory.user_context.email,
+            settings_repository=factory.user_settings_repository(),
         )
 
     async def _get_show_drafts_preference(self) -> bool:
-        if not self._user_repo or not self._email:
-            msg = (
-                "Cannot load user preferences: email not provided. "
-                "Either pass email to from_factory() or explicitly set show_drafts."
-            )
+        if not self._settings_repo:
+            msg = "Cannot load user settings: settings_repository not provided."
             raise ValueError(msg)
 
-        user = await self._user_repo.get_or_create_by_email(self._email)
-        return user.preferences.display_settings.show_draft_transactions
+        settings = await self._settings_repo.get_or_create()
+        return settings.display.show_draft_transactions
 
     def _calculate_period(
         self,

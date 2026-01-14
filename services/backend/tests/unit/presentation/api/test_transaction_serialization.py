@@ -18,7 +18,6 @@ from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
 from swen.presentation.api.routers.transactions import _transaction_to_response
 
-
 # Fixed UUID for testing
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 

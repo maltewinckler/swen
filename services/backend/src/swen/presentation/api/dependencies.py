@@ -21,20 +21,25 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from swen.application.context import UserContext
-from swen.application.services import AuthenticationService
-from swen.domain.user import User
+from swen.application.ports.identity import CurrentUser
+from swen.infrastructure.adapters.identity import IdentityAdapter
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
+from swen.presentation.api.config import get_api_settings
+from swen_config.settings import Settings, get_settings
+from swen_identity import (
+    AuthenticationService,
+    InvalidTokenError,
+    JWTService,
+    PasswordHashingService,
+    User,
+)
+from swen_identity.infrastructure.persistence.sqlalchemy import (
+    UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,
 )
-from swen.presentation.api.config import get_api_settings
-from swen_auth import InvalidTokenError, JWTService, PasswordHashingService
-from swen_auth.persistence.sqlalchemy import UserCredentialRepositorySQLAlchemy
-from swen_config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +166,13 @@ async def create_tables() -> None:
     Uses SQLAlchemy's create_all() which only creates missing tables.
     Existing tables and their data are never modified or deleted.
     """
+    # Import all models to register them with Base.metadata
+    # swen models
+    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
+    # swen_identity models (use same Base, so included in metadata)
+    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
     engine = get_engine()
     logger.info("Ensuring all database tables exist...")
 
@@ -176,6 +188,10 @@ async def drop_tables() -> None:
 
     This is primarily for testing and development reset scenarios.
     """
+    # Import all models to register them with Base.metadata
+    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
     engine = get_engine()
     logger.warning("Dropping all database tables...")
 
@@ -311,8 +327,8 @@ async def get_current_user(
     return user
 
 
-# Type alias for injected current user
-CurrentUser = Annotated[User, Depends(get_current_user)]
+# Type alias for injected authenticated user (from JWT)
+AuthenticatedUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_current_user_optional(
@@ -339,29 +355,46 @@ async def get_current_user_optional(
 OptionalCurrentUser = Annotated[User | None, Depends(get_current_user_optional)]
 
 
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Require admin user."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
+
+
+# Type alias for admin user
+AdminUser = Annotated[User, Depends(require_admin)]
+
+
 # -----------------------------------------------------------------------------
 # User Context & Repository Factory
 # -----------------------------------------------------------------------------
 
 
-async def get_user_context(
+async def get_current_current_user(
     user: User = Depends(get_current_user),
-) -> UserContext:
+) -> CurrentUser:
     """
-    Get UserContext for repository scoping.
+    Get CurrentUser for repository scoping.
 
-    The UserContext is used to scope repository queries to the current user.
+    Uses IdentityAdapter to convert from swen_identity.User to swen's CurrentUser port.
     """
-    return UserContext.create(user)
+    from swen_identity import UserContext
+
+    current_user = UserContext.create(user)
+    return IdentityAdapter.to_current_user(current_user)
 
 
-# Type alias for injected user context
-CurrentUserContext = Annotated[UserContext, Depends(get_user_context)]
+# Type alias for injected current user context
+CurrentUserContext = Annotated[CurrentUser, Depends(get_current_current_user)]
 
 
 async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
-    user_context: UserContext = Depends(get_user_context),
+    current_user: CurrentUser = Depends(get_current_current_user),
 ) -> SQLAlchemyRepositoryFactory:
     """
     Get repository factory for the current user.
@@ -370,7 +403,7 @@ async def get_repository_factory(
     """
     return SQLAlchemyRepositoryFactory(
         session=session,
-        user_context=user_context,
+        current_user=current_user,
         encryption_key=get_encryption_key(),
     )
 

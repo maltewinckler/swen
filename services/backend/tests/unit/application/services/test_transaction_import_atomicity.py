@@ -9,7 +9,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.context import UserContext
 from swen.application.factories import BankImportTransactionFactory
 from swen.application.services import TransactionImportService
 from swen.application.services.transfer_reconciliation_service import (
@@ -22,7 +21,7 @@ from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transaction_repository import (
     StoredBankTransaction,
 )
-
+from swen.application.ports.identity import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
@@ -77,7 +76,7 @@ async def test_import_persists_success_atomically_when_session_provided():
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
     fake_session = _FakeSession(in_tx=False)
 
     asset_account = Account(
@@ -111,7 +110,7 @@ async def test_import_persists_success_atomically_when_session_provided():
         mapping_repository=mapping_repo,
         account_repository=account_repo,
     )
-    transaction_factory = BankImportTransactionFactory(user_context=user_context)
+    transaction_factory = BankImportTransactionFactory(current_user=current_user)
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
@@ -121,7 +120,7 @@ async def test_import_persists_success_atomically_when_session_provided():
         account_repository=account_repo,
         transaction_repository=transaction_repo,
         import_repository=import_repo,
-        user_context=user_context,
+        current_user=current_user,
         db_session=fake_session,  # type: ignore[arg-type]  # test double
     )
 
@@ -156,7 +155,7 @@ async def test_import_does_not_start_nested_transaction_when_already_in_transact
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
-    user_context = UserContext(user_id=TEST_USER_ID, email="test@example.com")
+    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
     fake_session = _FakeSession(in_tx=True)
 
     asset_account = Account(
@@ -190,7 +189,7 @@ async def test_import_does_not_start_nested_transaction_when_already_in_transact
         mapping_repository=mapping_repo,
         account_repository=account_repo,
     )
-    transaction_factory = BankImportTransactionFactory(user_context=user_context)
+    transaction_factory = BankImportTransactionFactory(current_user=current_user)
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
@@ -200,7 +199,7 @@ async def test_import_does_not_start_nested_transaction_when_already_in_transact
         account_repository=account_repo,
         transaction_repository=transaction_repo,
         import_repository=import_repo,
-        user_context=user_context,
+        current_user=current_user,
         db_session=fake_session,  # type: ignore[arg-type]  # test double
     )
 

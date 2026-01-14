@@ -49,7 +49,7 @@ from swen.infrastructure.persistence.sqlalchemy.models.accounting.transaction_mo
 )
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 
 def _get_month_key(year: int, month: int) -> str:
@@ -73,9 +73,9 @@ def _next_month(dt: datetime) -> datetime:
 class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
     """SQLAlchemy analytics read adapter."""
 
-    def __init__(self, session: AsyncSession, user_context: UserContext):
+    def __init__(self, session: AsyncSession, current_user: CurrentUser):
         self._session = session
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     async def spending_over_time(
         self,

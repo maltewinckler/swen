@@ -1,6 +1,6 @@
 """Shared fixtures for analytics query tests."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -128,7 +128,7 @@ def create_mock_transaction(
     txn.entries = entries
     txn.is_posted = is_posted
     txn.involves_account = MagicMock(
-        side_effect=lambda acc: any(e.account == acc for e in entries)
+        side_effect=lambda acc: any(e.account == acc for e in entries),
     )
     return txn
 

@@ -10,7 +10,7 @@ from swen.domain.accounting.repositories import AccountRepository
 from swen.domain.accounting.value_objects import Currency
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
 
 
@@ -30,10 +30,10 @@ class GenerateDefaultAccountsCommand:
     def __init__(
         self,
         account_repository: AccountRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._account_repo = account_repository
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     @classmethod
     def from_factory(
@@ -42,7 +42,7 @@ class GenerateDefaultAccountsCommand:
     ) -> GenerateDefaultAccountsCommand:
         return cls(
             account_repository=factory.account_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def execute(

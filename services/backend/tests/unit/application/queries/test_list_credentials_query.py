@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+
 from swen.application.queries import ListCredentialsQuery
 from swen.domain.banking.value_objects import BankCredentials
 
@@ -10,7 +11,7 @@ from swen.domain.banking.value_objects import BankCredentials
 class TestListCredentialsQuery:
     """Tests for the ListCredentialsQuery.
 
-    Note: The credential repository is now user-scoped via UserContext,
+    Note: The credential repository is now user-scoped via CurrentUser,
     so query methods no longer take user_id parameters.
     """
 

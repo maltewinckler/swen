@@ -9,7 +9,6 @@ from swen.application.commands.accounting import (
     ParentAction,
     UpdateAccountCommand,
 )
-from swen.application.context import UserContext
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -19,6 +18,7 @@ from swen.domain.accounting.exceptions import (
 )
 from swen.domain.accounting.services import AccountHierarchyService
 from swen.domain.shared.exceptions import ValidationError
+from swen.application.ports.identity import CurrentUser
 
 
 class MockAccountRepository:
@@ -55,9 +55,9 @@ class MockAccountRepository:
 
 
 @pytest.fixture
-def user_context():
+def current_user():
     """Create user context."""
-    return UserContext(user_id=uuid4(), email="test@example.com")
+    return CurrentUser(user_id=uuid4(), email="test@example.com")
 
 
 @pytest.fixture
@@ -73,9 +73,9 @@ def hierarchy_service(mock_repo):
 
 
 @pytest.fixture
-def create_command(mock_repo, hierarchy_service, user_context):
+def create_command(mock_repo, hierarchy_service, current_user):
     """Create command instance."""
-    return CreateAccountCommand(mock_repo, hierarchy_service, user_context)
+    return CreateAccountCommand(mock_repo, hierarchy_service, current_user)
 
 
 @pytest.fixture

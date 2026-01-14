@@ -1,9 +1,7 @@
 """Tests for OllamaCounterAccountProvider."""
 
-import json
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -233,11 +231,11 @@ class TestResponseParsing:
 
     def test_parse_json_in_code_block(self, provider, groceries_option):
         """Test parsing JSON wrapped in markdown code block."""
-        response = '''Here is my analysis:
+        response = """Here is my analysis:
 ```json
 {"account_number": "4000", "confidence": 0.88, "reason": "Grocery store"}
 ```
-'''
+"""
         accounts = [groceries_option]
 
         result = provider._parse_response(response, accounts)
@@ -326,7 +324,7 @@ class TestOllamaAPICall:
     ):
         """Test successful resolution with mocked API."""
         mock_response = {
-            "response": '{"account_number": "4000", "confidence": 0.92, "reason": "REWE supermarket"}'
+            "response": '{"account_number": "4000", "confidence": 0.92, "reason": "REWE supermarket"}',
         }
 
         with patch.object(
@@ -432,7 +430,7 @@ class TestHealthCheck:
                 "models": [
                     {"name": "qwen2.5:1.5b"},
                     {"name": "llama3.2:3b"},
-                ]
+                ],
             },
         )
 
@@ -451,7 +449,7 @@ class TestHealthCheck:
             json={
                 "models": [
                     {"name": "llama3.2:3b"},  # Different model
-                ]
+                ],
             },
         )
 

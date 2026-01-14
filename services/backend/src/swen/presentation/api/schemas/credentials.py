@@ -3,7 +3,7 @@
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class CredentialResponse(BaseModel):
     """Response schema for credential metadata (no sensitive data)."""
@@ -12,16 +12,16 @@ class CredentialResponse(BaseModel):
     blz: str = Field(..., description="Bank code (BLZ) - 8 digits")
     label: str = Field(..., description="User-friendly label (typically bank name)")
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "credential_id": "cred_abc123def456",
                 "blz": "50031000",
                 "label": "Triodos Bank N.V. Deutschland",
             },
         },
-    }
+    )
 
 class CredentialListResponse(BaseModel):
     """Response schema for credential listing."""
@@ -32,8 +32,8 @@ class CredentialListResponse(BaseModel):
     )
     total: int = Field(..., description="Total number of stored credentials")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "credentials": [
                     {
@@ -50,7 +50,7 @@ class CredentialListResponse(BaseModel):
                 "total": 2,
             },
         },
-    }
+    )
 
 class CredentialCreateRequest(BaseModel):
     """Request schema for storing new credentials."""
@@ -81,8 +81,8 @@ class CredentialCreateRequest(BaseModel):
         description="TAN medium/device name (e.g., 'SecureGo'). Optional for most TAN methods.",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "50031000",
                 "username": "my_username",
@@ -91,7 +91,7 @@ class CredentialCreateRequest(BaseModel):
                 "tan_medium": None,
             },
         },
-    }
+    )
 
 class CredentialCreateResponse(BaseModel):
     """Response schema after storing credentials."""
@@ -101,8 +101,8 @@ class CredentialCreateResponse(BaseModel):
     label: str = Field(..., description="Bank name (auto-resolved from BLZ)")
     message: str = Field(..., description="Success confirmation message")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "credential_id": "cred_abc123def456",
                 "blz": "50031000",
@@ -110,7 +110,7 @@ class CredentialCreateResponse(BaseModel):
                 "message": "Credentials stored successfully",
             },
         },
-    }
+    )
 
 class BankLookupResponse(BaseModel):
     """Response schema for bank lookup by BLZ."""
@@ -121,8 +121,8 @@ class BankLookupResponse(BaseModel):
     city: Optional[str] = Field(None, description="Bank city")
     endpoint_url: str = Field(..., description="FinTS endpoint URL")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "50031000",
                 "name": "Triodos Bank N.V. Deutschland",
@@ -131,7 +131,7 @@ class BankLookupResponse(BaseModel):
                 "endpoint_url": "https://banking-dkb.s-fints-pt-dkb.de/fints30",
             },
         },
-    }
+    )
 
 class ConnectionTestResponse(BaseModel):
     """Response schema for connection test."""
@@ -143,15 +143,15 @@ class ConnectionTestResponse(BaseModel):
     )
     message: str = Field(..., description="Human-readable result message")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "accounts_found": 2,
                 "message": "Connection successful! Found 2 account(s).",
             },
         },
-    }
+    )
 
 class AccountImportInfo(BaseModel):
     """Info about an imported bank account."""
@@ -165,8 +165,8 @@ class AccountImportInfo(BaseModel):
         description="Linked accounting account UUID",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
                 "account_name": "DKB - Girokonto",
@@ -175,7 +175,7 @@ class AccountImportInfo(BaseModel):
                 "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
             },
         },
-    }
+    )
 
 class BankAccountData(BaseModel):
     """Bank account data for import (subset of DiscoveredAccount for setup request)."""
@@ -206,8 +206,8 @@ class SetupBankRequest(BaseModel):
         "If not provided for an IBAN, a default name is generated.",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "accounts": [
                     {
@@ -226,7 +226,7 @@ class SetupBankRequest(BaseModel):
                 },
             },
         },
-    }
+    )
 
 class SetupBankResponse(BaseModel):
     """Response for bank setup (connect + import accounts)."""
@@ -240,8 +240,8 @@ class SetupBankResponse(BaseModel):
     message: str = Field(..., description="Status message")
     warning: Optional[str] = Field(None, description="Warning message if any")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "bank_code": "12030000",
@@ -258,7 +258,7 @@ class SetupBankResponse(BaseModel):
                 "warning": None,
             },
         },
-    }
+    )
 
 class DiscoveredAccount(BaseModel):
     """Full bank account data from discovery (passed back to setup to avoid re-fetching)."""
@@ -281,8 +281,8 @@ class DiscoveredAccount(BaseModel):
     balance: Optional[str] = Field(None, description="Current balance")
     balance_date: Optional[str] = Field(None, description="When balance was fetched")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
                 "default_name": "DKB - Girokonto",
@@ -297,7 +297,7 @@ class DiscoveredAccount(BaseModel):
                 "balance_date": "2025-12-14T10:00:00",
             },
         },
-    }
+    )
 
 class DiscoverAccountsResponse(BaseModel):
     """Response for account discovery (connect + list accounts without importing)."""
@@ -309,8 +309,8 @@ class DiscoverAccountsResponse(BaseModel):
         description="List of discovered bank accounts (pass back to /setup to import)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "12030000",
                 "bank_name": "Deutsche Kreditbank Berlin (DKB) AG",
@@ -329,7 +329,7 @@ class DiscoverAccountsResponse(BaseModel):
                 ],
             },
         },
-    }
+    )
 
 TANMethodTypeStr = Literal[
     "decoupled",
@@ -359,15 +359,15 @@ class TANMethodQueryRequest(BaseModel):
     )
     pin: str = Field(..., min_length=1, max_length=100, description="Bank PIN")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "12030000",
                 "username": "my_username",
                 "pin": "my_secret_pin",
             },
         },
-    }
+    )
 
 class TANMethodResponse(BaseModel):
     """Information about a TAN authentication method supported by a bank."""
@@ -410,8 +410,8 @@ class TANMethodResponse(BaseModel):
         description="Whether multiple TANs are supported",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "code": "940",
                 "name": "DKB App",
@@ -428,7 +428,7 @@ class TANMethodResponse(BaseModel):
                 "supports_multiple_tan": False,
             },
         },
-    }
+    )
 
 class TANMethodsResponse(BaseModel):
     """Response for TAN methods query."""
@@ -444,8 +444,8 @@ class TANMethodsResponse(BaseModel):
         description="Recommended TAN method code (usually first decoupled method)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "12030000",
                 "bank_name": "Deutsche Kreditbank Berlin (DKB) AG",
@@ -465,7 +465,7 @@ class TANMethodsResponse(BaseModel):
                 "default_method": "940",
             },
         },
-    }
+    )
 
 # Bank Connection Details schemas
 
@@ -497,8 +497,8 @@ class BankConnectionDetailsResponse(BaseModel):
     reconciled_count: int = Field(description="Number of reconciled accounts")
     discrepancy_count: int = Field(description="Number of accounts with discrepancies")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "blz": "50031000",
                 "bank_name": "Triodos Bank",
@@ -520,4 +520,4 @@ class BankConnectionDetailsResponse(BaseModel):
                 "discrepancy_count": 0,
             },
         },
-    }
+    )

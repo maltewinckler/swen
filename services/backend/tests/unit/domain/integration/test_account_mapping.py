@@ -3,8 +3,8 @@
 from uuid import UUID, uuid4
 
 import pytest
-from swen.domain.integration.entities import AccountMapping
 
+from swen.domain.integration.entities import AccountMapping
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")

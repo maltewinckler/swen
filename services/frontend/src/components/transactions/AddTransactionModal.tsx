@@ -221,7 +221,7 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
       </ModalHeader>
 
       {/* Tab Switcher */}
-      <div className="px-6 pb-4">
+      <div className="px-6 pt-5 pb-4">
         <div className="flex gap-1 p-1 bg-bg-base rounded-xl">
           <button
             type="button"

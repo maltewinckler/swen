@@ -13,6 +13,15 @@ export interface RegisterRequest {
   password: string
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  new_password: string
+}
+
 export interface AuthResponse {
   user: UserInfo
   access_token: string
@@ -23,7 +32,26 @@ export interface AuthResponse {
 export interface UserInfo {
   id: string
   email: string
+  role: 'user' | 'admin'
   created_at: string
+}
+
+// Admin types
+export interface UserSummary {
+  id: string
+  email: string
+  role: 'user' | 'admin'
+  created_at: string
+}
+
+export interface CreateUserRequest {
+  email: string
+  password: string
+  role?: 'user' | 'admin'
+}
+
+export interface UpdateRoleRequest {
+  role: 'user' | 'admin'
 }
 
 // Account types - uppercase for frontend display logic

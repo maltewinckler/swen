@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+
 from swen.domain.accounting.entities import AccountType
 from swen.domain.accounting.services import AccountBalanceService
 from swen.domain.accounting.value_objects import Money

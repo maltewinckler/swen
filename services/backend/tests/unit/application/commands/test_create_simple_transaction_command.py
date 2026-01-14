@@ -1,23 +1,23 @@
 """Unit tests for CreateSimpleTransactionCommand."""
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
 from swen.application.commands.accounting import CreateSimpleTransactionCommand
-from swen.application.context.user_context import UserContext
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.shared.exceptions import ValidationError
+from swen.application.ports.identity import CurrentUser
 
 
 @pytest.fixture
-def user_context() -> UserContext:
+def current_user() -> CurrentUser:
     """Create a test user context."""
-    return UserContext(user_id=uuid4(), email="test@example.com")
+    return CurrentUser(user_id=uuid4(), email="test@example.com")
 
 
 @pytest.fixture
@@ -98,13 +98,13 @@ class TestCreateSimpleTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
-        user_context,
+        current_user,
     ) -> CreateSimpleTransactionCommand:
         """Create command under test."""
         return CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
     async def test_create_expense_negative_amount(
@@ -187,7 +187,7 @@ class TestCreateSimpleTransactionCommand:
     async def test_no_asset_account_raises_error(
         self,
         mock_transaction_repo,
-        user_context,
+        current_user,
     ):
         """Raises error when no asset account exists."""
         # Empty account repo
@@ -198,7 +198,7 @@ class TestCreateSimpleTransactionCommand:
         command = CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=empty_repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
         with pytest.raises(AccountNotFoundError):
@@ -210,7 +210,7 @@ class TestCreateSimpleTransactionCommand:
     async def test_no_category_account_raises_error(
         self,
         mock_transaction_repo,
-        user_context,
+        current_user,
         asset_account,
     ):
         """Raises error when no matching category account exists."""
@@ -222,7 +222,7 @@ class TestCreateSimpleTransactionCommand:
         command = CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
         with pytest.raises(AccountNotFoundError):
@@ -234,7 +234,7 @@ class TestCreateSimpleTransactionCommand:
     async def test_prefers_sonstig_account_as_default(
         self,
         mock_transaction_repo,
-        user_context,
+        current_user,
         mock_account,
     ):
         """Prefers 'sonstig/other' accounts as default category."""
@@ -253,7 +253,7 @@ class TestCreateSimpleTransactionCommand:
         command = CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=repo,
-            user_context=user_context,
+            current_user=current_user,
         )
 
         # Don't specify category - should use sonstig as default
@@ -265,12 +265,12 @@ class TestCreateSimpleTransactionCommand:
         # The transaction was created - sonstig was selected
         assert txn is not None
 
-    async def test_from_factory(self, user_context):
+    async def test_from_factory(self, current_user):
         """Command can be created from factory."""
         factory = MagicMock()
         factory.transaction_repository.return_value = AsyncMock()
         factory.account_repository.return_value = AsyncMock()
-        factory.user_context = user_context
+        factory.current_user = current_user
 
         command = CreateSimpleTransactionCommand.from_factory(factory)
 

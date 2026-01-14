@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+
 from swen.application.dtos.analytics import TopExpensesResult
 from swen.application.queries.analytics import TopExpensesQuery
 
@@ -23,7 +24,7 @@ class TestTopExpensesQuery:
 
         query = TopExpensesQuery(port)
         result = await query.execute(
-            months=2, top_n=7, end_month="2024-12", include_drafts=True
+            months=2, top_n=7, end_month="2024-12", include_drafts=True,
         )
 
         assert result is expected

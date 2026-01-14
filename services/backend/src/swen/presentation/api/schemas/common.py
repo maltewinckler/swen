@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ErrorResponse(BaseModel):
@@ -16,7 +16,11 @@ class ErrorResponse(BaseModel):
         description="When the error occurred",
     )
 
-    model_config = {"json_schema_extra": {"example": {"detail": "Resource not found", "code": "NOT_FOUND"}}}
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"detail": "Resource not found", "code": "NOT_FOUND"},
+        },
+    )
 
 
 class HealthResponse(BaseModel):
@@ -59,4 +63,3 @@ class PaginatedResponse(BaseModel):
             page_size=page_size,
             pages=pages,
         )
-

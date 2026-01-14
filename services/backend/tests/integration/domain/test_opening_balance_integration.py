@@ -16,8 +16,9 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from swen.application.commands.integration import TransactionSyncCommand
-from swen.application.context import UserContext
 from swen.application.factories import BankImportTransactionFactory
 from swen.application.services import (
     BankAccountImportService,
@@ -54,14 +55,14 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     AccountMappingRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from swen.application.ports.identity import CurrentUser
 
 # Fixed UUID for testing
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_USER_EMAIL = "test@example.com"
 
 # Create test user context
-TEST_USER_CONTEXT = UserContext(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
+TEST_USER_CONTEXT = CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
 def _create_import_service(
@@ -79,7 +80,7 @@ def _create_import_service(
         account_repository=account_repo,
     )
     transaction_factory = BankImportTransactionFactory(
-        user_context=TEST_USER_CONTEXT,
+        current_user=TEST_USER_CONTEXT,
     )
     return TransactionImportService(
         bank_account_import_service=bank_account_import_service,
@@ -89,7 +90,7 @@ def _create_import_service(
         account_repository=account_repo,
         transaction_repository=transaction_repo,
         import_repository=import_repo,
-        user_context=TEST_USER_CONTEXT,
+        current_user=TEST_USER_CONTEXT,
     )
 
 
@@ -111,7 +112,7 @@ def _make_credentials() -> BankCredentials:
 
 
 def _make_bank_account(
-    iban: str = IBAN, balance: Decimal = Decimal("1000.00")
+    iban: str = IBAN, balance: Decimal = Decimal("1000.00"),
 ) -> BankAccount:
     """Create a bank account value object with balance."""
     return BankAccount(
@@ -240,7 +241,7 @@ async def setup_asset_account_and_mapping(integration_session, setup_chart_of_ac
     """Set up asset account and mapping for the test IBAN."""
     account_repo = AccountRepositorySQLAlchemy(integration_session, TEST_USER_CONTEXT)
     mapping_repo = AccountMappingRepositorySQLAlchemy(
-        integration_session, TEST_USER_CONTEXT
+        integration_session, TEST_USER_CONTEXT,
     )
 
     # Create asset account for bank account
@@ -293,7 +294,7 @@ class TestOpeningBalanceE2E:
         """
         # Arrange - repositories
         account_repo = AccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
@@ -301,16 +302,16 @@ class TestOpeningBalanceE2E:
             TEST_USER_CONTEXT,
         )
         mapping_repo = AccountMappingRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         import_repo = TransactionImportRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_account_repo = BankAccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
 
         # Mock bank adapter
@@ -328,7 +329,7 @@ class TestOpeningBalanceE2E:
 
         # Create counter-account resolution service (returns default accounts)
         counter_account_resolution_service = AsyncMock(
-            spec=CounterAccountResolutionService
+            spec=CounterAccountResolutionService,
         )
         # Return a ResolutionResult with no account (will fall back to default)
         counter_account_resolution_service.resolve_counter_account_with_details.return_value = ResolutionResult(
@@ -349,7 +350,7 @@ class TestOpeningBalanceE2E:
         bank_account_import_service = BankAccountImportService(
             account_repository=account_repo,
             mapping_repository=mapping_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
         )
 
         import_service = _create_import_service(
@@ -367,7 +368,7 @@ class TestOpeningBalanceE2E:
             import_service=import_service,
             mapping_repo=mapping_repo,
             import_repo=import_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
             account_repo=account_repo,
             transaction_repo=transaction_repo,
             bank_account_repo=bank_account_repo,
@@ -427,7 +428,7 @@ class TestOpeningBalanceE2E:
         """
         # Arrange
         account_repo = AccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
@@ -435,16 +436,16 @@ class TestOpeningBalanceE2E:
             TEST_USER_CONTEXT,
         )
         mapping_repo = AccountMappingRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         import_repo = TransactionImportRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_account_repo = BankAccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
 
         adapter = AsyncMock()
@@ -460,7 +461,7 @@ class TestOpeningBalanceE2E:
         ]
 
         counter_account_resolution_service = AsyncMock(
-            spec=CounterAccountResolutionService
+            spec=CounterAccountResolutionService,
         )
         counter_account_resolution_service.resolve_counter_account_with_details.return_value = ResolutionResult(
             account=None,
@@ -479,7 +480,7 @@ class TestOpeningBalanceE2E:
         bank_account_import_service = BankAccountImportService(
             account_repository=account_repo,
             mapping_repository=mapping_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
         )
 
         import_service = _create_import_service(
@@ -496,7 +497,7 @@ class TestOpeningBalanceE2E:
             import_service=import_service,
             mapping_repo=mapping_repo,
             import_repo=import_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
             account_repo=account_repo,
             transaction_repo=transaction_repo,
             bank_account_repo=bank_account_repo,
@@ -563,7 +564,7 @@ class TestOpeningBalanceE2E:
         """
         # Arrange
         account_repo = AccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
@@ -571,16 +572,16 @@ class TestOpeningBalanceE2E:
             TEST_USER_CONTEXT,
         )
         mapping_repo = AccountMappingRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         import_repo = TransactionImportRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_account_repo = BankAccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
 
         adapter = AsyncMock()
@@ -607,7 +608,7 @@ class TestOpeningBalanceE2E:
         ]
 
         counter_account_resolution_service = AsyncMock(
-            spec=CounterAccountResolutionService
+            spec=CounterAccountResolutionService,
         )
         counter_account_resolution_service.resolve_counter_account_with_details.return_value = ResolutionResult(
             account=None,
@@ -626,7 +627,7 @@ class TestOpeningBalanceE2E:
         bank_account_import_service = BankAccountImportService(
             account_repository=account_repo,
             mapping_repository=mapping_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
         )
 
         import_service = _create_import_service(
@@ -643,7 +644,7 @@ class TestOpeningBalanceE2E:
             import_service=import_service,
             mapping_repo=mapping_repo,
             import_repo=import_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
             account_repo=account_repo,
             transaction_repo=transaction_repo,
             bank_account_repo=bank_account_repo,
@@ -694,7 +695,7 @@ class TestOpeningBalanceE2E:
 
         # Arrange - use first session to create opening balance
         account_repo = AccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         transaction_repo = TransactionRepositorySQLAlchemy(
             integration_session,
@@ -702,16 +703,16 @@ class TestOpeningBalanceE2E:
             TEST_USER_CONTEXT,
         )
         mapping_repo = AccountMappingRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         import_repo = TransactionImportRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
         bank_account_repo = BankAccountRepositorySQLAlchemy(
-            integration_session, TEST_USER_CONTEXT
+            integration_session, TEST_USER_CONTEXT,
         )
 
         adapter = AsyncMock()
@@ -721,11 +722,11 @@ class TestOpeningBalanceE2E:
         adapter.disconnect = AsyncMock()
         adapter.fetch_transactions.return_value = _make_bank_transactions()
         adapter.fetch_accounts.return_value = [
-            _make_bank_account(IBAN, Decimal("1000.00"))
+            _make_bank_account(IBAN, Decimal("1000.00")),
         ]
 
         counter_account_resolution_service = AsyncMock(
-            spec=CounterAccountResolutionService
+            spec=CounterAccountResolutionService,
         )
         counter_account_resolution_service.resolve_counter_account_with_details.return_value = ResolutionResult(
             account=None,
@@ -744,7 +745,7 @@ class TestOpeningBalanceE2E:
         bank_account_import_service = BankAccountImportService(
             account_repository=account_repo,
             mapping_repository=mapping_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
         )
 
         import_service = _create_import_service(
@@ -761,7 +762,7 @@ class TestOpeningBalanceE2E:
             import_service=import_service,
             mapping_repo=mapping_repo,
             import_repo=import_repo,
-            user_context=TEST_USER_CONTEXT,
+            current_user=TEST_USER_CONTEXT,
             account_repo=account_repo,
             transaction_repo=transaction_repo,
             bank_account_repo=bank_account_repo,
@@ -794,7 +795,7 @@ class TestOpeningBalanceE2E:
 
         async with async_session_maker() as new_session:
             new_account_repo = AccountRepositorySQLAlchemy(
-                new_session, TEST_USER_CONTEXT
+                new_session, TEST_USER_CONTEXT,
             )
             new_transaction_repo = TransactionRepositorySQLAlchemy(
                 new_session,

@@ -13,7 +13,7 @@ from swen.domain.security.repositories import StoredBankCredentialsRepository
 from swen.domain.security.services import EncryptionService
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 
 class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
@@ -30,11 +30,11 @@ class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
         self,
         stored_credentials_repo: StoredBankCredentialsRepository,
         encryption_service: EncryptionService,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._stored_repo = stored_credentials_repo
         self._encryption = encryption_service
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     async def save(
         self,

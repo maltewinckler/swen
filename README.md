@@ -77,7 +77,24 @@ OLLAMA_HOST=ollama
 # Your domain and security settings
 API_COOKIE_SECURE=true
 API_CORS_ORIGINS=https://swen.example.com
+
+# Frontend URL (required for password reset emails)
+FRONTEND_BASE_URL=https://swen.example.com
+
+# User registration: "open" (anyone can register) or "admin_only" (default)
+REGISTRATION_MODE=admin_only
+
+# SMTP settings (required for password reset emails)
+SMTP_ENABLED=true
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+SMTP_FROM_EMAIL=noreply@example.com
+SMTP_FROM_NAME=SWEN
 ```
+
+> **Note:** The first user to register automatically becomes an admin. Admins can create additional users via the `/api/v1/admin/users` endpoint when `REGISTRATION_MODE=admin_only`.
 
 ### Configure Your Reverse Proxy
 
@@ -142,9 +159,17 @@ This guide covers running SWEN without Docker, directly on your machine. This is
 
    ```bash
    FINTS_PRODUCT_ID=<your-deutsche-kreditwirtschaft-product-id>
+
+   # For local development, you can enable open registration
+   REGISTRATION_MODE=open
+
+   # Optional: SMTP for password reset (defaults to disabled)
+   # SMTP_ENABLED=false
    ```
 
    The other defaults (encryption key, JWT secret) work fine for **local** development but are **not** safe for prod use.
+
+   > **Note:** The first user to register automatically becomes an admin.
 
 ### Running the Application
 

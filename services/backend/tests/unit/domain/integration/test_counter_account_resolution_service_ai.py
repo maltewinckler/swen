@@ -1,6 +1,5 @@
 """Tests for CounterAccountResolutionService with AI integration."""
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Optional
@@ -8,6 +7,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankTransaction
@@ -19,7 +19,6 @@ from swen.domain.integration.value_objects import (
     AICounterAccountResult,
     CounterAccountOption,
 )
-
 
 # Test user ID
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")

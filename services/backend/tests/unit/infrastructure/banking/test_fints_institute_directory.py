@@ -1,9 +1,9 @@
 """Unit tests for FinTSInstituteDirectory."""
 
-import tempfile
 from pathlib import Path
 
 import pytest
+
 from swen.infrastructure.banking.fints_institute_directory import (
     CsvFileNotFoundError,
     CsvParseError,

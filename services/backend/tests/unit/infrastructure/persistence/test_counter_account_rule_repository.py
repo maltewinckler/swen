@@ -4,9 +4,11 @@ Unit tests for CounterAccountRuleRepositorySQLAlchemy.
 Tests the persistence of counter-account rules for automatic transaction counter-account resolution.
 """
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
+
 from swen.domain.integration.value_objects import (
     CounterAccountRule,
     PatternType,
@@ -18,8 +20,6 @@ from swen.infrastructure.persistence.sqlalchemy.models.integration import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     CounterAccountRuleRepositorySQLAlchemy,
 )
-from sqlalchemy import select
-
 from tests.unit.infrastructure.persistence.conftest import TEST_USER_ID
 
 
@@ -44,10 +44,10 @@ def create_test_rule(**overrides) -> CounterAccountRule:
 class TestCounterAccountRuleRepositorySQLAlchemy:
     """Test suite for CounterAccountRuleRepositorySQLAlchemy."""
 
-    async def test_save_new_rule(self, async_session, user_context):
+    async def test_save_new_rule(self, async_session, current_user):
         """Test saving a new counter-account rule."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule()
 
         # Act
@@ -68,10 +68,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert saved_model.counter_account_id == rule.counter_account_id
         assert saved_model.priority == rule.priority
 
-    async def test_save_updates_existing_rule(self, async_session, user_context):
+    async def test_save_updates_existing_rule(self, async_session, current_user):
         """Test that saving an existing rule updates it."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule()
         await repo.save(rule)
         await async_session.commit()
@@ -91,10 +91,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert updated_model is not None
         assert updated_model.priority == 200
 
-    async def test_find_by_id(self, async_session, user_context):
+    async def test_find_by_id(self, async_session, current_user):
         """Test finding a rule by ID."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule()
         await repo.save(rule)
         await async_session.commit()
@@ -107,10 +107,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert found_rule.id == rule.id
         assert found_rule.pattern_value == rule.pattern_value
 
-    async def test_find_by_id_returns_none_when_not_found(self, async_session, user_context):
+    async def test_find_by_id_returns_none_when_not_found(self, async_session, current_user):
         """Test that find_by_id returns None for non-existent rule."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -119,10 +119,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         # Assert
         assert found_rule is None
 
-    async def test_find_all_active_ordered_by_priority(self, async_session, user_context):
+    async def test_find_all_active_ordered_by_priority(self, async_session, current_user):
         """Test finding all active rules ordered by priority."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
 
         rule1 = create_test_rule(
             pattern_value="Low Priority",
@@ -155,10 +155,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert active_rules[1].priority == 50
         assert all(r.is_active for r in active_rules)
 
-    async def test_find_all(self, async_session, user_context):
+    async def test_find_all(self, async_session, current_user):
         """Test finding all rules (active and inactive)."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
 
         rule1 = create_test_rule(pattern_value="Active", is_active=True)
         rule2 = create_test_rule(pattern_value="Inactive", is_active=False)
@@ -173,10 +173,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         # Assert
         assert len(all_rules) == 2
 
-    async def test_find_by_pattern_type(self, async_session, user_context):
+    async def test_find_by_pattern_type(self, async_session, current_user):
         """Test finding rules by pattern type."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
 
         rule1 = create_test_rule(
             pattern_type=PatternType.COUNTERPARTY_NAME,
@@ -207,10 +207,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
             r.pattern_type == PatternType.COUNTERPARTY_NAME for r in counterparty_rules
         )
 
-    async def test_find_by_source(self, async_session, user_context):
+    async def test_find_by_source(self, async_session, current_user):
         """Test finding rules by source."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
 
         rule1 = create_test_rule(
             pattern_value="User Rule 1",
@@ -237,10 +237,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert len(user_rules) == 2
         assert all(r.source == RuleSource.USER_CREATED for r in user_rules)
 
-    async def test_find_by_counter_account(self, async_session, user_context):
+    async def test_find_by_counter_account(self, async_session, current_user):
         """Test finding rules by counter-account."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         counter_account_id = uuid4()
 
         rule1 = create_test_rule(
@@ -268,10 +268,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert len(counter_account_rules) == 2
         assert all(r.counter_account_id == counter_account_id for r in counter_account_rules)
 
-    async def test_delete_rule(self, async_session, user_context):
+    async def test_delete_rule(self, async_session, current_user):
         """Test deleting a rule."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule()
         await repo.save(rule)
         await async_session.commit()
@@ -290,10 +290,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         result = await async_session.execute(stmt)
         assert result.scalar_one_or_none() is None
 
-    async def test_delete_nonexistent_rule_returns_false(self, async_session, user_context):
+    async def test_delete_nonexistent_rule_returns_false(self, async_session, current_user):
         """Test that deleting a non-existent rule returns False."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         non_existent_id = uuid4()
 
         # Act
@@ -302,10 +302,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         # Assert
         assert deleted is False
 
-    async def test_count_by_source(self, async_session, user_context):
+    async def test_count_by_source(self, async_session, current_user):
         """Test counting rules by source."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
 
         rule1 = create_test_rule(
             pattern_value="User 1",
@@ -332,10 +332,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert counts.get("user_created", 0) == 2
         assert counts.get("system_default", 0) == 1
 
-    async def test_domain_to_model_mapping_preserves_all_fields(self, async_session, user_context):
+    async def test_domain_to_model_mapping_preserves_all_fields(self, async_session, current_user):
         """Test that all domain fields are correctly mapped to model and back."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule(
             pattern_type=PatternType.PURPOSE_TEXT,
             pattern_value="Specific Pattern",
@@ -365,10 +365,10 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
             tzinfo=None,
         ) == rule.created_at.replace(tzinfo=None)
 
-    async def test_record_match_updates_statistics(self, async_session, user_context):
+    async def test_record_match_updates_statistics(self, async_session, current_user):
         """Test that recording a match updates statistics."""
         # Arrange
-        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, user_context)
+        repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
         rule = create_test_rule()
         await repo.save(rule)
         await async_session.commit()

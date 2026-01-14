@@ -2,6 +2,7 @@
 
 import pytest
 from cryptography.fernet import Fernet
+
 from swen.domain.security.exceptions import DecryptionError
 from swen.infrastructure.security import FernetEncryptionService
 

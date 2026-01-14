@@ -1,6 +1,7 @@
 """Unit tests for TANMethod value object."""
 
 import pytest
+
 from swen.domain.banking.value_objects import TANMethod, TANMethodType
 
 

@@ -17,8 +17,8 @@ from swen.application.dtos.export_dto import (
 )
 from swen.domain.accounting.repositories import AccountRepository, TransactionRepository
 from swen.domain.integration.repositories import AccountMappingRepository
+from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.time import utc_now
-from swen.domain.user.repositories import UserRepository
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -32,14 +32,12 @@ class ExportDataQuery:
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
         mapping_repository: Optional[AccountMappingRepository] = None,
-        user_repository: Optional[UserRepository] = None,
-        email: Optional[str] = None,
+        settings_repository: Optional[UserSettingsRepository] = None,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
         self._mapping_repo = mapping_repository
-        self._user_repo = user_repository
-        self._email = email
+        self._settings_repo = settings_repository
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> ExportDataQuery:
@@ -47,14 +45,13 @@ class ExportDataQuery:
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
             mapping_repository=factory.account_mapping_repository(),
-            user_repository=factory.user_repository(),
-            email=factory.user_context.email,
+            settings_repository=factory.user_settings_repository(),
         )
 
     async def _get_include_drafts_from_preference(self) -> bool:
-        if self._user_repo and self._email:
-            user = await self._user_repo.get_or_create_by_email(self._email)
-            return user.preferences.display_settings.show_draft_transactions
+        if self._settings_repo:
+            settings = await self._settings_repo.get_or_create()
+            return settings.display.show_draft_transactions
         return True  # Default to including drafts
 
     async def execute(

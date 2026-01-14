@@ -4,9 +4,10 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
+
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.value_objects.secure_string import SecureString
-from pydantic import ValidationError
 
 
 class TestBankCredentialsCreation:

@@ -7,6 +7,7 @@ parameter is needed - the repository handles user filtering.
 from unittest.mock import AsyncMock
 
 import pytest
+
 from swen.application.queries import SyncStatusQuery
 
 

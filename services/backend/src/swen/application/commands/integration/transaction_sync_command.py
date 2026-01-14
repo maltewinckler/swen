@@ -46,7 +46,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -93,7 +93,7 @@ class TransactionSyncCommand:
         import_service: TransactionImportService,
         mapping_repo: AccountMappingRepository,
         import_repo: TransactionImportRepository,
-        user_context: UserContext,
+        current_user: CurrentUser,
         credential_repo: Optional[BankCredentialRepository] = None,
         account_repo: Optional[AccountRepository] = None,
         transaction_repo: Optional[TransactionRepository] = None,
@@ -104,7 +104,7 @@ class TransactionSyncCommand:
         self._import_service = import_service
         self._mapping_repo = mapping_repo
         self._import_repo = import_repo
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
         self._credential_repo = credential_repo
         self._account_repo = account_repo
         self._transaction_repo = transaction_repo
@@ -121,7 +121,7 @@ class TransactionSyncCommand:
             import_service=TransactionImportService.from_factory(factory, ai_provider),
             mapping_repo=factory.account_mapping_repository(),
             import_repo=factory.import_repository(),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
             credential_repo=factory.credential_repository(),
             account_repo=factory.account_repository(),
             transaction_repo=factory.transaction_repository(),

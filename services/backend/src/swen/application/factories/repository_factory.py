@@ -19,18 +19,19 @@ from swen.domain.integration.repositories import (
     CounterAccountRuleRepository,
     TransactionImportRepository,
 )
-from swen.domain.user.repositories import UserRepository
+from swen.domain.settings import UserSettingsRepository
+from swen_identity.domain.user.repositories import UserRepository
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 
 class RepositoryFactory(Protocol):
     """Protocol for creating user-scoped repositories."""
 
     @property
-    def user_context(self) -> UserContext:
-        """Get the user context for repository scoping."""
+    def current_user(self) -> CurrentUser:
+        """Get the current user for repository scoping."""
         ...
 
     @property
@@ -81,4 +82,8 @@ class RepositoryFactory(Protocol):
 
     def user_repository(self) -> UserRepository:
         """Get user repository."""
+        ...
+
+    def user_settings_repository(self) -> UserSettingsRepository:
+        """Get user settings repository."""
         ...

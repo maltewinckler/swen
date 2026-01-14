@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+
 from swen.infrastructure.persistence.sqlalchemy.adapters.analytics import (
     SqlAlchemyAnalyticsReadAdapter,
 )
@@ -88,31 +89,31 @@ def _mk_entry_credit(*, tx_id, account_id, credit: Decimal) -> JournalEntryModel
 
 
 @pytest.mark.asyncio
-async def test_spending_over_time_aggregates_by_month(async_session, user_context):
+async def test_spending_over_time_aggregates_by_month(async_session, current_user):
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     rent = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Rent",
         account_type="expense",
     )
     async_session.add_all([groceries, rent])
 
     nov = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 15, tzinfo=timezone.utc),
         posted=True,
     )
     dec1 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     dec2 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 15, tzinfo=timezone.utc),
         posted=True,
     )
@@ -127,7 +128,7 @@ async def test_spending_over_time_aggregates_by_month(async_session, user_contex
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     result = await adapter.spending_over_time(months=2, end_month="2024-12")
 
     assert [dp.period for dp in result.data_points] == ["2024-11", "2024-12"]
@@ -147,22 +148,22 @@ async def test_spending_over_time_aggregates_by_month(async_session, user_contex
 
 @pytest.mark.asyncio
 async def test_spending_over_time_excludes_drafts_by_default(
-    async_session, user_context
+    async_session, current_user,
 ):
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     async_session.add(groceries)
 
     posted = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     draft = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 2, tzinfo=timezone.utc),
         posted=False,
     )
@@ -171,42 +172,42 @@ async def test_spending_over_time_excludes_drafts_by_default(
     async_session.add_all(
         [
             _mk_entry(
-                tx_id=posted.id, account_id=groceries.id, debit=Decimal("100.00")
+                tx_id=posted.id, account_id=groceries.id, debit=Decimal("100.00"),
             ),
             _mk_entry(tx_id=draft.id, account_id=groceries.id, debit=Decimal("50.00")),
         ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.spending_over_time(
-        months=1, end_month="2024-12", include_drafts=False
+        months=1, end_month="2024-12", include_drafts=False,
     )
 
     assert res.data_points[0].categories["Groceries"] == Decimal("100.00")
 
 
 @pytest.mark.asyncio
-async def test_spending_breakdown_calculates_percentages(async_session, user_context):
+async def test_spending_breakdown_calculates_percentages(async_session, current_user):
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     rent = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Rent",
         account_type="expense",
     )
     async_session.add_all([groceries, rent])
 
     tx1 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx2 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
@@ -220,7 +221,7 @@ async def test_spending_breakdown_calculates_percentages(async_session, user_con
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.spending_breakdown(month="2024-12")
 
     assert res.total == Decimal("1000.00")
@@ -232,36 +233,36 @@ async def test_spending_breakdown_calculates_percentages(async_session, user_con
 
 
 @pytest.mark.asyncio
-async def test_top_expenses_ranks_and_calculates_fields(async_session, user_context):
+async def test_top_expenses_ranks_and_calculates_fields(async_session, current_user):
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     rent = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Rent",
         account_type="expense",
     )
     utilities = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Utilities",
         account_type="expense",
     )
     async_session.add_all([groceries, rent, utilities])
 
     tx1 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx2 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx3 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
@@ -276,7 +277,7 @@ async def test_top_expenses_ranks_and_calculates_fields(async_session, user_cont
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.top_expenses(months=1, end_month="2024-12", top_n=2)
 
     assert res.months_analyzed == 1
@@ -292,37 +293,37 @@ async def test_top_expenses_ranks_and_calculates_fields(async_session, user_cont
 
 @pytest.mark.asyncio
 async def test_month_comparison_compares_income_and_spending(
-    async_session, user_context
+    async_session, current_user,
 ):
     salary = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Salary",
         account_type="income",
     )
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     async_session.add_all([salary, groceries])
 
     nov_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 15, tzinfo=timezone.utc),
         posted=True,
     )
     nov_spend = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 20, tzinfo=timezone.utc),
         posted=True,
     )
     dec_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 15, tzinfo=timezone.utc),
         posted=True,
     )
     dec_spend = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 20, tzinfo=timezone.utc),
         posted=True,
     )
@@ -331,22 +332,22 @@ async def test_month_comparison_compares_income_and_spending(
     async_session.add_all(
         [
             _mk_entry_income_credit(
-                tx_id=nov_income.id, account_id=salary.id, credit=Decimal("3000.00")
+                tx_id=nov_income.id, account_id=salary.id, credit=Decimal("3000.00"),
             ),
             _mk_entry(
-                tx_id=nov_spend.id, account_id=groceries.id, debit=Decimal("2000.00")
+                tx_id=nov_spend.id, account_id=groceries.id, debit=Decimal("2000.00"),
             ),
             _mk_entry_income_credit(
-                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("3500.00")
+                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("3500.00"),
             ),
             _mk_entry(
-                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("2500.00")
+                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("2500.00"),
             ),
         ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.month_comparison(month="2024-12")
 
     assert res.current_month == "December 2024"
@@ -379,32 +380,32 @@ async def test_month_comparison_compares_income_and_spending(
 @pytest.mark.asyncio
 async def test_income_over_time_aggregates_by_month_and_min_max(
     async_session,
-    user_context,
+    current_user,
 ):
     salary = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Salary",
         account_type="income",
     )
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     async_session.add_all([salary, groceries])
 
     nov_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 15, tzinfo=timezone.utc),
         posted=True,
     )
     dec_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     dec_expense = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 2, tzinfo=timezone.utc),
         posted=True,
     )
@@ -431,7 +432,7 @@ async def test_income_over_time_aggregates_by_month_and_min_max(
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.income_over_time(months=2, end_month="2024-12")
 
     assert [dp.period for dp in res.data_points] == ["2024-11", "2024-12"]
@@ -444,32 +445,32 @@ async def test_income_over_time_aggregates_by_month_and_min_max(
 @pytest.mark.asyncio
 async def test_income_breakdown_aggregates_by_source_and_percentages(
     async_session,
-    user_context,
+    current_user,
 ):
     salary = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Salary",
         account_type="income",
     )
     dividends = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Dividends",
         account_type="income",
     )
     async_session.add_all([salary, dividends])
 
     tx1 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx2 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 15, tzinfo=timezone.utc),
         posted=True,
     )
     tx3 = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 20, tzinfo=timezone.utc),
         posted=True,
     )
@@ -478,19 +479,19 @@ async def test_income_breakdown_aggregates_by_source_and_percentages(
     async_session.add_all(
         [
             _mk_entry_income_credit(
-                tx_id=tx1.id, account_id=salary.id, credit=Decimal("3000.00")
+                tx_id=tx1.id, account_id=salary.id, credit=Decimal("3000.00"),
             ),
             _mk_entry_income_credit(
-                tx_id=tx2.id, account_id=salary.id, credit=Decimal("500.00")
+                tx_id=tx2.id, account_id=salary.id, credit=Decimal("500.00"),
             ),
             _mk_entry_income_credit(
-                tx_id=tx3.id, account_id=dividends.id, credit=Decimal("100.00")
+                tx_id=tx3.id, account_id=dividends.id, credit=Decimal("100.00"),
             ),
         ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.income_breakdown(month="2024-12")
 
     assert res.total == Decimal("3600.00")
@@ -506,23 +507,23 @@ async def test_income_breakdown_aggregates_by_source_and_percentages(
 @pytest.mark.asyncio
 async def test_net_income_over_time_calculates_income_minus_expenses(
     async_session,
-    user_context,
+    current_user,
 ):
-    salary = _mk_account(user_id=user_context.user_id, name="Salary", account_type="income")
+    salary = _mk_account(user_id=current_user.user_id, name="Salary", account_type="income")
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     async_session.add_all([salary, groceries])
 
     dec_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 15, tzinfo=timezone.utc),
         posted=True,
     )
     dec_spend = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 20, tzinfo=timezone.utc),
         posted=True,
     )
@@ -531,16 +532,16 @@ async def test_net_income_over_time_calculates_income_minus_expenses(
     async_session.add_all(
         [
             _mk_entry_income_credit(
-                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("3000.00")
+                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("3000.00"),
             ),
             _mk_entry(
-                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("2000.00")
+                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("2000.00"),
             ),
-        ]
+        ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.net_income_over_time(months=1, end_month="2024-12")
 
     assert res.data_points[0].period == "2024-12"
@@ -550,29 +551,29 @@ async def test_net_income_over_time_calculates_income_minus_expenses(
 @pytest.mark.asyncio
 async def test_savings_rate_over_time_calculates_rate_and_average(
     async_session,
-    user_context,
+    current_user,
 ):
-    salary = _mk_account(user_id=user_context.user_id, name="Salary", account_type="income")
-    groceries = _mk_account(user_id=user_context.user_id, name="Groceries", account_type="expense")
+    salary = _mk_account(user_id=current_user.user_id, name="Salary", account_type="income")
+    groceries = _mk_account(user_id=current_user.user_id, name="Groceries", account_type="expense")
     async_session.add_all([salary, groceries])
 
     nov_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 15, tzinfo=timezone.utc),
         posted=True,
     )
     nov_spend = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 11, 20, tzinfo=timezone.utc),
         posted=True,
     )
     dec_income = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 15, tzinfo=timezone.utc),
         posted=True,
     )
     dec_spend = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 20, tzinfo=timezone.utc),
         posted=True,
     )
@@ -581,22 +582,22 @@ async def test_savings_rate_over_time_calculates_rate_and_average(
     async_session.add_all(
         [
             _mk_entry_income_credit(
-                tx_id=nov_income.id, account_id=salary.id, credit=Decimal("2000.00")
+                tx_id=nov_income.id, account_id=salary.id, credit=Decimal("2000.00"),
             ),
             _mk_entry(
-                tx_id=nov_spend.id, account_id=groceries.id, debit=Decimal("1000.00")
+                tx_id=nov_spend.id, account_id=groceries.id, debit=Decimal("1000.00"),
             ),  # 50.0%
             _mk_entry_income_credit(
-                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("2000.00")
+                tx_id=dec_income.id, account_id=salary.id, credit=Decimal("2000.00"),
             ),
             _mk_entry(
-                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("1500.00")
+                tx_id=dec_spend.id, account_id=groceries.id, debit=Decimal("1500.00"),
             ),  # 25.0%
-        ]
+        ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.savings_rate_over_time(months=2, end_month="2024-12")
 
     nov = next(dp for dp in res.data_points if dp.period == "2024-11")
@@ -610,37 +611,37 @@ async def test_savings_rate_over_time_calculates_rate_and_average(
 @pytest.mark.asyncio
 async def test_balance_history_over_time_tracks_asset_balances_and_sorting(
     async_session,
-    user_context,
+    current_user,
 ):
     checking = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Checking Account",
         account_type="asset",
     )
     savings = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Savings Account",
         account_type="asset",
     )
     groceries = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Groceries",
         account_type="expense",
     )
     async_session.add_all([checking, savings, groceries])
 
     tx_checking = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx_savings = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 2, tzinfo=timezone.utc),
         posted=True,
     )
     tx_expense = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 3, tzinfo=timezone.utc),
         posted=True,
     )
@@ -651,11 +652,11 @@ async def test_balance_history_over_time_tracks_asset_balances_and_sorting(
             _mk_entry(tx_id=tx_checking.id, account_id=checking.id, debit=Decimal("5000.00")),
             _mk_entry(tx_id=tx_savings.id, account_id=savings.id, debit=Decimal("10000.00")),
             _mk_entry(tx_id=tx_expense.id, account_id=groceries.id, debit=Decimal("123.00")),
-        ]
+        ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.balance_history_over_time(months=1, end_month="2024-12")
 
     assert res.categories == ["Savings Account", "Checking Account"]
@@ -667,32 +668,32 @@ async def test_balance_history_over_time_tracks_asset_balances_and_sorting(
 @pytest.mark.asyncio
 async def test_net_worth_over_time_assets_minus_liabilities(
     async_session,
-    user_context,
+    current_user,
 ):
     checking = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Checking Account",
         account_type="asset",
     )
     savings = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Savings Account",
         account_type="asset",
     )
     cc = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Credit Card",
         account_type="liability",
     )
     async_session.add_all([checking, savings, cc])
 
     tx_assets = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     tx_liab = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 2, tzinfo=timezone.utc),
         posted=True,
     )
@@ -703,11 +704,11 @@ async def test_net_worth_over_time_assets_minus_liabilities(
             _mk_entry(tx_id=tx_assets.id, account_id=checking.id, debit=Decimal("10000.00")),
             _mk_entry(tx_id=tx_assets.id, account_id=savings.id, debit=Decimal("10000.00")),
             _mk_entry_credit(tx_id=tx_liab.id, account_id=cc.id, credit=Decimal("2000.00")),
-        ]
+        ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.net_worth_over_time(months=1, end_month="2024-12")
 
     assert res.data_points[0].value == Decimal("18000.00")
@@ -717,7 +718,7 @@ async def test_net_worth_over_time_assets_minus_liabilities(
 @pytest.mark.asyncio
 async def test_net_worth_over_time_handles_negative_liability_overpayment(
     async_session,
-    user_context,
+    current_user,
 ):
     """Test that overpayment on a liability (negative balance) increases net worth.
 
@@ -726,12 +727,12 @@ async def test_net_worth_over_time_handles_negative_liability_overpayment(
     your net worth, not decrease it.
     """
     checking = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Checking Account",
         account_type="asset",
     )
     cc = _mk_account(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         name="Credit Card",
         account_type="liability",
     )
@@ -739,19 +740,19 @@ async def test_net_worth_over_time_handles_negative_liability_overpayment(
 
     # Initial asset deposit
     tx_deposit = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 1, tzinfo=timezone.utc),
         posted=True,
     )
     # Credit card purchase: increases liability
     tx_purchase = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 2, tzinfo=timezone.utc),
         posted=True,
     )
     # Overpayment: pay more than owed, making liability negative
     tx_overpay = _mk_tx(
-        user_id=user_context.user_id,
+        user_id=current_user.user_id,
         dt=datetime(2024, 12, 3, tzinfo=timezone.utc),
         posted=True,
     )
@@ -761,20 +762,20 @@ async def test_net_worth_over_time_handles_negative_liability_overpayment(
         [
             # Deposit 10000 to checking
             _mk_entry(
-                tx_id=tx_deposit.id, account_id=checking.id, debit=Decimal("10000.00")
+                tx_id=tx_deposit.id, account_id=checking.id, debit=Decimal("10000.00"),
             ),
             # Credit card purchase of 500 (credit to liability = increase debt)
             _mk_entry_credit(
-                tx_id=tx_purchase.id, account_id=cc.id, credit=Decimal("500.00")
+                tx_id=tx_purchase.id, account_id=cc.id, credit=Decimal("500.00"),
             ),
             # Overpay credit card by 700 (debit to liability = decrease debt)
             # This makes the liability balance -200 (they owe us 200)
             _mk_entry(tx_id=tx_overpay.id, account_id=cc.id, debit=Decimal("700.00")),
-        ]
+        ],
     )
     await async_session.flush()
 
-    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, user_context)
+    adapter = SqlAlchemyAnalyticsReadAdapter(async_session, current_user)
     res = await adapter.net_worth_over_time(months=1, end_month="2024-12")
 
     # Assets: 10000

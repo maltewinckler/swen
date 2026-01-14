@@ -22,13 +22,12 @@ import pytest_asyncio
 from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from swen.application.context import UserContext
+from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.integration.entities import AccountMapping
-from swen.domain.user import User
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
@@ -43,11 +42,12 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
 from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
     StoredBankCredentialsRepositorySQLAlchemy,
 )
-from swen.infrastructure.persistence.sqlalchemy.repositories.user import (
-    UserRepositorySQLAlchemy,
-)
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
+)
+from swen_identity.domain.user import User
+from swen_identity.infrastructure.persistence.sqlalchemy import (
+    UserRepositorySQLAlchemy,
 )
 
 # Two distinct test users
@@ -55,8 +55,8 @@ USER_ALICE = User.create("alice@example.com")
 USER_BOB = User.create("bob@example.com")
 
 # User contexts for repository scoping
-ALICE_CONTEXT = UserContext(user_id=USER_ALICE.id, email="alice@example.com")
-BOB_CONTEXT = UserContext(user_id=USER_BOB.id, email="bob@example.com")
+ALICE_CONTEXT = CurrentUser(user_id=USER_ALICE.id, email="alice@example.com")
+BOB_CONTEXT = CurrentUser(user_id=USER_BOB.id, email="bob@example.com")
 
 
 # ============================================================================
@@ -295,37 +295,70 @@ class TestCredentialIsolation:
 
 
 class TestUserPreferencesIsolation:
-    """Test that user preferences are isolated."""
+    """Test that user settings are isolated."""
 
     @pytest.mark.asyncio
     async def test_preferences_are_user_specific(self, isolation_session):
-        """Each user should have independent preferences."""
+        """Each user should have independent settings."""
+        from swen.application.ports.identity import CurrentUser
+        from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
+            UserSettingsRepositorySQLAlchemy,
+        )
+
         # Arrange
         user_repo = UserRepositorySQLAlchemy(isolation_session)
 
         alice = User.create("alice-prefs@example.com")
-        alice.update_preferences(auto_post_transactions=True)
-
         bob = User.create("bob-prefs@example.com")
-        bob.update_preferences(auto_post_transactions=False)
 
         await user_repo.save(alice)
         await user_repo.save(bob)
         await isolation_session.commit()
 
-        # Act
-        alice_retrieved = await user_repo.find_by_id(alice.id)
-        bob_retrieved = await user_repo.find_by_id(bob.id)
+        # Create user-scoped repositories for each user
+        alice_email = str(alice.email)
+        bob_email = str(bob.email)
+        alice_context = CurrentUser(user_id=alice.id, email=alice_email)
+        bob_context = CurrentUser(user_id=bob.id, email=bob_email)
+        alice_settings_repo = UserSettingsRepositorySQLAlchemy(
+            isolation_session,
+            alice_context,
+        )
+        bob_settings_repo = UserSettingsRepositorySQLAlchemy(
+            isolation_session,
+            bob_context,
+        )
+
+        # Get or create settings for each user
+        alice_settings = await alice_settings_repo.get_or_create()
+        bob_settings = await bob_settings_repo.get_or_create()
+
+        # Update Alice's settings
+        alice_settings.update_sync(auto_post_transactions=True)
+        bob_settings.update_sync(auto_post_transactions=False)
+
+        await alice_settings_repo.save(alice_settings)
+        await bob_settings_repo.save(bob_settings)
+        await isolation_session.commit()
+
+        # Act - retrieve settings
+        alice_retrieved = await alice_settings_repo.find()
+        bob_retrieved = await bob_settings_repo.find()
 
         # Assert
         assert alice_retrieved is not None
         assert bob_retrieved is not None
-        assert alice_retrieved.preferences.sync_settings.auto_post_transactions is True
-        assert bob_retrieved.preferences.sync_settings.auto_post_transactions is False
+        assert alice_retrieved.sync.auto_post_transactions is True
+        assert bob_retrieved.sync.auto_post_transactions is False
 
     @pytest.mark.asyncio
     async def test_changing_preferences_doesnt_affect_others(self, isolation_session):
-        """Updating one user's preferences should not affect other users."""
+        """Updating one user's settings should not affect other users."""
+        from swen.application.ports.identity import CurrentUser
+        from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
+            UserSettingsRepositorySQLAlchemy,
+        )
+
         # Arrange
         user_repo = UserRepositorySQLAlchemy(isolation_session)
 
@@ -336,27 +369,44 @@ class TestUserPreferencesIsolation:
         await user_repo.save(bob)
         await isolation_session.commit()
 
-        # Act - Alice changes her preferences
-        alice_fresh = await user_repo.find_by_id(alice.id)
-        assert alice_fresh is not None
-        alice_fresh.update_preferences(
-            show_draft_transactions=False,
-            default_date_range_days=7,  # Different from default (30)
+        # Create user-scoped repositories for each user
+        alice_email = str(alice.email)
+        bob_email = str(bob.email)
+        alice_context = CurrentUser(user_id=alice.id, email=alice_email)
+        bob_context = CurrentUser(user_id=bob.id, email=bob_email)
+        alice_settings_repo = UserSettingsRepositorySQLAlchemy(
+            isolation_session,
+            alice_context,
         )
-        await user_repo.save(alice_fresh)
+        bob_settings_repo = UserSettingsRepositorySQLAlchemy(
+            isolation_session,
+            bob_context,
+        )
+
+        # Create default settings for both
+        alice_settings = await alice_settings_repo.get_or_create()
+        bob_settings = await bob_settings_repo.get_or_create()
         await isolation_session.commit()
 
-        # Assert - Bob's preferences unchanged (should still be defaults)
-        bob_fresh = await user_repo.find_by_id(bob.id)
+        # Act - Alice changes her settings
+        alice_settings.update_display(
+            show_draft_transactions=False,
+            default_date_range_days=7,
+        )
+        await alice_settings_repo.save(alice_settings)
+        await isolation_session.commit()
+
+        # Assert - Bob's settings unchanged (should still be defaults)
+        bob_fresh = await bob_settings_repo.find()
         assert bob_fresh is not None
-        assert bob_fresh.preferences.display_settings.show_draft_transactions is True
-        assert bob_fresh.preferences.display_settings.default_date_range_days == 30
+        assert bob_fresh.display.show_draft_transactions is True
+        assert bob_fresh.display.default_date_range_days == 30
 
         # Verify Alice's were actually changed
-        alice_check = await user_repo.find_by_id(alice.id)
+        alice_check = await alice_settings_repo.find()
         assert alice_check is not None
-        assert alice_check.preferences.display_settings.show_draft_transactions is False
-        assert alice_check.preferences.display_settings.default_date_range_days == 7
+        assert alice_check.display.show_draft_transactions is False
+        assert alice_check.display.default_date_range_days == 7
 
 
 # ============================================================================

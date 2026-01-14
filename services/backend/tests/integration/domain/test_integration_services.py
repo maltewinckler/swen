@@ -11,8 +11,9 @@ from uuid import UUID
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
-from swen.application.factories import BankImportTransactionFactory
+
 from swen.application.commands.accounting import GenerateDefaultAccountsCommand
+from swen.application.factories import BankImportTransactionFactory
 from swen.application.services import (
     BankAccountImportService,
     TransactionImportService,
@@ -21,6 +22,8 @@ from swen.application.services import (
 
 # Fixed UUID for testing
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.integration.services import CounterAccountResolutionService
 from swen.domain.integration.value_objects import (
@@ -39,7 +42,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Load .env from repository root so we share credentials with other integration tests
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
@@ -199,14 +201,14 @@ async def db_session(integration_engine):
 
 
 @pytest_asyncio.fixture()
-async def integration_repositories(db_session, user_context):
+async def integration_repositories(db_session, current_user):
     """Wire repositories together and seed standard chart of accounts."""
 
-    account_repo = AccountRepositorySQLAlchemy(db_session, user_context)
+    account_repo = AccountRepositorySQLAlchemy(db_session, current_user)
     # Use the command instead of the deprecated domain service
     generate_accounts_cmd = GenerateDefaultAccountsCommand(
         account_repository=account_repo,
-        user_context=user_context,
+        current_user=current_user,
     )
     await generate_accounts_cmd.execute()
 
@@ -216,13 +218,13 @@ async def integration_repositories(db_session, user_context):
         transaction_repo=TransactionRepositorySQLAlchemy(
             db_session,
             account_repo,
-            user_context,
+            current_user,
         ),
-        mapping_repo=AccountMappingRepositorySQLAlchemy(db_session, user_context),
-        import_repo=TransactionImportRepositorySQLAlchemy(db_session, user_context),
-        rule_repo=CounterAccountRuleRepositorySQLAlchemy(db_session, user_context),
+        mapping_repo=AccountMappingRepositorySQLAlchemy(db_session, current_user),
+        import_repo=TransactionImportRepositorySQLAlchemy(db_session, current_user),
+        rule_repo=CounterAccountRuleRepositorySQLAlchemy(db_session, current_user),
         user_id=TEST_USER_ID,
-        user_context=user_context,
+        current_user=current_user,
     )
 
 
@@ -233,7 +235,7 @@ def bank_account_service(integration_repositories):
     return BankAccountImportService(
         account_repository=integration_repositories.account_repo,
         mapping_repository=integration_repositories.mapping_repo,
-        user_context=integration_repositories.user_context,
+        current_user=integration_repositories.current_user,
     )
 
 
@@ -260,7 +262,7 @@ def transaction_import_service(
     )
 
     transaction_factory = BankImportTransactionFactory(
-        user_context=integration_repositories.user_context,
+        current_user=integration_repositories.current_user,
     )
 
     return TransactionImportService(
@@ -271,7 +273,7 @@ def transaction_import_service(
         account_repository=integration_repositories.account_repo,
         transaction_repository=integration_repositories.transaction_repo,
         import_repository=integration_repositories.import_repo,
-        user_context=integration_repositories.user_context,
+        current_user=integration_repositories.current_user,
     )
 
 

@@ -18,7 +18,7 @@ from swen.domain.accounting.value_objects import Currency
 from swen.domain.accounting.value_objects.currency import SUPPORTED_CURRENCIES
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
 
 
@@ -29,18 +29,18 @@ class CreateAccountCommand:
         self,
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
-        user_context: UserContext,
+        current_user: CurrentUser,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
-        self._user_id = user_context.user_id
+        self._user_id = current_user.user_id
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> CreateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
-            user_context=factory.user_context,
+            current_user=factory.current_user,
         )
 
     async def execute(  # NOQA: PLR0913

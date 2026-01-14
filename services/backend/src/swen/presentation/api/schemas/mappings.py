@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExternalAccountType(str, Enum):
@@ -36,8 +36,8 @@ class MappingResponse(BaseModel):
     )
     created_at: Optional[str] = Field(None, description="Creation timestamp")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "iban": "DE89370400440532013000",
@@ -48,7 +48,7 @@ class MappingResponse(BaseModel):
                 "created_at": "2024-01-01T00:00:00+00:00",
             }
         }
-    }
+    )
 
 
 class MappingListResponse(BaseModel):
@@ -57,14 +57,14 @@ class MappingListResponse(BaseModel):
     mappings: list[MappingResponse]
     count: int = Field(description="Number of mappings")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "mappings": [],
                 "count": 0,
             }
         }
-    }
+    )
 
 
 class ExternalAccountCreateRequest(BaseModel):
@@ -115,8 +115,8 @@ class ExternalAccountCreateRequest(BaseModel):
         ),
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "External bank account (asset)",
@@ -140,7 +140,7 @@ class ExternalAccountCreateRequest(BaseModel):
                 },
             ]
         }
-    }
+    )
 
 
 class ExternalAccountCreateResponse(BaseModel):
@@ -154,8 +154,8 @@ class ExternalAccountCreateResponse(BaseModel):
         description="True if the mapping already existed (no changes made)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "mapping": {
                     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -170,4 +170,4 @@ class ExternalAccountCreateResponse(BaseModel):
                 "already_existed": False,
             }
         }
-    }
+    )

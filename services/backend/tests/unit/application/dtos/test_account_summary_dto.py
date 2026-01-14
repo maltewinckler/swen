@@ -2,8 +2,6 @@
 
 from uuid import uuid4
 
-import pytest
-
 from swen.application.dtos.accounting import AccountSummaryDTO
 from swen.domain.accounting.entities import Account, AccountType
 

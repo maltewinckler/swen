@@ -1,6 +1,5 @@
 """Integration tests for authentication endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -24,6 +23,7 @@ class TestAuthRegister:
         assert data["user"]["email"] == "newuser@example.com"
         assert "id" in data["user"]
         assert "created_at" in data["user"]
+        assert "role" in data["user"]  # Role should be present
 
         assert "access_token" in data
         # refresh_token is now sent via HttpOnly cookie, not in body
@@ -35,18 +35,24 @@ class TestAuthRegister:
         assert "swen_refresh_token" in response.cookies
 
     def test_register_duplicate_email(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
-        """Cannot register with an existing email."""
-        # First registration
+        """Cannot create user with duplicate email via admin endpoint."""
+        # First registration (becomes admin)
         response1 = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         assert response1.status_code == 201
+        admin_token = response1.json()["access_token"]
 
-        # Duplicate registration
+        # Try to create another user with same email via admin endpoint
         response2 = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "email": registered_user_data["email"],
+                "password": "AnotherPassword123!",
+            },
         )
         assert response2.status_code == 409
         assert "already registered" in response2.json()["detail"].lower()
@@ -81,7 +87,7 @@ class TestAuthLogin:
     """Tests for POST /api/v1/auth/login."""
 
     def test_login_success(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Successfully log in with valid credentials."""
         # Register first
@@ -109,7 +115,7 @@ class TestAuthLogin:
         assert "swen_refresh_token" in response.cookies
 
     def test_login_wrong_password(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Cannot log in with wrong password."""
         # Register first
@@ -146,12 +152,12 @@ class TestAuthRefresh:
     """Tests for POST /api/v1/auth/refresh."""
 
     def test_refresh_success_via_cookie(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Successfully refresh tokens using HttpOnly cookie."""
         # Register - this sets the refresh token cookie
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         assert "swen_refresh_token" in register_response.cookies
 
@@ -173,12 +179,12 @@ class TestAuthRefresh:
         assert "swen_refresh_token" in response.cookies
 
     def test_refresh_success_via_body(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Successfully refresh tokens using body (backward compatibility)."""
         # Register and get refresh token from cookie
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         refresh_token = register_response.cookies.get("swen_refresh_token")
 
@@ -207,6 +213,7 @@ class TestAuthRefresh:
         """Cannot refresh without any token."""
         # Clear any existing cookies by using fresh client
         from fastapi.testclient import TestClient as TC
+
         from swen.presentation.api.app import create_app
 
         fresh_client = TC(create_app())
@@ -220,12 +227,12 @@ class TestAuthRefresh:
         assert "no refresh token" in response.json()["detail"].lower()
 
     def test_refresh_with_access_token(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Cannot use access token as refresh token."""
         # Register and get access token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         access_token = register_response.json()["access_token"]
 
@@ -242,12 +249,12 @@ class TestAuthMe:
     """Tests for GET /api/v1/auth/me."""
 
     def test_get_me_success(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Get current user info with valid token."""
         # Register and get token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         token = register_response.json()["access_token"]
 
@@ -263,6 +270,7 @@ class TestAuthMe:
         assert data["email"] == registered_user_data["email"]
         assert "id" in data
         assert "created_at" in data
+        assert "role" in data  # Role should be present
 
     def test_get_me_no_token(self, test_client: TestClient, api_v1_prefix: str):
         """Cannot get user info without token."""
@@ -284,12 +292,12 @@ class TestAuthChangePassword:
     """Tests for POST /api/v1/auth/change-password."""
 
     def test_change_password_success(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Successfully change password."""
         # Register and get token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         token = register_response.json()["access_token"]
 
@@ -316,12 +324,12 @@ class TestAuthChangePassword:
         assert login_response.status_code == 200
 
     def test_change_password_wrong_current(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Cannot change password with wrong current password."""
         # Register and get token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         token = register_response.json()["access_token"]
 
@@ -338,12 +346,12 @@ class TestAuthChangePassword:
         assert response.status_code == 401
 
     def test_change_password_weak_new(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Cannot change to a weak password."""
         # Register and get token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         token = register_response.json()["access_token"]
 
@@ -370,12 +378,12 @@ class TestTokenTypeSecurity:
     """
 
     def test_refresh_token_rejected_for_protected_endpoints(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Refresh tokens cannot be used to access protected endpoints."""
         # Register and get refresh token from cookie
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         refresh_token = register_response.cookies.get("swen_refresh_token")
 
@@ -389,12 +397,12 @@ class TestTokenTypeSecurity:
         assert "invalid token type" in response.json()["detail"].lower()
 
     def test_refresh_token_rejected_for_accounts_endpoint(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Refresh tokens cannot be used to access /accounts endpoint."""
         # Register and get refresh token from cookie
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         refresh_token = register_response.cookies.get("swen_refresh_token")
 
@@ -408,12 +416,12 @@ class TestTokenTypeSecurity:
         assert "invalid token type" in response.json()["detail"].lower()
 
     def test_access_token_works_for_protected_endpoints(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Access tokens work correctly for protected endpoints."""
         # Register and get access token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         access_token = register_response.json()["access_token"]
 
@@ -427,12 +435,12 @@ class TestTokenTypeSecurity:
         assert response.json()["email"] == registered_user_data["email"]
 
     def test_access_token_rejected_for_refresh(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Access tokens cannot be used to refresh."""
         # Register and get access token
         register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
         access_token = register_response.json()["access_token"]
 
@@ -445,12 +453,12 @@ class TestTokenTypeSecurity:
         assert response.status_code == 401
 
     def test_refresh_token_works_for_refresh_endpoint(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Refresh tokens work correctly for the refresh endpoint (via cookie)."""
         # Register - this sets the refresh token cookie
         test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
 
         # Use refresh token via cookie for refresh - should work
@@ -471,7 +479,7 @@ class TestHttpOnlyCookieSecurity:
     """
 
     def test_login_sets_httponly_cookie(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Login sets refresh token as HttpOnly cookie."""
         # Register first
@@ -494,7 +502,7 @@ class TestHttpOnlyCookieSecurity:
         assert cookie is not None
 
     def test_register_sets_httponly_cookie(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Register sets refresh token as HttpOnly cookie."""
         response = test_client.post(
@@ -509,12 +517,12 @@ class TestHttpOnlyCookieSecurity:
         assert "swen_refresh_token" in response.cookies
 
     def test_refresh_sets_new_cookie(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Refresh endpoint sets a new refresh token cookie."""
         # Register
         test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
 
         # Refresh
@@ -531,7 +539,7 @@ class TestHttpOnlyCookieSecurity:
         assert len(new_cookie) > 0
 
     def test_logout_clears_cookie(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Logout clears the refresh token cookie."""
         # Register
@@ -543,7 +551,7 @@ class TestHttpOnlyCookieSecurity:
         assert response.status_code == 204
 
     def test_logout_works_without_auth(
-        self, test_client: TestClient, api_v1_prefix: str
+        self, test_client: TestClient, api_v1_prefix: str,
     ):
         """Logout works without authentication (clears cookie regardless)."""
         # Just call logout without being logged in
@@ -552,12 +560,12 @@ class TestHttpOnlyCookieSecurity:
         assert response.status_code == 204
 
     def test_refresh_token_not_in_response_body(
-        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str
+        self, test_client: TestClient, registered_user_data: dict, api_v1_prefix: str,
     ):
         """Refresh token is not exposed in response body (only in cookie)."""
         # Register
         response = test_client.post(
-            f"{api_v1_prefix}/auth/register", json=registered_user_data
+            f"{api_v1_prefix}/auth/register", json=registered_user_data,
         )
 
         data = response.json()

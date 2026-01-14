@@ -237,7 +237,7 @@ class TestExcelReportGenerator:
         assert "Bank Mappings" in wb.sheetnames
 
     def test_dashboard_sheet_contains_summary_metrics(
-        self, generator, sample_report_data
+        self, generator, sample_report_data,
     ):
         """Test that Dashboard sheet contains the summary metrics."""
         result = generator.generate(sample_report_data)
@@ -255,7 +255,7 @@ class TestExcelReportGenerator:
         assert title_found, "Report title not found in Dashboard"
 
     def test_transactions_sheet_has_correct_headers(
-        self, generator, sample_report_data
+        self, generator, sample_report_data,
     ):
         """Test that Transactions sheet has the correct headers."""
         result = generator.generate(sample_report_data)
@@ -295,7 +295,7 @@ class TestExcelReportGenerator:
         assert headers == expected
 
     def test_accounts_sheet_sorted_by_account_number(
-        self, generator, sample_report_data
+        self, generator, sample_report_data,
     ):
         """Test that Accounts sheet is sorted by account number."""
         result = generator.generate(sample_report_data)
@@ -321,7 +321,7 @@ class TestExcelReportGenerator:
         assert headers == expected
 
     def test_mappings_sheet_shows_friendly_account_name(
-        self, generator, sample_report_data
+        self, generator, sample_report_data,
     ):
         """Test that Bank Mappings shows friendly account names, not UUIDs."""
         result = generator.generate(sample_report_data)

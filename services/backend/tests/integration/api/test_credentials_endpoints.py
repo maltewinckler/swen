@@ -352,7 +352,7 @@ class TestQueryTanMethods:
     """Tests for POST /api/v1/credentials/tan-methods."""
 
     @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
-    @patch("swen.infrastructure.banking.geldstrom_adapter.GeldstromAdapter")
+    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_success(
         self,
         mock_adapter_class,
@@ -515,7 +515,7 @@ class TestQueryTanMethods:
         assert response.status_code == 401
 
     @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
-    @patch("swen.infrastructure.banking.geldstrom_adapter.GeldstromAdapter")
+    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_connection_failure(
         self,
         mock_adapter_class,
@@ -549,7 +549,7 @@ class TestQueryTanMethods:
         assert "Failed to connect to bank" in response.json()["detail"]
 
     @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
-    @patch("swen.infrastructure.banking.geldstrom_adapter.GeldstromAdapter")
+    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_invalid_credentials(
         self,
         mock_adapter_class,
@@ -583,7 +583,7 @@ class TestQueryTanMethods:
         assert "Invalid credentials" in response.json()["detail"]
 
     @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
-    @patch("swen.infrastructure.banking.geldstrom_adapter.GeldstromAdapter")
+    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_empty_result(
         self,
         mock_adapter_class,

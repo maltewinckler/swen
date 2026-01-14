@@ -1,6 +1,5 @@
 """Unit tests for BalanceHistoryQuery (CQRS wrapper)."""
 
-from decimal import Decimal
 from unittest.mock import AsyncMock, Mock
 
 import pytest

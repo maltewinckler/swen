@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
 import pytest
+
 from swen.application.commands import TransactionSyncCommand
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.integration.entities import AccountMapping
@@ -17,8 +18,8 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
 
 @dataclass(frozen=True)
-class MockUserContext:
-    """Mock UserContext for testing."""
+class MockCurrentUser:
+    """Mock CurrentUser for testing."""
 
     user_id: UUID
     email: str = "test@example.com"
@@ -100,9 +101,9 @@ def mock_bank_transaction_repo():
 
 
 @pytest.fixture
-def mock_user_context():
+def mock_current_user():
     """Mock user context."""
-    return MockUserContext(user_id=TEST_USER_ID)
+    return MockCurrentUser(user_id=TEST_USER_ID)
 
 
 @pytest.fixture
@@ -113,7 +114,7 @@ def command_with_credential_repo(
     mock_import_repo,
     mock_credential_repo,
     mock_bank_transaction_repo,
-    mock_user_context,
+    mock_current_user,
 ):
     """Create command with credential repository."""
     return TransactionSyncCommand(
@@ -121,7 +122,7 @@ def command_with_credential_repo(
         import_service=mock_import_service,
         mapping_repo=mock_mapping_repo,
         import_repo=mock_import_repo,
-        user_context=mock_user_context,
+        current_user=mock_current_user,
         credential_repo=mock_credential_repo,
         bank_transaction_repo=mock_bank_transaction_repo,
     )
@@ -132,7 +133,7 @@ class TestTransactionSyncCommandWithCredentialLoading:
 
     Note: The credential repository is now user-scoped, so user_id is not
     passed to repository methods or execute() - it's implicit in the
-    UserContext passed to the constructor.
+    CurrentUser passed to the constructor.
     """
 
     @pytest.mark.asyncio
@@ -232,7 +233,7 @@ class TestTransactionSyncCommandWithCredentialLoading:
         mock_mapping_repo,
         mock_import_repo,
         mock_bank_transaction_repo,
-        mock_user_context,
+        mock_current_user,
     ):
         """Should return error result when trying to load credentials without repo."""
         # Arrange - command without credential_repo
@@ -241,7 +242,7 @@ class TestTransactionSyncCommandWithCredentialLoading:
             import_service=mock_import_service,
             mapping_repo=mock_mapping_repo,
             import_repo=mock_import_repo,
-            user_context=mock_user_context,
+            current_user=mock_current_user,
             credential_repo=None,  # No credential repository
             bank_transaction_repo=mock_bank_transaction_repo,
         )

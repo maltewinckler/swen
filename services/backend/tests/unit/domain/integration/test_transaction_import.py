@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 import pytest
+
 from swen.domain.integration.entities import TransactionImport
 from swen.domain.integration.value_objects import ImportStatus
 
@@ -52,10 +53,10 @@ class TestTransactionImport:
         bank_tx_id = uuid4()
 
         import1 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
         import2 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
 
         # Should have the same ID
@@ -281,7 +282,7 @@ class TestTransactionImport:
 
         # Pending - cannot retry
         pending = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
         assert pending.can_retry() is False
 
@@ -308,10 +309,10 @@ class TestTransactionImport:
         bank_tx_id = uuid4()
 
         import1 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
         import2 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
 
         # Same ID = equal
@@ -340,10 +341,10 @@ class TestTransactionImport:
         bank_tx_id = uuid4()
 
         import1 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
         import2 = TransactionImport(
-            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID
+            bank_transaction_id=bank_tx_id, user_id=TEST_USER_ID,
         )
 
         # Same ID = same hash

@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class JournalEntryResponse(BaseModel):
@@ -31,8 +31,8 @@ class JournalEntryResponse(BaseModel):
     )
     currency: str = Field(..., description="ISO 4217 currency code")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
                 "account_name": "DKB Checking Account",
@@ -42,7 +42,7 @@ class JournalEntryResponse(BaseModel):
                 "currency": "EUR",
             },
         },
-    }
+    )
 
 
 class TransactionResponse(BaseModel):
@@ -95,9 +95,9 @@ class TransactionResponse(BaseModel):
         description="Additional metadata including AI resolution details",
     )
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "date": "2024-12-05T14:30:00Z",
@@ -137,7 +137,7 @@ class TransactionResponse(BaseModel):
                 },
             },
         },
-    }
+    )
 
 
 class TransactionListItemResponse(BaseModel):
@@ -175,8 +175,8 @@ class TransactionListItemResponse(BaseModel):
         description="Transfer between own accounts (e.g., checking to savings)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "short_id": "550e8400",
@@ -193,7 +193,7 @@ class TransactionListItemResponse(BaseModel):
                 "is_internal_transfer": False,
             },
         },
-    }
+    )
 
 
 class TransactionListResponse(BaseModel):
@@ -213,8 +213,8 @@ class TransactionListResponse(BaseModel):
         description="Finalized transactions affecting balances",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "transactions": [
                     {
@@ -247,7 +247,7 @@ class TransactionListResponse(BaseModel):
                 "posted_count": 2,
             },
         },
-    }
+    )
 
 
 class TransactionPostRequest(BaseModel):
@@ -274,15 +274,15 @@ class JournalEntryRequest(BaseModel):
         description="Credit amount (use for income, asset decreases)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
                 "debit": "45.99",
                 "credit": "0",
             },
         },
-    }
+    )
 
 
 class TransactionCreateRequest(BaseModel):
@@ -321,8 +321,8 @@ class TransactionCreateRequest(BaseModel):
         description="Automatically post (finalize) the transaction",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "date": "2024-12-05T14:30:00Z",
                 "description": "REWE Supermarket",
@@ -342,7 +342,7 @@ class TransactionCreateRequest(BaseModel):
                 "auto_post": True,
             },
         },
-    }
+    )
 
 
 class TransactionCreateSimpleRequest(BaseModel):
@@ -389,8 +389,8 @@ class TransactionCreateSimpleRequest(BaseModel):
         description="Automatically post (finalize) the transaction",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "date": "2024-12-05T14:30:00Z",
                 "description": "REWE Supermarket",
@@ -401,7 +401,7 @@ class TransactionCreateSimpleRequest(BaseModel):
                 "auto_post": True,
             },
         },
-    }
+    )
 
 
 class TransactionUpdateRequest(BaseModel):
@@ -449,8 +449,8 @@ class TransactionUpdateRequest(BaseModel):
         description="Re-post the transaction after editing (if it was posted)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "summary": "Simple re-categorization",
@@ -491,7 +491,7 @@ class TransactionUpdateRequest(BaseModel):
                 },
             ],
         },
-    }
+    )
 
 
 class TransactionFilterParams(BaseModel):
@@ -526,8 +526,8 @@ class TransactionFilterParams(BaseModel):
         description="Filter by source: 'bank_import', 'manual', 'opening_balance', 'reversal'",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "days": 30,
                 "limit": 50,
@@ -537,4 +537,4 @@ class TransactionFilterParams(BaseModel):
                 "source": None,
             },
         },
-    }
+    )

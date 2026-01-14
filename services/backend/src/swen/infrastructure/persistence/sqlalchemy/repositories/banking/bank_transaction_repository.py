@@ -22,7 +22,7 @@ from swen.infrastructure.persistence.sqlalchemy.models import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.context import UserContext
+    from swen.application.ports.identity import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,9 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
     Uses hash + sequence deduplication strategy to handle identical transactions.
     """
 
-    def __init__(self, session: AsyncSession, user_context: UserContext):
+    def __init__(self, session: AsyncSession, current_user: CurrentUser):
         self._session = session
-        self._user_context = user_context
+        self._current_user = current_user
 
     async def save(self, transaction: BankTransaction, account_iban: str) -> UUID:
         results = await self.save_batch_with_deduplication([transaction], account_iban)
@@ -276,7 +276,7 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
         stmt = select(BankAccountModel).where(
             and_(
                 BankAccountModel.iban == iban,
-                BankAccountModel.user_id == self._user_context.user_id,
+                BankAccountModel.user_id == self._current_user.user_id,
             ),
         )
         result = await self._session.execute(stmt)

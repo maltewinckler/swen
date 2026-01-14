@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 class AIStatusResponse(BaseModel):
     """Current AI service status."""
 
@@ -41,6 +42,7 @@ class AIStatusResponse(BaseModel):
     current_model: str = Field(description="Currently configured model name")
     model_available: bool = Field(description="Whether the current model is installed")
     service_healthy: bool = Field(description="Whether the AI service is reachable")
+
 
 class AIModelResponse(BaseModel):
     """Information about an AI model."""
@@ -58,17 +60,20 @@ class AIModelResponse(BaseModel):
         description="Download progress 0.0-1.0 if downloading",
     )
 
+
 class AIModelsListResponse(BaseModel):
     """List of available AI models."""
 
     provider: str = Field(description="AI provider name")
     models: list[AIModelResponse] = Field(description="Available models")
 
+
 class ModelPullStartResponse(BaseModel):
     """Response when starting a model download."""
 
     model_name: str = Field(description="Model being downloaded")
     message: str = Field(description="Status message")
+
 
 class AISettingsResponse(BaseModel):
     """User's AI classification settings."""
@@ -78,6 +83,7 @@ class AISettingsResponse(BaseModel):
     )
     model_name: str = Field(description="Preferred AI model for classification")
     min_confidence: float = Field(description="Minimum confidence threshold (0.0-1.0)")
+
 
 class AISettingsUpdateRequest(BaseModel):
     """Request to update AI settings."""
@@ -94,6 +100,7 @@ class AISettingsUpdateRequest(BaseModel):
         le=1.0,
     )
 
+
 class AITestRequest(BaseModel):
     """Request to test AI classification with sample transaction data."""
 
@@ -109,6 +116,7 @@ class AITestRequest(BaseModel):
         description="Model to use (defaults to user preference or config)",
     )
 
+
 class AITestExample(BaseModel):
     """A sample transaction for testing AI classification."""
 
@@ -119,6 +127,7 @@ class AITestExample(BaseModel):
     amount: float = Field(description="Transaction amount")
     category_hint: str = Field(description="Expected category (for reference)")
 
+
 class AITestAccountSuggestion(BaseModel):
     """An AI-suggested account."""
 
@@ -127,6 +136,7 @@ class AITestAccountSuggestion(BaseModel):
     account_name: str = Field(description="Account display name")
     confidence: float = Field(description="Confidence score 0.0-1.0")
     reasoning: Optional[str] = Field(None, description="AI's reasoning")
+
 
 class AITestResponse(BaseModel):
     """Result of AI classification test."""
@@ -141,10 +151,12 @@ class AITestResponse(BaseModel):
     )
     processing_time_ms: float = Field(description="Time taken in milliseconds")
 
+
 def _get_registry() -> OllamaModelRegistry:
     """Get the Ollama model registry with settings from config."""
     settings = get_settings()
     return OllamaModelRegistry(base_url=settings.ollama_base_url)
+
 
 @router.get(
     "/status",
@@ -179,6 +191,7 @@ async def get_ai_status() -> AIStatusResponse:
         model_available=model_available,
         service_healthy=service_healthy,
     )
+
 
 @router.get(
     "/models",
@@ -220,6 +233,7 @@ async def list_models() -> AIModelsListResponse:
             for m in models
         ],
     )
+
 
 @router.post(
     "/models/{model_name}/pull",
@@ -310,6 +324,7 @@ async def pull_model(model_name: str) -> StreamingResponse:
         },
     )
 
+
 @router.get(
     "/models/{model_name}",
     summary="Get model info",
@@ -343,6 +358,7 @@ async def get_model_info(model_name: str) -> AIModelResponse:
         download_progress=model.download_progress,
     )
 
+
 @router.get(
     "/settings",
     summary="Get user AI settings",
@@ -357,16 +373,15 @@ async def get_ai_settings(factory: RepoFactory) -> AISettingsResponse:
     These settings control how AI-powered counter-account resolution
     behaves for this user's transactions.
     """
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
-
-    ai = user.preferences.ai_settings
+    settings_repo = factory.user_settings_repository()
+    settings = await settings_repo.get_or_create()
 
     return AISettingsResponse(
-        enabled=ai.enabled,
-        model_name=ai.model_name,
-        min_confidence=ai.min_confidence,
+        enabled=settings.ai.enabled,
+        model_name=settings.ai.model_name,
+        min_confidence=settings.ai.min_confidence,
     )
+
 
 @router.patch(
     "/settings",
@@ -413,28 +428,27 @@ async def update_ai_settings(
                 f"Download it first using POST /ai/models/{request.model_name}/pull",
             )
 
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
+    settings_repo = factory.user_settings_repository()
+    settings = await settings_repo.get_or_create()
 
     # Update AI settings
-    user.update_ai_settings(
+    settings.update_ai(
         enabled=request.enabled,
         model_name=request.model_name,
         min_confidence=request.min_confidence,
     )
 
-    await user_repo.save(user)
+    await settings_repo.save(settings)
     await factory.session.commit()
 
-    logger.info("User %s updated AI settings", user.id)
-
-    ai = user.preferences.ai_settings
+    logger.info("User %s updated AI settings", factory.current_user.user_id)
 
     return AISettingsResponse(
-        enabled=ai.enabled,
-        model_name=ai.model_name,
-        min_confidence=ai.min_confidence,
+        enabled=settings.ai.enabled,
+        model_name=settings.ai.model_name,
+        min_confidence=settings.ai.min_confidence,
     )
+
 
 @router.post(
     "/test",
@@ -470,12 +484,11 @@ async def test_ai_classification(
     start_time = time.perf_counter()
 
     # Get user's AI settings
-    user_repo = factory.user_repository()
-    user = await user_repo.get_or_create_by_email(factory.user_context.email)
-    ai_settings = user.preferences.ai_settings
+    settings_repo = factory.user_settings_repository()
+    settings = await settings_repo.get_or_create()
 
     # Check if AI is enabled
-    if not ai_settings.enabled:
+    if not settings.ai.enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="AI classification is disabled in your settings. "
@@ -483,8 +496,8 @@ async def test_ai_classification(
         )
 
     # Determine which model to use
-    model_to_use = request.model_name or ai_settings.model_name
-    settings = get_settings()
+    model_to_use = request.model_name or settings.ai.model_name
+    app_settings = get_settings()
 
     # Check if model is available
     registry = _get_registry()
@@ -504,9 +517,9 @@ async def test_ai_classification(
     # Create AI provider with the selected model
     ai_provider = OllamaCounterAccountProvider(
         model=model_to_use,
-        base_url=settings.ollama_base_url,
-        min_confidence=ai_settings.min_confidence,
-        timeout=settings.ai_ollama_timeout,
+        base_url=app_settings.ollama_base_url,
+        min_confidence=settings.ai.min_confidence,
+        timeout=app_settings.ai_ollama_timeout,
     )
 
     # Create a synthetic bank transaction
@@ -582,9 +595,10 @@ async def test_ai_classification(
     return AITestResponse(
         model_used=model_to_use,
         suggestion=suggestion,
-        meets_confidence_threshold=result.is_confident(ai_settings.min_confidence),
+        meets_confidence_threshold=result.is_confident(settings.ai.min_confidence),
         processing_time_ms=round(elapsed_ms, 2),
     )
+
 
 # Example transactions from real German banking data
 # These represent actual transaction patterns for testing AI classification
@@ -702,6 +716,7 @@ TEST_EXAMPLES: list[AITestExample] = [
         category_hint="Gebühren / Fees",
     ),
 ]
+
 
 @router.get(
     "/test/examples",
