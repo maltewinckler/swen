@@ -5,17 +5,65 @@ import {
   Wallet,
   Settings,
   LogOut,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
-import { Button, SwenLogo } from '@/components/ui'
+import {
+  Button,
+  SwenLogo,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ] as const
+
+function UserAvatar({ email, size = 'md' }: { email: string; size?: 'sm' | 'md' }) {
+  const initials = email
+    .split('@')[0]
+    .slice(0, 2)
+    .toUpperCase()
+
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-full bg-bg-hover text-text-secondary font-medium border border-border-subtle',
+        size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm'
+      )}
+    >
+      {initials}
+    </div>
+  )
+}
+
+function UserDropdownContent({ onLogout }: { onLogout: () => void }) {
+  return (
+    <>
+      <DropdownMenuItem asChild>
+        <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+          <Settings className="h-4 w-4" />
+          Settings
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onClick={onLogout}
+        className="text-accent-danger focus:text-accent-danger"
+      >
+        <LogOut className="h-4 w-4" />
+        Logout
+      </DropdownMenuItem>
+    </>
+  )
+}
 
 export function Navbar() {
   const { user, logout } = useAuthStore()
@@ -56,22 +104,35 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* User Menu */}
-          <div className="flex items-center gap-4">
-            {user && (
-              <span className="hidden sm:block text-sm text-text-secondary">
-                {user.email}
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              aria-label="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* User Menu (Desktop) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'rounded-full',
+                  'transition-all duration-fast',
+                  'hover:ring-2 hover:ring-accent-primary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/50'
+                )}
+                aria-label="Account menu"
+              >
+                {user && <UserAvatar email={user.email} />}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {user && (
+                <>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium text-text-primary">{user.email}</p>
+                      <p className="text-xs text-text-muted">Manage your account</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <UserDropdownContent onLogout={handleLogout} />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -92,6 +153,45 @@ export function Navbar() {
               <span className="text-xs mt-1">{item.label}</span>
             </Link>
           ))}
+
+          {/* Mobile User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'flex flex-col items-center justify-center flex-1 h-full',
+                  'text-text-secondary transition-colors',
+                  'focus:outline-none'
+                )}
+              >
+                {user ? (
+                  <>
+                    <UserAvatar email={user.email} size="sm" />
+                    <span className="text-xs mt-1">Account</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="h-5 w-5" />
+                    <span className="text-xs mt-1">Account</span>
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-56">
+              {user && (
+                <>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium text-text-primary">{user.email}</p>
+                      <p className="text-xs text-text-muted">Manage your account</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <UserDropdownContent onLogout={handleLogout} />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </nav>
     </>
