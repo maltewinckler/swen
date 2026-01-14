@@ -40,6 +40,17 @@ export { ErrorBoundary, WidgetErrorBoundary } from './error-boundary'
 export { AppErrorFallback } from './app-error-fallback'
 
 export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+} from './dropdown-menu'
+
+export {
   WizardStep,
   WizardStepFooter,
   WizardLoadingState,
