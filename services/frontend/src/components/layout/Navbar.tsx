@@ -10,7 +10,6 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
 import {
-  Button,
   SwenLogo,
   DropdownMenu,
   DropdownMenuTrigger,

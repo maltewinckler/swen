@@ -46,4 +46,3 @@ class TestNetIncomeOverTimeQueryDependencyInjection:
 
         assert query is not None
         mock_factory.analytics_read_port.assert_called_once()
-

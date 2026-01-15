@@ -231,4 +231,3 @@ export async function testAIClassification(request: AITestRequest): Promise<AITe
 export async function getAITestExamples(): Promise<AITestExample[]> {
   return api.get<AITestExample[]>('/ai/test/examples')
 }
-

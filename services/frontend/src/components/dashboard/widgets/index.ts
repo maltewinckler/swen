@@ -224,4 +224,3 @@ export {
   SingleAccountSpendingWidget,
   SankeyWidget,
 }
-

@@ -242,4 +242,3 @@ class TestJournalEntrySerialization:
                     f"Entry with credit={entry['credit']} should have debit=null, "
                     f"got debit={entry['debit']}"
                 )
-

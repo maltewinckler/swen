@@ -10,4 +10,3 @@ export * from './widgets'
 export const DashboardCustomizer = lazy(() => import('./DashboardCustomizer'))
 
 export { default as WidgetContainer } from './WidgetContainer'
-

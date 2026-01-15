@@ -705,4 +705,3 @@ class TestCounterAccountRule:
         )
 
         assert high_priority.priority > low_priority.priority
-

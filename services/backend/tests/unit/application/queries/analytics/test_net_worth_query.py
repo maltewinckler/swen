@@ -24,7 +24,9 @@ class TestNetWorthQuery:
         port.net_worth_over_time.return_value = expected
 
         query = NetWorthQuery(port)
-        result = await query.execute(months=2, end_month="2024-12", include_drafts=False)
+        result = await query.execute(
+            months=2, end_month="2024-12", include_drafts=False
+        )
 
         assert result is expected
         port.net_worth_over_time.assert_awaited_once_with(
@@ -42,4 +44,3 @@ class TestNetWorthQueryDependencyInjection:
         query = NetWorthQuery.from_factory(mock_factory)
         assert query is not None
         mock_factory.analytics_read_port.assert_called_once()
-

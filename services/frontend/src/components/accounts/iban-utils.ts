@@ -18,4 +18,3 @@ export function formatIBAN(raw: string): string {
 export function unformatIBAN(formatted: string): string {
   return formatted.replace(/\s/g, '')
 }
-

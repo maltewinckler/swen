@@ -131,4 +131,3 @@ def create_mock_transaction(
         side_effect=lambda acc: any(e.account == acc for e in entries),
     )
     return txn
-

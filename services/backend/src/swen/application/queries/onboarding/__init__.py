@@ -6,4 +6,3 @@ from swen.application.queries.onboarding.onboarding_status_query import (
 )
 
 __all__ = ["OnboardingStatus", "OnboardingStatusQuery"]
-

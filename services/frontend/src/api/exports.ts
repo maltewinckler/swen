@@ -117,4 +117,3 @@ export const ExportPresets = {
     return downloadExcelReport({ startDate, endDate })
   },
 }
-

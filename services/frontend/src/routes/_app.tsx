@@ -12,4 +12,3 @@ export const Route = createFileRoute('/_app')({
   },
   component: AppLayout,
 })
-

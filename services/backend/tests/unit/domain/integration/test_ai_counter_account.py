@@ -185,7 +185,10 @@ class TestCounterAccountOption:
             account_type="expense",
         )
 
-        assert option.display_label == "[4100] Büromaterial und Schreibwaren (Office Supplies)"
+        assert (
+            option.display_label
+            == "[4100] Büromaterial und Schreibwaren (Office Supplies)"
+        )
 
     def test_description_optional(self):
         """Test that description is optional and defaults to None."""
@@ -277,4 +280,3 @@ class TestCounterAccountOption:
 
         option_set = {option1, option2}
         assert len(option_set) == 2
-

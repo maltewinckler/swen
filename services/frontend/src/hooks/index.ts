@@ -14,4 +14,3 @@ export type {
   UseBankConnectionOptions,
   UseBankConnectionReturn,
 } from './useBankConnection'
-

@@ -21,7 +21,9 @@ class TestBalanceHistoryQuery:
         port.balance_history_over_time.return_value = expected
 
         query = BalanceHistoryQuery(port)
-        result = await query.execute(months=2, end_month="2024-12", include_drafts=False)
+        result = await query.execute(
+            months=2, end_month="2024-12", include_drafts=False
+        )
 
         assert result is expected
         port.balance_history_over_time.assert_awaited_once_with(
@@ -43,4 +45,3 @@ class TestBalanceHistoryQueryDependencyInjection:
 
         assert query is not None
         mock_factory.analytics_read_port.assert_called_once()
-

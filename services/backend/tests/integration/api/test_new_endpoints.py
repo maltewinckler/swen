@@ -11,7 +11,10 @@ class TestUpdateTransaction:
 
     @pytest.fixture
     def expense_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Create an expense account for testing."""
         response = test_client.post(
@@ -29,7 +32,10 @@ class TestUpdateTransaction:
 
     @pytest.fixture
     def asset_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Create an asset account for testing."""
         response = test_client.post(
@@ -119,7 +125,10 @@ class TestUpdateTransaction:
         assert data["counterparty"] == "New Store Name"
 
     def test_update_transaction_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Cannot update non-existent transaction."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -132,7 +141,9 @@ class TestUpdateTransaction:
         assert response.status_code == 404
 
     def test_update_transaction_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot update transaction without auth."""
         fake_id = "00000000-0000-0000-0000-000000000000"
@@ -148,7 +159,10 @@ class TestInitChartOfAccounts:
     """Tests for POST /api/v1/accounts/init-chart."""
 
     def test_init_chart_creates_accounts(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Initialize chart of accounts creates default accounts."""
         response = test_client.post(
@@ -163,7 +177,10 @@ class TestInitChartOfAccounts:
         assert "by_type" in data
 
     def test_init_chart_is_idempotent(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Second call returns skipped status."""
         # First call
@@ -184,7 +201,9 @@ class TestInitChartOfAccounts:
         assert data["skipped"] is True
 
     def test_init_chart_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot init chart without auth."""
         response = test_client.post(f"{api_v1_prefix}/accounts/init-chart")
@@ -195,7 +214,10 @@ class TestExports:
     """Tests for GET /api/v1/exports/*."""
 
     def test_export_transactions_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Export transactions returns empty list for new user."""
         response = test_client.get(
@@ -209,7 +231,10 @@ class TestExports:
         assert data["count"] == 0
 
     def test_export_transactions_with_filters(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Export transactions accepts filter parameters."""
         response = test_client.get(
@@ -221,7 +246,10 @@ class TestExports:
         assert response.status_code == 200
 
     def test_export_accounts_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Export accounts returns empty list for new user."""
         response = test_client.get(
@@ -235,7 +263,10 @@ class TestExports:
         assert "count" in data
 
     def test_export_full(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Full export returns all data types."""
         response = test_client.get(
@@ -251,7 +282,9 @@ class TestExports:
         assert "transaction_count" in data
 
     def test_export_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot export without auth."""
         response = test_client.get(f"{api_v1_prefix}/exports/transactions")
@@ -262,7 +295,10 @@ class TestMappings:
     """Tests for GET /api/v1/mappings/*."""
 
     def test_list_mappings_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """List mappings returns empty for new user."""
         response = test_client.get(
@@ -276,7 +312,10 @@ class TestMappings:
         assert data["count"] == 0
 
     def test_get_mapping_by_iban_not_found(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get mapping by IBAN returns 404 when not found."""
         response = test_client.get(
@@ -287,7 +326,9 @@ class TestMappings:
         assert response.status_code == 404
 
     def test_mappings_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot list mappings without auth."""
         response = test_client.get(f"{api_v1_prefix}/mappings")
@@ -298,7 +339,10 @@ class TestImports:
     """Tests for GET /api/v1/imports/*."""
 
     def test_list_imports_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """List imports returns empty for new user."""
         response = test_client.get(
@@ -313,7 +357,10 @@ class TestImports:
         assert "status_counts" in data
 
     def test_list_imports_with_filters(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """List imports accepts filter parameters."""
         response = test_client.get(
@@ -325,7 +372,10 @@ class TestImports:
         assert response.status_code == 200
 
     def test_import_statistics(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get import statistics."""
         response = test_client.get(
@@ -340,7 +390,9 @@ class TestImports:
         assert "failed" in data
 
     def test_imports_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot list imports without auth."""
         response = test_client.get(f"{api_v1_prefix}/imports")
@@ -351,7 +403,10 @@ class TestPreferences:
     """Tests for /api/v1/preferences/*."""
 
     def test_get_preferences(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get user preferences."""
         response = test_client.get(
@@ -368,7 +423,10 @@ class TestPreferences:
         assert "show_draft_transactions" in data["display_settings"]
 
     def test_update_preferences(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Update user preferences."""
         response = test_client.patch(
@@ -382,7 +440,10 @@ class TestPreferences:
         assert data["sync_settings"]["auto_post_transactions"] is True
 
     def test_update_preferences_multiple_fields(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Update multiple preferences at once."""
         response = test_client.patch(
@@ -404,7 +465,10 @@ class TestPreferences:
         assert data["display_settings"]["default_date_range_days"] == 90
 
     def test_update_preferences_empty_body(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Cannot update with empty body."""
         response = test_client.patch(
@@ -416,7 +480,10 @@ class TestPreferences:
         assert response.status_code == 400
 
     def test_reset_preferences(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Reset preferences to defaults."""
         # First update some preferences
@@ -439,9 +506,10 @@ class TestPreferences:
         assert data["sync_settings"]["default_currency"] == "EUR"
 
     def test_preferences_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot access preferences without auth."""
         response = test_client.get(f"{api_v1_prefix}/preferences")
         assert response.status_code == 401
-

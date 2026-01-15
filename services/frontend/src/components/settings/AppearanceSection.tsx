@@ -27,4 +27,3 @@ export function AppearanceSection() {
     </Card>
   )
 }
-

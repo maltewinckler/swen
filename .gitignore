@@ -69,3 +69,6 @@ config/fints_institute.csv
 # Data exports
 **.csv
 services/frontend/coverage/
+
+# pre commit stuff
+.secrets.baseline

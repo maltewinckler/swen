@@ -8,11 +8,15 @@ class TestSpendingOverTime:
     """Tests for GET /api/v1/analytics/spending/over-time."""
 
     def test_spending_over_time_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending over time for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/spending/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/spending/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -26,7 +30,10 @@ class TestSpendingOverTime:
         assert len(data["data_points"]) == 12
 
     def test_spending_over_time_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending with custom months parameter."""
         response = test_client.get(
@@ -41,7 +48,10 @@ class TestSpendingOverTime:
         assert len(data["data_points"]) == 6
 
     def test_spending_over_time_with_end_month(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending with specific end month."""
         response = test_client.get(
@@ -61,7 +71,9 @@ class TestSpendingOverTime:
         assert "2024-06" in periods
 
     def test_spending_over_time_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get spending over time without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/spending/over-time")
@@ -72,11 +84,15 @@ class TestIncomeOverTime:
     """Tests for GET /api/v1/analytics/income/over-time."""
 
     def test_income_over_time_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get income over time for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/income/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/income/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -92,7 +108,10 @@ class TestIncomeOverTime:
         assert len(data["data_points"]) == 12
 
     def test_income_over_time_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get income with custom months parameter."""
         response = test_client.get(
@@ -107,7 +126,9 @@ class TestIncomeOverTime:
         assert len(data["data_points"]) == 24
 
     def test_income_over_time_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get income over time without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/income/over-time")
@@ -118,11 +139,15 @@ class TestSpendingBreakdown:
     """Tests for GET /api/v1/analytics/spending/breakdown."""
 
     def test_spending_breakdown_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending breakdown for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/spending/breakdown", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/spending/breakdown",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -136,7 +161,10 @@ class TestSpendingBreakdown:
         assert data["total"] == "0"
 
     def test_spending_breakdown_with_month_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending breakdown for specific month."""
         response = test_client.get(
@@ -151,7 +179,10 @@ class TestSpendingBreakdown:
         assert "June 2024" in data["period_label"]
 
     def test_spending_breakdown_with_days_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get spending breakdown for last N days."""
         response = test_client.get(
@@ -166,7 +197,9 @@ class TestSpendingBreakdown:
         assert "Last 30 days" in data["period_label"]
 
     def test_spending_breakdown_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get spending breakdown without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/spending/breakdown")
@@ -177,11 +210,15 @@ class TestNetIncomeOverTime:
     """Tests for GET /api/v1/analytics/net-income/over-time."""
 
     def test_net_income_over_time_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get net income over time for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/net-income/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/net-income/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -198,7 +235,10 @@ class TestNetIncomeOverTime:
         assert len(data["data_points"]) == 12
 
     def test_net_income_over_time_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get net income with custom months parameter."""
         response = test_client.get(
@@ -213,7 +253,9 @@ class TestNetIncomeOverTime:
         assert len(data["data_points"]) == 6
 
     def test_net_income_over_time_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get net income over time without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/net-income/over-time")
@@ -224,11 +266,15 @@ class TestTopExpenses:
     """Tests for GET /api/v1/analytics/spending/top."""
 
     def test_top_expenses_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get top expenses for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/spending/top", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/spending/top",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -243,7 +289,10 @@ class TestTopExpenses:
         assert data["months_analyzed"] == 3  # Default
 
     def test_top_expenses_with_params(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get top expenses with custom parameters."""
         response = test_client.get(
@@ -258,7 +307,9 @@ class TestTopExpenses:
         assert data["months_analyzed"] == 6
 
     def test_top_expenses_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get top expenses without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/spending/top")
@@ -269,11 +320,15 @@ class TestIncomeBreakdown:
     """Tests for GET /api/v1/analytics/income/breakdown."""
 
     def test_income_breakdown_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get income breakdown for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/income/breakdown", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/income/breakdown",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -287,7 +342,10 @@ class TestIncomeBreakdown:
         assert data["total"] == "0"
 
     def test_income_breakdown_with_month_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get income breakdown for specific month."""
         response = test_client.get(
@@ -302,7 +360,9 @@ class TestIncomeBreakdown:
         assert "June 2024" in data["period_label"]
 
     def test_income_breakdown_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get income breakdown without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/income/breakdown")
@@ -313,11 +373,15 @@ class TestSavingsRateOverTime:
     """Tests for GET /api/v1/analytics/savings-rate/over-time."""
 
     def test_savings_rate_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get savings rate for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/savings-rate/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/savings-rate/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -329,7 +393,10 @@ class TestSavingsRateOverTime:
         assert len(data["data_points"]) == 12
 
     def test_savings_rate_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get savings rate with custom months parameter."""
         response = test_client.get(
@@ -344,7 +411,9 @@ class TestSavingsRateOverTime:
         assert len(data["data_points"]) == 6
 
     def test_savings_rate_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get savings rate without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/savings-rate/over-time")
@@ -355,11 +424,15 @@ class TestNetWorthOverTime:
     """Tests for GET /api/v1/analytics/net-worth/over-time."""
 
     def test_net_worth_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get net worth for new user with no data."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/net-worth/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/net-worth/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -372,7 +445,10 @@ class TestNetWorthOverTime:
         assert len(data["data_points"]) == 12
 
     def test_net_worth_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get net worth with custom months parameter."""
         response = test_client.get(
@@ -387,7 +463,9 @@ class TestNetWorthOverTime:
         assert len(data["data_points"]) == 24
 
     def test_net_worth_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get net worth without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/net-worth/over-time")
@@ -398,11 +476,15 @@ class TestBalancesOverTime:
     """Tests for GET /api/v1/analytics/balances/over-time."""
 
     def test_balances_over_time_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get balances over time for new user with no accounts."""
         response = test_client.get(
-            f"{api_v1_prefix}/analytics/balances/over-time", headers=auth_headers,
+            f"{api_v1_prefix}/analytics/balances/over-time",
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -415,7 +497,10 @@ class TestBalancesOverTime:
         assert len(data["data_points"]) == 12
 
     def test_balances_over_time_with_months_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get balances with custom months parameter."""
         response = test_client.get(
@@ -430,7 +515,9 @@ class TestBalancesOverTime:
         assert len(data["data_points"]) == 6
 
     def test_balances_over_time_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get balances over time without auth."""
         response = test_client.get(f"{api_v1_prefix}/analytics/balances/over-time")
@@ -441,7 +528,10 @@ class TestMonthComparison:
     """Tests for GET /api/v1/analytics/comparison/month-over-month."""
 
     def test_month_comparison_empty(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get month comparison for new user with no data."""
         response = test_client.get(
@@ -462,7 +552,10 @@ class TestMonthComparison:
         assert "category_comparisons" in data
 
     def test_month_comparison_with_month_param(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Get month comparison for specific month."""
         response = test_client.get(
@@ -478,7 +571,9 @@ class TestMonthComparison:
         assert data["previous_month"] == "May 2024"
 
     def test_month_comparison_unauthorized(
-        self, test_client: TestClient, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
     ):
         """Cannot get month comparison without auth."""
         response = test_client.get(
@@ -492,7 +587,10 @@ class TestAnalyticsWithAccounts:
 
     @pytest.fixture
     def expense_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Create an expense account for testing."""
         response = test_client.post(
@@ -510,7 +608,10 @@ class TestAnalyticsWithAccounts:
 
     @pytest.fixture
     def asset_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Create an asset account for testing."""
         response = test_client.post(
@@ -528,7 +629,10 @@ class TestAnalyticsWithAccounts:
 
     @pytest.fixture
     def liability_account(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Create a liability account for testing."""
         response = test_client.post(
@@ -634,7 +738,10 @@ class TestAnalyticsValidation:
     """Tests for parameter validation on analytics endpoints."""
 
     def test_months_param_min_value(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Months parameter must be at least 1."""
         response = test_client.get(
@@ -646,7 +753,10 @@ class TestAnalyticsValidation:
         assert response.status_code == 422
 
     def test_months_param_max_value(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Months parameter must be at most 60."""
         response = test_client.get(
@@ -658,7 +768,10 @@ class TestAnalyticsValidation:
         assert response.status_code == 422
 
     def test_invalid_month_format(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Month parameter must be in YYYY-MM format."""
         response = test_client.get(
@@ -670,7 +783,10 @@ class TestAnalyticsValidation:
         assert response.status_code == 422
 
     def test_days_param_min_value(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Days parameter must be at least 1."""
         response = test_client.get(
@@ -682,7 +798,10 @@ class TestAnalyticsValidation:
         assert response.status_code == 422
 
     def test_top_n_param_validation(
-        self, test_client: TestClient, auth_headers: dict, api_v1_prefix: str,
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
     ):
         """Top N parameter must be between 1 and 50."""
         response = test_client.get(
@@ -692,4 +811,3 @@ class TestAnalyticsValidation:
         )
 
         assert response.status_code == 422
-

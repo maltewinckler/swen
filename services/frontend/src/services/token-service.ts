@@ -50,4 +50,3 @@ export function clearLegacyTokens(): void {
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY)
 }
-
