@@ -83,4 +83,3 @@ export function StepIndicator({
     </div>
   )
 }
-

@@ -101,4 +101,3 @@ class TestSyncStatusQueryDependencyInjection:
         await query.execute()
 
         mock_repo.count_by_status.assert_called_once()
-

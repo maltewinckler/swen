@@ -224,4 +224,3 @@ export function getPeriodSubtitle(months: number): string {
   if (months === 1) return 'This month'
   return `Last ${months} months`
 }
-

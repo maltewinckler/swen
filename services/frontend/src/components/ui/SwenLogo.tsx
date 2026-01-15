@@ -89,4 +89,3 @@ export function SwenLogo({ className, size = 'md' }: SwenLogoProps) {
     </svg>
   )
 }
-

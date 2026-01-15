@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,15 +22,15 @@ class AccountBalanceResponse(BaseModel):
                 "name": "DKB Checking Account",
                 "balance": "2543.67",
                 "currency": "EUR",
-            }
-        }
+            },
+        },
     )
 
 
 class CategorySpendingResponse(BaseModel):
     """Response schema for spending by category (expense account)."""
 
-    category: str = Field(..., description="Expense account name (e.g., 'Groceries', 'Rent')")
+    category: str = Field(..., description="Expense account name")
     amount: Decimal = Field(..., description="Total spending amount in this category")
     currency: str = Field(default="EUR", description="ISO 4217 currency code")
 
@@ -41,8 +40,8 @@ class CategorySpendingResponse(BaseModel):
                 "category": "Groceries",
                 "amount": "345.67",
                 "currency": "EUR",
-            }
-        }
+            },
+        },
     )
 
 
@@ -54,7 +53,10 @@ class RecentTransactionResponse(BaseModel):
     description: str = Field(..., description="Transaction description")
     amount: Decimal = Field(..., description="Transaction amount (always positive)")
     currency: str = Field(..., description="ISO 4217 currency code")
-    is_income: bool = Field(..., description="Direction: True = income, False = expense")
+    is_income: bool = Field(
+        ...,
+        description="Direction: True = income, False = expense",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -65,8 +67,8 @@ class RecentTransactionResponse(BaseModel):
                 "amount": "45.99",
                 "currency": "EUR",
                 "is_income": False,
-            }
-        }
+            },
+        },
     )
 
 
@@ -77,18 +79,21 @@ class DashboardSummaryResponse(BaseModel):
     income/expenses, balances, spending breakdown, and recent activity.
     """
 
-    period_label: str = Field(..., description="Human-readable period (e.g., 'December 2024', 'Last 30 days')")
+    period_label: str = Field(..., description="Readable (e.g. December 2024)")
     total_income: Decimal = Field(..., description="Total income for the period")
     total_expenses: Decimal = Field(..., description="Total expenses for the period")
     net_income: Decimal = Field(..., description="Net income (income - expenses)")
     account_balances: list[AccountBalanceResponse] = Field(
-        ..., description="Current balances of all asset accounts"
+        ...,
+        description="Current balances of all asset accounts",
     )
     category_spending: list[CategorySpendingResponse] = Field(
-        ..., description="Spending breakdown by expense category (sorted by amount)"
+        ...,
+        description="Spending breakdown by expense category (sorted by amount)",
     )
     recent_transactions: list[RecentTransactionResponse] = Field(
-        ..., description="Most recent transactions (up to 10)"
+        ...,
+        description="Most recent transactions (up to 10)",
     )
     draft_count: int = Field(..., description="Transactions pending review")
     posted_count: int = Field(..., description="Finalized transactions in period")
@@ -118,7 +123,11 @@ class DashboardSummaryResponse(BaseModel):
                     {"category": "Rent", "amount": "950.00", "currency": "EUR"},
                     {"category": "Groceries", "amount": "345.67", "currency": "EUR"},
                     {"category": "Utilities", "amount": "125.00", "currency": "EUR"},
-                    {"category": "Transportation", "amount": "89.50", "currency": "EUR"},
+                    {
+                        "category": "Transportation",
+                        "amount": "89.50",
+                        "currency": "EUR",
+                    },
                 ],
                 "recent_transactions": [
                     {
@@ -140,19 +149,17 @@ class DashboardSummaryResponse(BaseModel):
                 ],
                 "draft_count": 3,
                 "posted_count": 42,
-            }
-        }
+            },
+        },
     )
 
 
 class SpendingBreakdownResponse(BaseModel):
     """Detailed spending breakdown by category."""
 
-    period_label: str = Field(..., description="Human-readable period description")
-    total_spending: Decimal = Field(..., description="Total spending across all categories")
-    categories: list[CategorySpendingResponse] = Field(
-        ..., description="Spending by expense category (sorted by amount, highest first)"
-    )
+    period_label: str
+    total_spending: Decimal
+    categories: list[CategorySpendingResponse]
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -163,11 +170,15 @@ class SpendingBreakdownResponse(BaseModel):
                     {"category": "Rent", "amount": "950.00", "currency": "EUR"},
                     {"category": "Groceries", "amount": "345.67", "currency": "EUR"},
                     {"category": "Utilities", "amount": "125.00", "currency": "EUR"},
-                    {"category": "Transportation", "amount": "89.50", "currency": "EUR"},
+                    {
+                        "category": "Transportation",
+                        "amount": "89.50",
+                        "currency": "EUR",
+                    },
                     {"category": "Entertainment", "amount": "67.15", "currency": "EUR"},
                 ],
-            }
-        }
+            },
+        },
     )
 
 
@@ -175,7 +186,8 @@ class BalancesResponse(BaseModel):
     """Current balances for all asset accounts."""
 
     balances: list[AccountBalanceResponse] = Field(
-        ..., description="Individual account balances"
+        ...,
+        description="Individual account balances",
     )
     total_assets: Decimal = Field(..., description="Sum of all asset account balances")
 
@@ -197,7 +209,6 @@ class BalancesResponse(BaseModel):
                     },
                 ],
                 "total_assets": "7543.67",
-            }
-        }
+            },
+        },
     )
-

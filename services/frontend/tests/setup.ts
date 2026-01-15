@@ -51,4 +51,3 @@ class IntersectionObserverMock {
   }
 }
 window.IntersectionObserver = IntersectionObserverMock
-

@@ -1,0 +1,85 @@
+# Pre-commit hooks for SWEN
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+default_language_version:
+  python: python3
+
+repos:
+  # =============================================================================
+  # General file hygiene
+  # =============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^services/frontend/dist/
+      - id: end-of-file-fixer
+        exclude: ^services/frontend/dist/
+      - id: check-yaml
+        args: [--unsafe]  # Allow custom tags
+      - id: check-json
+        exclude: ^services/frontend/(node_modules|dist)/
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # =============================================================================
+  # Python - Backend (Ruff for linting + formatting)
+  # =============================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      # Linter (runs first, can auto-fix)
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^services/backend/
+      # Formatter (runs after linter)
+      - id: ruff-format
+        files: ^services/backend/
+
+  # =============================================================================
+  # Python - Type checking with Pyright (optional - has existing errors in demo files)
+  # =============================================================================
+  # - repo: local
+  #   hooks:
+  #     - id: pyright
+  #       name: pyright
+  #       entry: bash -c 'cd services/backend && poetry run pyright src/'
+  #       language: system
+  #       types: [python]
+  #       files: ^services/backend/src/
+  #       pass_filenames: false
+
+  # =============================================================================
+  # Frontend - ESLint (warnings allowed, only errors block commit)
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd services/frontend && npx eslint . --max-warnings=-1'
+        language: system
+        files: ^services/frontend/src/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      - id: typescript-check
+        name: typescript
+        entry: bash -c 'cd services/frontend && npx tsc --noEmit'
+        language: system
+        files: ^services/frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # =============================================================================
+  # Commit message format (optional - uncomment if you want conventional commits)
+  # =============================================================================
+  # - repo: https://github.com/compilerla/conventional-pre-commit
+  #   rev: v3.6.0
+  #   hooks:
+  #     - id: conventional-pre-commit
+  #       stages: [commit-msg]
+  #       args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore]

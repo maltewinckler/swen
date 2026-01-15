@@ -329,4 +329,3 @@ class TestFinTSInstituteDirectoryWithRealCsv:
         commerzbank = real_directory.find_by_blz("10040000")
         assert commerzbank is not None
         assert "Commerzbank" in commerzbank.name
-

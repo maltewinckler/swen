@@ -107,7 +107,9 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert found_rule.id == rule.id
         assert found_rule.pattern_value == rule.pattern_value
 
-    async def test_find_by_id_returns_none_when_not_found(self, async_session, current_user):
+    async def test_find_by_id_returns_none_when_not_found(
+        self, async_session, current_user
+    ):
         """Test that find_by_id returns None for non-existent rule."""
         # Arrange
         repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
@@ -119,7 +121,9 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         # Assert
         assert found_rule is None
 
-    async def test_find_all_active_ordered_by_priority(self, async_session, current_user):
+    async def test_find_all_active_ordered_by_priority(
+        self, async_session, current_user
+    ):
         """Test finding all active rules ordered by priority."""
         # Arrange
         repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
@@ -266,7 +270,9 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
 
         # Assert
         assert len(counter_account_rules) == 2
-        assert all(r.counter_account_id == counter_account_id for r in counter_account_rules)
+        assert all(
+            r.counter_account_id == counter_account_id for r in counter_account_rules
+        )
 
     async def test_delete_rule(self, async_session, current_user):
         """Test deleting a rule."""
@@ -290,7 +296,9 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         result = await async_session.execute(stmt)
         assert result.scalar_one_or_none() is None
 
-    async def test_delete_nonexistent_rule_returns_false(self, async_session, current_user):
+    async def test_delete_nonexistent_rule_returns_false(
+        self, async_session, current_user
+    ):
         """Test that deleting a non-existent rule returns False."""
         # Arrange
         repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
@@ -332,7 +340,9 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert counts.get("user_created", 0) == 2
         assert counts.get("system_default", 0) == 1
 
-    async def test_domain_to_model_mapping_preserves_all_fields(self, async_session, current_user):
+    async def test_domain_to_model_mapping_preserves_all_fields(
+        self, async_session, current_user
+    ):
         """Test that all domain fields are correctly mapped to model and back."""
         # Arrange
         repo = CounterAccountRuleRepositorySQLAlchemy(async_session, current_user)
@@ -383,4 +393,3 @@ class TestCounterAccountRuleRepositorySQLAlchemy:
         assert retrieved is not None
         assert retrieved.match_count == 1
         assert retrieved.last_matched_at is not None
-

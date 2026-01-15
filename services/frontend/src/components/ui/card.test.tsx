@@ -134,4 +134,3 @@ describe('Card composition', () => {
     expect(screen.getByRole('button', { name: /action/i })).toBeInTheDocument()
   })
 })
-

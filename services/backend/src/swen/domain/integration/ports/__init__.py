@@ -9,4 +9,3 @@ from swen.domain.integration.ports.ai_model_registry import AIModelRegistry
 __all__ = [
     "AIModelRegistry",
 ]
-

@@ -108,4 +108,3 @@ export function InlineAlert({ variant = 'info', children, className }: InlineAle
     </div>
   )
 }
-

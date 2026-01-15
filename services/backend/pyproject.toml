@@ -56,6 +56,9 @@ pytest-asyncio = ">=1.2"
 ipykernel = ">=6.0"
 httpx = "^0.28.1"
 ruff = "^0.14.10"
+pyright = "^1.1.391"
+pre-commit = "^4.5.1"
+detect-secrets = "^1.5.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -101,6 +104,7 @@ ignore = [
     "D203",  # 1 blank line required before class docstring (conflicts with D211)
     "D212",  # Multi-line docstring summary should start at first line (conflicts with D213)
     "D401",  # First line should be in imperative mood (too strict)
+    "COM812",  # Missing trailing comma (conflicts with formatter)
 ]
 extend-select = ["E501"]
 
@@ -124,7 +128,6 @@ convention = "numpy"
     "ERA001",   # Commented code OK in tests for documentation
     "A001",     # Variable shadowing builtins OK in tests (e.g., credits)
     "RUF100",   # Unused noqa (can happen during refactoring)
-    "RUF059",   # Unpacked variables not used (common in tuple unpacking)
     "F841",     # Local variable assigned but never used (setup for tests)
     "PT012",    # pytest.raises with multiple statements (sometimes needed)
     "PERF203",  # try-except in loop (acceptable in tests)
@@ -139,5 +142,5 @@ convention = "numpy"
     "INP001",   # Implicit namespace package (tests don't need __init__.py)
     "RUF015",   # Prefer next() over [0] (clarity in tests)
     "DTZ003",   # datetime.utcnow() deprecated (will fix separately)
-    "A006",     # Lambda shadowing builtins
+    "A006"      # Lambda shadowing builtins
 ]

@@ -2,7 +2,7 @@
 # ==============================
 # Run `make help` to see all available commands
 
-.PHONY: help install dev backend frontend build test lint secrets clean
+.PHONY: help install dev backend frontend build test lint secrets clean pre-commit
 
 # Default target
 help:
@@ -33,6 +33,8 @@ help:
 	@echo "  make lint-backend - Run Python linters (ruff)"
 	@echo "  make lint-frontend- Run frontend linter (eslint)"
 	@echo "  make format       - Format Python code"
+	@echo "  make pre-commit   - Run pre-commit on all files"
+	@echo "  make pre-commit-install - Install pre-commit hooks"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-init      - Initialize/create database tables"
@@ -120,6 +122,13 @@ lint-frontend:
 format:
 	cd services/backend && poetry run ruff format src/
 	cd services/backend && poetry run ruff check --fix src/
+
+pre-commit:
+	services/backend/.venv/bin/pre-commit run --all-files
+
+pre-commit-install:
+	cd services/backend && poetry add --group dev pre-commit
+	services/backend/.venv/bin/pre-commit install
 
 # =============================================================================
 # Database

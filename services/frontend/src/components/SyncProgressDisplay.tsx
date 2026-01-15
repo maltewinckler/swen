@@ -208,4 +208,3 @@ function getClassifyLabel(
   // Default/pending state
   return 'Classifying transactions'
 }
-

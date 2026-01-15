@@ -34,8 +34,6 @@ def adapter():
     return GeldstromAdapter()
 
 
-
-
 @pytest.fixture
 def mock_geldstrom_account():
     """Create geldstrom Account object."""
@@ -103,7 +101,9 @@ class TestAccountMapping:
         assert result.balance == Decimal("100.00")
 
     def test_map_account_extracts_account_number_from_id(
-        self, adapter, mock_geldstrom_account,
+        self,
+        adapter,
+        mock_geldstrom_account,
     ):
         """Should extract account number from account_id."""
         result = adapter._map_account_to_domain(mock_geldstrom_account)
@@ -491,4 +491,3 @@ class TestDatetimeToDateConversion:
         call_kwargs = mock_client.get_transactions.call_args.kwargs
         expected_today = datetime.now(tz=timezone.utc).date()
         assert call_kwargs["end_date"] == expected_today
-

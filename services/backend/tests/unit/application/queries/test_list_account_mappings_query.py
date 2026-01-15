@@ -188,4 +188,3 @@ class TestListAccountMappingsQueryDependencyInjection:
 
         assert query._mapping_repo is mock_mapping_repo
         assert query._account_repo is None
-

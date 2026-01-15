@@ -74,4 +74,3 @@ endlegend
 note "**Data Flow:**\nBank → BankTransaction → Integration → Transaction → Accounting\n\n**Integration Context** bridges the external banking world\nwith the internal accounting system, handling:\n• Account mapping (IBAN → Asset Account)\n• Duplicate detection\n• Internal transfer reconciliation\n• Counter-account resolution" as DataFlowNote
 
 @enduml
-

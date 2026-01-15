@@ -59,7 +59,9 @@ class TestRecommendedModels:
     def test_exactly_one_primary_model(self):
         """Test that exactly one model is marked as primary."""
         primary_count = sum(
-            1 for rec in OllamaModelRegistry.RECOMMENDED_MODELS.values() if rec.is_primary
+            1
+            for rec in OllamaModelRegistry.RECOMMENDED_MODELS.values()
+            if rec.is_primary
         )
         assert primary_count == 1
 
@@ -330,8 +332,20 @@ class TestPullModel:
         # Simulate streaming response lines
         progress_lines = [
             json.dumps({"status": "pulling manifest"}),
-            json.dumps({"status": "downloading", "completed": 500_000_000, "total": 1_000_000_000}),
-            json.dumps({"status": "downloading", "completed": 1_000_000_000, "total": 1_000_000_000}),
+            json.dumps(
+                {
+                    "status": "downloading",
+                    "completed": 500_000_000,
+                    "total": 1_000_000_000,
+                }
+            ),
+            json.dumps(
+                {
+                    "status": "downloading",
+                    "completed": 1_000_000_000,
+                    "total": 1_000_000_000,
+                }
+            ),
             json.dumps({"status": "success"}),
         ]
 
@@ -373,7 +387,13 @@ class TestPullModel:
     async def test_pull_model_with_progress_percentage(self, registry):
         """Test that download progress is calculated correctly."""
         progress_lines = [
-            json.dumps({"status": "downloading", "completed": 250_000_000, "total": 1_000_000_000}),
+            json.dumps(
+                {
+                    "status": "downloading",
+                    "completed": 250_000_000,
+                    "total": 1_000_000_000,
+                }
+            ),
         ]
 
         class MockStreamResponse:
@@ -604,4 +624,3 @@ class TestFindRecommendation:
         """Test when no recommendation matches."""
         rec = registry._find_recommendation("unknown-model:latest")
         assert rec is None
-

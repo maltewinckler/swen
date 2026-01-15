@@ -77,4 +77,3 @@ describe('LoadingScreen', () => {
     expect(container).toHaveClass('items-center', 'justify-center')
   })
 })
-

@@ -86,6 +86,7 @@ from swen.presentation.api.routers import (  # noqa: E402
     sync_router,
     transactions_router,
 )
+
 # IdentityBase is now same as Base
 from swen_config.settings import Settings  # noqa: E402
 
@@ -362,7 +363,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Initializing database schema...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
     logger.info("Database schema initialized successfully")
 
     # Check AI provider health

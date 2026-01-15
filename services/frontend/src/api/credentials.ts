@@ -217,4 +217,3 @@ export async function queryTANMethods(data: TANMethodQueryRequest): Promise<TANM
 export async function getBankConnectionDetails(blz: string): Promise<BankConnectionDetails> {
   return api.get<BankConnectionDetails>(`/credentials/${blz}/accounts`)
 }
-

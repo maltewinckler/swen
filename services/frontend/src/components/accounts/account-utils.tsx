@@ -101,4 +101,3 @@ export const accountTypeOrder: NormalizedAccountType[] = [
   'EXPENSE',
   'EQUITY',
 ]
-

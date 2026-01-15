@@ -246,7 +246,9 @@ class TestResponseParsing:
 
     def test_parse_json_with_reasoning_key(self, provider, groceries_option):
         """Test parsing JSON with 'reasoning' instead of 'reason'."""
-        response = '{"account_number": "4000", "confidence": 0.9, "reasoning": "Test reason"}'
+        response = (
+            '{"account_number": "4000", "confidence": 0.9, "reasoning": "Test reason"}'
+        )
         accounts = [groceries_option]
 
         result = provider._parse_response(response, accounts)
@@ -413,6 +415,7 @@ class TestOllamaAPICall:
 
         # Test that _call_ollama method exists and has correct signature
         import inspect
+
         sig = inspect.signature(provider._call_ollama)
         params = list(sig.parameters.keys())
         assert "prompt" in params
@@ -512,4 +515,3 @@ Answer with account number only."""
 
         assert "Simple prompt:" in prompt
         assert "Transaction: Test (50.00 EUR)" in prompt
-

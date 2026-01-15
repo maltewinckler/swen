@@ -118,4 +118,3 @@ export function WidgetErrorBoundary({ children, widgetName }: WidgetErrorBoundar
     </ErrorBoundary>
   )
 }
-

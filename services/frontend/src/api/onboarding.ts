@@ -30,4 +30,3 @@ export interface OnboardingStatus {
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return api.get<OnboardingStatus>('/onboarding/status')
 }
-

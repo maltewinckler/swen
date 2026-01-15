@@ -427,4 +427,3 @@ class TestDownloadProgressImmutability:
         )
 
         assert progress1 == progress2
-
