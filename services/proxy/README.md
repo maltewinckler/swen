@@ -12,9 +12,9 @@ Self-hosted deployment of SWEN (Secure Wallet & Expense Navigator) using Docker.
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/your-username/banking-bot.git
-cd banking-bot
-cp config/config.example.yaml config/config.yaml
+git clone https://github.com/maltewinckler/swen.git
+cd swen
+cp config/.env.example config/.env
 ```
 
 ### 2. Generate Secrets
@@ -26,17 +26,16 @@ docker compose run --rm --no-deps backend swen secrets generate
 
 ### 3. Edit Configuration
 
-Edit `config/config.yaml`:
+Edit `config/.env` with the generated secrets and your settings:
 
-```yaml
-encryption_key: "<generated-key>"
+```bash
+ENCRYPTION_KEY=<generated-key>
+JWT_SECRET_KEY=<generated-key>
+POSTGRES_PASSWORD=<generated-key>
 
-api:
-  jwt_secret_key: "<generated-key>"
-  debug: false
-  cookie_secure: true  # set false for local HTTP testing
-  cors_origins:
-    - "https://swen.example.com"
+# Your domain
+API_CORS_ORIGINS=https://swen.example.com
+API_COOKIE_SECURE=true
 ```
 
 ### 4. Configure Your Reverse Proxy

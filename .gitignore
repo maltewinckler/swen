@@ -59,6 +59,7 @@ _deprecated/
 docs/_untracked/
 docs/_specs/
 examples/
+!services/proxy/examples/
 # add institue list specifically
 config/fints_institute.csv
 

@@ -137,7 +137,7 @@ This guide covers running SWEN without Docker, directly on your machine. This is
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/your-username/swen.git
+   git clone https://github.com/maltewinckler/swen.git
    cd swen
    ```
 

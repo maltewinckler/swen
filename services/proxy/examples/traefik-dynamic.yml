@@ -1,0 +1,104 @@
+# SWEN - Traefik Dynamic Configuration
+#
+# This file defines routers, services, and middlewares for SWEN.
+# Place this file where your static config references it (e.g., /etc/traefik/dynamic.yml)
+#
+# Adjust service URLs based on your setup:
+#   - Docker same network: use container names (swen-backend, swen-frontend)
+#   - Host networking: use localhost with ports
+#   - External: use appropriate IP/hostname
+
+http:
+  # ==========================================================================
+  # Routers
+  # ==========================================================================
+  routers:
+    # API routes → Backend
+    swen-api:
+      rule: "Host(`swen.example.com`) && PathPrefix(`/api`)"
+      entryPoints:
+        - websecure
+      service: swen-backend
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: letsencrypt
+
+    # Health check → Backend
+    swen-health:
+      rule: "Host(`swen.example.com`) && Path(`/health`)"
+      entryPoints:
+        - websecure
+      service: swen-backend
+      tls:
+        certResolver: letsencrypt
+
+    # Frontend (catch-all)
+    swen-frontend:
+      rule: "Host(`swen.example.com`)"
+      entryPoints:
+        - websecure
+      service: swen-frontend
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: letsencrypt
+      # Lower priority so API routes match first
+      priority: 1
+
+  # ==========================================================================
+  # Services
+  # ==========================================================================
+  services:
+    swen-backend:
+      loadBalancer:
+        servers:
+          # For Docker on same network:
+          - url: "http://swen-backend:8000"
+          # For host networking:
+          # - url: "http://localhost:8000"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 10s
+        # Extended timeout for bank sync (TAN can take up to 5 minutes)
+        responseForwarding:
+          flushInterval: 100ms
+        passHostHeader: true
+
+    swen-frontend:
+      loadBalancer:
+        servers:
+          # For Docker on same network:
+          - url: "http://swen-frontend:3000"
+          # For host networking:
+          # - url: "http://localhost:3000"
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 10s
+
+  # ==========================================================================
+  # Middlewares
+  # ==========================================================================
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          X-Frame-Options: "SAMEORIGIN"
+
+# ==========================================================================
+# Transport Configuration (for extended timeouts)
+# ==========================================================================
+# Note: Traefik v2 uses serversTransport for timeout configuration
+serversTransports:
+  swen-backend-transport:
+    # Extended timeouts for bank sync TAN process (up to 5 minutes)
+    forwardingTimeouts:
+      dialTimeout: 60s
+      responseHeaderTimeout: 360s
+      idleConnTimeout: 90s
