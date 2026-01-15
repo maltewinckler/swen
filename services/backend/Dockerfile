@@ -31,7 +31,7 @@ RUN poetry install --only main --no-interaction --no-ansi --no-root
 
 # Copy source code
 COPY services/backend/src/swen ./src/swen
-COPY services/backend/src/swen_auth ./src/swen_auth
+COPY services/backend/src/swen_identity ./src/swen_identity
 COPY services/backend/src/swen_config ./src/swen_config
 
 # Install the project itself
@@ -57,7 +57,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY --from=builder /app/src/swen /app/src/swen
-COPY --from=builder /app/src/swen_auth /app/src/swen_auth
+COPY --from=builder /app/src/swen_identity /app/src/swen_identity
 COPY --from=builder /app/src/swen_config /app/src/swen_config
 
 # Set Python path
