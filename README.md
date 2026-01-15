@@ -18,6 +18,25 @@ SWEN allows you to:
 
 > **Dependencies Note**: The backend depends on a python package [geldstrom](https://github.com/maltewinckler/geldstrom) which is *greatly* inspired by the OG FinTS implementation [python-fints](https://github.com/raphaelm/python-fints) with a reduced functionality set for SWEN. This is still under development.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/screenshots/dashboard.png" alt="Dashboard" width="100%">
+</p>
+
+<p align="center">
+  <em>Dashboard with expense breakdown, income trends, and account balances</em>
+</p>
+
+<details>
+<summary>📱 Mobile View</summary>
+
+<p align="center">
+  <img src="docs/images/screenshots/dashboard_mobile.png" alt="Dashboard Mobile" width="350">
+</p>
+
+</details>
+
 ## Getting Started (Local Development)
 
 Below you can find two different deployment guides: One for the production usage with Docker and one for barebone install, best suited for development and testing purposes.

@@ -5,8 +5,9 @@ description = "SWEN - Personal finance management backend"
 authors = ["Malte Winckler <malte@nichts-ist-einfach.de>"]
 packages = [
     { include = "swen", from = "src" },
-    { include = "swen_auth", from = "src" },
+    { include = "swen_identity", from = "src" },
     { include = "swen_config", from = "src" },
+    { include = "swen_demo", from = "src" },
 ]
 
 [tool.poetry.dependencies]
@@ -44,6 +45,8 @@ swen-api = "uvicorn:main"
 db-init = "swen.infrastructure.persistence.sqlalchemy.init_db:db_init"
 db-drop = "swen.infrastructure.persistence.sqlalchemy.init_db:db_drop"
 db-reset = "swen.infrastructure.persistence.sqlalchemy.init_db:db_reset"
+# Demo data
+seed-demo = "swen_demo.seed:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.2,<9"
