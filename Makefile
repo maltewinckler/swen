@@ -37,6 +37,7 @@ help:
 	@echo "Database:"
 	@echo "  make db-init      - Initialize/create database tables"
 	@echo "  make db-reset     - Reset database (WARNING: deletes data)"
+	@echo "  make seed-demo    - Create demo user with sample transactions"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make secrets      - Generate encryption key and JWT secret"
@@ -126,15 +127,19 @@ format:
 
 db-init:
 	@echo "Initializing database tables..."
-	cd services/backend && poetry run python -m swen.infrastructure.persistence.sqlalchemy.init_db
+	cd services/backend && poetry run db-init
 
 db-reset:
 	@echo "Resetting PostgreSQL database..."
-	cd services/backend && poetry run python -m swen.infrastructure.persistence.sqlalchemy.init_db --reset
+	cd services/backend && poetry run db-reset
 
 db-reset-force:
 	@echo "Resetting PostgreSQL database (no confirmation)..."
-	cd services/backend && poetry run python -m swen.infrastructure.persistence.sqlalchemy.init_db --reset --force
+	cd services/backend && poetry run db-reset --force
+
+seed-demo:
+	@echo "Seeding demo data for screenshots..."
+	cd services/backend && poetry run seed-demo
 
 # =============================================================================
 # Utilities

@@ -48,7 +48,7 @@ function UserDropdownContent({ onLogout }: { onLogout: () => void }) {
   return (
     <>
       <DropdownMenuItem asChild>
-        <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+        <Link to="/settings" search={{ section: null }} className="flex items-center gap-2 cursor-pointer">
           <Settings className="h-4 w-4" />
           Settings
         </Link>
