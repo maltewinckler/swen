@@ -11,7 +11,8 @@ export { tryRefreshToken as tryRefresh }
  * We only store the access token in memory.
  */
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
-  const response = await api.post<AuthResponse>('/auth/login', credentials)
+  // Skip auth refresh - login should show actual error, not "session expired"
+  const response = await api.post<AuthResponse>('/auth/login', credentials, { skipAuthRefresh: true })
   setAccessToken(response.access_token)
   return response
 }
@@ -23,7 +24,8 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
  * We only store the access token in memory.
  */
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
-  const response = await api.post<AuthResponse>('/auth/register', data)
+  // Skip auth refresh - register should show actual error, not "session expired"
+  const response = await api.post<AuthResponse>('/auth/register', data, { skipAuthRefresh: true })
   setAccessToken(response.access_token)
   return response
 }

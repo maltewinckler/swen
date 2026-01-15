@@ -19,8 +19,12 @@ import logging
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from swen.application.factories import BankImportTransactionFactory
+from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services.bank_account_import_service import (
     BankAccountImportService,
+)
+from swen.application.services.opening_balance_adjustment_service import (
+    OpeningBalanceAdjustmentService,
 )
 from swen.application.services.transfer_reconciliation_service import (
     TransferContext,
@@ -38,8 +42,8 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -91,6 +95,7 @@ class TransactionImportService:
         bank_account_import_service: BankAccountImportService,
         counter_account_resolution_service: CounterAccountResolutionService,
         transfer_reconciliation_service: TransferReconciliationService,
+        opening_balance_adjustment_service: OpeningBalanceAdjustmentService,
         transaction_factory: BankImportTransactionFactory,
         account_repository: AccountRepository,
         transaction_repository: TransactionRepository,
@@ -101,6 +106,7 @@ class TransactionImportService:
         self._bank_account_service = bank_account_import_service
         self._counter_account_service = counter_account_resolution_service
         self._transfer_service = transfer_reconciliation_service
+        self._ob_adjustment_service = opening_balance_adjustment_service
         self._factory = transaction_factory
         self._account_repo = account_repository
         self._transaction_repo = transaction_repository
@@ -119,10 +125,13 @@ class TransactionImportService:
             ai_provider=ai_provider,
         )
 
+        ob_query = OpeningBalanceQuery.from_factory(factory)
+
         transfer_service = TransferReconciliationService(
             transaction_repository=factory.transaction_repository(),
             mapping_repository=factory.account_mapping_repository(),
             account_repository=factory.account_repository(),
+            opening_balance_query=ob_query,
         )
 
         transaction_factory = BankImportTransactionFactory(
@@ -130,10 +139,18 @@ class TransactionImportService:
             ai_provider=ai_provider,
         )
 
+        ob_adjustment_service = OpeningBalanceAdjustmentService(
+            account_repository=factory.account_repository(),
+            transaction_repository=factory.transaction_repository(),
+            opening_balance_query=ob_query,
+            current_user=factory.current_user,
+        )
+
         return cls(
             bank_account_import_service=BankAccountImportService.from_factory(factory),
             counter_account_resolution_service=counter_account_service,
             transfer_reconciliation_service=transfer_service,
+            opening_balance_adjustment_service=ob_adjustment_service,
             transaction_factory=transaction_factory,
             account_repository=factory.account_repository(),
             transaction_repository=factory.transaction_repository(),
@@ -208,80 +225,142 @@ class TransactionImportService:
             status=ImportStatus.PENDING,
         )
 
-        if bank_transaction.amount == 0:
-            import_record.mark_as_skipped("Skipping zero-amount bank transaction")
-            await self._import_repo.save(import_record)
-            return TransactionImportResult(
-                bank_transaction=bank_transaction,
-                status=ImportStatus.SKIPPED,
-                error_message="Skipping zero-amount bank transaction",
-            )
-
-        if bank_transaction.currency != "EUR":
-            import_record.mark_as_skipped(
-                f"Unsupported currency: {bank_transaction.currency}",
-            )
-            await self._import_repo.save(import_record)
-            return TransactionImportResult(
-                bank_transaction=bank_transaction,
-                status=ImportStatus.SKIPPED,
-                error_message=f"Unsupported currency: {bank_transaction.currency}",
-            )
+        skip_result = await self._check_skip_conditions(bank_transaction, import_record)
+        if skip_result:
+            return skip_result
 
         try:
-            asset_account = (
-                await self._bank_account_service.get_or_create_asset_account(
-                    iban=source_iban,
-                )
-            )
-
-            transfer_context = await self._transfer_service.detect_transfer(
-                bank_transaction,
-            )
-
-            if transfer_context.can_reconcile:
-                result = await self._try_reconcile(
-                    bank_transaction=bank_transaction,
-                    source_iban=source_iban,
-                    transfer_context=transfer_context,
-                    asset_account=asset_account,
-                    import_record=import_record,
-                )
-                if result:
-                    return result
-
-            counter_account, resolution_result = await self._resolve_counter_account(
+            return await self._process_import(
                 bank_transaction=bank_transaction,
-                transfer_context=transfer_context,
-            )
-
-            accounting_tx = self._factory.create(
-                bank_transaction=bank_transaction,
-                asset_account=asset_account,
-                counter_account=counter_account,
                 source_iban=source_iban,
-                is_internal_transfer=transfer_context.is_internal_transfer,
-                resolution_result=resolution_result,
+                import_record=import_record,
+                auto_post=auto_post,
             )
-
-            if auto_post:
-                accounting_tx.post()
-
-            async def _persist_success() -> None:
-                await self._transaction_repo.save(accounting_tx)
-                import_record.mark_as_imported(accounting_tx.id)
-                await self._import_repo.save(import_record)
-
-            await self._run_atomically(_persist_success)
-
-            return TransactionImportResult(
-                bank_transaction=bank_transaction,
-                status=ImportStatus.SUCCESS,
-                accounting_transaction=accounting_tx,
-            )
-
         except Exception as e:
             return await self._handle_failure(bank_transaction, import_record, e)
+
+    async def _check_skip_conditions(
+        self,
+        bank_transaction: BankTransaction,
+        import_record: TransactionImport,
+    ) -> TransactionImportResult | None:
+        skip_reason = None
+
+        if bank_transaction.amount == 0:
+            skip_reason = "Skipping zero-amount bank transaction"
+        elif bank_transaction.currency != "EUR":
+            skip_reason = f"Unsupported currency: {bank_transaction.currency}"
+
+        if skip_reason:
+            import_record.mark_as_skipped(skip_reason)
+            await self._import_repo.save(import_record)
+            return TransactionImportResult(
+                bank_transaction=bank_transaction,
+                status=ImportStatus.SKIPPED,
+                error_message=skip_reason,
+            )
+
+        return None
+
+    async def _process_import(
+        self,
+        bank_transaction: BankTransaction,
+        source_iban: str,
+        import_record: TransactionImport,
+        auto_post: bool,
+    ) -> TransactionImportResult:
+        asset_account = await self._bank_account_service.get_or_create_asset_account(
+            iban=source_iban,
+        )
+
+        transfer_context = await self._transfer_service.detect_transfer(
+            bank_transaction,
+        )
+
+        if transfer_context.can_reconcile:
+            result = await self._try_reconcile(
+                bank_transaction=bank_transaction,
+                source_iban=source_iban,
+                transfer_context=transfer_context,
+                asset_account=asset_account,
+                import_record=import_record,
+            )
+            if result:
+                return result
+
+        counter_account, resolution_result = await self._resolve_counter_account(
+            bank_transaction=bank_transaction,
+            transfer_context=transfer_context,
+        )
+
+        accounting_tx = self._factory.create(
+            bank_transaction=bank_transaction,
+            asset_account=asset_account,
+            counter_account=counter_account,
+            source_iban=source_iban,
+            is_internal_transfer=transfer_context.is_internal_transfer,
+            resolution_result=resolution_result,
+        )
+
+        if auto_post:
+            accounting_tx.post()
+
+        await self._persist_with_ob_adjustment(
+            accounting_tx=accounting_tx,
+            bank_transaction=bank_transaction,
+            source_iban=source_iban,
+            transfer_context=transfer_context,
+            import_record=import_record,
+        )
+
+        return TransactionImportResult(
+            bank_transaction=bank_transaction,
+            status=ImportStatus.SUCCESS,
+            accounting_transaction=accounting_tx,
+        )
+
+    async def _persist_with_ob_adjustment(
+        self,
+        accounting_tx: Transaction,
+        bank_transaction: BankTransaction,
+        source_iban: str,
+        transfer_context: TransferContext,
+        import_record: TransactionImport,
+    ) -> None:
+        needs_ob_adjustment = (
+            transfer_context.is_internal_transfer
+            and transfer_context.counterparty_account is not None
+            and transfer_context.is_pre_opening_balance(bank_transaction.booking_date)
+        )
+
+        transfer_hash = None
+        if bank_transaction.applicant_iban:
+            transfer_hash = bank_transaction.compute_transfer_identity_hash(
+                source_iban,
+                bank_transaction.applicant_iban,
+            )
+
+        async def _persist() -> None:
+            await self._transaction_repo.save(accounting_tx)
+            import_record.mark_as_imported(accounting_tx.id)
+            await self._import_repo.save(import_record)
+
+            if (
+                needs_ob_adjustment
+                and transfer_context.counterparty_account is not None
+                and transfer_context.counterparty_iban is not None
+            ):
+                await self._ob_adjustment_service.create_adjustment_if_needed(
+                    counterparty_account=transfer_context.counterparty_account,
+                    counterparty_iban=transfer_context.counterparty_iban,
+                    transfer_amount=abs(bank_transaction.amount),
+                    transfer_date=bank_transaction.booking_date,
+                    # Money OUT from source = INCOMING to counterparty
+                    is_incoming_to_counterparty=bank_transaction.is_debit(),
+                    transfer_hash=transfer_hash,
+                )
+
+        await self._run_atomically(_persist)
 
     async def _is_already_imported(self, bank_transaction_id) -> bool:
         existing = await self._import_repo.find_by_bank_transaction_id(

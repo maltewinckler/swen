@@ -22,6 +22,9 @@ from swen.domain.accounting.services.account_balance_service import (
 from swen.domain.accounting.value_objects.category_code import CategoryCode
 from swen.domain.accounting.value_objects.money import Money
 
+# Well-known accounts
+from swen.domain.accounting.well_known_accounts import WellKnownAccounts
+
 __all__ = [
     # Value Objects
     "Money",
@@ -37,4 +40,6 @@ __all__ = [
     "TransactionRepository",
     # Domain Services
     "AccountBalanceService",
+    # Well-known accounts
+    "WellKnownAccounts",
 ]

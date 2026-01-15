@@ -41,6 +41,8 @@ export class ApiRequestError extends Error {
 
 interface FetchOptions extends RequestInit {
   timeout?: number
+  /** Skip the automatic token refresh on 401 (for login/register endpoints) */
+  skipAuthRefresh?: boolean
 }
 
 /**
@@ -85,7 +87,7 @@ async function fetchWithAuth<T>(
   endpoint: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options
+  const { timeout = DEFAULT_TIMEOUT, skipAuthRefresh = false, ...fetchOptions } = options
   const startTime = Date.now()
   const token = getAccessToken()
   const headers = buildHeaders(fetchOptions.headers, token)
@@ -104,8 +106,8 @@ async function fetchWithAuth<T>(
 
     clearTimeout(timeoutId)
 
-    // Handle 401 - try to refresh token
-    if (response.status === 401) {
+    // Handle 401 - try to refresh token (unless skipAuthRefresh is set)
+    if (response.status === 401 && !skipAuthRefresh) {
       const refreshed = await tryRefreshToken()
       if (refreshed) {
         // Calculate remaining timeout for retry

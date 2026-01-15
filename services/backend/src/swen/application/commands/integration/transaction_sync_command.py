@@ -22,6 +22,7 @@ from swen.domain.accounting.services import (
     OPENING_BALANCE_IBAN_KEY,
     OpeningBalanceService,
 )
+from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.repositories import (
     BankAccountRepository,
@@ -46,8 +47,8 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,
@@ -83,9 +84,6 @@ class _SyncContext:
 
 class TransactionSyncCommand:
     """Coordinate bank fetch, TAN handling, import, and opening balance logic."""
-
-    # Account number for the Opening Balance equity account
-    OPENING_BALANCE_ACCOUNT_NUMBER = "2000"
 
     def __init__(  # noqa: PLR0913
         self,
@@ -748,12 +746,12 @@ class TransactionSyncCommand:
             return None
 
         opening_balance_account = await self._account_repo.find_by_account_number(
-            self.OPENING_BALANCE_ACCOUNT_NUMBER,
+            WellKnownAccounts.OPENING_BALANCE_EQUITY,
         )
         if not opening_balance_account:
             logger.warning(
                 "Cannot create opening balance: equity account %s not found.",
-                self.OPENING_BALANCE_ACCOUNT_NUMBER,
+                WellKnownAccounts.OPENING_BALANCE_EQUITY,
             )
             return None
 

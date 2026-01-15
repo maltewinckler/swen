@@ -10,7 +10,12 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
+from swen.application.ports.identity import CurrentUser
+from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services import TransactionImportService
+from swen.application.services.opening_balance_adjustment_service import (
+    OpeningBalanceAdjustmentService,
+)
 from swen.application.services.transfer_reconciliation_service import (
     TransferReconciliationService,
 )
@@ -21,7 +26,6 @@ from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transaction_repository import (
     StoredBankTransaction,
 )
-from swen.application.ports.identity import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
@@ -101,21 +105,28 @@ async def test_import_persists_success_atomically_when_session_provided():
     resolution_result = MagicMock(spec=ResolutionResult)
     resolution_result.account = income_account
     resolution_result.has_ai_result = False
-    counter_account_resolution_service.resolve_counter_account_with_details.return_value = (
-        resolution_result
-    )
+    counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
 
+    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
         mapping_repository=mapping_repo,
         account_repository=account_repo,
+        opening_balance_query=ob_query,
     )
     transaction_factory = BankImportTransactionFactory(current_user=current_user)
+    ob_adjustment_service = OpeningBalanceAdjustmentService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        opening_balance_query=ob_query,
+        current_user=current_user,
+    )
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
+        opening_balance_adjustment_service=ob_adjustment_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,
@@ -180,21 +191,28 @@ async def test_import_does_not_start_nested_transaction_when_already_in_transact
     resolution_result = MagicMock(spec=ResolutionResult)
     resolution_result.account = income_account
     resolution_result.has_ai_result = False
-    counter_account_resolution_service.resolve_counter_account_with_details.return_value = (
-        resolution_result
-    )
+    counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
 
+    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
         mapping_repository=mapping_repo,
         account_repository=account_repo,
+        opening_balance_query=ob_query,
     )
     transaction_factory = BankImportTransactionFactory(current_user=current_user)
+    ob_adjustment_service = OpeningBalanceAdjustmentService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        opening_balance_query=ob_query,
+        current_user=current_user,
+    )
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
+        opening_balance_adjustment_service=ob_adjustment_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,

@@ -472,3 +472,244 @@ class TestGetEarliestTransactionDate:
         assert result.minute == 0
         assert result.second == 0
         assert result.tzinfo == timezone.utc
+
+
+class TestCreateOpeningBalanceAdjustment:
+    """Tests for create_opening_balance_adjustment method."""
+
+    @pytest.fixture
+    def service(self) -> OpeningBalanceService:
+        """Create service instance."""
+        return OpeningBalanceService()
+
+    @pytest.fixture
+    def asset_account(self) -> Account:
+        """Create sample asset account."""
+        return Account(
+            name="DKB Checking",
+            account_type=AccountType.ASSET,
+            account_number="1000",
+            user_id=TEST_USER_ID,
+            default_currency=Currency("EUR"),
+        )
+
+    @pytest.fixture
+    def equity_account(self) -> Account:
+        """Create sample equity account for opening balance."""
+        return Account(
+            name="Anfangssaldo",
+            account_type=AccountType.EQUITY,
+            account_number="3000",
+            user_id=TEST_USER_ID,
+            default_currency=Currency("EUR"),
+        )
+
+    def test_create_positive_adjustment_reduces_opening_balance(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """
+        Positive adjustment should reduce opening balance.
+
+        This happens when an incoming transfer to the asset account is discovered
+        that predates the account's opening balance. The OB already includes this
+        money, so we need to reduce it.
+        """
+        adjustment_date = datetime(2025, 1, 15, tzinfo=timezone.utc)
+        iban = "DE89370400440532013000"
+
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("700.00"),  # Positive = reduce OB
+            adjustment_date=adjustment_date,
+            iban=iban,
+            user_id=TEST_USER_ID,
+            related_transfer_hash="abc123",
+        )
+
+        assert txn is not None
+        assert txn.is_posted is True
+        assert "Opening Balance Adjustment" in txn.description
+
+        # Check entries: Debit Equity, Credit Asset (reduces OB)
+        entries = txn.entries
+        assert len(entries) == 2
+
+        debit_entry = next(e for e in entries if e.is_debit())
+        credit_entry = next(e for e in entries if not e.is_debit())
+
+        assert debit_entry.account == equity_account
+        assert debit_entry.debit.amount == Decimal("700.00")
+
+        assert credit_entry.account == asset_account
+        assert credit_entry.credit.amount == Decimal("700.00")
+
+    def test_create_negative_adjustment_increases_opening_balance(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """
+        Negative adjustment should increase opening balance.
+
+        This happens when an outgoing transfer from the asset account is discovered
+        that predates the account's opening balance. The OB doesn't include this
+        money (it left before), so we need to increase it.
+        """
+        adjustment_date = datetime(2025, 1, 15, tzinfo=timezone.utc)
+        iban = "DE89370400440532013000"
+
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("-500.00"),  # Negative = increase OB
+            adjustment_date=adjustment_date,
+            iban=iban,
+            user_id=TEST_USER_ID,
+        )
+
+        assert txn is not None
+        assert txn.is_posted is True
+
+        # Check entries: Debit Asset, Credit Equity (increases OB)
+        entries = txn.entries
+        assert len(entries) == 2
+
+        debit_entry = next(e for e in entries if e.is_debit())
+        credit_entry = next(e for e in entries if not e.is_debit())
+
+        assert debit_entry.account == asset_account
+        assert debit_entry.debit.amount == Decimal("500.00")
+
+        assert credit_entry.account == equity_account
+        assert credit_entry.credit.amount == Decimal("500.00")
+
+    def test_zero_adjustment_returns_none(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """Should return None for zero adjustment amount."""
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("0.00"),
+            adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+            iban="DE89370400440532013000",
+            user_id=TEST_USER_ID,
+        )
+
+        assert txn is None
+
+    def test_adjustment_includes_transfer_hash_in_metadata(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """Should include transfer hash in metadata for idempotency."""
+        transfer_hash = "transfer_hash_12345"
+
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("100.00"),
+            adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+            iban="DE89370400440532013000",
+            user_id=TEST_USER_ID,
+            related_transfer_hash=transfer_hash,
+        )
+
+        assert txn is not None
+        assert txn.get_metadata_raw("transfer_identity_hash") == transfer_hash
+
+    def test_adjustment_includes_iban_in_metadata(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """Should include IBAN in metadata."""
+        iban = "DE89370400440532013000"
+
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("100.00"),
+            adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+            iban=iban,
+            user_id=TEST_USER_ID,
+        )
+
+        assert txn is not None
+        assert txn.get_metadata_raw("opening_balance_iban") == iban
+
+    def test_adjustment_transaction_is_balanced(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+        equity_account: Account,
+    ):
+        """Adjustment transaction should be balanced."""
+        txn = service.create_opening_balance_adjustment(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=Decimal("1234.56"),
+            adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+            iban="DE89370400440532013000",
+            user_id=TEST_USER_ID,
+        )
+
+        assert txn is not None
+        assert txn.is_balanced()
+
+    def test_reject_non_asset_account(
+        self,
+        service: OpeningBalanceService,
+        equity_account: Account,
+    ):
+        """Should reject if asset_account is not ASSET type."""
+        expense_account = Account(
+            name="Expenses",
+            account_type=AccountType.EXPENSE,
+            account_number="4000",
+            user_id=TEST_USER_ID,
+        )
+
+        with pytest.raises(InvalidAccountTypeError):
+            service.create_opening_balance_adjustment(
+                asset_account=expense_account,
+                opening_balance_account=equity_account,
+                adjustment_amount=Decimal("100.00"),
+                adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+                iban="DE89370400440532013000",
+                user_id=TEST_USER_ID,
+            )
+
+    def test_reject_non_equity_account(
+        self,
+        service: OpeningBalanceService,
+        asset_account: Account,
+    ):
+        """Should reject if opening_balance_account is not EQUITY type."""
+        income_account = Account(
+            name="Income",
+            account_type=AccountType.INCOME,
+            account_number="5000",
+            user_id=TEST_USER_ID,
+        )
+
+        with pytest.raises(InvalidAccountTypeError):
+            service.create_opening_balance_adjustment(
+                asset_account=asset_account,
+                opening_balance_account=income_account,
+                adjustment_amount=Decimal("100.00"),
+                adjustment_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+                iban="DE89370400440532013000",
+                user_id=TEST_USER_ID,
+            )

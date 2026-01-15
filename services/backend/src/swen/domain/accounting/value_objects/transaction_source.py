@@ -8,15 +8,12 @@ from enum import Enum
 
 
 class TransactionSource(str, Enum):
-    """Origin of the transaction.
-
-    Uses (str, Enum) for Python 3.10 compatibility (StrEnum is 3.11+).
-    The string inheritance allows direct JSON serialization.
-    """
+    """Origin of the transaction."""
 
     BANK_IMPORT = "bank_import"
     MANUAL = "manual"
     OPENING_BALANCE = "opening_balance"
+    OPENING_BALANCE_ADJUSTMENT = "opening_balance_adjustment"
     REVERSAL = "reversal"
 
     @classmethod
