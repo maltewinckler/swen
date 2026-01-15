@@ -77,7 +77,7 @@ class OpeningBalanceService:
         net_change = sum(txn.amount for txn in bank_transactions)
         return current_balance - net_change
 
-    def create_opening_balance_transaction(
+    def create_opening_balance_transaction(  # NOQA: PLR0913
         self,
         asset_account: Account,
         opening_balance_account: Account,
@@ -112,7 +112,7 @@ class OpeningBalanceService:
 
         # If opening balance is zero, we don't create a transaction.
         # Creating two zero-amount journal entries is not useful and can cause
-        # ambiguity in downstream logic (and is disallowed by the Transaction aggregate).
+        # ambiguity in downstream logic (and is disallowed in Transaction aggregate).
         if amount == 0:
             return None
 
@@ -169,3 +169,77 @@ class OpeningBalanceService:
             datetime.min.time(),
             tzinfo=timezone.utc,
         )
+
+    def create_opening_balance_adjustment(  # NOQA: PLR0913
+        self,
+        asset_account: Account,
+        opening_balance_account: Account,
+        adjustment_amount: Decimal,
+        adjustment_date: datetime,
+        iban: str,
+        user_id: UUID,
+        related_transfer_hash: str | None = None,
+    ) -> Transaction | None:
+        """
+        Create an opening balance adjustment transaction.
+
+        This is used when we discover internal transfers that predate the
+        destination account's opening balance. The adjustment corrects the
+        opening balance to account for the newly discovered internal source.
+
+        For an incoming transfer of X EUR to the asset account:
+        - The asset's opening balance already implicitly includes this money
+        - We're adding a debit via the internal transfer
+        - So we must REDUCE the opening balance: Debit Equity, Credit Asset
+
+        For an outgoing transfer of X EUR from the asset account:
+        - The asset's opening balance doesn't include this money (it left)
+        - We're adding a credit via the internal transfer
+        - So we must INCREASE the opening balance: Debit Asset, Credit Equity
+
+        This solution is a result from issue #2026-01-15-account-reconciliation-bug.
+        """
+        if asset_account.account_type != AccountType.ASSET:
+            raise InvalidAccountTypeError(
+                str(asset_account.account_type),
+                ["ASSET"],
+            )
+
+        if opening_balance_account.account_type != AccountType.EQUITY:
+            raise InvalidAccountTypeError(
+                str(opening_balance_account.account_type),
+                ["EQUITY"],
+            )
+
+        if adjustment_amount == 0:
+            return None
+
+        metadata = TransactionMetadata(
+            source=TransactionSource.OPENING_BALANCE_ADJUSTMENT,
+            is_opening_balance=False,
+            opening_balance_iban=iban,
+            transfer_identity_hash=related_transfer_hash,
+        )
+
+        txn = Transaction(
+            description=f"Opening Balance Adjustment - {asset_account.name}",
+            user_id=user_id,
+            date=adjustment_date,
+        )
+        txn.set_metadata(metadata)
+
+        money = Money(amount=str(abs(adjustment_amount)), currency="EUR")
+
+        if adjustment_amount > 0:
+            # Reduce opening balance: Debit Equity, Credit Asset
+            txn.add_debit(opening_balance_account, money)
+            txn.add_credit(asset_account, money)
+        else:
+            # Increase opening balance: Debit Asset, Credit Equity
+            txn.add_debit(asset_account, money)
+            txn.add_credit(opening_balance_account, money)
+
+        # Auto-post system-generated entry
+        txn.post()
+
+        return txn

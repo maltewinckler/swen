@@ -12,8 +12,8 @@ from swen.domain.integration.entities import AccountMapping
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import AccountRepository
     from swen.domain.integration.repositories import AccountMappingRepository
 

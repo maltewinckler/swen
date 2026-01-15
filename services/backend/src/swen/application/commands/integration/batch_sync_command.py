@@ -18,6 +18,7 @@ from swen.application.dtos.integration import (
     SyncStartedEvent,
 )
 from swen.application.queries import ListAccountMappingsQuery
+from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.iban import extract_blz_from_iban
@@ -25,10 +26,6 @@ from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-
-
-# Required account for opening balance creation
-OPENING_BALANCE_ACCOUNT_NUMBER = "2000"
 
 
 class BatchSyncCommand:
@@ -52,7 +49,7 @@ class BatchSyncCommand:
     async def from_factory(cls, factory: RepositoryFactory) -> BatchSyncCommand:
         account_repo = factory.account_repository()
         opening_balance_account = await account_repo.find_by_account_number(
-            OPENING_BALANCE_ACCOUNT_NUMBER,
+            WellKnownAccounts.OPENING_BALANCE_EQUITY,
         )
 
         return cls(

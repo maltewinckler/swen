@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date
 from typing import TYPE_CHECKING, Optional
 
+from swen.application.queries.integration import OpeningBalanceQuery
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType, JournalEntry
 from swen.domain.accounting.services import (
@@ -32,6 +34,7 @@ class TransferContext:
 
     counterparty_iban: str | None
     counterparty_account: Account | None
+    counterparty_opening_balance_date: date | None = None
 
     @property
     def is_internal_transfer(self) -> bool:
@@ -55,6 +58,17 @@ class TransferContext:
     def can_reconcile(self) -> bool:
         return self.is_asset_transfer and self.counterparty_iban is not None
 
+    def is_pre_opening_balance(self, transaction_date: date) -> bool:
+        """
+        Check if a transaction date predates the counterparty's opening balance.
+
+        This is used to determine if an internal transfer requires an opening
+        balance adjustment on the counterparty account.
+        """
+        if self.counterparty_opening_balance_date is None:
+            return False
+        return transaction_date < self.counterparty_opening_balance_date
+
     @classmethod
     def not_a_transfer(cls) -> TransferContext:
         return cls(counterparty_iban=None, counterparty_account=None)
@@ -72,10 +86,12 @@ class TransferReconciliationService:
         transaction_repository: TransactionRepository,
         mapping_repository: AccountMappingRepository,
         account_repository: AccountRepository,
+        opening_balance_query: OpeningBalanceQuery | None = None,
     ):
         self._transaction_repo: TransactionRepository = transaction_repository
         self._mapping_repo: AccountMappingRepository = mapping_repository
         self._account_repo: AccountRepository = account_repository
+        self._ob_query = opening_balance_query
 
     async def detect_transfer(
         self,
@@ -93,9 +109,17 @@ class TransferReconciliationService:
             counterparty_mapping.accounting_account_id,
         )
 
+        # Fetch the counterparty's opening balance date for pre-OB transfer detection
+        counterparty_ob_date = None
+        if self._ob_query is not None:
+            counterparty_ob_date = await self._ob_query.get_date_for_iban(
+                counterparty_iban,
+            )
+
         return TransferContext(
             counterparty_iban=counterparty_iban,
             counterparty_account=counterparty_account,
+            counterparty_opening_balance_date=counterparty_ob_date,
         )
 
     async def find_matching_transfer(
