@@ -67,3 +67,4 @@ config/fints_institute.csv
 
 # Data exports
 **.csv
+services/frontend/coverage/
