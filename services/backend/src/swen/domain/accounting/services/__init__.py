@@ -7,7 +7,7 @@ from swen.domain.accounting.services.account_hierarchy_service import (
     AccountHierarchyService,
 )
 from swen.domain.accounting.services.opening_balance_service import (
-    # Deprecated: Use MetadataKeys.IS_OPENING_BALANCE and MetadataKeys.OPENING_BALANCE_IBAN
+    # Deprecated: Use MetadataKeys instead
     OPENING_BALANCE_IBAN_KEY,
     OPENING_BALANCE_METADATA_KEY,
     OpeningBalanceService,

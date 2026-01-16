@@ -1,7 +1,7 @@
 {
   "include": [
     "services/backend/src/swen",
-    "services/backend/src/swen_auth",
+    "services/backend/src/swen_identity",
     "services/backend/src/swen_config",
     "services/backend/tests"
   ],

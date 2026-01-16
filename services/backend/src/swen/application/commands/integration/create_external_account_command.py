@@ -17,8 +17,8 @@ from swen.domain.shared.exceptions import ValidationError
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,

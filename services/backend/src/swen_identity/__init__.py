@@ -12,11 +12,7 @@ The core SWEN domain (accounting, banking) only references user_id,
 keeping identity concerns separated.
 """
 
-# Domain - User aggregate and value objects
-# Application Context
 from swen_identity.application.context import UserContext
-
-# Application Services
 from swen_identity.application.services import (
     AuthenticationService,
     PasswordResetService,
@@ -32,8 +28,6 @@ from swen_identity.domain.user import (
     UserRepository,
     UserRole,
 )
-
-# Auth exceptions
 from swen_identity.exceptions import (
     AccountLockedError,
     AuthError,
@@ -45,19 +39,13 @@ from swen_identity.exceptions import (
     RefreshTokenExpiredError,
     WeakPasswordError,
 )
-
-# Repositories (abstract)
 from swen_identity.repositories import (
     PasswordResetTokenData,
     PasswordResetTokenRepository,
     UserCredentialData,
     UserCredentialRepository,
 )
-
-# Schemas
 from swen_identity.schemas import TokenPayload
-
-# Services
 from swen_identity.services import (
     JWTService,
     PasswordHashingService,

@@ -1,3 +1,4 @@
+# ruff: noqa: E501 - HTML email templates require inline styles
 import logging
 import smtplib
 import ssl
@@ -8,9 +9,9 @@ from swen_config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-PASSWORD_RESET_SUBJECT = "Password Reset Request - SWEN"
+RESET_EMAIL_SUBJECT = "Password Reset Request - SWEN"
 
-PASSWORD_RESET_TEXT = """Hello,
+RESET_EMAIL_TEXT = """Hello,
 
 You requested a password reset for your SWEN account.
 
@@ -22,7 +23,7 @@ If you didn't request this, you can safely ignore this email.
 -- SWEN
 """
 
-PASSWORD_RESET_HTML = """
+RESET_EMAIL_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -49,6 +50,8 @@ PASSWORD_RESET_HTML = """
 
 
 class EmailService:
+    """Service for sending emails via SMTP."""
+
     def __init__(self, settings: Settings):
         self._settings = settings
 
@@ -61,7 +64,9 @@ class EmailService:
     ) -> MIMEMultipart:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"{self._settings.smtp_from_name} <{self._settings.smtp_from_email}>"
+        msg["From"] = (
+            f"{self._settings.smtp_from_name} <{self._settings.smtp_from_email}>"
+        )
         msg["To"] = to_email
 
         msg.attach(MIMEText(text_body, "plain"))
@@ -125,12 +130,12 @@ class EmailService:
             )
             return
 
-        text_body = PASSWORD_RESET_TEXT.format(reset_link=reset_link)
-        html_body = PASSWORD_RESET_HTML.format(reset_link=reset_link)
+        text_body = RESET_EMAIL_TEXT.format(reset_link=reset_link)
+        html_body = RESET_EMAIL_HTML.format(reset_link=reset_link)
 
         message = self._create_message(
             to_email=to_email,
-            subject=PASSWORD_RESET_SUBJECT,
+            subject=RESET_EMAIL_SUBJECT,
             text_body=text_body,
             html_body=html_body,
         )

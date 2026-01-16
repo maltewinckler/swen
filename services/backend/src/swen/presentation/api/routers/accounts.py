@@ -2,12 +2,11 @@
 
 import logging
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+
 from swen.application.commands.accounting import (
     ChartTemplate,
     CreateAccountCommand,
@@ -24,6 +23,7 @@ from swen.application.queries import (
     ReconciliationQuery,
 )
 from swen.application.services import BankAccountImportService
+from swen.domain.shared.time import utc_now
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.schemas.accounts import (
     AccountCreateRequest,
@@ -63,6 +63,7 @@ StatsPeriodDays = Annotated[
     Query(description="Number of days for flow stats (null = all-time)", ge=1, le=3650),
 ]
 
+
 def _get_created_at_or_now(created_at: datetime | None) -> datetime:
     """Get created_at timestamp, defaulting to now if None.
 
@@ -70,6 +71,7 @@ def _get_created_at_or_now(created_at: datetime | None) -> datetime:
     but the API response requires a non-null datetime.
     """
     return created_at if created_at is not None else utc_now()
+
 
 @router.get(
     "",
@@ -113,6 +115,7 @@ async def list_accounts(
         total=result.total_count,
         by_type=result.by_type,
     )
+
 
 @router.post(
     "",
@@ -165,6 +168,7 @@ async def create_account(
         created_at=account.created_at,
         parent_id=account.parent_id,
     )
+
 
 @router.post(
     "/init-chart",
@@ -239,6 +243,7 @@ async def init_chart_of_accounts(
         },
     )
 
+
 @router.get(
     "/bank",
     summary="List bank accounts",
@@ -271,6 +276,7 @@ async def list_bank_accounts(
         ],
         total=len(dtos),
     )
+
 
 @router.patch(
     "/bank/{iban}/rename",
@@ -316,6 +322,7 @@ async def rename_bank_account(
         currency=dto.currency,
         is_active=dto.is_active,
     )
+
 
 @router.get(
     "/reconciliation",
@@ -367,6 +374,7 @@ async def get_reconciliation(
         all_reconciled=result.all_reconciled,
     )
 
+
 @router.get(
     "/{account_id}",
     summary="Get account by ID",
@@ -401,6 +409,7 @@ async def get_account(
         created_at=_get_created_at_or_now(dto.created_at),
         parent_id=UUID(dto.parent_id) if dto.parent_id else None,
     )
+
 
 @router.get(
     "/{account_id}/stats",
@@ -471,6 +480,7 @@ async def get_account_stats(
         period_end=stats.period_end.isoformat() if stats.period_end else None,
     )
 
+
 @router.patch(
     "/{account_id}",
     summary="Update account",
@@ -527,6 +537,7 @@ async def update_account(
         parent_id=account.parent_id,
     )
 
+
 @router.delete(
     "/{account_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -556,6 +567,7 @@ async def deactivate_account(
         raise
 
     logger.info("Account deactivated: %s", account_id)
+
 
 @router.post(
     "/{account_id}/reactivate",
@@ -598,6 +610,7 @@ async def reactivate_account(
         parent_id=account.parent_id,
     )
 
+
 @router.delete(
     "/{account_id}/permanent",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -605,7 +618,9 @@ async def reactivate_account(
     responses={
         204: {"description": "Account deleted permanently"},
         404: {"description": "Account not found"},
-        422: {"description": "Account cannot be deleted (has transactions or children)"},
+        422: {
+            "description": "Account cannot be deleted (has transactions or children)"
+        },
     },
 )
 async def delete_account(

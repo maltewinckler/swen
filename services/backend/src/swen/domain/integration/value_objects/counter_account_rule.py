@@ -1,14 +1,13 @@
 """Counter-account rule value object."""
 
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
 from swen.domain.banking.value_objects import BankTransaction
+from swen.domain.shared.time import utc_now
 
 
 class PatternType(Enum):

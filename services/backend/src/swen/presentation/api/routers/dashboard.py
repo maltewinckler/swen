@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+
 from swen.application.dtos.accounting import TransactionListItemDTO
 from swen.application.queries import DashboardSummaryQuery
 from swen.presentation.api.dependencies import RepoFactory

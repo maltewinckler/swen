@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 class ImportResponse(BaseModel):
     """Response schema for a transaction import record."""
 
@@ -48,6 +49,7 @@ class ImportResponse(BaseModel):
         },
     )
 
+
 class ImportListResponse(BaseModel):
     """Response for listing import records."""
 
@@ -72,6 +74,7 @@ class ImportListResponse(BaseModel):
             },
         },
     )
+
 
 class ImportStatisticsResponse(BaseModel):
     """Overall import statistics with date range info."""
@@ -108,6 +111,7 @@ class ImportStatisticsResponse(BaseModel):
         },
     )
 
+
 DaysFilter = Annotated[
     int,
     Query(ge=1, le=365, description="Days to look back"),
@@ -124,6 +128,7 @@ IbanFilter = Annotated[
     str | None,
     Query(description="Filter by bank account IBAN"),
 ]
+
 
 @router.get(
     "",
@@ -179,6 +184,7 @@ async def list_imports(
         count=result.total_count,
         status_counts=result.status_counts,
     )
+
 
 @router.get(
     "/statistics",

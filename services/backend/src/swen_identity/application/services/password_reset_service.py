@@ -7,17 +7,22 @@ from swen.domain.shared.time import utc_now
 from swen_identity.domain.user import UserRepository
 from swen_identity.exceptions import InvalidResetTokenError
 from swen_identity.infrastructure.email import EmailService
-from swen_identity.repositories import PasswordResetTokenRepository, UserCredentialRepository
+from swen_identity.repositories import (
+    PasswordResetTokenRepository,
+    UserCredentialRepository,
+)
 from swen_identity.services import PasswordHashingService
 
 logger = logging.getLogger(__name__)
 
 
 class PasswordResetService:
+    """Service for handling password reset requests and token validation."""
+
     MAX_RESETS_PER_DAY = 3
     TOKEN_EXPIRY_HOURS = 1
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         user_repository: UserRepository,
         token_repository: PasswordResetTokenRepository,
@@ -74,14 +79,14 @@ class PasswordResetService:
         reset_token = await self._token_repo.find_valid_by_hash(token_hash)
 
         if not reset_token:
-            raise InvalidResetTokenError()
+            raise InvalidResetTokenError
 
         now = utc_now()
         if reset_token.is_expired(now):
-            raise InvalidResetTokenError()
+            raise InvalidResetTokenError
 
         if reset_token.is_used():
-            raise InvalidResetTokenError()
+            raise InvalidResetTokenError
 
         # Update password
         new_hash = self._password_service.hash(new_password)

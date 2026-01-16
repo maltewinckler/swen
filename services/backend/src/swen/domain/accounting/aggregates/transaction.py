@@ -1,8 +1,6 @@
 """Transaction aggregate root for the accounting domain."""
 
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -27,6 +25,7 @@ from swen.domain.accounting.value_objects import (
 )
 from swen.domain.shared.exceptions import BusinessRuleViolation, DomainException
 from swen.domain.shared.iban import normalize_iban
+from swen.domain.shared.time import utc_now
 
 
 class Transaction:

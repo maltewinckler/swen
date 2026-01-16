@@ -17,6 +17,8 @@ from swen_identity.repositories import (
 
 
 class PasswordResetTokenRepositorySQLAlchemy(PasswordResetTokenRepository):
+    """SQLAlchemy implementation of password reset token repository."""
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
@@ -37,7 +39,9 @@ class PasswordResetTokenRepositorySQLAlchemy(PasswordResetTokenRepository):
         await self._session.flush()
         return token_id
 
-    async def find_valid_by_hash(self, token_hash: str) -> PasswordResetTokenData | None:
+    async def find_valid_by_hash(
+        self, token_hash: str
+    ) -> PasswordResetTokenData | None:
         now = utc_now()
         stmt = select(PasswordResetTokenModel).where(
             PasswordResetTokenModel.token_hash == token_hash,
@@ -100,4 +104,4 @@ class PasswordResetTokenRepositorySQLAlchemy(PasswordResetTokenRepository):
         )
         result = await self._session.execute(stmt)
         await self._session.flush()
-        return result.rowcount  # type: ignore
+        return result.rowcount  # type: ignore[return-value]

@@ -3,6 +3,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, status
+
 from swen.application.commands.integration import CreateExternalAccountCommand
 from swen.application.queries.integration import (
     ListAccountMappingsQuery,
@@ -20,6 +21,7 @@ from swen.presentation.api.schemas.mappings import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
 
 @router.get(
     "",
@@ -64,6 +66,7 @@ async def list_mappings(
         count=len(mappings),
     )
 
+
 @router.get(
     "/{iban}",
     summary="Get mapping by IBAN",
@@ -103,6 +106,7 @@ async def get_mapping_by_iban(
         if result.mapping.created_at
         else None,
     )
+
 
 @router.post(
     "/external",

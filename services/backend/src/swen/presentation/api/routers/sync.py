@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
+
 from swen.application.commands import BatchSyncCommand
 from swen.application.dtos.integration import SyncProgressEvent
 from swen.application.queries import SyncRecommendationQuery, SyncStatusQuery

@@ -48,7 +48,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
     },
 )
 async def list_users(
-    admin: AdminUser,
+    _admin: AdminUser,  # Used for authorization check
     session: DBSession,
 ) -> list[UserSummaryResponse]:
     """List all users."""

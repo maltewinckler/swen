@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 class CompletedStepsResponse(BaseModel):
     """Individual onboarding steps completion status."""
 
@@ -19,11 +20,13 @@ class CompletedStepsResponse(BaseModel):
     first_bank_connected: bool
     has_transactions: bool
 
+
 class OnboardingStatusResponse(BaseModel):
     """Onboarding status response."""
 
     needs_onboarding: bool
     completed_steps: CompletedStepsResponse
+
 
 @router.get(
     "/status",

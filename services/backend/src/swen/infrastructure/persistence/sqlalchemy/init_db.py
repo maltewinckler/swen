@@ -1,14 +1,64 @@
-"""Database initialization script."""
+"""Database initialization utilities."""
 
 import asyncio
 import logging
 import sys
 
-from swen.presentation.api.dependencies import create_tables, drop_tables
+from sqlalchemy.ext.asyncio import create_async_engine
+
+# Import models to register with Base.metadata
+import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen_config.settings import get_settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _get_engine():
+    """Get the database engine for initialization."""
+    settings = get_settings()
+    return create_async_engine(
+        settings.database_url,
+        echo=False,
+        pool_pre_ping=True,
+    )
+
+
+async def create_tables() -> None:
+    """
+    Create all database tables (idempotent).
+
+    Uses SQLAlchemy's create_all() which only creates missing tables.
+    Existing tables and their data are never modified or deleted.
+    """
+    # Import models to register with Base.metadata
+
+    engine = _get_engine()
+    logger.info("Ensuring all database tables exist...")
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    await engine.dispose()
+    logger.info("Database schema is up to date (missing tables created if needed)")
+
+
+async def drop_tables() -> None:
+    """
+    Drop all database tables (USE WITH CAUTION!).
+
+    This is primarily for testing and development reset scenarios.
+    """
+    engine = _get_engine()
+    logger.warning("Dropping all database tables...")
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
+    logger.info("Database tables dropped successfully")
 
 
 async def _init_database():

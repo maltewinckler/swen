@@ -1,1 +1,0 @@
-"""Banking infrastructure tests."""
