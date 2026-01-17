@@ -192,7 +192,7 @@ jobs:
           ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
           JWT_SECRET_KEY: "test-jwt-secret-for-ci"
           POSTGRES_PASSWORD: "test-password-not-used"
-        run: poetry run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ -v
+        run: poetry run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ tests/cross_domain/e2e/ -v
 
   # ===========================================================================
   # Frontend: Build check

@@ -94,6 +94,60 @@ def _create_test_user(user_id: UUID, email: str):
 
 
 @pytest_asyncio.fixture(scope="function")
+async def integration_tables(async_engine):
+    """
+    Create database tables for integration tests.
+
+    Use this fixture when you need custom session management but still
+    need the tables to be created. Provides table setup/teardown without
+    creating a session.
+
+    This fixture:
+    1. Drops all tables (clean slate)
+    2. Creates all tables
+    3. Seeds required test users (for FK constraints)
+    4. Yields for the test to run
+    5. Drops all tables after the test
+    """
+    # Import models to register them with Base.metadata
+    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
+
+    # Create session factory for seeding
+    session_maker = async_sessionmaker(
+        async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    # Create all tables (drop first to ensure clean state)
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Seed test users
+    async with session_maker() as session:
+        test_user_1 = _create_test_user(TEST_USER_ID, TEST_USER_EMAIL)
+        test_user_2 = _create_test_user(TEST_USER_ID_2, TEST_USER_EMAIL_2)
+        session.add(test_user_1)
+        session.add(test_user_2)
+        await session.commit()
+
+    yield
+
+    # Drop all tables after test (clean up)
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+# Alias for atomicity tests - proper fixture definition
+@pytest_asyncio.fixture(scope="function")
+async def atomicity_tables(integration_tables):
+    """Alias for integration_tables, used by atomicity tests."""
+    yield
+
+
+@pytest_asyncio.fixture(scope="function")
 async def db_session(async_engine):
     """
     Provide an isolated database session for each test.
