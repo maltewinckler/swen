@@ -9,12 +9,16 @@ Import the shared fixtures to make them available.
 # These are automatically available to all tests in this directory
 from tests.shared.fixtures.database import (
     async_engine,
+    atomicity_tables,
     db_session,
+    integration_tables,
     postgres_container,
 )
 
 __all__ = [
     "async_engine",
+    "atomicity_tables",
     "db_session",
+    "integration_tables",
     "postgres_container",
 ]

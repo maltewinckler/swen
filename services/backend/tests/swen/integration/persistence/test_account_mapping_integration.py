@@ -62,6 +62,7 @@ async def get_session(
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("integration_tables")
 class TestAccountMappingIntegration:
     """Integration tests for AccountMapping using real database sessions."""
 

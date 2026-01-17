@@ -9,7 +9,8 @@ from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )
 
-TEST_EMAIL = "test@example.com"
+# Use a different email than the pre-seeded test users in database fixtures
+TEST_EMAIL = "userrepo-test@example.com"
 
 
 @pytest.fixture
@@ -66,7 +67,8 @@ class TestUserRepositorySQLAlchemy:
         await user_repo.save(user)
         await db_session.flush()
 
-        found = await user_repo.find_by_email("TEST@EXAMPLE.COM")
+        # Search with uppercase version of TEST_EMAIL
+        found = await user_repo.find_by_email(TEST_EMAIL.upper())
 
         assert found is not None
         assert found.email == TEST_EMAIL

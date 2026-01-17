@@ -1,0 +1,59 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR title format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+
+            // Valid prefixes (case-insensitive)
+            const validPrefixes = [
+              'Feat',
+              'Fix',
+              'Refactor',
+              'Docs',
+              'Test',
+              'Chore',
+              'Perf',
+              'Style',
+              'CI',
+              'Deps',
+              'Security',
+              'Hotfix',
+              'Revert',
+              'WIP'
+            ];
+
+            // Build regex pattern: [Type] followed by space and description
+            const prefixPattern = validPrefixes.join('|');
+            const regex = new RegExp(`^\\[(${prefixPattern})\\]\\s+.+$`, 'i');
+
+            if (!regex.test(title)) {
+              const validTypes = validPrefixes.map(p => `[${p}]`).join(', ');
+              core.setFailed(
+                `❌ PR title does not match the required format.\n\n` +
+                `Expected: [Type] Short description\n` +
+                `Received: ${title}\n\n` +
+                `Valid types: ${validTypes}\n\n` +
+                `Examples:\n` +
+                `  • [Feat] Add transaction export functionality\n` +
+                `  • [Fix] Resolve account sync timeout issue\n` +
+                `  • [Refactor] Extract banking service logic\n` +
+                `  • [Docs] Update API documentation\n` +
+                `  • [Test] Add integration tests for credentials\n` +
+                `  • [Chore] Update Python dependencies`
+              );
+            } else {
+              console.log(`✅ PR title is valid: ${title}`);
+            }

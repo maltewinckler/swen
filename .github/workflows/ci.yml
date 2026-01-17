@@ -150,6 +150,51 @@ jobs:
         run: npm run test
 
   # ===========================================================================
+  # Backend: Integration tests (with PostgreSQL via Testcontainers)
+  # ===========================================================================
+  test-backend-integration:
+    name: Test Backend (Integration)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: "1.8.5"
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: services/backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('services/backend/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run integration tests
+        env:
+          RUN_INTEGRATION: "1"
+          # Test secrets (Testcontainers has Postgres: secrets are not used anywhere else)
+          ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
+          JWT_SECRET_KEY: "test-jwt-secret-for-ci"
+          POSTGRES_PASSWORD: "test-password-not-used"
+        run: poetry run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ tests/cross_domain/e2e/ -v
+
+  # ===========================================================================
   # Frontend: Build check
   # ===========================================================================
   build-frontend:
