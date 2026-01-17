@@ -31,7 +31,7 @@ PyJWT = "^2.8.0"
 # REST API
 fastapi = "^0.115.0"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
-python-multipart = "^0.0.12"  # For form data support
+python-multipart = "^0.0.21"  # For form data support
 email-validator = "^2.0.0"    # For Pydantic EmailStr
 # Excel export
 openpyxl = ">=3.1.0"
