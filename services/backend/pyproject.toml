@@ -26,7 +26,7 @@ typer = {extras = ["all"], version = ">=0.20.0"}
 rich = "^13.7.0"
 geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "main"}
 # Authentication (swen_auth)
-bcrypt = "^4.0.0"
+bcrypt = "^5.0.0"
 PyJWT = "^2.8.0"
 # REST API
 fastapi = "^0.115.0"
