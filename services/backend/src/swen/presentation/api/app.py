@@ -12,11 +12,40 @@ API Versioning:
 import logging
 import sys
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from typing import AsyncGenerator
 
-from swen_config.settings import get_settings
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from swen.infrastructure.persistence.sqlalchemy.models import Base
+from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
+    create_ai_provider_from_settings,
+)
+from swen.presentation.api.dependencies import get_engine
+from swen.presentation.api.exception_handlers import (
+    setup_exception_handlers,
+)
+from swen.presentation.api.routers import (
+    accounts_router,
+    admin_router,
+    ai_router,
+    analytics_router,
+    auth_router,
+    credentials_router,
+    dashboard_router,
+    exports_router,
+    imports_router,
+    mappings_router,
+    onboarding_router,
+    preferences_router,
+    sync_router,
+    transactions_router,
+)
+from swen_config.settings import Settings, get_settings
 
 
+@lru_cache(maxsize=1)
 def _configure_logging() -> None:
     """Configure application logging.
 
@@ -53,42 +82,6 @@ def _configure_logging() -> None:
     logging.getLogger("aiosqlite").setLevel(logging.WARNING)
     logging.getLogger("fints").setLevel(logging.WARNING)
 
-
-# Configure logging on module import (before app creation)
-_configure_logging()
-
-# Imports below logging config to ensure all module-level logs are properly formatted
-from fastapi import APIRouter, FastAPI  # noqa: E402
-from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-
-from swen.infrastructure.persistence.sqlalchemy.models import Base  # noqa: E402
-from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (  # noqa: E402
-    create_ai_provider_from_settings,
-)
-from swen.presentation.api.config import get_api_settings  # noqa: E402
-from swen.presentation.api.dependencies import get_engine  # noqa: E402
-from swen.presentation.api.exception_handlers import (  # noqa: E402
-    setup_exception_handlers,
-)
-from swen.presentation.api.routers import (  # noqa: E402
-    accounts_router,
-    admin_router,
-    ai_router,
-    analytics_router,
-    auth_router,
-    credentials_router,
-    dashboard_router,
-    exports_router,
-    imports_router,
-    mappings_router,
-    onboarding_router,
-    preferences_router,
-    sync_router,
-    transactions_router,
-)
-
-# IdentityBase is now same as Base
-from swen_config.settings import Settings  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -437,8 +430,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     -------
     Configured FastAPI application instance.
     """
+    # Configure logging on first app creation (not on module import)
+    _configure_logging()
+
     if settings is None:
-        settings = get_api_settings()
+        settings = get_settings()
 
     # Get app name from main settings
     app_name = get_settings().app_name

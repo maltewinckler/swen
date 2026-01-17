@@ -7,6 +7,7 @@ from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+
 from swen.application.commands import StoreCredentialsCommand
 from swen.application.commands.banking import BankConnectionCommand
 from swen.application.queries import ListCredentialsQuery, QueryTanMethodsQuery
@@ -122,7 +123,7 @@ async def store_credentials(
         logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid credentials format. Please check your BLZ, username, and PIN.",
+            detail="Invalid credentials. Check your BLZ, username, and PIN.",
         ) from e
 
     # Store credentials using command
@@ -509,7 +510,7 @@ async def query_tan_methods(
         logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid credentials format. Please check your BLZ, username, and PIN.",
+            detail="Invalid credentials. Check your BLZ, username, and PIN.",
         ) from e
 
     # Query TAN methods using application query

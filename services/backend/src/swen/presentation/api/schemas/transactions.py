@@ -23,7 +23,7 @@ class JournalEntryResponse(BaseModel):
     )
     debit: Optional[Decimal] = Field(
         None,
-        description="Debit amount (increases assets/expenses, decreases liabilities/income)",  # NOQA: E501
+        description="Debit amount (increases assets/expenses, decreases liabilities/income)",
     )
     credit: Optional[Decimal] = Field(
         None,
@@ -519,7 +519,7 @@ class TransactionFilterParams(BaseModel):
     )
     exclude_transfers: Optional[bool] = Field(
         None,
-        description="Exclude internal transfers between your accounts (default: True when not filtering by account)",  # NOQA: E501
+        description="Exclude internal transfers between your accounts (default: True when not filtering by account)",
     )
     source: Optional[str] = Field(
         None,

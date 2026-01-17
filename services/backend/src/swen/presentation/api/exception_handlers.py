@@ -21,6 +21,7 @@ import logging
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
+
 from swen.domain.banking.exceptions import (
     BankAuthenticationError,
     BankConnectionError,

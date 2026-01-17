@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class CredentialResponse(BaseModel):
     """Response schema for credential metadata (no sensitive data)."""
 
@@ -22,6 +23,7 @@ class CredentialResponse(BaseModel):
             },
         },
     )
+
 
 class CredentialListResponse(BaseModel):
     """Response schema for credential listing."""
@@ -51,6 +53,7 @@ class CredentialListResponse(BaseModel):
             },
         },
     )
+
 
 class CredentialCreateRequest(BaseModel):
     """Request schema for storing new credentials."""
@@ -93,6 +96,7 @@ class CredentialCreateRequest(BaseModel):
         },
     )
 
+
 class CredentialCreateResponse(BaseModel):
     """Response schema after storing credentials."""
 
@@ -111,6 +115,7 @@ class CredentialCreateResponse(BaseModel):
             },
         },
     )
+
 
 class BankLookupResponse(BaseModel):
     """Response schema for bank lookup by BLZ."""
@@ -133,6 +138,7 @@ class BankLookupResponse(BaseModel):
         },
     )
 
+
 class ConnectionTestResponse(BaseModel):
     """Response schema for connection test."""
 
@@ -152,6 +158,7 @@ class ConnectionTestResponse(BaseModel):
             },
         },
     )
+
 
 class AccountImportInfo(BaseModel):
     """Info about an imported bank account."""
@@ -177,6 +184,7 @@ class AccountImportInfo(BaseModel):
         },
     )
 
+
 class BankAccountData(BaseModel):
     """Bank account data for import (subset of DiscoveredAccount for setup request)."""
 
@@ -190,6 +198,7 @@ class BankAccountData(BaseModel):
     currency: str = Field(default="EUR", description="Account currency")
     balance: Optional[str] = Field(None, description="Current balance")
     balance_date: Optional[str] = Field(None, description="When balance was fetched")
+
 
 class SetupBankRequest(BaseModel):
     """Request body for bank setup with discovered accounts and custom names."""
@@ -228,6 +237,7 @@ class SetupBankRequest(BaseModel):
         },
     )
 
+
 class SetupBankResponse(BaseModel):
     """Response for bank setup (connect + import accounts)."""
 
@@ -259,6 +269,7 @@ class SetupBankResponse(BaseModel):
             },
         },
     )
+
 
 class DiscoveredAccount(BaseModel):
     """Full bank account data from discovery (passed back to setup to avoid re-fetching)."""
@@ -299,6 +310,7 @@ class DiscoveredAccount(BaseModel):
         },
     )
 
+
 class DiscoverAccountsResponse(BaseModel):
     """Response for account discovery (connect + list accounts without importing)."""
 
@@ -331,6 +343,7 @@ class DiscoverAccountsResponse(BaseModel):
         },
     )
 
+
 TANMethodTypeStr = Literal[
     "decoupled",
     "push",
@@ -340,6 +353,7 @@ TANMethodTypeStr = Literal[
     "manual",
     "unknown",
 ]
+
 
 class TANMethodQueryRequest(BaseModel):
     """Request schema for querying available TAN methods."""
@@ -368,6 +382,7 @@ class TANMethodQueryRequest(BaseModel):
             },
         },
     )
+
 
 class TANMethodResponse(BaseModel):
     """Information about a TAN authentication method supported by a bank."""
@@ -430,6 +445,7 @@ class TANMethodResponse(BaseModel):
         },
     )
 
+
 class TANMethodsResponse(BaseModel):
     """Response for TAN methods query."""
 
@@ -467,7 +483,9 @@ class TANMethodsResponse(BaseModel):
         },
     )
 
+
 # Bank Connection Details schemas
+
 
 class BankAccountDetailResponse(BaseModel):
     """Details for a single bank account under a connection."""
@@ -484,6 +502,7 @@ class BankAccountDetailResponse(BaseModel):
     bookkeeping_balance: str = Field(description="Calculated bookkeeping balance")
     discrepancy: str = Field(description="Difference between bank and bookkeeping")
     is_reconciled: bool = Field(description="Whether balances match")
+
 
 class BankConnectionDetailsResponse(BaseModel):
     """Full details for a bank connection including all accounts."""

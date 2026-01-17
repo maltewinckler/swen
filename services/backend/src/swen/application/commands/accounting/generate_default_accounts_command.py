@@ -10,8 +10,8 @@ from swen.domain.accounting.repositories import AccountRepository
 from swen.domain.accounting.value_objects import Currency
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
 
 
 class ChartTemplate(str, Enum):

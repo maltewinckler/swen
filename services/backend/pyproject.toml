@@ -19,7 +19,6 @@ sqlmodel = "^0.0.24"
 pydantic-settings = "^2.10.1"
 PyYAML = "^6.0.2"
 tenacity = "^9.1.2"
-dkb-robo = "^0.31.2"
 aiosqlite = "^0.21.0"
 greenlet = "^3.2.4"
 cryptography = "^46.0.3"
@@ -59,6 +58,7 @@ ruff = "^0.14.10"
 pyright = "^1.1.391"
 pre-commit = "^4.5.1"
 detect-secrets = "^1.5.0"
+testcontainers = { extras = ["postgres"], version = "^4.0" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -94,6 +94,10 @@ ignore = [
     "SLF001",  # unit tests ignore private member access
     "PT028",  # allow defaults for specific functions
     "B008",  # important for typer cli layer
+    # TODO comments are fine during development
+    "TD002",  # Missing author in TODO
+    "TD003",  # Missing issue link for TODO
+    "FIX002",  # Line contains TODO
     # Docstring rules - keep NumPy style checks but ignore some strict ones
     "D100",  # Missing docstring in public module
     "D102",  # Missing docstring in public method (too strict for simple methods)
@@ -112,6 +116,30 @@ extend-select = ["E501"]
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
+# API schemas: Field descriptions are intentionally verbose
+"src/swen/presentation/api/schemas/*.py" = [
+    "E501",     # Line too long (Field descriptions)
+]
+# Demo data: Intentional hardcoded values and complex seed logic
+"src/swen_demo/*.py" = [
+    "ERA001",   # Commented-out code (documentation/templates)
+    "S105",     # Hardcoded password (demo only)
+    "S311",     # Pseudo-random (demo only, not crypto)
+    "C901",     # Too complex (demo seed is intentionally comprehensive)
+    "PLR0912",  # Too many branches (demo seed)
+    "PLR0915",  # Too many statements (demo seed)
+]
+# Config: Binding to all interfaces is intentional for containerized deployment
+"src/swen_config/settings.py" = [
+    "S104",     # Possible binding to all interfaces
+]
+# Identity: token_type field names trigger false positive password detection
+"src/swen_identity/schemas.py" = [
+    "S105",     # token_type field name
+]
+"src/swen_identity/services/jwt_service.py" = [
+    "S106",     # token_type argument
+]
 "tests/**/*.py" = [
     "S101",     # assert is fine in tests
     "S105",     # Hardcoded passwords OK in tests

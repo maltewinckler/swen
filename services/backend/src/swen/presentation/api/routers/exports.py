@@ -1,21 +1,24 @@
 """Exports router for data export endpoints."""
 
 import logging
-from datetime import date, datetime
+from datetime import date
 from io import BytesIO
 from typing import Annotated
 
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, ConfigDict, Field
+
 from swen.application.queries import ExportDataQuery
 from swen.application.queries.export_report_query import ExportReportQuery
+from swen.domain.shared.time import utc_now
 from swen.infrastructure.export import ExcelReportGenerator
 from swen.presentation.api.dependencies import RepoFactory
-from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
 
 class TransactionExportResponse(BaseModel):
     """Exported transaction data."""
@@ -52,13 +55,16 @@ class TransactionExportResponse(BaseModel):
         }
     )
 
+
 class AccountExportResponse(BaseModel):
     """Exported account data."""
 
     id: str = Field(description="Account UUID")
     account_number: str = Field(description="Account number in chart")
     name: str = Field(description="Account name")
-    type: str = Field(description="Account type: asset, liability, equity, income, expense")
+    type: str = Field(
+        description="Account type: asset, liability, equity, income, expense"
+    )
     currency: str = Field(description="Default currency code")
     is_active: bool = Field(description="Whether account is active")
     parent_id: str = Field(description="Parent account UUID (empty if root)")
@@ -78,6 +84,7 @@ class AccountExportResponse(BaseModel):
             }
         }
     )
+
 
 class MappingExportResponse(BaseModel):
     """Exported bank account mapping data."""
@@ -100,6 +107,7 @@ class MappingExportResponse(BaseModel):
         }
     )
 
+
 class TransactionExportListResponse(BaseModel):
     """Response for transaction export."""
 
@@ -115,6 +123,7 @@ class TransactionExportListResponse(BaseModel):
         }
     )
 
+
 class AccountExportListResponse(BaseModel):
     """Response for account export."""
 
@@ -129,6 +138,7 @@ class AccountExportListResponse(BaseModel):
             }
         }
     )
+
 
 class FullExportResponse(BaseModel):
     """Response for full data export (backup)."""
@@ -152,6 +162,7 @@ class FullExportResponse(BaseModel):
             }
         }
     )
+
 
 DaysFilter = Annotated[
     int,
@@ -192,6 +203,7 @@ IncludeDraftsParam = Annotated[
     Query(description="Include draft (non-posted) transactions"),
 ]
 
+
 @router.get(
     "/transactions",
     summary="Export transactions",
@@ -224,11 +236,10 @@ async def export_transactions(
     logger.info("Exported %d transactions", len(transactions))
 
     return TransactionExportListResponse(
-        transactions=[
-            TransactionExportResponse(**t.to_dict()) for t in transactions
-        ],
+        transactions=[TransactionExportResponse(**t.to_dict()) for t in transactions],
         count=len(transactions),
     )
+
 
 @router.get(
     "/accounts",
@@ -261,6 +272,7 @@ async def export_accounts(
         accounts=[AccountExportResponse(**a.to_dict()) for a in accounts],
         count=len(accounts),
     )
+
 
 @router.get(
     "/full",
@@ -307,6 +319,7 @@ async def export_full(
         mapping_count=result.mapping_count,
     )
 
+
 @router.get(
     "/report.xlsx",
     summary="Download Excel report",
@@ -320,7 +333,7 @@ async def export_full(
         },
     },
 )
-async def export_excel_report(
+async def export_excel_report(  # noqa: PLR0913
     factory: RepoFactory,
     start_date: StartDateParam = None,
     end_date: EndDateParam = None,
@@ -366,7 +379,7 @@ async def export_excel_report(
     excel_bytes = generator.generate(data)
 
     # Create filename with timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d")
+    timestamp = utc_now().strftime("%Y-%m-%d")
     filename = f"swen_report_{timestamp}.xlsx"
 
     logger.info(

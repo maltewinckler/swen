@@ -9,8 +9,11 @@ Structure:
     ├── dependencies.py # Dependency injection
     ├── routers/        # API route handlers
     └── schemas/        # Pydantic request/response schemas
+
+Usage:
+    # For uvicorn
+    uvicorn swen.presentation.api.app:app
+
+    # For importing the factory directly
+    from swen.presentation.api.app import create_app
 """
-
-from swen.presentation.api.app import create_app
-
-__all__ = ["create_app"]

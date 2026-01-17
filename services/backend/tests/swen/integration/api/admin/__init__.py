@@ -1,0 +1,1 @@
+"""Admin endpoint integration tests."""

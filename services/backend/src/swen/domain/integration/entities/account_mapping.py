@@ -1,11 +1,10 @@
 """Account mapping entity for linking bank accounts to accounting accounts."""
 
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from uuid import UUID, uuid5
 
 from swen.domain.shared.iban import normalize_iban
+from swen.domain.shared.time import utc_now
 
 ACCOUNT_MAPPING_NAMESPACE = UUID("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d")
 

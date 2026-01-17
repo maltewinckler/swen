@@ -18,8 +18,8 @@ from swen.domain.accounting.value_objects import Currency
 from swen.domain.accounting.value_objects.currency import SUPPORTED_CURRENCIES
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
 
 
 class CreateAccountCommand:

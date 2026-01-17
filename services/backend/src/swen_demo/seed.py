@@ -41,14 +41,11 @@ from swen.domain.accounting.value_objects import (
     TransactionSource,
 )
 from swen.domain.shared.time import utc_now
+from swen.infrastructure.persistence.sqlalchemy.init_db import create_tables
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
-from swen.presentation.api.dependencies import (
-    create_tables,
-    get_encryption_key,
-    get_session_maker,
-)
+from swen.presentation.api.dependencies import get_encryption_key, get_session_maker
 from swen_config.settings import get_settings
 from swen_demo.data import (
     DEMO_ASSET_ACCOUNTS,
@@ -527,7 +524,7 @@ async def seed_demo_data(dry_run: bool = False) -> SeedStats:
 
         # Create asset accounts
         asset_accounts = await create_asset_accounts(factory, DEMO_ASSET_ACCOUNTS)
-        asset_count = len([a for a in asset_accounts.values()])
+        asset_count = len(list(asset_accounts.values()))
 
         # Create category accounts (income/expense)
         category_count = await create_default_category_accounts(factory)

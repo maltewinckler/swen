@@ -151,11 +151,14 @@ class JWTService:
             )
 
         except jwt.ExpiredSignatureError as e:
-            raise InvalidTokenError("Token has expired") from e
+            msg = "Token has expired"
+            raise InvalidTokenError(msg) from e
         except jwt.InvalidTokenError as e:
-            raise InvalidTokenError(f"Invalid token: {e}") from e
+            msg = f"Invalid token: {e}"
+            raise InvalidTokenError(msg) from e
         except (KeyError, ValueError) as e:
-            raise InvalidTokenError(f"Malformed token payload: {e}") from e
+            msg = f"Malformed token payload: {e}"
+            raise InvalidTokenError(msg) from e
 
     def _create_token(
         self,

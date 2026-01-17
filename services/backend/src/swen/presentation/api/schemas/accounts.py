@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from swen.application.commands.accounting import ParentAction
+
 
 class ChartTemplateEnum(str, Enum):
     """Available chart of accounts templates.
@@ -16,10 +18,6 @@ class ChartTemplateEnum(str, Enum):
     """
 
     MINIMAL = "minimal"
-
-
-# Import ParentAction from application layer (business logic owns the enum)
-from swen.application.commands.accounting import ParentAction
 
 
 class InitChartRequest(BaseModel):
@@ -101,7 +99,7 @@ class AccountResponse(BaseModel):
     )
     description: Optional[str] = Field(
         None,
-        description="Description with typical transactions/merchants for AI classification",  # NOQA: E501
+        description="Description with typical transactions/merchants for AI classification",
     )
     iban: Optional[str] = Field(
         None,
@@ -181,7 +179,7 @@ class AccountCreateRequest(BaseModel):
     description: Optional[str] = Field(
         None,
         max_length=500,
-        description="Description with examples for AI classification (e.g., 'Supermarkets: REWE, Lidl, EDEKA')",  # NOQA: E501
+        description="Description with examples for AI classification (e.g., 'Supermarkets: REWE, Lidl, EDEKA')",
     )
     currency: str = Field(default="EUR", description="Currency code (default: EUR)")
     parent_id: Optional[UUID] = Field(
@@ -530,9 +528,7 @@ class ReconciliationResponse(BaseModel):
     discrepancy_count: int = Field(
         ..., description="Number of accounts with discrepancies"
     )
-    all_reconciled: bool = Field(
-        ..., description="Whether all accounts are reconciled"
-    )
+    all_reconciled: bool = Field(..., description="Whether all accounts are reconciled")
 
     model_config = ConfigDict(
         json_schema_extra={

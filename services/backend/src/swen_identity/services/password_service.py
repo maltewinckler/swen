@@ -104,16 +104,19 @@ class PasswordHashingService:
             If password doesn't meet requirements
         """
         if not password:
-            raise WeakPasswordError("Password cannot be empty")
+            msg = "Password cannot be empty"
+            raise WeakPasswordError(msg)
 
         if len(password) < self.MIN_LENGTH:
+            msg = f"Password must be at least {self.MIN_LENGTH} characters"
             raise WeakPasswordError(
-                f"Password must be at least {self.MIN_LENGTH} characters",
+                msg,
             )
 
         if len(password) > self.MAX_LENGTH:
+            msg = f"Password cannot exceed {self.MAX_LENGTH} characters"
             raise WeakPasswordError(
-                f"Password cannot exceed {self.MAX_LENGTH} characters",
+                msg,
             )
 
     def needs_rehash(self, password_hash: str) -> bool:

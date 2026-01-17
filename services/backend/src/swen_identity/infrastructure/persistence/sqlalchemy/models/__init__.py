@@ -1,3 +1,4 @@
+# ruff: noqa: E501 - Long import paths in __init__.py re-exports
 """SQLAlchemy models for identity management."""
 
 from swen_identity.infrastructure.persistence.sqlalchemy.models.password_reset_token_model import (

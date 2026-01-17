@@ -71,6 +71,7 @@ TopNParam = Annotated[
     Query(ge=1, le=50, description="Number of top items to return"),
 ]
 
+
 @router.get(
     "/spending/over-time",
     summary="Get spending over time by category",
@@ -115,6 +116,7 @@ async def get_spending_over_time(
         currency=result.currency,
         totals_by_category=result.totals_by_category,
     )
+
 
 @router.get(
     "/spending/account/{account_id}/over-time",
@@ -167,6 +169,7 @@ async def get_single_account_spending_over_time(
         max_value=result.max_value,
     )
 
+
 @router.get(
     "/spending/breakdown",
     summary="Get spending breakdown by category",
@@ -215,6 +218,7 @@ async def get_spending_breakdown(
         currency=result.currency,
         category_count=result.category_count,
     )
+
 
 @router.get(
     "/spending/top",
@@ -267,6 +271,7 @@ async def get_top_expenses(
         months_analyzed=result.months_analyzed,
     )
 
+
 @router.get(
     "/income/over-time",
     summary="Get income over time",
@@ -310,6 +315,7 @@ async def get_income_over_time(
         min_value=result.min_value,
         max_value=result.max_value,
     )
+
 
 @router.get(
     "/income/breakdown",
@@ -356,6 +362,7 @@ async def get_income_breakdown(
         currency=result.currency,
     )
 
+
 @router.get(
     "/net-income/over-time",
     summary="Get net income over time",
@@ -401,6 +408,7 @@ async def get_net_income_over_time(
         min_value=result.min_value,
         max_value=result.max_value,
     )
+
 
 @router.get(
     "/savings-rate/over-time",
@@ -450,6 +458,7 @@ async def get_savings_rate_over_time(
         max_value=result.max_value,
     )
 
+
 @router.get(
     "/net-worth/over-time",
     summary="Get net worth over time",
@@ -495,6 +504,7 @@ async def get_net_worth_over_time(
         max_value=result.max_value,
     )
 
+
 @router.get(
     "/balances/over-time",
     summary="Get account balances over time",
@@ -539,6 +549,7 @@ async def get_balances_over_time(
         currency=result.currency,
         totals_by_category=result.totals_by_category,
     )
+
 
 @router.get(
     "/comparison/month-over-month",
@@ -595,6 +606,7 @@ async def get_month_comparison(
             for cc in result.category_comparisons
         ],
     )
+
 
 @router.get(
     "/sankey",

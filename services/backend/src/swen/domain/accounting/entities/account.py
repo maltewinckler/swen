@@ -1,8 +1,6 @@
 """Account entity."""
 
 from datetime import datetime
-
-from swen.domain.shared.time import utc_now
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID, uuid4
@@ -11,6 +9,7 @@ from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.value_objects import Currency, Money
 from swen.domain.shared.exceptions import ValidationError
 from swen.domain.shared.iban import normalize_iban
+from swen.domain.shared.time import utc_now
 
 
 class Account:

@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class TimeSeriesDataPointResponse(BaseModel):
     """Single data point in a time series.
 
@@ -29,6 +30,7 @@ class TimeSeriesDataPointResponse(BaseModel):
         }
     )
 
+
 class CategoryDataResponse(BaseModel):
     """Category breakdown for a single period.
 
@@ -38,7 +40,9 @@ class CategoryDataResponse(BaseModel):
 
     period: str = Field(description="Period identifier in YYYY-MM format")
     period_label: str = Field(description="Human-readable label for chart axis")
-    categories: dict[str, Decimal] = Field(description="Amount per category (category name → amount)")
+    categories: dict[str, Decimal] = Field(
+        description="Amount per category (category name → amount)"
+    )
     total: Decimal = Field(description="Sum of all categories for this period")
 
     model_config = ConfigDict(
@@ -56,6 +60,7 @@ class CategoryDataResponse(BaseModel):
             }
         }
     )
+
 
 class TimeSeriesResponse(BaseModel):
     """Response for simple time series data.
@@ -76,15 +81,29 @@ class TimeSeriesResponse(BaseModel):
     total: Decimal = Field(description="Sum of all values (or latest for net worth)")
     average: Decimal = Field(description="Average value per period")
     min_value: Decimal = Field(description="Lowest value in series (for chart scaling)")
-    max_value: Decimal = Field(description="Highest value in series (for chart scaling)")
+    max_value: Decimal = Field(
+        description="Highest value in series (for chart scaling)"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "data_points": [
-                    {"period": "2024-10", "period_label": "Oct 2024", "value": "3200.00"},
-                    {"period": "2024-11", "period_label": "Nov 2024", "value": "3350.00"},
-                    {"period": "2024-12", "period_label": "Dec 2024", "value": "3500.00"},
+                    {
+                        "period": "2024-10",
+                        "period_label": "Oct 2024",
+                        "value": "3200.00",
+                    },
+                    {
+                        "period": "2024-11",
+                        "period_label": "Nov 2024",
+                        "value": "3350.00",
+                    },
+                    {
+                        "period": "2024-12",
+                        "period_label": "Dec 2024",
+                        "value": "3500.00",
+                    },
                 ],
                 "currency": "EUR",
                 "total": "10050.00",
@@ -94,6 +113,7 @@ class TimeSeriesResponse(BaseModel):
             }
         }
     )
+
 
 class CategoryTimeSeriesResponse(BaseModel):
     """Response for time series with category breakdown.
@@ -126,13 +146,21 @@ class CategoryTimeSeriesResponse(BaseModel):
                     {
                         "period": "2024-11",
                         "period_label": "Nov 2024",
-                        "categories": {"Rent": "950.00", "Groceries": "320.00", "Utilities": "110.00"},
+                        "categories": {
+                            "Rent": "950.00",
+                            "Groceries": "320.00",
+                            "Utilities": "110.00",
+                        },
                         "total": "1380.00",
                     },
                     {
                         "period": "2024-12",
                         "period_label": "Dec 2024",
-                        "categories": {"Rent": "950.00", "Groceries": "345.67", "Utilities": "125.00"},
+                        "categories": {
+                            "Rent": "950.00",
+                            "Groceries": "345.67",
+                            "Utilities": "125.00",
+                        },
                         "total": "1420.67",
                     },
                 ],
@@ -146,6 +174,7 @@ class CategoryTimeSeriesResponse(BaseModel):
             }
         }
     )
+
 
 class BreakdownItemResponse(BaseModel):
     """Single item in a breakdown (pie chart slice).
@@ -171,6 +200,7 @@ class BreakdownItemResponse(BaseModel):
         }
     )
 
+
 class SpendingBreakdownResponse(BaseModel):
     """Spending distribution by expense category.
 
@@ -180,13 +210,17 @@ class SpendingBreakdownResponse(BaseModel):
     - Horizontal bar chart (ranked categories)
     """
 
-    period_label: str = Field(description="Human-readable period (e.g., 'December 2024')")
+    period_label: str = Field(
+        description="Human-readable period (e.g., 'December 2024')"
+    )
     items: list[BreakdownItemResponse] = Field(
         description="Expense categories sorted by amount (highest first)"
     )
     total: Decimal = Field(description="Total spending across all categories")
     currency: str = Field(description="Currency code (e.g., 'EUR')")
-    category_count: int = Field(description="Number of expense categories with activity")
+    category_count: int = Field(
+        description="Number of expense categories with activity"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -218,6 +252,7 @@ class SpendingBreakdownResponse(BaseModel):
             }
         }
     )
+
 
 class IncomeBreakdownResponse(BaseModel):
     """Income distribution by source.
@@ -266,6 +301,7 @@ class IncomeBreakdownResponse(BaseModel):
         }
     )
 
+
 class CategoryComparisonResponse(BaseModel):
     """Month-over-month comparison for a single category.
 
@@ -277,7 +313,9 @@ class CategoryComparisonResponse(BaseModel):
     current_amount: Decimal = Field(description="Spending in current month")
     previous_amount: Decimal = Field(description="Spending in previous month")
     change_amount: Decimal = Field(description="Absolute change (current - previous)")
-    change_percentage: Decimal = Field(description="Percentage change (positive = increase)")
+    change_percentage: Decimal = Field(
+        description="Percentage change (positive = increase)"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -291,6 +329,7 @@ class CategoryComparisonResponse(BaseModel):
         }
     )
 
+
 class MonthComparisonResponse(BaseModel):
     """Month-over-month financial comparison.
 
@@ -303,8 +342,12 @@ class MonthComparisonResponse(BaseModel):
     - Net income: positive change = good (green ↑)
     """
 
-    current_month: str = Field(description="Current month label (e.g., 'December 2024')")
-    previous_month: str = Field(description="Previous month label (e.g., 'November 2024')")
+    current_month: str = Field(
+        description="Current month label (e.g., 'December 2024')"
+    )
+    previous_month: str = Field(
+        description="Previous month label (e.g., 'November 2024')"
+    )
     currency: str = Field(description="Currency code (e.g., 'EUR')")
 
     # Income comparison
@@ -317,10 +360,14 @@ class MonthComparisonResponse(BaseModel):
     current_spending: Decimal = Field(description="Total spending this month")
     previous_spending: Decimal = Field(description="Total spending last month")
     spending_change: Decimal = Field(description="Spending difference")
-    spending_change_percentage: Decimal = Field(description="Spending change percentage")
+    spending_change_percentage: Decimal = Field(
+        description="Spending change percentage"
+    )
 
     # Net income comparison
-    current_net: Decimal = Field(description="Net income this month (income - spending)")
+    current_net: Decimal = Field(
+        description="Net income this month (income - spending)"
+    )
     previous_net: Decimal = Field(description="Net income last month")
     net_change: Decimal = Field(description="Net income difference")
     net_change_percentage: Decimal = Field(description="Net income change percentage")
@@ -369,6 +416,7 @@ class MonthComparisonResponse(BaseModel):
         }
     )
 
+
 class TopExpenseItemResponse(BaseModel):
     """A ranked expense category with statistics.
 
@@ -381,7 +429,9 @@ class TopExpenseItemResponse(BaseModel):
     total_amount: Decimal = Field(description="Total spent in analysis period")
     monthly_average: Decimal = Field(description="Average monthly spending")
     percentage_of_total: Decimal = Field(description="Share of total spending (0-100)")
-    transaction_count: int = Field(description="Number of transactions in this category")
+    transaction_count: int = Field(
+        description="Number of transactions in this category"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -396,6 +446,7 @@ class TopExpenseItemResponse(BaseModel):
             }
         }
     )
+
 
 class TopExpensesResponse(BaseModel):
     """Ranked list of top expense categories.
@@ -458,6 +509,7 @@ class TopExpensesResponse(BaseModel):
         }
     )
 
+
 class SankeyNodeResponse(BaseModel):
     """A node in the Sankey diagram.
 
@@ -466,7 +518,9 @@ class SankeyNodeResponse(BaseModel):
 
     id: str = Field(description="Unique node identifier (e.g., 'income_salary')")
     label: str = Field(description="Display label (e.g., 'Salary')")
-    category: str = Field(description="Node type: 'income', 'total', 'expense', or 'savings'")
+    category: str = Field(
+        description="Node type: 'income', 'total', 'expense', or 'savings'"
+    )
     color: str | None = Field(default=None, description="Hex color for the node")
 
     model_config = ConfigDict(
@@ -479,6 +533,7 @@ class SankeyNodeResponse(BaseModel):
             }
         }
     )
+
 
 class SankeyLinkResponse(BaseModel):
     """A link (flow) between two Sankey nodes.
@@ -500,6 +555,7 @@ class SankeyLinkResponse(BaseModel):
         }
     )
 
+
 class SankeyResponse(BaseModel):
     """Sankey diagram data for cash flow visualization.
 
@@ -520,7 +576,9 @@ class SankeyResponse(BaseModel):
     nodes: list[SankeyNodeResponse] = Field(description="All nodes in the diagram")
     links: list[SankeyLinkResponse] = Field(description="Links connecting nodes")
     currency: str = Field(description="Currency code (e.g., 'EUR')")
-    period_label: str = Field(description="Human-readable period (e.g., 'December 2024')")
+    period_label: str = Field(
+        description="Human-readable period (e.g., 'December 2024')"
+    )
     total_income: Decimal = Field(description="Sum of all income")
     total_expenses: Decimal = Field(description="Sum of all expenses")
     net_savings: Decimal = Field(description="Income minus expenses (can be negative)")
@@ -529,16 +587,50 @@ class SankeyResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "nodes": [
-                    {"id": "income_salary", "label": "Salary", "category": "income", "color": "#22c55e"},
-                    {"id": "income_dividends", "label": "Dividends", "category": "income", "color": "#16a34a"},
-                    {"id": "total", "label": "Total Income", "category": "total", "color": "#6b7280"},
-                    {"id": "expense_rent", "label": "Rent", "category": "expense", "color": "#f97316"},
-                    {"id": "expense_food", "label": "Food", "category": "expense", "color": "#ef4444"},
-                    {"id": "savings", "label": "Savings", "category": "savings", "color": "#22c55e"},
+                    {
+                        "id": "income_salary",
+                        "label": "Salary",
+                        "category": "income",
+                        "color": "#22c55e",
+                    },
+                    {
+                        "id": "income_dividends",
+                        "label": "Dividends",
+                        "category": "income",
+                        "color": "#16a34a",
+                    },
+                    {
+                        "id": "total",
+                        "label": "Total Income",
+                        "category": "total",
+                        "color": "#6b7280",
+                    },
+                    {
+                        "id": "expense_rent",
+                        "label": "Rent",
+                        "category": "expense",
+                        "color": "#f97316",
+                    },
+                    {
+                        "id": "expense_food",
+                        "label": "Food",
+                        "category": "expense",
+                        "color": "#ef4444",
+                    },
+                    {
+                        "id": "savings",
+                        "label": "Savings",
+                        "category": "savings",
+                        "color": "#22c55e",
+                    },
                 ],
                 "links": [
                     {"source": "income_salary", "target": "total", "value": "3500.00"},
-                    {"source": "income_dividends", "target": "total", "value": "150.00"},
+                    {
+                        "source": "income_dividends",
+                        "target": "total",
+                        "value": "150.00",
+                    },
                     {"source": "total", "target": "expense_rent", "value": "950.00"},
                     {"source": "total", "target": "expense_food", "value": "450.00"},
                     {"source": "total", "target": "savings", "value": "2250.00"},

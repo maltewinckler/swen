@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 
-from swen.presentation.api.config import get_api_settings
 from swen.presentation.api.dependencies import (
     AuthenticatedUser,
     AuthService,
@@ -23,7 +22,7 @@ from swen.presentation.api.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from swen_config.settings import Settings
+from swen_config.settings import Settings, get_settings
 from swen_identity import (
     AccountLockedError,
     EmailAlreadyExistsError,
@@ -47,7 +46,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Type aliases for dependencies using Annotated (modern FastAPI pattern)
-SettingsDep = Annotated[Settings, Depends(get_api_settings)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 PasswordHashingServiceDep = Annotated[
     PasswordHashingService,
     Depends(get_password_service),
@@ -129,6 +128,7 @@ async def register(
     session: DBSession,
     settings: SettingsDep,
 ) -> AuthResponse:
+    """Register a new user account."""
     # Check registration mode (first user is always allowed)
     if settings.registration_mode == "admin_only":
         user_repo = UserRepositorySQLAlchemy(session)

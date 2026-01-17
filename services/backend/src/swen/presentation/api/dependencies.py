@@ -23,11 +23,9 @@ from sqlalchemy.ext.asyncio import (
 
 from swen.application.ports.identity import CurrentUser
 from swen.infrastructure.adapters.identity import IdentityAdapter
-from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
-from swen.presentation.api.config import get_api_settings
 from swen_config.settings import Settings, get_settings
 from swen_identity import (
     AuthenticationService,
@@ -154,60 +152,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 DBSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
-# -----------------------------------------------------------------------------
-# Database Schema Management
-# -----------------------------------------------------------------------------
-
-
-async def create_tables() -> None:
-    """
-    Create all database tables (idempotent).
-
-    Uses SQLAlchemy's create_all() which only creates missing tables.
-    Existing tables and their data are never modified or deleted.
-    """
-    # Import all models to register them with Base.metadata
-    # swen models
-    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
-
-    # swen_identity models (use same Base, so included in metadata)
-    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
-
-    engine = get_engine()
-    logger.info("Ensuring all database tables exist...")
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    logger.info("Database schema is up to date (missing tables created if needed)")
-
-
-async def drop_tables() -> None:
-    """
-    Drop all database tables (USE WITH CAUTION!).
-
-    This is primarily for testing and development reset scenarios.
-    """
-    # Import all models to register them with Base.metadata
-    import swen.infrastructure.persistence.sqlalchemy.models  # noqa: F401
-    import swen_identity.infrastructure.persistence.sqlalchemy.models  # noqa: F401
-
-    engine = get_engine()
-    logger.warning("Dropping all database tables...")
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    logger.info("Database tables dropped successfully")
-
-
-# -----------------------------------------------------------------------------
-# Authentication Services
-# -----------------------------------------------------------------------------
-
-
 def get_jwt_service(
-    settings: Settings = Depends(get_api_settings),
+    settings: Settings = Depends(get_settings),
 ) -> JWTService:
     """Get JWT service configured with API settings."""
     return JWTService(
@@ -377,12 +323,8 @@ AdminUser = Annotated[User, Depends(require_admin)]
 async def get_current_current_user(
     user: User = Depends(get_current_user),
 ) -> CurrentUser:
-    """
-    Get CurrentUser for repository scoping.
-
-    Uses IdentityAdapter to convert from swen_identity.User to swen's CurrentUser port.
-    """
-    from swen_identity import UserContext
+    """Get CurrentUser for repository scoping."""
+    from swen_identity import UserContext  # noqa: PLC0415
 
     current_user = UserContext.create(user)
     return IdentityAdapter.to_current_user(current_user)
@@ -396,11 +338,7 @@ async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
     current_user: CurrentUser = Depends(get_current_current_user),
 ) -> SQLAlchemyRepositoryFactory:
-    """
-    Get repository factory for the current user.
-
-    The factory creates user-scoped repositories for domain operations.
-    """
+    """Get repository factory for the current user."""
     return SQLAlchemyRepositoryFactory(
         session=session,
         current_user=current_user,

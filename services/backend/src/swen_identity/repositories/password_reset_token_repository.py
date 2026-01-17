@@ -53,7 +53,9 @@ class PasswordResetTokenRepository(ABC):
         """
 
     @abstractmethod
-    async def find_valid_by_hash(self, token_hash: str) -> PasswordResetTokenData | None:
+    async def find_valid_by_hash(
+        self, token_hash: str
+    ) -> PasswordResetTokenData | None:
         """Find a valid (unused) token by its hash.
 
         Parameters

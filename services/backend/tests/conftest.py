@@ -4,14 +4,32 @@ This conftest.py makes all tests visible in VS Code test explorer while
 auto-skipping slow/manual tests unless explicitly enabled via environment
 variables or pytest options.
 
+Test Structure:
+    tests/
+    ├── swen/                  # Core domain tests (banking, accounting)
+    │   ├── unit/              # Fast, isolated tests
+    │   └── integration/       # Tests with Testcontainers PostgreSQL
+    ├── swen_identity/         # Identity domain tests (users, auth)
+    │   ├── unit/
+    │   └── integration/
+    ├── cross_domain/          # Tests spanning multiple domains
+    │   ├── integration/
+    │   └── e2e/
+    ├── external/              # Real bank tests (requires credentials)
+    │   ├── fints/
+    │   └── tan/
+    └── shared/                # Shared fixtures and utilities
+
 Environment Variables:
     RUN_INTEGRATION=1    Run @pytest.mark.integration tests
     RUN_MANUAL_TAN=1     Run @pytest.mark.tan and @pytest.mark.manual tests
+    RUN_EXTERNAL=1       Run external bank tests (requires credentials)
     RUN_ALL_TESTS=1      Run all tests (overrides other settings)
 
 Pytest Options:
     --run-integration    Run integration tests
     --run-manual         Run manual/TAN tests
+    --run-external       Run external bank tests
     --run-all            Run all tests
 """
 
@@ -68,6 +86,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "tan: Tests requiring TAN approval (auto-skipped)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "external: Tests connecting to real external services (auto-skipped)",
     )
     config.addinivalue_line(
         "markers",
