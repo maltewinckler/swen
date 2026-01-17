@@ -26,7 +26,7 @@ from testcontainers.postgres import PostgresContainer
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 
 # Use same Postgres version as production
-POSTGRES_IMAGE = "postgres:16-alpine"
+POSTGRES_IMAGE = "postgres:18-alpine"
 
 # Fixed UUIDs for testing - ensures deterministic behavior
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")

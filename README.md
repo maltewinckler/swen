@@ -1,5 +1,8 @@
 # SWEN - Secure Wallet & Expense Navigator
 
+[![CI](https://github.com/maltewinckler/swen/actions/workflows/ci.yml/badge.svg)](https://github.com/maltewinckler/swen/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 SWEN is a personal banking application to view, categorize, and analyze your bank transactions. It comes with built in support for German FinTS/HBCI bank to automatically sync your bank transactions.
 
 While searching for a personal bookkeeping app where we do not have to give our very personal data (e.g. banking transactions and even permanent 2FA access to the account), we quickly found that there are not many single-service alternatives available (and it seemed like a good opportunity to learn some domain driven design :-)).
