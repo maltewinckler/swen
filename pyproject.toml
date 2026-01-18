@@ -18,6 +18,9 @@ dev = [
     "pyright>=1.1.391",
     "httpx>=0.28.1",
     "pre-commit>=4.5.1",
+    "detect-secrets>=1.5.0",
+    "ipykernel>=6.0",
+    "testcontainers[postgres]>=4.0",
     # Include all workspace members for consolidated IDE support
     "swen-backend",
     "swen-ml",

@@ -3,12 +3,16 @@
     "services/backend/src/swen",
     "services/backend/src/swen_identity",
     "services/backend/src/swen_config",
-    "services/backend/tests"
+    "services/backend/tests",
+    "services/ml/swen_ml",
+    "services/contracts/swen_ml_contracts"
   ],
   "extraPaths": [
-    "services/backend/src"
+    "services/backend/src",
+    "services/ml",
+    "services/contracts"
   ],
-  "venvPath": "services/backend",
+  "venvPath": ".",
   "venv": ".venv",
   "typeCheckingMode": "basic"
 }
