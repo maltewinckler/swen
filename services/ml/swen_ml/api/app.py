@@ -1,67 +1,76 @@
-"""FastAPI application."""
+"""FastAPI application with lifespan management."""
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from swen_ml import __version__
-from swen_ml.config.settings import Settings
-from swen_ml.inference.encoder import TransactionEncoder
-from swen_ml.inference.similarity_classifier import SimilarityClassifier
-from swen_ml.storage.embedding_store import EmbeddingStore
+from swen_ml.config.settings import get_settings
+from swen_ml.models.encoder import Encoder
+from swen_ml.models.nli import NLIClassifier
 
-from .routes import accounts, classify, examples, health, users
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+def configure_logging() -> None:
+    """Configure logging for the ML service."""
+    settings = get_settings()
+    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # Set level for our package specifically
+    logging.getLogger("swen_ml").setLevel(log_level)
+
+
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    logger.info("Starting SWEN ML Service v%s", __version__)
+    """Load models at startup, cleanup at shutdown."""
+    settings = get_settings()
 
-    settings = Settings()
-    logger.info("Loading model: %s", settings.sentence_transformer_model)
+    logger.info("Loading embedding model: %s", settings.embedding_model)
+    app.state.encoder = Encoder.load(settings.embedding_model)
+    app.state.encoder.warmup()
+    logger.info("Embedding model loaded (dim=%d)", app.state.encoder.dimension)
 
-    encoder = TransactionEncoder(
-        model_name=settings.sentence_transformer_model,
-        cache_folder=settings.hf_cache_path,
-    )
-    store = EmbeddingStore(settings.embedding_storage_path)
-    classifier = SimilarityClassifier(
-        encoder=encoder,
-        store=store,
-        similarity_threshold=settings.similarity_threshold,
-        description_threshold=settings.description_threshold,
-        max_examples_per_account=settings.max_examples_per_account,
-    )
+    logger.info("Loading NLI model: %s", settings.nli_model)
+    app.state.nli = NLIClassifier.load(settings.nli_model)
+    app.state.nli.warmup(["Test"])
+    logger.info("NLI model loaded")
 
-    app.state.settings = settings
-    app.state.classifier = classifier
-
-    logger.info("ML Service ready")
+    logger.info("ML service ready")
     yield
-    logger.info("Shutting down ML Service")
+
+    logger.info("Shutting down")
+    del app.state.encoder
+    del app.state.nli
 
 
 def create_app() -> FastAPI:
+    """Create FastAPI application."""
+    from swen_ml.api.routes import accounts, classify, examples, health
+
     app = FastAPI(
         title="SWEN ML Service",
-        description="Transaction classification using sentence embeddings",
-        version=__version__,
+        description="Transaction classification service",
+        version="0.1.0",
         lifespan=lifespan,
     )
-    app.include_router(health.router)
-    app.include_router(classify.router)
-    app.include_router(examples.router)
-    app.include_router(accounts.router)
-    app.include_router(users.router)
+
+    app.include_router(health.router, tags=["health"])
+    app.include_router(classify.router, tags=["classification"])
+    app.include_router(examples.router, tags=["examples"])
+    app.include_router(accounts.router, tags=["accounts"])
+
     return app
 
 
+# For uvicorn
 app = create_app()

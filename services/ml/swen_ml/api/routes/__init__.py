@@ -1,5 +1,5 @@
-"""API routes."""
+"""API route handlers."""
 
-from . import accounts, classify, examples, health, users
+from swen_ml.api.routes import accounts, classify, examples, health
 
-__all__ = ["accounts", "classify", "examples", "health", "users"]
+__all__ = ["accounts", "classify", "examples", "health"]

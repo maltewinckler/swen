@@ -12,22 +12,6 @@ from swen_ml.storage.embedding_store import EmbeddingStore
 class TestEmbeddingStore:
     """Tests for EmbeddingStore."""
 
-    def test_save_and_load_account_embeddings(
-        self, temp_storage_path: Path
-    ) -> None:
-        """Test saving and loading account embeddings."""
-        store = EmbeddingStore(temp_storage_path)
-        user_id = uuid4()
-        account_id = uuid4()
-
-        embedding = np.random.rand(512).astype(np.float32)
-        store.save_account_embeddings(user_id, {account_id: embedding})
-
-        loaded = store.load_account_embeddings(user_id)
-
-        assert account_id in loaded
-        np.testing.assert_array_almost_equal(loaded[account_id], embedding)
-
     def test_add_transaction_embedding(self, temp_storage_path: Path) -> None:
         """Test adding transaction embeddings."""
         store = EmbeddingStore(temp_storage_path)
@@ -96,15 +80,7 @@ class TestEmbeddingStore:
         account_id_1 = uuid4()
         account_id_2 = uuid4()
 
-        # Add embeddings for two accounts
-        store.save_account_embeddings(
-            user_id,
-            {
-                account_id_1: np.random.rand(512).astype(np.float32),
-                account_id_2: np.random.rand(512).astype(np.float32),
-            },
-        )
-
+        # Add transaction embeddings for two accounts
         for acc_id in [account_id_1, account_id_2]:
             store.add_transaction_embedding(
                 user_id=user_id,
@@ -118,10 +94,6 @@ class TestEmbeddingStore:
         assert deleted == 1
 
         # Verify first is gone, second remains
-        acc_emb = store.load_account_embeddings(user_id)
-        assert account_id_1 not in acc_emb
-        assert account_id_2 in acc_emb
-
         txn_emb = store.load_transaction_embeddings(user_id)
         assert account_id_1 not in txn_emb
         assert account_id_2 in txn_emb
@@ -132,10 +104,7 @@ class TestEmbeddingStore:
         user_id = uuid4()
         account_id = uuid4()
 
-        # Add some data
-        store.save_account_embeddings(
-            user_id, {account_id: np.random.rand(512).astype(np.float32)}
-        )
+        # Add transaction data
         store.add_transaction_embedding(
             user_id=user_id,
             account_id=account_id,
@@ -145,7 +114,7 @@ class TestEmbeddingStore:
 
         # Delete user
         acc_deleted, txn_deleted = store.delete_user(user_id)
-        assert acc_deleted == 1
+        assert acc_deleted == 1  # 1 account with examples
         assert txn_deleted == 1
 
         # Verify directory is gone
@@ -157,10 +126,50 @@ class TestEmbeddingStore:
         user_ids = [uuid4() for _ in range(3)]
 
         for user_id in user_ids:
-            store.save_account_embeddings(
-                user_id, {uuid4(): np.random.rand(512).astype(np.float32)}
+            store.add_transaction_embedding(
+                user_id=user_id,
+                account_id=uuid4(),
+                embedding=np.random.rand(512).astype(np.float32),
+                text="Test",
             )
 
         listed = store.list_users()
         assert len(listed) == 3
         assert set(listed) == set(user_ids)
+
+    def test_transaction_id_deduplication(self, temp_storage_path: Path) -> None:
+        """Test transaction ID tracking for deduplication."""
+        store = EmbeddingStore(temp_storage_path)
+        user_id = uuid4()
+        account_id = uuid4()
+        transaction_id = uuid4()
+
+        # First add
+        store.add_transaction_embedding(
+            user_id=user_id,
+            account_id=account_id,
+            embedding=np.random.rand(512).astype(np.float32),
+            text="Test",
+            transaction_id=transaction_id,
+        )
+
+        # Check deduplication
+        assert store.has_transaction_id(user_id, account_id, transaction_id)
+        assert not store.has_transaction_id(user_id, account_id, uuid4())
+
+    def test_get_example_count(self, temp_storage_path: Path) -> None:
+        """Test getting example count for an account."""
+        store = EmbeddingStore(temp_storage_path)
+        user_id = uuid4()
+        account_id = uuid4()
+
+        assert store.get_example_count(user_id, account_id) == 0
+
+        store.add_transaction_embedding(
+            user_id=user_id,
+            account_id=account_id,
+            embedding=np.random.rand(512).astype(np.float32),
+            text="Test",
+        )
+
+        assert store.get_example_count(user_id, account_id) == 1

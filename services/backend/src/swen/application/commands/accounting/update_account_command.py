@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+from swen_ml_contracts import AccountOption
 
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import (
@@ -17,6 +20,10 @@ from swen.domain.accounting.services import AccountHierarchyService
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.identity import CurrentUser
+    from swen.infrastructure.integration.ml.client import MLServiceClient
+
+logger = logging.getLogger(__name__)
 
 
 class ParentAction(str, Enum):
@@ -34,24 +41,34 @@ class UpdateAccountCommand:
         self,
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
+        current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
+        self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> UpdateAccountCommand:
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
+    ) -> UpdateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
+            current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
-    async def execute(  # NOQA: PLR0913
+    async def execute(  # noqa: PLR0913
         self,
         account_id: UUID,
-        name: Optional[str] = None,
-        account_number: Optional[str] = None,
-        description: Optional[str] = None,
-        parent_id: Optional[UUID] = None,
+        name: str | None = None,
+        account_number: str | None = None,
+        description: str | None = None,
+        parent_id: UUID | None = None,
         parent_action: ParentAction = ParentAction.KEEP,
     ) -> Account:
         account = await self._get_account(account_id)
@@ -68,7 +85,31 @@ class UpdateAccountCommand:
         await self._handle_parent_action(account, parent_id, parent_action)
 
         await self._account_repo.save(account)
+
+        # Trigger ML account embedding update (fire-and-forget)
+        self._trigger_account_embedding(account)
+
         return account
+
+    def _trigger_account_embedding(self, account: Account) -> None:
+        """Trigger ML service to re-embed account anchor for classification."""
+        if not self._ml_client:
+            return
+
+        # Only embed expense/income accounts (used for classification)
+        if account.account_type.value.lower() not in ("expense", "income"):
+            return
+
+        accounts = [
+            AccountOption(
+                account_id=account.id,
+                account_number=account.account_number,
+                name=account.name,
+                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                description=account.description,
+            )
+        ]
+        self._ml_client.embed_accounts_fire_and_forget(self._user_id, accounts)
 
     async def _get_account(self, account_id: UUID) -> Account:
         account = await self._account_repo.find_by_id(account_id)
@@ -101,7 +142,7 @@ class UpdateAccountCommand:
     async def _handle_parent_action(
         self,
         account: Account,
-        parent_id: Optional[UUID],
+        parent_id: UUID | None,
         parent_action: ParentAction,
     ) -> None:
         if parent_action == ParentAction.SET:
@@ -110,7 +151,7 @@ class UpdateAccountCommand:
             account.remove_parent()
         # ParentAction.KEEP: do nothing, preserve current parent
 
-    async def _set_parent(self, account: Account, parent_id: Optional[UUID]) -> None:
+    async def _set_parent(self, account: Account, parent_id: UUID | None) -> None:
         if parent_id is None:
             msg = "parent_id is required when parent_action is 'set'"
             raise ValueError(msg)
@@ -146,10 +187,7 @@ class DeactivateAccountCommand:
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
         )
 
-    async def execute(
-        self,
-        account_id: UUID,
-    ) -> Account:
+    async def execute(self, account_id: UUID) -> Account:
         account = await self._account_repo.find_by_id(account_id)
         if account is None:
             raise AccountNotFoundError(account_id=account_id)
@@ -171,10 +209,7 @@ class ReactivateAccountCommand:
     def from_factory(cls, factory: RepositoryFactory) -> ReactivateAccountCommand:
         return cls(account_repository=factory.account_repository())
 
-    async def execute(
-        self,
-        account_id: UUID,
-    ) -> Account:
+    async def execute(self, account_id: UUID) -> Account:
         account = await self._account_repo.find_by_id(account_id)
         if account is None:
             raise AccountNotFoundError(account_id=account_id)
@@ -202,10 +237,7 @@ class DeleteAccountCommand:
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
         )
 
-    async def execute(
-        self,
-        account_id: UUID,
-    ) -> None:
+    async def execute(self, account_id: UUID) -> None:
         account = await self._account_repo.find_by_id(account_id)
         if account is None:
             raise AccountNotFoundError(account_id=account_id)

@@ -9,14 +9,20 @@ dependencies = [
     "uvicorn>=0.27.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-    # Sentence Embeddings
+    # Embeddings
     "sentence-transformers>=2.2.0",
-    # Vector Search
-    "faiss-cpu>=1.7.4",
+    # NLI / Zero-shot classification
+    "transformers>=4.36.0",
+    "torch>=2.0.0",
     # Storage
     "numpy>=1.26.0",
     # File locking for concurrent access
     "filelock>=3.12.0",
+    # CLI
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    # Data processing
+    "pandas>=2.0.0",
     # Shared contracts (workspace dependency)
     "swen-ml-contracts",
 ]
@@ -26,7 +32,11 @@ dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "httpx>=0.26.0",
+    "ruff>=0.1.0",
 ]
+
+[project.scripts]
+swen-ml-eval = "swen_ml.evaluation.__main__:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -42,3 +52,10 @@ typeCheckingMode = "basic"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

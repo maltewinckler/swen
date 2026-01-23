@@ -189,13 +189,13 @@ async def init_chart_of_accounts(
     ## Template
 
     Creates a **minimal** chart of accounts with simple categories for
-    everyday personal finance. ~15 accounts covering essentials:
-    salary, rent, groceries, restaurants, transport, subscriptions, etc.
+    everyday personal finance. ~13 accounts covering essentials:
+    salary, housing, groceries, restaurants, transport, subscriptions, etc.
 
     ## Accounts Created
 
     - **Income accounts** (3xxx): Salary, Other Income
-    - **Expense accounts** (4xxx): Rent, Utilities, Groceries, Restaurants, etc.
+    - **Expense accounts** (4xxx): Housing, Groceries, Restaurants, etc.
     - **Equity accounts** (2xxx): Opening Balance (required for bank sync)
 
     This is idempotent - if accounts already exist, it will return

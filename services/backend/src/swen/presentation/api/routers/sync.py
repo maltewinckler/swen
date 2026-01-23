@@ -11,7 +11,7 @@ from swen.application.commands import BatchSyncCommand
 from swen.application.dtos.integration import SyncProgressEvent
 from swen.application.queries import SyncRecommendationQuery, SyncStatusQuery
 from swen.domain.shared.exceptions import DomainException, ErrorCode
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.sync import (
     AccountSyncRecommendationResponse,
     AccountSyncStatsResponse,
@@ -87,6 +87,7 @@ async def get_sync_recommendation(
 )
 async def run_sync(
     factory: RepoFactory,
+    ml_client: MLClient,
     request: Optional[SyncRunRequest] = None,
 ) -> SyncRunResponse:
     """
@@ -130,7 +131,7 @@ async def run_sync(
 
     # Create batch sync command (async factory due to account existence check)
     try:
-        command = await BatchSyncCommand.from_factory(factory)
+        command = await BatchSyncCommand.from_factory(factory, ml_client=ml_client)
     except Exception as e:
         logger.exception("Failed to create sync command: %s", e)
         raise HTTPException(
@@ -205,6 +206,7 @@ async def run_sync(
 )
 async def run_sync_streaming(
     factory: RepoFactory,
+    ml_client: MLClient,
     request: Optional[SyncRunRequest] = None,
 ) -> StreamingResponse:
     """
@@ -259,7 +261,7 @@ async def run_sync_streaming(
     async def event_generator():
         """Generate SSE events from sync progress."""
         try:
-            command = await BatchSyncCommand.from_factory(factory)
+            command = await BatchSyncCommand.from_factory(factory, ml_client=ml_client)
         except DomainException as e:
             logger.exception("Failed to create sync command: %s", e)
             yield _format_sse_event(

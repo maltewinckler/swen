@@ -1,6 +1,5 @@
 from swen.presentation.api.routers.accounts import router as accounts_router
 from swen.presentation.api.routers.admin import router as admin_router
-from swen.presentation.api.routers.ai import router as ai_router
 from swen.presentation.api.routers.analytics import router as analytics_router
 from swen.presentation.api.routers.auth import router as auth_router
 from swen.presentation.api.routers.credentials import router as credentials_router
@@ -16,7 +15,6 @@ from swen.presentation.api.routers.transactions import router as transactions_ro
 __all__ = [
     "accounts_router",
     "admin_router",
-    "ai_router",
     "analytics_router",
     "auth_router",
     "credentials_router",

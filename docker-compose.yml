@@ -45,21 +45,23 @@ services:
     networks:
       - swenetwork
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: swen-ollama
+  ml:
+    build:
+      context: .
+      dockerfile: services/ml/Dockerfile
+    container_name: swen-ml
     restart: unless-stopped
     ports:
-      - "11434:11434"
+      - "8001:8001"
     volumes:
-      # Persist downloaded models
-      - ollama-data:/root/.ollama
+      - ml-embeddings:/app/data/embeddings
+      - ml-cache:/app/data/cache
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s  # model loading takes time
     networks:
       - swenetwork
 
@@ -111,7 +113,9 @@ networks:
 volumes:
   postgres-data:
     driver: local
-  ollama-data:
+  ml-embeddings:
+    driver: local
+  ml-cache:
     driver: local
   # Caddy volumes (used when --profile proxy is enabled)
   caddy-data:

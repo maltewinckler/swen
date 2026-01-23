@@ -31,12 +31,10 @@ class MockAIProvider(AICounterAccountProvider):
     def __init__(
         self,
         result: Optional[AICounterAccountResult] = None,
-        min_confidence: float = 0.7,
         model: str = "mock-model",
         raise_error: bool = False,
     ):
         self._result = result
-        self._min_confidence = min_confidence
         self._model = model
         self._raise_error = raise_error
         self.resolve_called = False
@@ -47,20 +45,18 @@ class MockAIProvider(AICounterAccountProvider):
         self,
         transaction: BankTransaction,
         available_accounts: list[CounterAccountOption],
+        user_id: UUID | None = None,
     ) -> Optional[AICounterAccountResult]:
         self.resolve_called = True
         self.last_transaction = transaction
         self.last_accounts = available_accounts
+        self.last_user_id = user_id
 
         if self._raise_error:
             msg = "AI service unavailable"
             raise RuntimeError(msg)
 
         return self._result
-
-    @property
-    def min_confidence_threshold(self) -> float:
-        return self._min_confidence
 
     @property
     def model_name(self) -> str:
@@ -311,105 +307,6 @@ class TestCounterAccountResolutionServiceWithAI:
         account_types = {acc.account_type for acc in ai_provider.last_accounts}
         assert account_types == {"expense", "income"}
         assert "asset" not in account_types
-
-
-class TestAIConfidenceThreshold:
-    """Tests for AI confidence threshold behavior."""
-
-    @pytest.mark.asyncio
-    async def test_low_confidence_returns_none_for_account(
-        self,
-        mock_rule_repository,
-        mock_account_repository,
-        groceries_account,
-    ):
-        """AI result below threshold should not return an account."""
-        ai_result = AICounterAccountResult(
-            counter_account_id=groceries_account.id,
-            confidence=0.5,  # Below default 0.7 threshold
-        )
-        ai_provider = MockAIProvider(result=ai_result, min_confidence=0.7)
-
-        service = CounterAccountResolutionService(
-            rule_repository=mock_rule_repository,
-            ai_provider=ai_provider,
-        )
-
-        transaction = create_bank_transaction()
-        result = await service.resolve_counter_account(
-            bank_transaction=transaction,
-            account_repository=mock_account_repository,
-        )
-
-        assert result is None
-        assert ai_provider.resolve_called is True
-
-    @pytest.mark.asyncio
-    async def test_low_confidence_preserves_ai_result(
-        self,
-        mock_rule_repository,
-        mock_account_repository,
-        groceries_account,
-    ):
-        """AI result below threshold should still be preserved in ResolutionResult."""
-        ai_result = AICounterAccountResult(
-            counter_account_id=groceries_account.id,
-            confidence=0.4,  # Below default 0.7 threshold
-            reasoning="Maybe groceries, not sure",
-        )
-        ai_provider = MockAIProvider(result=ai_result, min_confidence=0.7)
-
-        service = CounterAccountResolutionService(
-            rule_repository=mock_rule_repository,
-            ai_provider=ai_provider,
-        )
-
-        transaction = create_bank_transaction()
-        result = await service.resolve_counter_account_with_details(
-            bank_transaction=transaction,
-            account_repository=mock_account_repository,
-        )
-
-        # Account should be None (below threshold)
-        assert result.account is None
-        # But AI result should be preserved for auditing
-        assert result.ai_result is not None
-        assert result.ai_result.confidence == 0.4
-        assert result.ai_result.reasoning == "Maybe groceries, not sure"
-        # Source should indicate low confidence
-        assert result.source == "ai_low_confidence"
-        assert result.is_ai_low_confidence is True
-        assert result.is_from_ai is False
-        assert result.has_ai_result is True
-
-    @pytest.mark.asyncio
-    async def test_custom_confidence_threshold(
-        self,
-        mock_rule_repository,
-        mock_account_repository,
-        groceries_account,
-    ):
-        """Custom confidence threshold should be respected."""
-        ai_result = AICounterAccountResult(
-            counter_account_id=groceries_account.id,
-            confidence=0.6,
-        )
-        # Lower threshold accepts 0.6 confidence
-        ai_provider = MockAIProvider(result=ai_result, min_confidence=0.5)
-
-        service = CounterAccountResolutionService(
-            rule_repository=mock_rule_repository,
-            ai_provider=ai_provider,
-        )
-
-        transaction = create_bank_transaction()
-        result = await service.resolve_counter_account(
-            bank_transaction=transaction,
-            account_repository=mock_account_repository,
-        )
-
-        assert result is not None
-        assert result.id == groceries_account.id
 
 
 class TestAIErrorHandling:

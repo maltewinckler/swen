@@ -1,27 +1,17 @@
-import { ArrowRight, Check, CheckCircle2, SkipForward } from 'lucide-react'
+import { ArrowRight, Check, CheckCircle2 } from 'lucide-react'
 import { Button, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
-import type { AIModel } from '@/api/ai'
 
 interface OnboardingCompleteStepProps {
-  selectedAIModel: string | null
-  aiSkipped: boolean
-  aiModels: AIModel[] | undefined
   credentialsCount: number
   manualAccountsCount: number
   onFinish: () => void
 }
 
 export function OnboardingCompleteStep({
-  selectedAIModel,
-  aiSkipped,
-  aiModels,
   credentialsCount,
   manualAccountsCount,
   onFinish,
 }: OnboardingCompleteStepProps) {
-  const selectedModelLabel =
-    selectedAIModel ? aiModels?.find((m) => m.name === selectedAIModel)?.display_name || selectedAIModel : null
-
   return (
     <>
       <CardHeader className="text-center pb-2">
@@ -33,18 +23,6 @@ export function OnboardingCompleteStep({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3 pt-4">
-          {selectedModelLabel && !aiSkipped ? (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-accent-success/5 border border-accent-success/20">
-              <CheckCircle2 className="h-5 w-5 text-accent-success flex-shrink-0" />
-              <p className="text-sm text-text-primary">AI classification enabled ({selectedModelLabel})</p>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-bg-subtle border border-border-subtle">
-              <SkipForward className="h-5 w-5 text-text-muted flex-shrink-0" />
-              <p className="text-sm text-text-muted">AI classification skipped (can enable in Settings)</p>
-            </div>
-          )}
-
           <div className="flex items-center gap-3 p-3 rounded-lg bg-accent-success/5 border border-accent-success/20">
             <CheckCircle2 className="h-5 w-5 text-accent-success flex-shrink-0" />
             <p className="text-sm text-text-primary">Chart of accounts initialized</p>

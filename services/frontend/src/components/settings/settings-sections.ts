@@ -1,11 +1,10 @@
-import { Bell, Brain, Download, Link as LinkIcon, Lock, Palette, ShieldCheck, User } from 'lucide-react'
+import { Bell, Download, Link as LinkIcon, Lock, Palette, ShieldCheck, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type SettingsSectionId =
   | 'profile'
   | 'security'
   | 'connections'
-  | 'ai'
   | 'exports'
   | 'notifications'
   | 'appearance'
@@ -36,12 +35,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     icon: LinkIcon,
     title: 'Bank Connections',
     description: 'Manage linked bank accounts',
-  },
-  {
-    id: 'ai',
-    icon: Brain,
-    title: 'AI Classification',
-    description: 'Model and classification settings',
   },
   {
     id: 'exports',

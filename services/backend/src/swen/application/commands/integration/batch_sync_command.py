@@ -26,6 +26,7 @@ from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 
 class BatchSyncCommand:
@@ -46,14 +47,21 @@ class BatchSyncCommand:
         self._opening_balance_account_exists = opening_balance_account_exists
 
     @classmethod
-    async def from_factory(cls, factory: RepositoryFactory) -> BatchSyncCommand:
+    async def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: Optional[MLServiceClient] = None,
+    ) -> BatchSyncCommand:
         account_repo = factory.account_repository()
         opening_balance_account = await account_repo.find_by_account_number(
             WellKnownAccounts.OPENING_BALANCE_EQUITY,
         )
 
         return cls(
-            sync_command=TransactionSyncCommand.from_factory(factory),
+            sync_command=TransactionSyncCommand.from_factory(
+                factory,
+                ml_client=ml_client,
+            ),
             settings_repo=factory.user_settings_repository(),
             mapping_query=ListAccountMappingsQuery.from_factory(factory),
             credential_repo=factory.credential_repository(),

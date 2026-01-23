@@ -1,20 +1,21 @@
 """Test fixtures for ML Service."""
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from swen_ml import __version__
-from swen_ml.config.settings import Settings
-from swen_ml.inference.encoder import TransactionEncoder
-from swen_ml.inference.similarity_classifier import SimilarityClassifier
-from swen_ml.storage.embedding_store import EmbeddingStore
 from swen_ml.api.routes import accounts, classify, examples, health, users
+from swen_ml.config.settings import Settings
+from swen_ml.inference.anchors import AnchorManager, AnchorTextBuilder
+from swen_ml.inference.encoding import EncoderFactory, TransactionEncoder
+from swen_ml.inference.example_manager import ExampleManager
+from swen_ml.inference.pipeline import ClassificationPipeline
+from swen_ml.storage.anchor_store import AnchorStore
+from swen_ml.storage.embedding_store import EmbeddingStore
 
 
 @pytest.fixture
@@ -40,6 +41,12 @@ def embedding_store(temp_storage_path: Path) -> EmbeddingStore:
     return EmbeddingStore(temp_storage_path)
 
 
+@pytest.fixture
+def anchor_store(temp_storage_path: Path) -> AnchorStore:
+    """Create an anchor store with temp storage."""
+    return AnchorStore(temp_storage_path)
+
+
 # Note: The encoder fixture requires the actual model to be downloaded.
 # For unit tests, we may want to mock the encoder.
 # For integration tests, we use the real encoder.
@@ -48,33 +55,51 @@ def embedding_store(temp_storage_path: Path) -> EmbeddingStore:
 @pytest.fixture
 def encoder(settings: Settings) -> TransactionEncoder:
     """Create a real encoder (requires model download)."""
-    # Use default HF cache to avoid permission issues
-    return TransactionEncoder(
-        model_name=settings.sentence_transformer_model,
+    return EncoderFactory.create(
+        encoder_id=settings.encoder,
         cache_folder=None,  # Use default HuggingFace cache
     )
 
 
 @pytest.fixture
-def classifier(
+def pipeline(
+    encoder: TransactionEncoder,
+    embedding_store: EmbeddingStore,
+    anchor_store: AnchorStore,
+    settings: Settings,
+) -> ClassificationPipeline:
+    """Create a classification pipeline with real encoder."""
+    return ClassificationPipeline(
+        encoder=encoder,
+        store=embedding_store,
+        anchor_store=anchor_store,
+        settings=settings,
+    )
+
+
+@pytest.fixture
+def example_manager(
     encoder: TransactionEncoder,
     embedding_store: EmbeddingStore,
     settings: Settings,
-) -> SimilarityClassifier:
-    """Create a classifier with real encoder."""
-    return SimilarityClassifier(
+) -> ExampleManager:
+    """Create an example manager with real encoder."""
+    return ExampleManager(
         encoder=encoder,
         store=embedding_store,
-        similarity_threshold=settings.similarity_threshold,
+        max_examples_per_account=settings.max_examples_per_account,
     )
 
 
 @pytest.fixture
 def test_client(
-    classifier: SimilarityClassifier,
+    pipeline: ClassificationPipeline,
+    example_manager: ExampleManager,
+    embedding_store: EmbeddingStore,
+    anchor_store: AnchorStore,
     settings: Settings,
 ) -> Generator[TestClient, None, None]:
-    """Create a test client with real classifier."""
+    """Create a test client with real pipeline."""
     # Create app without lifespan to avoid double initialization
     app = FastAPI(
         title="SWEN ML Service (Test)",
@@ -90,7 +115,16 @@ def test_client(
 
     # Set app state directly
     app.state.settings = settings
-    app.state.classifier = classifier
+    app.state.store = embedding_store
+    app.state.anchor_store = anchor_store
+    app.state.pipeline = pipeline
+    app.state.example_manager = example_manager
+    app.state.anchor_manager = AnchorManager(
+        encoder=app.state.pipeline._encoder,  # noqa: SLF001 - tests
+        store=anchor_store,
+        builder=AnchorTextBuilder(variant=settings.anchor_variant),  # type: ignore[arg-type]
+        encoder_id=settings.encoder,
+    )
 
     with TestClient(app) as client:
         yield client

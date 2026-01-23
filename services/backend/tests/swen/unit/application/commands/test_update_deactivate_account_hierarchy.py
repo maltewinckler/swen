@@ -64,9 +64,9 @@ def hierarchy_service(mock_repo):
 
 
 @pytest.fixture
-def update_command(mock_repo, hierarchy_service):
+def update_command(mock_repo, hierarchy_service, current_user):
     """Create update command."""
-    return UpdateAccountCommand(mock_repo, hierarchy_service)
+    return UpdateAccountCommand(mock_repo, hierarchy_service, current_user)
 
 
 @pytest.fixture

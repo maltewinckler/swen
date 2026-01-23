@@ -2,7 +2,7 @@
 # ==============================
 # Run `make help` to see all available commands
 
-.PHONY: help install dev backend frontend build test lint secrets clean pre-commit
+.PHONY: help install dev backend frontend ml build test lint secrets clean pre-commit
 
 # Default target
 help:
@@ -10,22 +10,24 @@ help:
 	@echo "=============================="
 	@echo ""
 	@echo "Setup:"
-	@echo "  make install      - Install all dependencies (backend + frontend)"
-	@echo "  make install-backend  - Install Python dependencies"
+	@echo "  make install      - Install all dependencies (backend + frontend + ml)"
+	@echo "  make install-backend  - Install Python backend dependencies"
 	@echo "  make install-frontend - Install npm dependencies"
+	@echo "  make install-ml       - Install ML service dependencies"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev          - Start both backend and frontend (requires 2 terminals)"
 	@echo "  make backend      - Start backend API server (port 8000)"
 	@echo "  make frontend     - Start frontend dev server (port 5173)"
-	@echo "  make ollama       - Start Ollama server for AI features"
+	@echo "  make ml           - Start ML service (port 8001)"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build        - Build frontend for production"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test         - Run all tests"
-	@echo "  make test-unit    - Run unit tests only"
+	@echo "  make test-backend - Run backend tests"
+	@echo "  make test-ml      - Run ML service tests"
 	@echo "  make test-cov     - Run tests with coverage"
 	@echo ""
 	@echo "Code Quality:"
@@ -49,16 +51,20 @@ help:
 # Setup
 # =============================================================================
 
-install: install-backend install-frontend
+install: install-backend install-frontend install-ml
 	@echo "All dependencies installed"
 
 install-backend:
-	@echo "Installing Python dependencies..."
-	cd services/backend && poetry install
+	@echo "Installing Python backend dependencies..."
+	uv sync --package swen-backend
 
 install-frontend:
 	@echo "Installing npm dependencies..."
 	cd services/frontend && npm install
+
+install-ml:
+	@echo "Installing ML service dependencies..."
+	uv sync --package swen-ml
 
 # =============================================================================
 # Development Servers
@@ -66,23 +72,23 @@ install-frontend:
 
 backend:
 	@echo "Starting backend on http://127.0.0.1:8000..."
-	cd services/backend && poetry run uvicorn swen.presentation.api.app:app --reload --host 127.0.0.1 --port 8000
+	uv run --package swen-backend uvicorn swen.presentation.api.app:app --reload --host 127.0.0.1 --port 8000
 
 frontend:
 	@echo "Starting frontend on http://localhost:5173..."
 	cd services/frontend && npm run dev
 
-ollama:
-	@echo "Starting Ollama server..."
-	ollama serve
+ml:
+	@echo "Starting ML service on http://127.0.0.1:8001..."
+	uv run --package swen-ml uvicorn swen_ml.api.app:create_app --factory --reload --host 127.0.0.1 --port 8001
 
 # Combined dev (prints instructions since we can't easily run both in one terminal)
 dev:
 	@echo "To run the full development stack, open 3 terminals:"
 	@echo ""
-	@echo "  Terminal 1: make ollama    # AI features (optional)"
-	@echo "  Terminal 2: make backend   # API server"
-	@echo "  Terminal 3: make frontend  # React app"
+	@echo "  Terminal 1: make backend   # API server (port 8000)"
+	@echo "  Terminal 2: make frontend  # React app (port 5173)"
+	@echo "  Terminal 3: make ml        # ML service (port 8001, optional)"
 	@echo ""
 	@echo "Or use tmux/screen to run all in one terminal."
 
@@ -98,14 +104,16 @@ build:
 # Testing
 # =============================================================================
 
-test:
-	cd services/backend && poetry run pytest
+test: test-backend test-ml
 
-test-unit:
-	cd services/backend && poetry run pytest tests/unit/ -v
+test-backend:
+	uv run --package swen-backend pytest services/backend/tests/
+
+test-ml:
+	uv run --package swen-ml pytest services/ml/tests/
 
 test-cov:
-	cd services/backend && poetry run pytest --cov=swen --cov-report=html --cov-report=term
+	uv run --package swen-backend pytest services/backend/tests/ --cov=swen --cov-report=html --cov-report=term
 
 # =============================================================================
 # Code Quality
@@ -114,21 +122,20 @@ test-cov:
 lint: lint-backend lint-frontend
 
 lint-backend:
-	cd services/backend && poetry run ruff check src/
+	uv run --package swen-backend ruff check services/backend/src/
 
 lint-frontend:
 	cd services/frontend && npm run lint
 
 format:
-	cd services/backend && poetry run ruff format src/
-	cd services/backend && poetry run ruff check --fix src/
+	uv run --package swen-backend ruff format services/backend/src/
+	uv run --package swen-backend ruff check --fix services/backend/src/
 
 pre-commit:
-	services/backend/.venv/bin/pre-commit run --all-files
+	uv run --package swen-backend pre-commit run --all-files
 
 pre-commit-install:
-	cd services/backend && poetry add --group dev pre-commit
-	services/backend/.venv/bin/pre-commit install
+	uv run --package swen-backend pre-commit install
 
 # =============================================================================
 # Database
@@ -136,19 +143,19 @@ pre-commit-install:
 
 db-init:
 	@echo "Initializing database tables..."
-	cd services/backend && poetry run db-init
+	uv run --package swen-backend db-init
 
 db-reset:
 	@echo "Resetting PostgreSQL database..."
-	cd services/backend && poetry run db-reset
+	uv run --package swen-backend db-reset
 
 db-reset-force:
 	@echo "Resetting PostgreSQL database (no confirmation)..."
-	cd services/backend && poetry run db-reset --force
+	uv run --package swen-backend db-reset --force
 
 seed-demo:
 	@echo "Seeding demo data for screenshots..."
-	cd services/backend && poetry run seed-demo
+	uv run --package swen-backend seed-demo
 
 # =============================================================================
 # Utilities
@@ -156,7 +163,7 @@ seed-demo:
 
 secrets:
 	@echo "Generating secrets for config/config.yaml..."
-	cd services/backend && poetry run swen secrets generate
+	uv run --package swen-backend swen secrets generate
 
 # =============================================================================
 # Cleanup
@@ -166,6 +173,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf services/frontend/dist
 	rm -rf services/backend/.pytest_cache
+	rm -rf services/ml/.pytest_cache
 	rm -rf .coverage
 	rm -rf htmlcov
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

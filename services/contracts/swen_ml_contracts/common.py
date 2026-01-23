@@ -11,5 +11,5 @@ class AccountOption(BaseModel):
     account_id: UUID
     account_number: str = Field(..., max_length=10)
     name: str = Field(..., max_length=100)
-    account_type: str = Field(..., pattern="^(expense|income)$")
+    account_type: str = Field(..., pattern="^(expense|income|equity)$")
     description: str | None = Field(None, max_length=500)

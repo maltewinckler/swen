@@ -18,7 +18,7 @@ from swen.application.commands.accounting import (
 from swen.application.queries import ListTransactionsQuery
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.value_objects import JournalEntryInput
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import MLPort, RepoFactory
 from swen.presentation.api.schemas.transactions import (
     JournalEntryResponse,
     TransactionCreateRequest,
@@ -456,13 +456,14 @@ async def update_transaction(
 async def post_transaction(
     transaction_id: UUID,
     factory: RepoFactory,
+    ml_port: MLPort,
 ) -> TransactionResponse:
     """
     Post a draft transaction.
 
     Posting a transaction makes it permanent and affects account balances.
     """
-    command = PostTransactionCommand.from_factory(factory)
+    command = PostTransactionCommand.from_factory(factory, ml_port=ml_port)
 
     try:
         txn = await command.execute(transaction_id=transaction_id)

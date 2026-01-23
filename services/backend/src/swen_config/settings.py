@@ -121,16 +121,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_hours: int = 1
     jwt_refresh_token_expire_days: int = 7
 
-    # AI (AI_ prefix)
-    ai_enabled: bool = False  # Disabled by default
-    ai_provider: str = "ollama"
-    ai_ollama_model: str = "qwen2.5:1.5b"
-    ai_ollama_timeout: float = 30.0
-    ai_min_confidence: float = 0.7
-
-    # Ollama (OLLAMA_ prefix)
-    ollama_host: str = "localhost"
-    ollama_port: int = 11434
+    # ML Service (for transaction classification)
+    ml_service_enabled: bool = False
+    ml_service_url: str = "http://localhost:8001"
+    ml_service_timeout: float = 10.0
 
     # Banking
     fints_product_id: str = ""
@@ -165,12 +159,6 @@ class Settings(BaseSettings):
             f"{self.postgres_password.get_secret_value()}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def ollama_base_url(self) -> str:
-        """Construct the Ollama base URL."""
-        return f"http://{self.ollama_host}:{self.ollama_port}"
 
     @computed_field  # type: ignore[prop-decorator]
     @property

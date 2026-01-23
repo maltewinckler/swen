@@ -1,5 +1,1 @@
-"""Storage module - embedding persistence."""
-
-from .embedding_store import EmbeddingStore
-
-__all__ = ["EmbeddingStore"]
+"""Data storage for user examples, noise models, anchors."""

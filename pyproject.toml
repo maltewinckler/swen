@@ -44,10 +44,10 @@ geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "
 
 [tool.ruff]
 line-length = 88
+exclude = ["_deprecated"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
 
 [tool.pyright]
 pythonVersion = "3.11"

@@ -25,24 +25,20 @@ class AIResolutionMetadata(BaseModel):
     confidence: Annotated[float, Field(ge=0.0, le=1.0)] = Field(
         description="AI confidence score (0.0-1.0)",
     )
+    tier: Optional[str] = Field(
+        default=None,
+        description="Classification tier (pattern, example, anchor, nli, fallback)",
+    )
     reasoning: Optional[str] = Field(
         default=None,
         description="AI's explanation for the suggestion",
     )
 
     # Resolution context
-    model: str = Field(description="AI model name (e.g., 'qwen2.5:1.5b')")
+    model: str = Field(description="AI model name (e.g., 'swen-ml-embeddings')")
     resolved_at: datetime = Field(description="When AI made the decision")
     suggestion_accepted: bool = Field(
         description="Whether the AI suggestion was used",
-    )
-    used_fallback: bool = Field(
-        default=False,
-        description="Whether fallback account was used due to low confidence",
-    )
-    fallback_account_name: Optional[str] = Field(
-        default=None,
-        description="Fallback account name (if used_fallback=True)",
     )
 
 

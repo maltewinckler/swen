@@ -29,7 +29,6 @@ from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
     from swen.application.ports.identity import CurrentUser
-    from swen.domain.integration.services import AICounterAccountProvider
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +39,8 @@ class BankImportTransactionFactory:
     def __init__(
         self,
         current_user: CurrentUser,
-        ai_provider: Optional[AICounterAccountProvider] = None,
     ):
         self._current_user = current_user
-        self._ai_provider = ai_provider
 
     @property
     def _user_id(self):
@@ -57,6 +54,9 @@ class BankImportTransactionFactory:
         source_iban: str,
         is_internal_transfer: bool = False,
         resolution_result: Optional[ResolutionResult] = None,
+        merchant: Optional[str] = None,
+        is_recurring: bool = False,
+        recurring_pattern: Optional[str] = None,
     ) -> Transaction:
         """
         Create a double-entry accounting transaction from a bank transaction.
@@ -96,6 +96,9 @@ class BankImportTransactionFactory:
             source=TransactionSource.BANK_IMPORT,
             source_iban=source_iban,
             is_internal_transfer=is_internal_transfer,
+            merchant=merchant,
+            is_recurring=is_recurring,
+            recurring_pattern=recurring_pattern,
         )
 
         self._add_journal_entries(
@@ -188,9 +191,8 @@ class BankImportTransactionFactory:
         if not ai_result:
             return None
 
-        model_name = self._ai_provider.model_name if self._ai_provider else "unknown"
+        model_name = "swen-ml-batch"
         suggestion_accepted = resolution_result.is_from_ai
-        used_fallback = resolution_result.is_ai_low_confidence
 
         ai_metadata = AIResolutionMetadata(
             suggested_counter_account_id=str(ai_result.counter_account_id),
@@ -202,22 +204,14 @@ class BankImportTransactionFactory:
             model=model_name,
             resolved_at=utc_now(),
             suggestion_accepted=suggestion_accepted,
-            used_fallback=used_fallback,
-            fallback_account_name=counter_account.name if used_fallback else None,
+            tier=ai_result.tier if hasattr(ai_result, "tier") else None,
         )
 
-        if suggestion_accepted:
-            logger.debug(
-                "AI resolved counter-account: %s (confidence: %.2f)",
-                counter_account.name,
-                ai_result.confidence,
-            )
-        else:
-            logger.debug(
-                "AI low confidence (%.2f), used fallback: %s",
-                ai_result.confidence,
-                counter_account.name,
-            )
+        logger.debug(
+            "AI resolved counter-account: %s (confidence: %.2f)",
+            counter_account.name,
+            ai_result.confidence,
+        )
 
         return ai_metadata
 

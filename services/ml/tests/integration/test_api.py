@@ -1,9 +1,7 @@
 """Integration tests for API endpoints."""
 
-from datetime import date
 from uuid import uuid4
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -18,7 +16,7 @@ class TestHealthEndpoint:
         data = response.json()
         assert data["status"] == "ok"
         assert data["model_loaded"] is True
-        assert "distiluse" in data["model_name"]
+        assert "bge-m3" in data["model_name"].lower()
 
 
 class TestClassifyEndpoint:
@@ -61,6 +59,7 @@ class TestClassifyEndpoint:
         """Test that adding an example improves classification."""
         user_id = str(uuid4())
         account_id = str(uuid4())
+        transaction_id = str(uuid4())
 
         # First, add an example
         test_client.post(
@@ -68,26 +67,10 @@ class TestClassifyEndpoint:
             json={
                 "user_id": user_id,
                 "account_id": account_id,
+                "transaction_id": transaction_id,
                 "purpose": "REWE MARKT BERLIN",
                 "amount": "-32.50",
                 "counterparty_name": "REWE",
-            },
-        )
-
-        # Also embed the account description
-        test_client.post(
-            "/accounts/embed",
-            json={
-                "user_id": user_id,
-                "accounts": [
-                    {
-                        "account_id": account_id,
-                        "account_number": "4200",
-                        "name": "Lebensmittel",
-                        "account_type": "expense",
-                        "description": "Supermarkets",
-                    }
-                ],
             },
         )
 
@@ -118,7 +101,6 @@ class TestClassifyEndpoint:
         data = response.json()
         # Should match with reasonable similarity (amount differences affect score)
         assert data["similarity_score"] > 0.5
-        assert data["match_type"] == "example"
 
 
 class TestExamplesEndpoint:
@@ -128,12 +110,14 @@ class TestExamplesEndpoint:
         """Test adding an example."""
         user_id = str(uuid4())
         account_id = str(uuid4())
+        transaction_id = str(uuid4())
 
         response = test_client.post(
             "/examples",
             json={
                 "user_id": user_id,
                 "account_id": account_id,
+                "transaction_id": transaction_id,
                 "purpose": "REWE SAGT DANKE 12345",
                 "amount": "-45.67",
                 "counterparty_name": "REWE",
@@ -146,46 +130,51 @@ class TestExamplesEndpoint:
         assert data["total_examples"] == 1
         assert data["constructed_text"] is not None
 
+    def test_add_duplicate_example_skipped(self, test_client: TestClient) -> None:
+        """Test that duplicate transaction_id is skipped."""
+        user_id = str(uuid4())
+        account_id = str(uuid4())
+        transaction_id = str(uuid4())
+
+        # Add first example
+        response1 = test_client.post(
+            "/examples",
+            json={
+                "user_id": user_id,
+                "account_id": account_id,
+                "transaction_id": transaction_id,
+                "purpose": "REWE MARKT",
+                "amount": "-30.00",
+            },
+        )
+        assert response1.status_code == 200
+        assert response1.json()["stored"] is True
+
+        # Try to add same transaction_id again
+        response2 = test_client.post(
+            "/examples",
+            json={
+                "user_id": user_id,
+                "account_id": account_id,
+                "transaction_id": transaction_id,
+                "purpose": "REWE MARKT DIFFERENT",
+                "amount": "-50.00",
+            },
+        )
+        assert response2.status_code == 200
+        data = response2.json()
+        assert data["stored"] is False
+        assert data["total_examples"] == 1  # Still only 1
+
 
 class TestAccountsEndpoint:
     """Tests for /accounts endpoint."""
-
-    def test_embed_accounts(self, test_client: TestClient) -> None:
-        """Test embedding account descriptions."""
-        user_id = str(uuid4())
-
-        response = test_client.post(
-            "/accounts/embed",
-            json={
-                "user_id": user_id,
-                "accounts": [
-                    {
-                        "account_id": str(uuid4()),
-                        "account_number": "4200",
-                        "name": "Lebensmittel",
-                        "account_type": "expense",
-                        "description": "Supermarkets: REWE, Lidl",
-                    },
-                    {
-                        "account_id": str(uuid4()),
-                        "account_number": "4300",
-                        "name": "Transport",
-                        "account_type": "expense",
-                        "description": None,  # No description - will use name only
-                    },
-                ],
-            },
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        # All accounts are embedded - those without description use name only
-        assert data["embedded"] == 2
 
     def test_delete_account(self, test_client: TestClient) -> None:
         """Test deleting account embeddings."""
         user_id = str(uuid4())
         account_id = str(uuid4())
+        transaction_id = str(uuid4())
 
         # Add an example first
         test_client.post(
@@ -193,6 +182,7 @@ class TestAccountsEndpoint:
             json={
                 "user_id": user_id,
                 "account_id": account_id,
+                "transaction_id": transaction_id,
                 "purpose": "Test",
                 "amount": "-10.00",
             },
@@ -215,13 +205,14 @@ class TestUsersEndpoint:
         user_id = str(uuid4())
         account_id = str(uuid4())
 
-        # Add some examples
+        # Add some examples with unique transaction_ids
         for i in range(3):
             test_client.post(
                 "/examples",
                 json={
                     "user_id": user_id,
                     "account_id": account_id,
+                    "transaction_id": str(uuid4()),
                     "purpose": f"Test {i}",
                     "amount": "-10.00",
                 },
@@ -238,28 +229,15 @@ class TestUsersEndpoint:
         """Test deleting all user data."""
         user_id = str(uuid4())
         account_id = str(uuid4())
+        transaction_id = str(uuid4())
 
-        # Add some data
-        test_client.post(
-            "/accounts/embed",
-            json={
-                "user_id": user_id,
-                "accounts": [
-                    {
-                        "account_id": account_id,
-                        "account_number": "4200",
-                        "name": "Test",
-                        "account_type": "expense",
-                        "description": "Test account",
-                    }
-                ],
-            },
-        )
+        # Add some data via examples
         test_client.post(
             "/examples",
             json={
                 "user_id": user_id,
                 "account_id": account_id,
+                "transaction_id": transaction_id,
                 "purpose": "Test",
                 "amount": "-10.00",
             },
@@ -271,7 +249,7 @@ class TestUsersEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["deleted"] is True
-        assert data["accounts_deleted"] == 1
+        assert data["accounts_deleted"] == 1  # 1 account with examples
         assert data["examples_deleted"] == 1
 
         # Verify user has no stats now

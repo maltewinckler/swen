@@ -1,39 +1,47 @@
-"""ML Service API contracts."""
+"""ML Service API contracts.
 
+This package defines the API contract between the SWEN backend and the ML service.
+See docs/_specs/PRD_CLASSIFICATION.md Section 3.2 for details.
+"""
+
+from swen_ml_contracts.accounts import EmbedAccountsRequest, EmbedAccountsResponse
 from swen_ml_contracts.classify import (
-    ClassificationResult,
+    Classification,
+    ClassificationStats,
+    ClassificationTier,
     ClassifyBatchRequest,
     ClassifyBatchResponse,
-    ClassifyRequest,
-    ClassifyResponse,
     TransactionInput,
 )
 from swen_ml_contracts.common import AccountOption
 from swen_ml_contracts.examples import (
-    AddExampleRequest,
-    AddExampleResponse,
     DeleteAccountResponse,
     DeleteUserResponse,
-    EmbedAccountsRequest,
-    EmbedAccountsResponse,
     HealthResponse,
+    StoreExampleRequest,
+    StoreExampleResponse,
     UserStatsResponse,
 )
 
 __all__ = [
+    # Common
     "AccountOption",
+    # Classification (batch API)
     "TransactionInput",
-    "ClassifyRequest",
     "ClassifyBatchRequest",
-    "ClassificationResult",
-    "ClassifyResponse",
+    "Classification",
+    "ClassificationStats",
+    "ClassificationTier",
     "ClassifyBatchResponse",
-    "AddExampleRequest",
-    "AddExampleResponse",
-    "EmbedAccountsRequest",
-    "EmbedAccountsResponse",
+    # Examples
+    "StoreExampleRequest",
+    "StoreExampleResponse",
     "UserStatsResponse",
     "DeleteAccountResponse",
     "DeleteUserResponse",
+    # Accounts
+    "EmbedAccountsRequest",
+    "EmbedAccountsResponse",
+    # Health
     "HealthResponse",
 ]

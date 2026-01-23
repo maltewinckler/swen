@@ -1,67 +1,96 @@
-"""Example management and lifecycle contracts."""
+"""Example management and lifecycle contracts.
+
+See PRD Section 3.2 - Store Posted Example endpoint.
+"""
 
 from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from .common import AccountOption
+
+# -----------------------------------------------------------------------------
+# Store Example (Learning from posted transactions)
+# -----------------------------------------------------------------------------
 
 
-class AddExampleRequest(BaseModel):
-    """Add a posted transaction as a classification example."""
+class StoreExampleRequest(BaseModel):
+    """Store a posted transaction as a training example.
 
-    user_id: UUID
-    account_id: UUID
+    Called when a user posts (confirms) a transaction.
+    This is the primary learning signal for the ML service.
+    """
+
+    transaction_id: UUID
+    counterparty_name: str | None = None
+    counterparty_iban: str | None = None
     purpose: str = Field(..., min_length=1)
     amount: Decimal
-    counterparty_name: str | None = None
-    reference: str | None = None
-    transaction_id: UUID | None = None  # for deduplication
+    account_id: UUID
+    account_number: str
 
 
-class AddExampleResponse(BaseModel):
+class StoreExampleResponse(BaseModel):
+    """Response after storing an example."""
+
     stored: bool
     total_examples: int
     message: str
-    constructed_text: str | None = None
 
 
-class EmbedAccountsRequest(BaseModel):
-    user_id: UUID
-    accounts: list[AccountOption] = Field(..., min_length=1)
-
-
-class EmbedAccountsResponse(BaseModel):
-    embedded: int
-    message: str
+# -----------------------------------------------------------------------------
+# User Statistics
+# -----------------------------------------------------------------------------
 
 
 class UserStatsResponse(BaseModel):
+    """Statistics about a user's training data."""
+
     user_id: UUID
     total_examples: int
     examples_per_account: dict[str, int]
     accounts_with_examples: int
-    accounts_without_examples: int
     storage_bytes: int
 
 
+# -----------------------------------------------------------------------------
+# Cleanup Operations
+# -----------------------------------------------------------------------------
+
+
 class DeleteAccountResponse(BaseModel):
+    """Response after deleting examples for an account."""
+
     deleted: bool
     examples_deleted: int
     message: str
 
 
 class DeleteUserResponse(BaseModel):
+    """Response after deleting all data for a user."""
+
     deleted: bool
-    accounts_deleted: int
     examples_deleted: int
+    noise_model_deleted: bool
     message: str
 
 
+# -----------------------------------------------------------------------------
+# Health Check
+# -----------------------------------------------------------------------------
+
+
 class HealthResponse(BaseModel):
+    """Service health status."""
+
     status: str = "ok"
     version: str
-    model_loaded: bool
-    model_name: str
-    total_users: int = 0
+
+    # Model status
+    embedding_model_loaded: bool
+    nli_model_loaded: bool
+    embedding_model_name: str
+    nli_model_name: str
+
+    # Cache stats
+    users_cached: int = 0

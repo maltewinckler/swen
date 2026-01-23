@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from swen.application.services.ml_example_service import MLExampleService
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.exceptions import (
     TransactionAlreadyDraftError,
@@ -16,22 +18,34 @@ from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.ml_service import MLServicePort
+
+logger = logging.getLogger(__name__)
 
 
 class PostTransactionCommand:
     """Post a draft transaction."""
 
-    def __init__(self, transaction_repository: TransactionRepository):
+    def __init__(
+        self,
+        transaction_repository: TransactionRepository,
+        ml_port: MLServicePort | None = None,
+    ):
         self._transaction_repo = transaction_repository
+        self._ml_example_service = MLExampleService(ml_port)
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> PostTransactionCommand:
-        return cls(transaction_repository=factory.transaction_repository())
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_port: MLServicePort | None = None,
+    ) -> PostTransactionCommand:
+        return cls(
+            transaction_repository=factory.transaction_repository(),
+            ml_port=ml_port,
+        )
 
-    async def execute(
-        self,
-        transaction_id: UUID,
-    ) -> Transaction:
+    async def execute(self, transaction_id: UUID) -> Transaction:
         transaction = await self._transaction_repo.find_by_id(transaction_id)
         if not transaction:
             raise TransactionNotFoundError(transaction_id)
@@ -41,6 +55,9 @@ class PostTransactionCommand:
 
         transaction.post()
         await self._transaction_repo.save(transaction)
+
+        # Submit as training example (fire-and-forget)
+        self._ml_example_service.submit_example(transaction)
 
         return transaction
 
@@ -72,12 +89,24 @@ class UnpostTransactionCommand:
 class BulkPostTransactionsCommand:
     """Post multiple draft transactions."""
 
-    def __init__(self, transaction_repository: TransactionRepository):
+    def __init__(
+        self,
+        transaction_repository: TransactionRepository,
+        ml_port: MLServicePort | None = None,
+    ):
         self._transaction_repo = transaction_repository
+        self._ml_example_service = MLExampleService(ml_port)
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> BulkPostTransactionsCommand:
-        return cls(transaction_repository=factory.transaction_repository())
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_port: MLServicePort | None = None,
+    ) -> BulkPostTransactionsCommand:
+        return cls(
+            transaction_repository=factory.transaction_repository(),
+            ml_port=ml_port,
+        )
 
     async def execute(
         self,
@@ -95,6 +124,7 @@ class BulkPostTransactionsCommand:
             for txn in drafts:
                 txn.post()
                 await self._transaction_repo.save(txn)
+                self._ml_example_service.submit_example(txn)
                 posted.append(txn)
         elif transaction_ids:
             for txn_id in transaction_ids:
@@ -102,6 +132,7 @@ class BulkPostTransactionsCommand:
                 if txn and not txn.is_posted:
                     txn.post()
                     await self._transaction_repo.save(txn)
+                    self._ml_example_service.submit_example(txn)
                     posted.append(txn)
 
         return posted

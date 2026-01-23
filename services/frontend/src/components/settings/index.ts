@@ -7,7 +7,6 @@
 export { ProfileSection } from './ProfileSection'
 export { SecuritySection } from './SecuritySection'
 export { ExportsSection } from './ExportsSection'
-export { AISettingsSection } from './AISettingsSection'
 export { NotificationsSection } from './NotificationsSection'
 export { AppearanceSection } from './AppearanceSection'
 export { AdminSection } from './AdminSection'
