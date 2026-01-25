@@ -14,6 +14,7 @@ from swen.application.ports.identity import CurrentUser
 from swen.domain.banking.value_objects import BankCredentials, TANChallenge
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
+from swen.domain.shared.time import today_utc
 from swen.domain.shared.value_objects.secure_string import SecureString
 
 IBAN = "DE89370400440532013000"
@@ -142,7 +143,7 @@ async def test_execute_uses_history_for_default_start_date():
     adapter.fetch_transactions.return_value = []
     bank_tx_repo.save_batch_with_deduplication.return_value = []
 
-    today = date.today()
+    today = today_utc()
     result = await command.execute(iban=IBAN, credentials=_make_credentials())
 
     # Start date is last import date + 1 day
@@ -167,7 +168,7 @@ async def test_default_start_date_clamped_to_today_when_last_import_today():
     ) = _make_command()
     mapping_repo.find_by_iban.return_value = _make_mapping()
 
-    today = date.today()
+    today = today_utc()
     import_repo.find_by_iban.return_value = [
         SimpleNamespace(
             status=ImportStatus.SUCCESS,

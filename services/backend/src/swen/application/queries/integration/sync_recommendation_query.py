@@ -16,6 +16,7 @@ from swen.domain.integration.repositories import (
 )
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.iban import extract_blz_from_iban
+from swen.domain.shared.time import today_utc
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -111,7 +112,7 @@ class SyncRecommendationQuery:
                     days=SYNC_BUFFER_DAYS,
                 )
             else:
-                recommended_start = date.today() - timedelta(days=7)
+                recommended_start = today_utc() - timedelta(days=7)
 
         return AccountSyncRecommendationDTO(
             iban=iban,

@@ -82,7 +82,6 @@ class MLServiceClient:
         self,
         user_id: UUID,
         transactions: list[TransactionInput],
-        available_accounts: list[AccountOption],
     ) -> ClassifyBatchResponse | None:
         """Classify a batch of transactions."""
         if not self._enabled:
@@ -91,7 +90,6 @@ class MLServiceClient:
             request = ClassifyBatchRequest(
                 user_id=user_id,
                 transactions=transactions,
-                available_accounts=available_accounts,
             )
             client = await self._get_client()
             response = await client.post(
@@ -100,15 +98,31 @@ class MLServiceClient:
             )
             response.raise_for_status()
             return ClassifyBatchResponse.model_validate(response.json())
+        except httpx.ConnectError as e:
+            logger.warning("ML service connection failed: %s", e)
+            return None
+        except httpx.TimeoutException as e:
+            logger.warning("ML service timeout: %s", e)
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.warning(
+                "ML service returned error %d: %s",
+                e.response.status_code,
+                e.response.text[:200] if e.response.text else "no body",
+            )
+            return None
         except Exception as e:
-            logger.warning("ML batch classification failed: %s", e)
+            logger.warning(
+                "ML batch classification failed (%s): %s",
+                type(e).__name__,
+                e,
+            )
             return None
 
     async def classify_batch_streaming(
         self,
         user_id: UUID,
         transactions: list[TransactionInput],
-        available_accounts: list[AccountOption],
     ) -> AsyncIterator[dict]:
         """Classify batch with SSE streaming for progress updates.
 
@@ -122,15 +136,15 @@ class MLServiceClient:
         request = ClassifyBatchRequest(
             user_id=user_id,
             transactions=transactions,
-            available_accounts=available_accounts,
         )
 
         try:
-            # Use streaming request for SSE
+            # Note: This streaming endpoint doesn't exist yet in ML service
+            # The timeout is set high since classification can take a while
             async with (
                 httpx.AsyncClient(
                     base_url=self._base_url,
-                    timeout=httpx.Timeout(timeout=120.0, connect=10.0),
+                    timeout=httpx.Timeout(timeout=self._timeout, connect=10.0),
                 ) as client,
                 client.stream(
                     "POST",
@@ -277,3 +291,80 @@ class MLServiceClient:
         task = asyncio.create_task(_embed())
         _background_tasks.add(task)
         task.add_done_callback(_background_tasks.discard)
+
+    async def delete_account_anchor(
+        self,
+        user_id: UUID,
+        account_id: UUID,
+    ) -> bool:
+        """Delete anchor embedding for a specific account.
+
+        Called when an account is deactivated or deleted.
+        Returns True if deletion was successful.
+        """
+        if not self._enabled:
+            return False
+        try:
+            client = await self._get_client()
+            response = await client.delete(
+                f"/users/{user_id}/accounts/{account_id}/embed"
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("deleted", False)
+        except Exception as e:
+            logger.warning("ML delete account anchor failed: %s", e)
+            return False
+
+    def delete_account_anchor_fire_and_forget(
+        self,
+        user_id: UUID,
+        account_id: UUID,
+    ) -> None:
+        """Delete account anchor without waiting for response (fire-and-forget)."""
+        if not self._enabled:
+            logger.debug("ML service disabled, skipping delete_account_anchor")
+            return
+
+        logger.debug(
+            "Deleting anchor for user=%s, account=%s (fire-and-forget)",
+            user_id,
+            account_id,
+        )
+
+        async def _delete():
+            try:
+                deleted = await self.delete_account_anchor(user_id, account_id)
+                if deleted:
+                    logger.debug(
+                        "Account anchor deleted: user=%s, account=%s",
+                        user_id,
+                        account_id,
+                    )
+            except Exception as e:
+                logger.warning("Fire-and-forget delete account anchor failed: %s", e)
+
+        task = asyncio.create_task(_delete())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
+    async def delete_all_anchors(
+        self,
+        user_id: UUID,
+    ) -> int:
+        """Delete all anchor embeddings for a user.
+
+        Called when user is deleted.
+        Returns count of deleted anchors.
+        """
+        if not self._enabled:
+            return 0
+        try:
+            client = await self._get_client()
+            response = await client.delete(f"/users/{user_id}/accounts/embed")
+            response.raise_for_status()
+            result = response.json()
+            return result.get("deleted_count", 0)
+        except Exception as e:
+            logger.warning("ML delete all anchors failed: %s", e)
+            return 0

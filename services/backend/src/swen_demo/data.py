@@ -30,7 +30,7 @@ class AssetAccountDef:
 
     name: str
     account_number: str
-    iban: str
+    iban: str | None
     opening_balance: Decimal
     description: Optional[str] = None
 

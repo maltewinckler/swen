@@ -46,7 +46,7 @@ from swen.domain.integration.repositories import (
 )
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.iban import extract_blz_from_iban
-from swen.domain.shared.time import utc_now
+from swen.domain.shared.time import today_utc, utc_now
 from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 
 if TYPE_CHECKING:
@@ -126,7 +126,6 @@ class TransactionSyncCommand:
         if ml_client:
             ml_classification_service = MLBatchClassificationService(
                 ml_client=ml_client,
-                account_repository=factory.account_repository(),
                 current_user=factory.current_user,
             )
 
@@ -275,7 +274,7 @@ class TransactionSyncCommand:
             start_date = await self._determine_default_start_date(iban)
 
         if end_date is None:
-            end_date = date.today()
+            end_date = today_utc()
 
         start_date = min(start_date, end_date)
 
@@ -996,8 +995,8 @@ class TransactionSyncCommand:
             success=False,
             synced_at=synced_at,
             iban=iban,
-            start_date=start_date or date.today(),
-            end_date=end_date or date.today(),
+            start_date=start_date or today_utc(),
+            end_date=end_date or today_utc(),
             transactions_fetched=0,
             transactions_imported=0,
             transactions_skipped=0,
@@ -1068,10 +1067,10 @@ class TransactionSyncCommand:
                 candidate_dates.append(record.imported_at.date())
 
         if not candidate_dates:
-            return date.today() - timedelta(days=90)
+            return today_utc() - timedelta(days=90)
 
         last_booking_date = max(candidate_dates)
-        today = date.today()
+        today = today_utc()
         next_sync_start = last_booking_date + timedelta(days=1)
 
         if next_sync_start > today:

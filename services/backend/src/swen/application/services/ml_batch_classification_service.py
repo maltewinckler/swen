@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen_ml_contracts import AccountOption, TransactionInput
+from swen_ml_contracts import TransactionInput
 
 from swen.application.dtos.integration import (
     ClassificationCompletedEvent,
@@ -24,7 +24,6 @@ from swen.domain.banking.repositories import StoredBankTransaction
 
 if TYPE_CHECKING:
     from swen.application.ports.identity import CurrentUser
-    from swen.domain.accounting.repositories import AccountRepository
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
@@ -65,11 +64,9 @@ class MLBatchClassificationService:
     def __init__(
         self,
         ml_client: MLServiceClient,
-        account_repository: AccountRepository,
         current_user: CurrentUser,
     ):
         self._ml_client = ml_client
-        self._account_repo = account_repository
         self._user_id = current_user.user_id
 
     async def classify_batch_streaming(
@@ -120,14 +117,10 @@ class MLBatchClassificationService:
                 )
             )
 
-        # Get available accounts
-        available_accounts = await self._get_available_accounts()
-
         # Call ML service batch endpoint
         response = await self._ml_client.classify_batch(
             user_id=self._user_id,
             transactions=ml_transactions,
-            available_accounts=available_accounts,
         )
 
         if response is None:
@@ -144,10 +137,25 @@ class MLBatchClassificationService:
 
         # Build results mapping
         results: dict[UUID, BatchClassificationResult] = {}
-        account_id_by_number = await self._get_account_id_mapping()
 
         for i, classification in enumerate(response.classifications):
-            account_id = account_id_by_number.get(classification.account_number)
+            # Use account_id directly from ML response (already a UUID)
+            account_id = classification.account_id
+
+            if account_id:
+                logger.debug(
+                    "ML: %s -> %s (tier=%s, conf=%.2f)",
+                    classification.account_number,
+                    account_id,
+                    classification.tier,
+                    classification.confidence,
+                )
+            elif classification.tier != "unresolved":
+                logger.warning(
+                    "ML returned tier=%s but no account_id for %s",
+                    classification.tier,
+                    classification.account_number,
+                )
 
             results[classification.transaction_id] = BatchClassificationResult(
                 transaction_id=classification.transaction_id,
@@ -223,28 +231,3 @@ class MLBatchClassificationService:
                 )
 
         return results, stats
-
-    async def _get_available_accounts(self) -> list[AccountOption]:
-        """Get expense/income accounts for ML classification."""
-        all_accounts = await self._account_repo.find_all()
-        options = []
-
-        for account in all_accounts:
-            account_type_str = account.account_type.value.lower()
-            if account_type_str in ("expense", "income"):
-                options.append(
-                    AccountOption(
-                        account_id=account.id,
-                        account_number=account.account_number,
-                        name=account.name,
-                        account_type=account_type_str,  # type: ignore[arg-type]
-                        description=account.description,
-                    )
-                )
-
-        return options
-
-    async def _get_account_id_mapping(self) -> dict[str, UUID]:
-        """Get mapping from account_number to account_id."""
-        all_accounts = await self._account_repo.find_all()
-        return {acc.account_number: acc.id for acc in all_accounts}

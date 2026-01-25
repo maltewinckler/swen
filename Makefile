@@ -146,12 +146,14 @@ db-init:
 	uv run --package swen-backend db-init
 
 db-reset:
-	@echo "Resetting PostgreSQL database..."
+	@echo "Resetting PostgreSQL databases..."
 	uv run --package swen-backend db-reset
+	uv run --package swen-ml ml-db-reset
 
 db-reset-force:
-	@echo "Resetting PostgreSQL database (no confirmation)..."
+	@echo "Resetting PostgreSQL databases (no confirmation)..."
 	uv run --package swen-backend db-reset --force
+	uv run --package swen-ml ml-db-reset --force
 
 seed-demo:
 	@echo "Seeding demo data for screenshots..."

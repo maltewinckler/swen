@@ -64,7 +64,6 @@ class MLServiceAdapter(MLServicePort):
         self,
         user_id: UUID,
         transactions: list[TransactionForClassification],
-        accounts: list[AccountForClassification],
     ) -> BatchClassificationResult | None:
         """Classify a batch of transactions."""
         if not self._client.enabled:
@@ -83,21 +82,9 @@ class MLServiceAdapter(MLServicePort):
             for txn in transactions
         ]
 
-        ml_accounts = [
-            AccountOption(
-                account_id=acc.account_id,
-                account_number=acc.account_number,
-                name=acc.name,
-                account_type=acc.account_type,
-                description=acc.description,
-            )
-            for acc in accounts
-        ]
-
         result = await self._client.classify_batch(
             user_id=user_id,
             transactions=ml_transactions,
-            available_accounts=ml_accounts,
         )
 
         if result is None:
@@ -131,7 +118,6 @@ class MLServiceAdapter(MLServicePort):
         self,
         user_id: UUID,
         transactions: list[TransactionForClassification],
-        accounts: list[AccountForClassification],
     ) -> AsyncIterator[ClassificationProgress | BatchClassificationResult]:
         """Classify batch with streaming progress updates."""
         if not self._client.enabled:
@@ -150,21 +136,9 @@ class MLServiceAdapter(MLServicePort):
             for txn in transactions
         ]
 
-        ml_accounts = [
-            AccountOption(
-                account_id=acc.account_id,
-                account_number=acc.account_number,
-                name=acc.name,
-                account_type=acc.account_type,
-                description=acc.description,
-            )
-            for acc in accounts
-        ]
-
         async for event in self._client.classify_batch_streaming(
             user_id=user_id,
             transactions=ml_transactions,
-            available_accounts=ml_accounts,
         ):
             event_type = event.get("type")
 

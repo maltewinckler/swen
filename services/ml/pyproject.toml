@@ -14,10 +14,13 @@ dependencies = [
     # NLI / Zero-shot classification
     "transformers>=4.36.0",
     "torch>=2.0.0",
+    # Database
+    "sqlalchemy>=2.0.42",
+    "asyncpg>=0.31.0",
     # Storage
     "numpy>=1.26.0",
-    # File locking for concurrent access
-    "filelock>=3.12.0",
+    # HTTP client for SearXNG
+    "httpx>=0.26.0",
     # CLI
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -37,6 +40,8 @@ dev = [
 
 [project.scripts]
 swen-ml-eval = "swen_ml.evaluation.__main__:app"
+ml-db-init = "swen_ml.storage.utils.db:db_init"
+ml-db-reset = "swen_ml.storage.utils.db:db_reset"
 
 [build-system]
 requires = ["hatchling"]

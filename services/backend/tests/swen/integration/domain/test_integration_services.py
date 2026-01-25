@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -27,6 +27,7 @@ from swen.domain.integration.value_objects import (
     PatternType,
     RuleSource,
 )
+from swen.domain.shared.time import today_utc
 from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
@@ -152,7 +153,7 @@ async def sample_account(connected_adapter):
 async def sample_transactions(connected_adapter, sample_account):
     """Fetch recent transactions for the selected account (30-day window)."""
 
-    start_date = date.today() - timedelta(days=30)
+    start_date = today_utc() - timedelta(days=30)
     transactions = await connected_adapter.fetch_transactions(
         sample_account.iban,
         start_date=start_date,

@@ -124,17 +124,15 @@ class CreateAccountCommand:
         await self._account_repo.save(account)
 
         # Trigger ML account embedding (fire-and-forget)
-        self._trigger_account_embedding(account)
+        # Only for expense/income accounts (used for classification)
+        if account.account_type.value.lower() in ("expense", "income"):
+            self._trigger_account_embedding(account)
 
         return account
 
     def _trigger_account_embedding(self, account: Account) -> None:
-        """Trigger ML service to embed account anchor for classification."""
+        """Trigger ML service to embed this account's anchor for classification."""
         if not self._ml_client:
-            return
-
-        # Only embed expense/income accounts (used for classification)
-        if account.account_type.value.lower() not in ("expense", "income"):
             return
 
         accounts = [

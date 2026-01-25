@@ -87,17 +87,15 @@ class UpdateAccountCommand:
         await self._account_repo.save(account)
 
         # Trigger ML account embedding update (fire-and-forget)
-        self._trigger_account_embedding(account)
+        # Only for expense/income accounts (used for classification)
+        if account.account_type.value.lower() in ("expense", "income"):
+            self._trigger_account_embedding(account)
 
         return account
 
     def _trigger_account_embedding(self, account: Account) -> None:
-        """Trigger ML service to re-embed account anchor for classification."""
+        """Trigger ML service to re-embed this account's anchor for classification."""
         if not self._ml_client:
-            return
-
-        # Only embed expense/income accounts (used for classification)
-        if account.account_type.value.lower() not in ("expense", "income"):
             return
 
         accounts = [
@@ -176,15 +174,25 @@ class DeactivateAccountCommand:
         self,
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
+        current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
+        self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> DeactivateAccountCommand:
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
+    ) -> DeactivateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
+            current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
     async def execute(self, account_id: UUID) -> Account:
@@ -196,18 +204,45 @@ class DeactivateAccountCommand:
             raise AccountCannotBeDeactivatedError(account.name)
         account.deactivate()
         await self._account_repo.save(account)
+
+        # Delete ML anchor for this account (fire-and-forget)
+        if account.account_type.value.lower() in ("expense", "income"):
+            self._delete_account_anchor(account.id)
+
         return account
+
+    def _delete_account_anchor(self, account_id: UUID) -> None:
+        """Delete ML anchor for this account."""
+        if self._ml_client:
+            self._ml_client.delete_account_anchor_fire_and_forget(
+                self._user_id, account_id
+            )
 
 
 class ReactivateAccountCommand:
     """Command to reactivate a deactivated account."""
 
-    def __init__(self, account_repository: AccountRepository):
+    def __init__(
+        self,
+        account_repository: AccountRepository,
+        current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
+    ):
         self._account_repo = account_repository
+        self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> ReactivateAccountCommand:
-        return cls(account_repository=factory.account_repository())
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
+    ) -> ReactivateAccountCommand:
+        return cls(
+            account_repository=factory.account_repository(),
+            current_user=factory.current_user,
+            ml_client=ml_client,
+        )
 
     async def execute(self, account_id: UUID) -> Account:
         account = await self._account_repo.find_by_id(account_id)
@@ -216,7 +251,28 @@ class ReactivateAccountCommand:
 
         account.activate()
         await self._account_repo.save(account)
+
+        # Re-embed ML anchor for this account (fire-and-forget)
+        if account.account_type.value.lower() in ("expense", "income"):
+            self._trigger_account_embedding(account)
+
         return account
+
+    def _trigger_account_embedding(self, account: Account) -> None:
+        """Trigger ML service to embed this account's anchor for classification."""
+        if not self._ml_client:
+            return
+
+        accounts = [
+            AccountOption(
+                account_id=account.id,
+                account_number=account.account_number,
+                name=account.name,
+                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                description=account.description,
+            )
+        ]
+        self._ml_client.embed_accounts_fire_and_forget(self._user_id, accounts)
 
 
 class DeleteAccountCommand:
@@ -226,15 +282,25 @@ class DeleteAccountCommand:
         self,
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
+        current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
+        self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> DeleteAccountCommand:
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
+    ) -> DeleteAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
+            current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
     async def execute(self, account_id: UUID) -> None:
@@ -245,4 +311,20 @@ class DeleteAccountCommand:
         if not await self._account_hierarchy_service.can_delete(account):
             raise AccountCannotBeDeactivatedError(account.name)
 
+        was_classification_account = account.account_type.value.lower() in (
+            "expense",
+            "income",
+        )
+
         await self._account_repo.delete(account_id)
+
+        # Delete ML anchor for this account (fire-and-forget)
+        if was_classification_account:
+            self._delete_account_anchor(account_id)
+
+    def _delete_account_anchor(self, account_id: UUID) -> None:
+        """Delete ML anchor for this account."""
+        if self._ml_client:
+            self._ml_client.delete_account_anchor_fire_and_forget(
+                self._user_id, account_id
+            )

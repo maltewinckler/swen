@@ -4,64 +4,96 @@ import logging
 import time
 from collections import Counter
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from swen_ml_contracts import (
     Classification,
     ClassificationStats,
+    ClassificationTier,
     ClassifyBatchRequest,
     ClassifyBatchResponse,
 )
 
-from swen_ml.config.settings import get_settings
-from swen_ml.pipeline.orchestrator import classify_batch
+from swen_ml.inference import ClassificationOrchestrator, ClassificationResult
+from swen_ml.storage import get_session
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
+def _to_classification(result: ClassificationResult) -> Classification:
+    """Convert ClassificationResult to Classification contract model."""
+    # Map resolved_by to tier
+    tier: ClassificationTier
+    if result.resolved_by == "example":
+        tier = "example"
+    elif result.resolved_by == "anchor":
+        tier = "anchor"
+    else:
+        tier = "unresolved"
+
+    return Classification(
+        transaction_id=result.transaction_id,
+        account_id=result.account_id,
+        account_number=result.account_number,
+        confidence=result.confidence,
+        tier=tier,
+        # TODO: Implement merchant extraction and recurring detection
+        merchant=None,
+        is_recurring=False,
+        recurring_pattern=None,
+    )
+
+
 @router.post("/classify/batch", response_model=ClassifyBatchResponse)
 async def classify_transactions(
     request: ClassifyBatchRequest,
     http_request: Request,
+    session: AsyncSession = Depends(get_session),
 ) -> ClassifyBatchResponse:
     """Classify a batch of transactions."""
     start_time = time.perf_counter()
-    settings = get_settings()
 
     logger.info(
-        "POST /classify/batch: user=%s, transactions=%d, accounts=%d",
+        "POST /classify/batch: user=%s, transactions=%d",
         request.user_id,
         len(request.transactions),
-        len(request.available_accounts),
     )
 
     # Log transaction details at debug level
     for i, txn in enumerate(request.transactions):
         logger.debug(
             "  TX[%d] id=%s amount=%.2f date=%s",
-            i, txn.transaction_id, float(txn.amount), txn.booking_date,
+            i,
+            txn.transaction_id,
+            float(txn.amount),
+            txn.booking_date,
         )
         logger.debug(
             "         counterparty=%r iban=%s",
-            txn.counterparty_name, txn.counterparty_iban,
+            txn.counterparty_name,
+            txn.counterparty_iban,
         )
         logger.debug(
             "         purpose=%r",
             txn.purpose,
         )
 
-    encoder = http_request.app.state.encoder
-    nli = http_request.app.state.nli
-
-    classifications = await classify_batch(
-        transactions=request.transactions,
-        accounts=request.available_accounts,
-        user_id=request.user_id,
-        encoder=encoder,
-        nli=nli,
-        data_dir=settings.data_dir,
+    # Get orchestrator from app state
+    classification_orchestrator: ClassificationOrchestrator = (
+        http_request.app.state.classification
     )
+
+    # Run classification
+    classification_results = await classification_orchestrator.classify(
+        session=session,
+        transactions=request.transactions,
+        user_id=request.user_id,
+    )
+
+    # Convert to Classification objects
+    classifications = [_to_classification(result) for result in classification_results]
 
     stats = _compute_stats(classifications)
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -69,13 +101,12 @@ async def classify_transactions(
     # Log classification results per transaction
     for i, clf in enumerate(classifications):
         logger.debug(
-            "  RESULT[%d] -> account=%s tier=%s conf=%.2f merchant=%r recurring=%s",
+            "  RESULT[%d] -> account_number=%s account_id=%s tier=%s conf=%.2f",
             i,
             clf.account_number,
+            clf.account_id,
             clf.tier,
             clf.confidence,
-            clf.merchant,
-            clf.is_recurring,
         )
 
     logger.info(
@@ -98,7 +129,11 @@ def _compute_stats(classifications: list[Classification]) -> ClassificationStats
 
     confidence_buckets: dict[str, int] = dict(
         Counter(
-            "high" if c.confidence >= 0.85 else "medium" if c.confidence >= 0.5 else "low"
+            "high"
+            if c.confidence >= 0.85
+            else "medium"
+            if c.confidence >= 0.5
+            else "low"
             for c in classifications
         )
     )

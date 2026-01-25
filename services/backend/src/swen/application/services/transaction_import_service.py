@@ -272,8 +272,19 @@ class TransactionImportService:
             (current, total, result) for each transaction
         """
         total = len(stored_transactions)
+        logger.debug(
+            "import_with_preclassified_streaming: %d txns, %d preclassified results",
+            total,
+            len(preclassified),
+        )
         for i, stored in enumerate(stored_transactions):
             ml_result = preclassified.get(stored.id)
+            if ml_result is None and len(preclassified) > 0:
+                logger.warning(
+                    "No ML result for stored.id=%s. Preclassified keys: %s",
+                    stored.id,
+                    list(preclassified.keys())[:5],
+                )
             result = await self._import_stored_transaction_preclassified(
                 stored,
                 source_iban,
@@ -391,6 +402,23 @@ class TransactionImportService:
         ml_result: BatchClassificationResult | None,
     ) -> tuple["Account", ResolutionResult | None]:
         """Resolve counter account using pre-classified ML result."""
+        # Debug: log the incoming ml_result
+        if ml_result:
+            logger.debug(
+                "Resolving with ML: tx_id=%s, account_id=%s, account_number=%s, "
+                "tier=%s, conf=%.2f",
+                ml_result.transaction_id,
+                ml_result.counter_account_id,
+                ml_result.counter_account_number,
+                ml_result.tier,
+                ml_result.confidence,
+            )
+        else:
+            logger.debug(
+                "Resolving without ML result for: %s",
+                bank_transaction.applicant_name or bank_transaction.purpose[:30],
+            )
+
         # Internal transfers use the counterparty account
         if (
             transfer_context.is_internal_transfer
@@ -407,11 +435,29 @@ class TransactionImportService:
                     confidence=ml_result.confidence,
                     tier=ml_result.tier,
                 )
+                logger.debug(
+                    "Using ML classification: account=%s (%s), tier=%s, conf=%.2f",
+                    account.account_number,
+                    account.name,
+                    ml_result.tier,
+                    ml_result.confidence,
+                )
                 return account, ResolutionResult(
                     account=account,
                     ai_result=ai_result,
                     source="ai",
                 )
+
+            logger.warning(
+                "ML result has account_id=%s but account not found in repository",
+                ml_result.counter_account_id,
+            )
+        elif ml_result:
+            logger.debug(
+                "ML result has no account_id (tier=%s, conf=%.2f)",
+                ml_result.tier,
+                ml_result.confidence,
+            )
 
         # Fallback to default account
         fallback = await self._counter_account_service.get_fallback_account(

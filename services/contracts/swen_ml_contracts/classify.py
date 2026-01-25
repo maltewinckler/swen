@@ -6,16 +6,9 @@ See PRD Section 3.2 for API contract details.
 from datetime import date
 from decimal import Decimal
 from typing import Literal
-
-from pydantic import BaseModel, Field
 from uuid import UUID
 
-from .common import AccountOption
-
-
-# -----------------------------------------------------------------------------
-# Request Models
-# -----------------------------------------------------------------------------
+from pydantic import BaseModel, Field
 
 
 class TransactionInput(BaseModel):
@@ -38,23 +31,21 @@ class ClassifyBatchRequest(BaseModel):
 
     user_id: UUID
     transactions: list[TransactionInput] = Field(..., min_length=1)
-    available_accounts: list[AccountOption] = Field(..., min_length=1)
 
 
-# -----------------------------------------------------------------------------
-# Response Models
-# -----------------------------------------------------------------------------
-
-
-ClassificationTier = Literal["pattern", "example", "anchor", "nli", "fallback"]
+ClassificationTier = Literal["example", "anchor", "unresolved"]
 
 
 class Classification(BaseModel):
-    """Classification result for a single transaction."""
+    """Classification result for a single transaction.
+
+    account_id and account_number are None if unresolved.
+    Backend is responsible for applying fallback logic.
+    """
 
     transaction_id: UUID
-    account_id: UUID
-    account_number: str
+    account_id: UUID | None = None
+    account_number: str | None = None
 
     confidence: float = Field(..., ge=0.0, le=1.0)
     tier: ClassificationTier

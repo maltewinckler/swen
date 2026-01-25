@@ -1,19 +1,53 @@
-"""Evaluation pipeline runner."""
+"""Evaluation pipeline runner.
+
+This module provides flexible evaluation utilities that use pipeline
+components directly, allowing fine-grained control over what gets tested.
+
+Unlike the production ClassificationOrchestrator, these functions allow:
+- Running individual pipeline tiers
+- Testing with/without preprocessing
+- Custom configurations for experiments
+"""
+
+from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 import pandas as pd
-from swen_ml_contracts import AccountOption, Classification, TransactionInput
+from swen_ml_contracts import AccountOption, TransactionInput
 
 from swen_ml.evaluation.metrics import EvaluationMetrics, compute_metrics
-from swen_ml.models.encoder import Encoder
-from swen_ml.models.nli import NLIClassifier
-from swen_ml.pipeline.orchestrator import classify_batch
+from swen_ml.inference import (
+    AnchorClassifier,
+    ClassificationResult,
+    ExampleClassifier,
+    NoiseModel,
+    PatternMatcher,
+    PipelineContext,
+    TextCleaner,
+    TransactionContext,
+    build_results,
+)
+from swen_ml.inference.classification.context import EmbeddingStore
+
+if TYPE_CHECKING:
+    from swen_ml.inference._models import Encoder
+    from swen_ml.inference.classification.enrichment import EnrichmentService
+
+# Evaluation-specific tier control
+ClassificationTier = Literal["preprocessing", "example", "enrichment", "anchor"]
+TIER_ORDER: list[ClassificationTier] = [
+    "preprocessing",
+    "example",
+    "enrichment",
+    "anchor",
+]
 
 
 @dataclass
@@ -22,7 +56,7 @@ class EvaluationResult:
 
     scenario: str
     metrics: EvaluationMetrics
-    classifications: list[Classification]
+    classifications: list[ClassificationResult]
 
 
 def load_evaluation_data(
@@ -73,31 +107,158 @@ def load_evaluation_data(
     return transactions, accounts, expected
 
 
+def create_pipeline_context(
+    encoder: Encoder,
+    accounts: list[AccountOption],
+    enrichment_service: EnrichmentService | None = None,
+    noise_model: NoiseModel | None = None,
+    example_store: EmbeddingStore | None = None,
+    anchor_store: EmbeddingStore | None = None,
+    confidence_threshold: float = 0.85,
+) -> PipelineContext:
+    """Create a pipeline context for evaluation.
+
+    Args:
+        encoder: Embedding model
+        accounts: Available accounts
+        enrichment_service: Optional enrichment service
+        noise_model: Optional noise model (defaults to empty)
+        example_store: Optional EmbeddingStore (defaults to empty)
+        anchor_store: Optional EmbeddingStore (defaults to empty)
+        confidence_threshold: Classification confidence threshold
+
+    Returns:
+        PipelineContext configured for evaluation
+    """
+    return PipelineContext(
+        encoder=encoder,
+        noise_model=noise_model or NoiseModel(),
+        example_store=example_store or EmbeddingStore.empty(),
+        anchor_store=anchor_store or EmbeddingStore.empty(),
+        enrichment_service=enrichment_service,
+        confidence_threshold=confidence_threshold,
+    )
+
+
+async def run_classification_pipeline(
+    transactions: list[TransactionInput],
+    accounts: list[AccountOption],
+    pipeline_ctx: PipelineContext,
+    max_tier: ClassificationTier = "anchor",
+    skip_preprocessing: bool = False,
+) -> list[ClassificationResult]:
+    """Run the classification pipeline with fine-grained control.
+
+    This is an evaluation-focused version that allows:
+    - Skipping preprocessing to test raw embeddings
+    - Stopping at any tier
+    - Custom pipeline contexts
+
+    Args:
+        transactions: Transactions to classify
+        accounts: Available accounts
+        pipeline_ctx: Pipeline context with models and stores
+        max_tier: Maximum tier to run
+        skip_preprocessing: Skip text cleaning and pattern matching
+
+    Returns:
+        List of ClassificationResult
+    """
+    max_tier_idx = TIER_ORDER.index(max_tier)
+
+    # Initialize contexts
+    contexts = [TransactionContext.from_input(txn) for txn in transactions]
+
+    # === TIER 1: Preprocessing (optional) ===
+    if not skip_preprocessing:
+        text_cleaner = TextCleaner(pipeline_ctx)
+        pattern_matcher = PatternMatcher()
+
+        text_cleaner.process_batch(contexts)
+        pattern_matcher.process_batch(contexts)
+
+    if max_tier_idx < TIER_ORDER.index("example"):
+        return build_results(contexts)
+
+    # === TIER 2: Example classifier ===
+    example_classifier = ExampleClassifier()
+    await example_classifier.classify_batch(contexts, pipeline_ctx)
+
+    if max_tier_idx < TIER_ORDER.index("enrichment"):
+        return build_results(contexts)
+
+    # Early exit if all resolved
+    if all(c.resolved for c in contexts):
+        return build_results(contexts)
+
+    # === TIER 3: Enrichment (unresolved only) ===
+    unresolved = [ctx for ctx in contexts if not ctx.resolved]
+
+    if pipeline_ctx.enrichment_service:
+        for ctx in unresolved:
+            query = ctx.cleaned_counterparty
+            if query:
+                enrichment = await pipeline_ctx.enrichment_service.enrich(query)
+                if enrichment:
+                    ctx.search_enrichment = enrichment.text
+
+    if max_tier_idx < TIER_ORDER.index("anchor"):
+        return build_results(contexts)
+
+    # === TIER 4: Anchor classifier ===
+    anchor_classifier = AnchorClassifier()
+    await anchor_classifier.classify_batch(unresolved, pipeline_ctx)
+
+    return build_results(contexts)
+
+
 def run_cold_start(
     transactions: list[TransactionInput],
     accounts: list[AccountOption],
     expected: list[str],
     encoder: Encoder,
-    nli: NLIClassifier,
+    max_tier: ClassificationTier = "anchor",
+    enrichment_service: EnrichmentService | None = None,
+    skip_preprocessing: bool = False,
 ) -> EvaluationResult:
-    """Evaluate cold start scenario (no user examples)."""
-    # Use a dummy user ID that has no stored data
-    dummy_user_id = uuid4()
+    """Evaluate cold start scenario (no user examples).
+
+    Args:
+        transactions: Transactions to classify
+        accounts: Available accounts
+        expected: Expected account numbers
+        encoder: Encoder model
+        max_tier: Maximum classification tier to run
+        enrichment_service: Optional enrichment service
+        skip_preprocessing: Skip text cleaning and pattern matching
+
+    Returns:
+        EvaluationResult with metrics and classifications
+    """
+    pipeline_ctx = create_pipeline_context(
+        encoder=encoder,
+        accounts=accounts,
+        enrichment_service=enrichment_service,
+    )
 
     classifications = asyncio.run(
-        classify_batch(
+        run_classification_pipeline(
             transactions=transactions,
             accounts=accounts,
-            user_id=dummy_user_id,
-            encoder=encoder,
-            nli=nli,
+            pipeline_ctx=pipeline_ctx,
+            max_tier=max_tier,
+            skip_preprocessing=skip_preprocessing,
         )
     )
 
     metrics = compute_metrics(classifications, expected)
 
+    scenario = f"cold_start_{max_tier}"
+    if skip_preprocessing:
+        scenario += "_no_preprocess"
+
     return EvaluationResult(
-        scenario="cold_start",
+        scenario=scenario,
         metrics=metrics,
         classifications=classifications,
     )
@@ -108,10 +269,24 @@ def run_with_examples(
     accounts: list[AccountOption],
     expected: list[str],
     encoder: Encoder,
-    nli: NLIClassifier,
     n_folds: int = 5,
+    max_tier: ClassificationTier = "anchor",
+    enrichment_service: EnrichmentService | None = None,
 ) -> list[EvaluationResult]:
-    """Evaluate with k-fold cross-validation using examples."""
+    """Evaluate with k-fold cross-validation using examples.
+
+    Args:
+        transactions: Transactions to classify
+        accounts: Available accounts
+        expected: Expected account numbers
+        encoder: Encoder model
+        n_folds: Number of cross-validation folds
+        max_tier: Maximum classification tier to run
+        enrichment_service: Optional enrichment service
+
+    Returns:
+        List of EvaluationResult, one per fold
+    """
     results = []
     n = len(transactions)
 
@@ -131,14 +306,18 @@ def run_with_examples(
         # For now, run without examples (same as cold start per fold)
         _ = train_indices  # Will be used when example storage is implemented
 
-        dummy_user_id = uuid4()
+        pipeline_ctx = create_pipeline_context(
+            encoder=encoder,
+            accounts=accounts,
+            enrichment_service=enrichment_service,
+        )
+
         classifications = asyncio.run(
-            classify_batch(
+            run_classification_pipeline(
                 transactions=test_txns,
                 accounts=accounts,
-                user_id=dummy_user_id,
-                encoder=encoder,
-                nli=nli,
+                pipeline_ctx=pipeline_ctx,
+                max_tier=max_tier,
             )
         )
 

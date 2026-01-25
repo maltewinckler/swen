@@ -1,6 +1,5 @@
 """Account balance query - read account balances without side effects."""
 
-from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -12,6 +11,7 @@ from swen.domain.accounting.repositories import (
     TransactionRepository,
 )
 from swen.domain.accounting.services import AccountBalanceService
+from swen.domain.shared.time import today_utc
 
 
 class AccountBalanceQuery:
@@ -66,7 +66,7 @@ class AccountBalanceQuery:
             account_type=account.account_type.name,
             balance=balance.amount,
             currency=str(balance.currency),
-            balance_date=date.today(),
+            balance_date=today_utc(),
             is_active=account.is_active,
             is_parent=is_parent,
             parent_id=str(account.parent_id) if account.parent_id else None,
@@ -140,7 +140,7 @@ class AccountBalanceQuery:
             account_type=account.account_type.name,
             balance=balance.amount,
             currency=str(balance.currency),
-            balance_date=date.today(),
+            balance_date=today_utc(),
             is_active=account.is_active,
             is_parent=is_parent,
             parent_id=str(account.parent_id) if account.parent_id else None,

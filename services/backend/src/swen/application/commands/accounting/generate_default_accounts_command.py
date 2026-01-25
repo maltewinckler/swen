@@ -6,6 +6,8 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from swen_ml_contracts import AccountOption
+
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.repositories import AccountRepository
 from swen.domain.accounting.value_objects import Currency
@@ -13,6 +15,7 @@ from swen.domain.accounting.value_objects import Currency
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
     from swen.application.ports.identity import CurrentUser
+    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -34,18 +37,22 @@ class GenerateDefaultAccountsCommand:
         self,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
     ) -> GenerateDefaultAccountsCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
     async def execute(
@@ -70,6 +77,9 @@ class GenerateDefaultAccountsCommand:
             await self._account_repo.save(account)
             accounts_created[account.account_type.value.upper()] += 1
 
+        # Trigger ML embedding for expense/income accounts
+        self._trigger_account_embeddings(default_accounts)
+
         total = sum(accounts_created.values())
         return {
             **accounts_created,
@@ -77,6 +87,28 @@ class GenerateDefaultAccountsCommand:
             "skipped": False,
             "template": template.value,
         }
+
+    def _trigger_account_embeddings(self, accounts: list[Account]) -> None:
+        """Trigger ML service to embed account anchors for classification."""
+        if not self._ml_client:
+            return
+
+        classification_accounts = [
+            AccountOption(
+                account_id=account.id,
+                account_number=account.account_number,
+                name=account.name,
+                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                description=account.description,
+            )
+            for account in accounts
+            if account.account_type.value.lower() in ("expense", "income")
+        ]
+
+        if classification_accounts:
+            self._ml_client.embed_accounts_fire_and_forget(
+                self._user_id, classification_accounts
+            )
 
     def _get_minimal_accounts(self) -> list[Account]:
         return [

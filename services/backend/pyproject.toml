@@ -175,7 +175,6 @@ convention = "numpy"
     "PLW0603",  # Global statement (sometimes needed in test fixtures)
     "INP001",   # Implicit namespace package (tests don't need __init__.py)
     "RUF015",   # Prefer next() over [0] (clarity in tests)
-    "DTZ003",   # datetime.utcnow() deprecated (will fix separately)
     "A006"      # Lambda shadowing builtins
 ]
 

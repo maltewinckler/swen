@@ -8,13 +8,14 @@ TAN requests in your banking app when prompted.
 """
 
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
+from swen.domain.shared.time import today_utc
 from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 
 # Load environment variables from repository root
@@ -121,7 +122,7 @@ class TestTANFlow:
                 pytest.skip("No accounts available")
 
             iban = accounts[0].iban
-            start_date = date.today() - timedelta(days=200)
+            start_date = today_utc() - timedelta(days=200)
 
             print(f"\n📱 Fetching {200} days of history for {iban}...")
             print("   If TAN is required, approve it in your banking app!")

@@ -1,10 +1,15 @@
 """Sync progress events for SSE streaming."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(UTC)
 
 
 class SyncEventType(str, Enum):
@@ -37,7 +42,7 @@ class SyncProgressEvent:
 
     event_type: SyncEventType
     message: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utc_now)
 
     def to_dict(self) -> dict:
         return {

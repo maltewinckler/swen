@@ -1,8 +1,16 @@
 """Evaluation metrics computation."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Protocol
 
-from swen_ml_contracts import Classification
+
+class ClassificationLike(Protocol):
+    """Protocol for classification results used in metrics."""
+
+    account_number: str | None
+    confidence: float
+    resolved_by: str | None  # "example" | "anchor" | None
 
 
 @dataclass
@@ -35,10 +43,18 @@ class EvaluationMetrics:
 
 
 def compute_metrics(
-    classifications: list[Classification],
-    expected_accounts: list[str],
+    classifications: Sequence[ClassificationLike],
+    expected_accounts: Sequence[str],
 ) -> EvaluationMetrics:
-    """Compute evaluation metrics from classifications and ground truth."""
+    """Compute evaluation metrics from classifications and ground truth.
+
+    Args:
+        classifications: Classification results (ClassificationResult or Classification)
+        expected_accounts: Expected account numbers for each transaction
+
+    Returns:
+        EvaluationMetrics with accuracy and breakdown by tier/category
+    """
     metrics = EvaluationMetrics(total=len(classifications))
 
     # Initialize tier buckets
@@ -53,7 +69,9 @@ def compute_metrics(
 
     for clf, expected in zip(classifications, expected_accounts, strict=True):
         is_correct = clf.account_number == expected
-        tier = clf.tier
+
+        # Determine tier from resolved_by
+        tier = clf.resolved_by if clf.resolved_by else "fallback"
 
         # Overall metrics
         if is_correct:

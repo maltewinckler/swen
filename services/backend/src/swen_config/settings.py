@@ -94,9 +94,10 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Database (POSTGRES_ prefix)
+    # Note: Databases are created via services/database/init-db.sql
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    postgres_user: str = "swen"
+    postgres_user: str = "postgres"
     postgres_db: str = "swen"
 
     # API (API_ prefix)

@@ -2192,14 +2192,16 @@ name = "swen-ml"
 version = "0.1.0"
 source = { editable = "services/ml" }
 dependencies = [
+    { name = "asyncpg" },
     { name = "fastapi" },
-    { name = "filelock" },
+    { name = "httpx" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "rich" },
     { name = "sentence-transformers" },
+    { name = "sqlalchemy" },
     { name = "swen-ml-contracts" },
     { name = "torch" },
     { name = "transformers" },
@@ -2217,8 +2219,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "fastapi", specifier = ">=0.109.0" },
-    { name = "filelock", specifier = ">=3.12.0" },
+    { name = "httpx", specifier = ">=0.26.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.26.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "pandas", specifier = ">=2.0.0" },
@@ -2229,6 +2232,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "sentence-transformers", specifier = ">=2.2.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.42" },
     { name = "swen-ml-contracts", editable = "services/contracts" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "transformers", specifier = ">=4.36.0" },

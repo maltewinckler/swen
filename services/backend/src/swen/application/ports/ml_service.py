@@ -52,13 +52,17 @@ class AccountForClassification:
 
 @dataclass(frozen=True)
 class ClassificationResult:
-    """Result of ML classification for a single transaction."""
+    """Result of ML classification for a single transaction.
+
+    account_id and account_number are None if the ML service
+    couldn't classify the transaction. Backend handles fallback.
+    """
 
     transaction_id: UUID
-    account_id: UUID
-    account_number: str
+    account_id: UUID | None
+    account_number: str | None
     confidence: float
-    tier: str  # "pattern" | "example" | "anchor" | "nli" | "fallback"
+    tier: str  # "example" | "anchor" | "unresolved"
     merchant: str | None = None
     is_recurring: bool = False
     recurring_pattern: str | None = None  # "monthly" | "weekly"
