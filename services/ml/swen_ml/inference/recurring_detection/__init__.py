@@ -1,5 +1,13 @@
-"""Recurring transaction detection module."""
+from .detector import (
+    RecurringDetector,
+    RecurringInfo,
+    RecurringPattern,
+    RecurringResult,
+)
 
-from .detector import RecurringInfo, RecurringPattern, detect_recurring
-
-__all__ = ["detect_recurring", "RecurringInfo", "RecurringPattern"]
+__all__ = [
+    "RecurringDetector",
+    "RecurringInfo",
+    "RecurringPattern",
+    "RecurringResult",
+]

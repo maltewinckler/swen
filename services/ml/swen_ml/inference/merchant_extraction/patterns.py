@@ -1,5 +1,3 @@
-"""Known merchant patterns and constants."""
-
 import re
 
 # Pattern to extract merchant name from counterparty
@@ -11,8 +9,7 @@ MERCHANT_PATTERN = re.compile(
 # Payment providers to strip
 STRIP_PREFIXES = {"PAYPAL", "SUMUP", "ZETTLE", "STRIPE", "KLARNA"}
 
-# Known merchants (for reference/validation)
-# These could be used for pattern matching or validation
+# Known merchants (AI generated)
 KNOWN_MERCHANTS: set[str] = {
     # Supermarkets
     "REWE",

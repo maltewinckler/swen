@@ -1,10 +1,3 @@
-"""Shared infrastructure for inference orchestrators.
-
-This module defines the heavy resources that are loaded once at app startup
-and shared across all requests. User-specific data is now loaded from the
-database per request.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,12 +11,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class SharedInfrastructure:
-    """Heavy resources shared across all requests (singleton in app lifespan).
-
-    - encoder: The embedding model (large memory footprint)
-    - enrichment_service: Optional SearXNG adapter for search enrichment
-    - settings: Application settings
-    """
+    """Heavy resources shared across all requests."""
 
     encoder: Encoder
     settings: Settings

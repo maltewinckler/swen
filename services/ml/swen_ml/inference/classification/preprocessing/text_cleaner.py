@@ -1,5 +1,3 @@
-"""Text cleaning: payment provider removal + IDF noise filtering."""
-
 from __future__ import annotations
 
 import re
@@ -65,8 +63,7 @@ class NoiseModel:
     token_doc_freq: Counter[str] = field(default_factory=Counter)
     _noise_cache: set[str] | None = field(default=None, repr=False)
 
-    def observe_batch(self, texts: list[str]) -> None:
-        """Observe transaction texts to learn noise patterns."""
+    def observe_batch(self, texts: list[str]):
         for text in texts:
             tokens = set(tokenize(text))
             self.token_doc_freq.update(tokens)
@@ -75,7 +72,6 @@ class NoiseModel:
         self._noise_cache = None  # Invalidate cache
 
     def get_noise_tokens(self, threshold: float = 0.30) -> set[str]:
-        """Get tokens that appear in more than threshold of documents."""
         if self._noise_cache is not None:
             return self._noise_cache
 
@@ -89,19 +85,16 @@ class NoiseModel:
         return self._noise_cache
 
     def clean(self, text: str, threshold: float = 0.30) -> str:
-        """Remove noise tokens from text."""
         noise = self.get_noise_tokens(threshold)
         tokens = tokenize(text)
         informative = [t for t in tokens if t not in noise]
         return " ".join(informative)
 
     def clean_batch(self, texts: list[str], threshold: float = 0.30) -> list[str]:
-        """Remove noise tokens from all texts."""
         noise = self.get_noise_tokens(threshold)
         return [" ".join(t for t in tokenize(text) if t not in noise) for text in texts]
 
     def to_dict(self) -> dict:
-        """Serialize to dictionary for persistence."""
         return {
             "doc_count": self.doc_count,
             "token_doc_freq": dict(self.token_doc_freq),
@@ -109,7 +102,6 @@ class NoiseModel:
 
     @classmethod
     def from_dict(cls, data: dict) -> NoiseModel:
-        """Deserialize from dictionary."""
         return cls(
             doc_count=data["doc_count"],
             token_doc_freq=Counter(data["token_doc_freq"]),
@@ -117,10 +109,6 @@ class NoiseModel:
 
     @classmethod
     async def from_repository(cls, repo: NoiseRepository) -> NoiseModel:
-        """Load noise model from repository.
-
-        Returns an empty NoiseModel if no data exists for the user.
-        """
         data = await repo.get()
         if data:
             return cls.from_dict(
@@ -133,11 +121,7 @@ class NoiseModel:
 
 
 class TextCleaner:
-    """Preprocessor that cleans counterparty and purpose text.
-
-    - Counterparty: strips payment providers (PAYPAL, SUMUP, etc.)
-    - Purpose: applies IDF noise removal
-    """
+    """Preprocessor that cleans counterparty and purpose text."""
 
     name = "text_cleaner"
 
@@ -146,11 +130,9 @@ class TextCleaner:
         self._noise_threshold = noise_threshold
 
     def clean_purpose(self, purpose: str) -> str:
-        """Remove IDF noise tokens from purpose."""
         return self._noise_model.clean(purpose, self._noise_threshold)
 
-    def process_batch(self, contexts: list[TransactionContext]) -> None:
-        """Clean all transactions in batch."""
+    def process_batch(self, contexts: list[TransactionContext]):
         for ctx in contexts:
             ctx.cleaned_counterparty = clean_counterparty(ctx.raw_counterparty)
             ctx.cleaned_purpose = self.clean_purpose(ctx.raw_purpose)

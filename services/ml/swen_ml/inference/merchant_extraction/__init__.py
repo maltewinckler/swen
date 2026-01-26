@@ -1,5 +1,15 @@
-"""Merchant extraction module."""
+from .extractor import (
+    MerchantExtractor,
+    MerchantResult,
+    extract_merchant,
+    extract_merchants,
+    is_known_merchant,
+)
 
-from .extractor import extract_merchant, extract_merchants
-
-__all__ = ["extract_merchant", "extract_merchants"]
+__all__ = [
+    "MerchantExtractor",
+    "MerchantResult",
+    "extract_merchant",
+    "extract_merchants",
+    "is_known_merchant",
+]

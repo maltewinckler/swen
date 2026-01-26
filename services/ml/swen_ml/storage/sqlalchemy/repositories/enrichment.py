@@ -1,5 +1,3 @@
-"""Enrichment cache repository."""
-
 import hashlib
 from datetime import UTC, datetime, timedelta
 
@@ -64,7 +62,7 @@ class EnrichmentRepository:
         query: str,
         enrichment_text: str,
         source_urls: list[str] | None = None,
-    ) -> None:
+    ):
         """Store enrichment in cache."""
         query_hash = self._hash_query(query)
         now = datetime.now(UTC)

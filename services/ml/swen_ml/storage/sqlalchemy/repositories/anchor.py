@@ -1,5 +1,3 @@
-"""Anchor embeddings repository."""
-
 from uuid import UUID
 
 import numpy as np
@@ -25,7 +23,7 @@ class AnchorRepository:
         embedding: NDArray[np.float32],
         account_number: str,
         name: str,
-    ) -> None:
+    ):
         """Insert or update a single anchor embedding."""
         embedding_bytes = embedding.astype(np.float32).tobytes()
 

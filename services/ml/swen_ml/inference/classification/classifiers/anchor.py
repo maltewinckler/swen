@@ -1,5 +1,3 @@
-"""Anchor-based classifier for cold start scenarios."""
-
 from __future__ import annotations
 
 import logging

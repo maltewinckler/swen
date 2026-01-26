@@ -1,10 +1,11 @@
-"""Merchant name extraction from transaction counterparty."""
-
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
+
+from swen_ml_contracts import TransactionInput
 
 if TYPE_CHECKING:
     from swen_ml.inference.classification.result import ClassificationResult
@@ -12,14 +13,17 @@ if TYPE_CHECKING:
 from .patterns import KNOWN_MERCHANTS, MERCHANT_PATTERN, STRIP_PREFIXES
 
 
-def extract_merchant(counterparty: str | None) -> str | None:
-    """Extract normalized merchant name from counterparty string.
+@dataclass
+class MerchantResult:
+    """Result from merchant extraction for a single transaction."""
 
-    Examples:
-        "REWE.Filiale.Nord/Hamburg" -> "REWE"
-        "PAYPAL..SPOTIFY/35314369001" -> "SPOTIFY"
-        "Stadtwerke Hamburg" -> "STADTWERKE"
-    """
+    transaction_id: UUID
+    merchant: str | None
+    counterparty: str | None
+
+
+def extract_merchant(counterparty: str | None) -> str | None:
+    """Extract normalized merchant name from counterparty string."""
     if not counterparty:
         return None
 
@@ -47,15 +51,7 @@ def extract_merchants(
     results: list[ClassificationResult],
     counterparties: dict[UUID, str | None],
 ) -> dict[UUID, str | None]:
-    """Extract merchants for all transactions.
-
-    Args:
-        results: Classification results with transaction IDs
-        counterparties: Map of transaction_id -> cleaned_counterparty
-
-    Returns:
-        Map of transaction_id -> extracted merchant name
-    """
+    """Extract merchants for all transactions."""
     merchants: dict[UUID, str | None] = {}
 
     for result in results:
@@ -70,3 +66,38 @@ def is_known_merchant(merchant: str | None) -> bool:
     if not merchant:
         return False
     return merchant.upper() in KNOWN_MERCHANTS
+
+
+class MerchantExtractor:
+    """Extractor for merchant names from transaction counterparties.
+
+    Stateless service that normalizes and extracts merchant names
+    from counterparty strings using pattern matching.
+    """
+
+    def extract(self, transactions: list[TransactionInput]) -> list[MerchantResult]:
+        """Extract merchant names from transactions.
+
+        Args:
+            transactions: Transactions to process
+
+        Returns:
+            List of MerchantResult, one per transaction
+        """
+        results: list[MerchantResult] = []
+
+        for txn in transactions:
+            merchant = extract_merchant(txn.counterparty_name)
+            results.append(
+                MerchantResult(
+                    transaction_id=txn.transaction_id,
+                    merchant=merchant,
+                    counterparty=txn.counterparty_name,
+                )
+            )
+
+        return results
+
+    def extract_single(self, counterparty: str | None) -> str | None:
+        """Extract merchant name from a single counterparty string."""
+        return extract_merchant(counterparty)

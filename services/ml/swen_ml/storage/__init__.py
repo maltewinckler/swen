@@ -1,25 +1,16 @@
-"""ML storage layer.
-
-This module provides:
-- `sqlalchemy`: PostgreSQL persistence layer (tables, repositories)
-
-Note: Domain models are in `swen_ml.data_models`.
-"""
-
 from swen_ml.data_models import Anchor, Enrichment, Example, NoiseData
 
 from .factory import RepositoryFactory
-from .repositories import (
-    AnchorRepository,
-    EnrichmentRepository,
-    ExampleRepository,
-    NoiseRepository,
-)
+from .protocols import EmbeddingRepository
 from .sqlalchemy import (
+    AnchorRepository,
     AnchorTable,
     Base,
     EnrichmentCacheTable,
+    EnrichmentRepository,
+    ExampleRepository,
     ExampleTable,
+    NoiseRepository,
     NoiseTable,
     get_engine,
     get_session,
@@ -28,6 +19,8 @@ from .sqlalchemy import (
 )
 
 __all__ = [
+    # Protocols
+    "EmbeddingRepository",
     # Domain models (Pydantic)
     "Anchor",
     "Enrichment",

@@ -1,5 +1,3 @@
-"""Training examples repository."""
-
 from uuid import UUID
 
 import numpy as np
@@ -24,7 +22,7 @@ class ExampleRepository:
         account_id: str,
         account_number: str,
         text: str,
-    ) -> None:
+    ):
         """Add a new training example."""
         example = ExampleTable(
             user_id=self._user_id,

@@ -1,5 +1,3 @@
-"""PostgreSQL database engine and session management."""
-
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -16,7 +14,7 @@ from swen_ml.config.settings import get_settings
 
 @lru_cache(maxsize=1)
 def get_engine() -> AsyncEngine:
-    """Get the shared async database engine (singleton)."""
+    """Get the shared async database engine."""
     settings = get_settings()
     return create_async_engine(
         settings.database_url,
@@ -27,7 +25,7 @@ def get_engine() -> AsyncEngine:
 
 @lru_cache(maxsize=1)
 def get_session_maker() -> async_sessionmaker[AsyncSession]:
-    """Get the shared async session maker (singleton)."""
+    """Get the shared async session maker."""
     return async_sessionmaker(
         get_engine(),
         class_=AsyncSession,

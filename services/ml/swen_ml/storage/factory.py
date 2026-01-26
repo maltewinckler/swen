@@ -1,17 +1,15 @@
-"""Repository factory for ML storage."""
-
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .repositories.anchor import AnchorRepository
-from .repositories.enrichment import EnrichmentRepository
-from .repositories.example import ExampleRepository
-from .repositories.noise import NoiseRepository
+from .sqlalchemy.repositories.anchor import AnchorRepository
+from .sqlalchemy.repositories.enrichment import EnrichmentRepository
+from .sqlalchemy.repositories.example import ExampleRepository
+from .sqlalchemy.repositories.noise import NoiseRepository
 
 
 class RepositoryFactory:
-    """Factory for creating user-scoped ML repositories from a database session."""
+    """Factory for creating ML repositories."""
 
     def __init__(self, session: AsyncSession, user_id: UUID):
         self._session = session

@@ -4,31 +4,20 @@ import asyncio
 import logging
 import sys
 
-from sqlalchemy.ext.asyncio import create_async_engine
-
 from swen_ml.config.settings import get_settings
 
 # Import tables to register with Base.metadata
 from swen_ml.storage.sqlalchemy import tables  # noqa: F401
 from swen_ml.storage.sqlalchemy.base import Base
+from swen_ml.storage.sqlalchemy.engine import get_engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _get_engine():
-    """Get the database engine."""
-    settings = get_settings()
-    return create_async_engine(
-        settings.database_url,
-        echo=False,
-        pool_pre_ping=True,
-    )
-
-
 async def create_tables() -> None:
     """Create all database tables (idempotent)."""
-    engine = _get_engine()
+    engine = get_engine()
     logger.info("Ensuring all database tables exist...")
 
     async with engine.begin() as conn:
@@ -42,7 +31,7 @@ async def drop_tables() -> None:
     """Drop all database tables and indexes."""
     from sqlalchemy import text
 
-    engine = _get_engine()
+    engine = get_engine()
     logger.warning("Dropping all database tables...")
 
     async with engine.begin() as conn:

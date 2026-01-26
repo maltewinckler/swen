@@ -19,7 +19,7 @@ from swen_ml.evaluation.runner import (
     run_cold_start,
     run_with_examples,
 )
-from swen_ml.inference import MerchantOrchestrator, RecurringOrchestrator
+from swen_ml.inference import MerchantExtractor, RecurringDetector
 from swen_ml.inference._models import Encoder, NLIClassifier, create_encoder
 from swen_ml.inference.classification.enrichment import (
     SearXNGAdapter,
@@ -41,6 +41,9 @@ app = typer.Typer(
 )
 console = Console()
 
+# NLI model for evaluation (not used in production)
+_NLI_MODEL = "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7"
+
 # Default data directory relative to the services/ml directory
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 _DEFAULT_EVAL_DATA = _PROJECT_ROOT / "data" / "examples" / "evaluation"
@@ -55,10 +58,10 @@ def _load_models() -> tuple[Encoder, NLIClassifier]:
     )
     encoder = create_encoder(settings)
 
-    console.print(f"[dim]Loading NLI model: {settings.nli_model}[/dim]")
+    console.print(f"[dim]Loading NLI model: {_NLI_MODEL}[/dim]")
     nli_pipe = pipeline(
         "zero-shot-classification",
-        model=settings.nli_model,
+        model=_NLI_MODEL,
         device="cpu",
     )
     nli = NLIClassifier(nli_pipe)
@@ -234,8 +237,8 @@ def extract_merchants_cmd() -> None:
     transactions, _, _ = load_evaluation_data(_DEFAULT_EVAL_DATA)
 
     # Extract merchants
-    merchant_orchestrator = MerchantOrchestrator()
-    results = merchant_orchestrator.extract(transactions)
+    merchant_extractor = MerchantExtractor()
+    results = merchant_extractor.extract(transactions)
 
     # Display results
     table = Table(title="Merchant Extraction Results")
@@ -269,8 +272,8 @@ def detect_recurring_cmd() -> None:
     transactions, _, _ = load_evaluation_data(_DEFAULT_EVAL_DATA)
 
     # Detect recurring
-    recurring_orchestrator = RecurringOrchestrator()
-    results = recurring_orchestrator.detect(transactions)
+    recurring_detector = RecurringDetector()
+    results = recurring_detector.detect(transactions)
 
     # Display results
     recurring_results = [r for r in results if r.is_recurring]
@@ -1393,8 +1396,8 @@ def search_eval(
     use_nli = method == "nli"
 
     if use_nli:
-        console.print(f"[dim]Loading NLI model: {settings.nli_model}[/dim]")
-        nli = NLIClassifier.load(settings.nli_model, device=settings.device)
+        console.print(f"[dim]Loading NLI model: {_NLI_MODEL}[/dim]")
+        nli = NLIClassifier.load(_NLI_MODEL, device=settings.device)
         # Use full account texts (name + description) as NLI labels for richer context
         # This prevents generic labels like "Abonnements" from matching everything
         nli_labels = acc_texts
@@ -1527,7 +1530,7 @@ def search_eval(
     # Display results
     console.print()
     method_info = (
-        f"NLI: {settings.nli_model}"
+        f"NLI: {_NLI_MODEL}"
         if use_nli
         else f"Embedding: {settings.encoder_model}"
     )

@@ -14,14 +14,13 @@ async def health_check(request: Request) -> HealthResponse:
     settings = get_settings()
 
     encoder_loaded = hasattr(request.app.state, "encoder")
-    nli_loaded = hasattr(request.app.state, "nli")
 
     return HealthResponse(
-        status="ok" if encoder_loaded and nli_loaded else "degraded",
+        status="ok" if encoder_loaded else "degraded",
         version="0.1.0",
         embedding_model_loaded=encoder_loaded,
-        nli_model_loaded=nli_loaded,
+        nli_model_loaded=False,  # NLI not used in production
         embedding_model_name=settings.encoder_model,
-        nli_model_name=settings.nli_model,
+        nli_model_name="n/a",
         users_cached=0,  # TODO: Get from cache
     )

@@ -1,16 +1,16 @@
-"""Data structures for classification pipeline."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import numpy as np
 from numpy.typing import NDArray
 from swen_ml_contracts import TransactionInput
+
+from swen_ml.storage.protocols import EmbeddingRepository
 
 if TYPE_CHECKING:
     from swen_ml.inference._models import Encoder
@@ -18,16 +18,6 @@ if TYPE_CHECKING:
     from swen_ml.inference.classification.preprocessing.text_cleaner import NoiseModel
     from swen_ml.inference.shared import SharedInfrastructure
     from swen_ml.storage import RepositoryFactory
-
-
-class EmbeddingRepository(Protocol):
-    """Protocol for repositories that provide embedding matrices."""
-
-    async def get_embeddings_matrix(
-        self,
-    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str]]:
-        """Return (embeddings, account_ids, account_numbers, labels)."""
-        ...
 
 
 @dataclass

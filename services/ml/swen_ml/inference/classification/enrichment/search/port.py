@@ -1,5 +1,3 @@
-"""Search port protocol and data models."""
-
 from dataclasses import dataclass
 from typing import Protocol
 

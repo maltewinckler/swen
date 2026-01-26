@@ -1,5 +1,3 @@
-"""SearXNG search adapter implementation."""
-
 from __future__ import annotations
 
 from typing import Any
@@ -67,7 +65,6 @@ class SearXNGAdapter(SearchPort):
         return results
 
     async def search(self, query: str) -> list[SearchResult]:
-        """Search and return top results."""
         if not query or not query.strip():
             return []
 
@@ -89,7 +86,6 @@ class SearXNGAdapter(SearchPort):
         return self._parse_response(data)
 
     def search_sync(self, query: str) -> list[SearchResult]:
-        """Synchronous search (for CLI use)."""
         if not query or not query.strip():
             return []
 

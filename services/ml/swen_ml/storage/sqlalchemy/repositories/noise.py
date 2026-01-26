@@ -1,5 +1,3 @@
-"""Noise model repository."""
-
 from uuid import UUID
 
 from sqlalchemy import select
@@ -21,7 +19,7 @@ class NoiseRepository:
         self,
         token_frequencies: dict[str, int],
         document_count: int,
-    ) -> None:
+    ):
         """Save or update the user's noise model."""
         stmt = insert(NoiseTable).values(
             user_id=self._user_id,
