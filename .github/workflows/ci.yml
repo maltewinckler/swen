@@ -13,9 +13,6 @@ jobs:
   lint-backend:
     name: Lint Backend (Ruff)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/backend
 
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +28,13 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --dev --no-install-workspace
+        run: uv sync --group dev
 
       - name: Run Ruff linter
-        run: uv run ruff check src/
+        run: uv run ruff check services/backend/src/
 
       - name: Run Ruff formatter check
-        run: uv run ruff format --check src/
+        run: uv run ruff format --check services/backend/src/
 
   # ===========================================================================
   # Frontend: ESLint + TypeScript
@@ -77,9 +74,6 @@ jobs:
   test-backend-unit:
     name: Test Backend (Unit)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/backend
 
     steps:
       - uses: actions/checkout@v4
@@ -95,10 +89,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-packages
 
       - name: Run unit tests
-        run: uv run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
+        run: uv run pytest services/backend/tests/swen/unit/ services/backend/tests/swen_identity/unit/ -v
 
   # ===========================================================================
   # Frontend: Tests
@@ -135,9 +129,6 @@ jobs:
   test-backend-integration:
     name: Test Backend (Integration)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/backend
 
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +144,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-packages
 
       - name: Run integration tests
         env:
@@ -162,7 +153,7 @@ jobs:
           ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
           JWT_SECRET_KEY: "test-jwt-secret-for-ci"
           POSTGRES_PASSWORD: "test-password-not-used"
-        run: uv run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ tests/cross_domain/e2e/ -v
+        run: uv run pytest services/backend/tests/swen/integration/ services/backend/tests/swen_identity/integration/ services/backend/tests/cross_domain/integration/ services/backend/tests/cross_domain/e2e/ -v
 
   # ===========================================================================
   # Frontend: Build check
