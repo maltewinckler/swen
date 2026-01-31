@@ -38,6 +38,7 @@ from swen.presentation.api.schemas.accounts import (
     ChartTemplateEnum,
     InitChartRequest,
     InitChartResponse,
+    InitEssentialsResponse,
     ReconciliationResponse,
 )
 
@@ -243,6 +244,54 @@ async def init_chart_of_accounts(
             "asset": int(result["ASSET"]),
             "liability": int(result["LIABILITY"]),
         },
+    )
+
+
+@router.post(
+    "/init-essentials",
+    status_code=status.HTTP_201_CREATED,
+    summary="Initialize essential accounts only",
+    responses={
+        201: {"description": "Essential accounts created"},
+        200: {"description": "Essential accounts already exist (skipped)"},
+    },
+)
+async def init_essential_accounts(
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> InitEssentialsResponse:
+    """
+    Initialize only the essential accounts required for basic operation.
+
+    Creates 3 accounts (if they don't exist):
+    - **Bargeld** (1000): Cash asset account for cash transactions
+    - **Sonstige Einnahmen** (3100): Fallback income account
+    - **Sonstiges** (4900): Fallback expense account
+
+    This is idempotent - existing accounts are skipped, not duplicated.
+    Use this when users choose manual account setup but you still need
+    the essential accounts for cash transactions and fallback categorization.
+    """
+    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
+    result = await command.execute_essentials()
+    await factory.session.commit()
+
+    if result["skipped"]:
+        logger.info("Essential accounts already exist, skipped initialization")
+        return InitEssentialsResponse(
+            message="Essential accounts already exist",
+            skipped=True,
+            accounts_created=0,
+        )
+
+    logger.info(
+        "Essential accounts initialized: %d created",
+        result["accounts_created"],
+    )
+    return InitEssentialsResponse(
+        message=f"Created {result['accounts_created']} essential accounts",
+        skipped=False,
+        accounts_created=int(result["accounts_created"]),
     )
 
 

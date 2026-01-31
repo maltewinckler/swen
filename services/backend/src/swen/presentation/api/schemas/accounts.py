@@ -84,6 +84,37 @@ class InitChartResponse(BaseModel):
     )
 
 
+class InitEssentialsResponse(BaseModel):
+    """Response schema for essential accounts initialization."""
+
+    message: str
+    skipped: bool
+    accounts_created: int
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "summary": "Essential accounts created",
+                    "value": {
+                        "message": "Created 3 essential accounts",
+                        "skipped": False,
+                        "accounts_created": 3,
+                    },
+                },
+                {
+                    "summary": "Already exist",
+                    "value": {
+                        "message": "Essential accounts already exist",
+                        "skipped": True,
+                        "accounts_created": 0,
+                    },
+                },
+            ],
+        },
+    )
+
+
 class AccountResponse(BaseModel):
     """Response schema for account data."""
 

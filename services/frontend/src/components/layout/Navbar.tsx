@@ -6,6 +6,7 @@ import {
   Settings,
   LogOut,
   User,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
@@ -19,7 +20,16 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui'
 
-const navItems = [
+// Desktop navigation (no Quick - it's mobile-focused)
+const desktopNavItems = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
+] as const
+
+// Mobile navigation (includes Quick as first item)
+const mobileNavItems = [
+  { to: '/quick', label: 'Quick', icon: Zap },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
@@ -86,7 +96,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
+            {desktopNavItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -138,7 +148,7 @@ export function Navbar() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface border-t border-border-subtle safe-area-bottom">
         <div className="flex items-center justify-around h-16">
-          {navItems.map((item) => (
+          {mobileNavItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
