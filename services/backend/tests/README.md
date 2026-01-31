@@ -23,7 +23,7 @@ tests/
 ### Unit Tests (no dependencies)
 
 ```bash
-poetry run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
+uv run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
 ```
 
 ### Integration Tests (requires Docker/Podman)
@@ -31,7 +31,7 @@ poetry run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
 Integration tests use **Testcontainers** to spin up ephemeral PostgreSQL instances.
 
 ```bash
-poetry run pytest tests/swen/integration/ -v
+uv run pytest tests/swen/integration/ -v
 ```
 
 ## Docker/Podman Setup
@@ -61,5 +61,5 @@ export FINTS_PIN=...
 export FINTS_ENDPOINT=...
 
 # Run external tests
-poetry run pytest tests/external/ --run-external -v
+uv run pytest tests/external/ --run-external -v
 ```

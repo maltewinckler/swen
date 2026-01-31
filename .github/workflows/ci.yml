@@ -25,29 +25,19 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          version: "1.8.5"
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: services/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('services/backend/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
+          enable-cache: true
 
       - name: Install dev dependencies
-        run: poetry install --only dev
+        run: uv sync --dev --no-install-workspace
 
       - name: Run Ruff linter
-        run: poetry run ruff check src/
+        run: uv run ruff check src/
 
       - name: Run Ruff formatter check
-        run: poetry run ruff format --check src/
+        run: uv run ruff format --check src/
 
   # ===========================================================================
   # Frontend: ESLint + TypeScript
@@ -99,26 +89,16 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          version: "1.8.5"
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: services/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('services/backend/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: uv sync
 
       - name: Run unit tests
-        run: poetry run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
+        run: uv run pytest tests/swen/unit/ tests/swen_identity/unit/ -v
 
   # ===========================================================================
   # Frontend: Tests
@@ -167,23 +147,13 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          version: "1.8.5"
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: services/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('services/backend/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
+          enable-cache: true
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: uv sync
 
       - name: Run integration tests
         env:
@@ -192,7 +162,7 @@ jobs:
           ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
           JWT_SECRET_KEY: "test-jwt-secret-for-ci"
           POSTGRES_PASSWORD: "test-password-not-used"
-        run: poetry run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ tests/cross_domain/e2e/ -v
+        run: uv run pytest tests/swen/integration/ tests/swen_identity/integration/ tests/cross_domain/integration/ tests/cross_domain/e2e/ -v
 
   # ===========================================================================
   # Frontend: Build check

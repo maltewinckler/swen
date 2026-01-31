@@ -15,27 +15,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-ENV POETRY_HOME=/opt/poetry
-ENV POETRY_VERSION=2.1.4
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy dependency files first (better caching)
-COPY services/backend/pyproject.toml services/backend/poetry.lock ./
+# Copy workspace root files and dependency files (for workspace dependencies)
+COPY pyproject.toml uv.lock ./
+COPY services/contracts ./services/contracts
+COPY services/backend/pyproject.toml ./services/backend/
 
-# Configure Poetry: no virtualenv, install to system
-ENV POETRY_VIRTUALENVS_CREATE=false
-
-# Install dependencies (includes public git dependency `geldstrom` via HTTPS)
-RUN poetry install --only main --no-interaction --no-ansi --no-root
+# Install dependencies (without the local packages yet)
+RUN uv sync --frozen --no-dev --no-install-workspace --package swen-backend
 
 # Copy source code
-COPY services/backend/src/swen ./src/swen
-COPY services/backend/src/swen_identity ./src/swen_identity
-COPY services/backend/src/swen_config ./src/swen_config
+COPY services/backend/src/swen ./services/backend/src/swen
+COPY services/backend/src/swen_identity ./services/backend/src/swen_identity
+COPY services/backend/src/swen_config ./services/backend/src/swen_config
 
-# Install the project itself
-RUN poetry install --only main --no-interaction --no-ansi
+# Install the workspace packages
+RUN uv sync --frozen --no-dev --package swen-backend
 
 # ============================================
 # Stage 2: Hardened Slim Runtime
@@ -51,16 +48,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && groupadd --gid 65532 nonroot \
     && useradd --uid 65532 --gid nonroot --shell /usr/sbin/nologin --create-home nonroot
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy the virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
-COPY --from=builder /app/src/swen /app/src/swen
-COPY --from=builder /app/src/swen_identity /app/src/swen_identity
-COPY --from=builder /app/src/swen_config /app/src/swen_config
+COPY --from=builder /app/services/backend/src/swen /app/src/swen
+COPY --from=builder /app/services/backend/src/swen_identity /app/src/swen_identity
+COPY --from=builder /app/services/backend/src/swen_config /app/src/swen_config
 
-# Set Python path
+# Copy workspace dependency (contracts) - needed for workspace packages
+COPY --from=builder /app/services/contracts /app/services/contracts
+
+# Set Python path and add venv to PATH
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1

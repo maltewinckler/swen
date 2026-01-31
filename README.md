@@ -149,7 +149,7 @@ This guide covers running SWEN without Docker, directly on your machine. This is
 ### Prerequisites
 
 * `Python >= 3.10` (backend)
-* `Poetry >= 2` (Python Project Management)
+* `uv >= 0.5` (Python package manager)
 * `Node.js >= 24` (frontend)
 * `PostgreSQL >= 18` (database)
 * `Ollama` (*Optional* but required for LLM categorization)
@@ -169,7 +169,7 @@ This guide covers running SWEN without Docker, directly on your machine. This is
    make install
    ```
 
-   This installs both Python (via Poetry) and Node.js (via npm) dependencies.
+   This installs both Python (via uv) and Node.js (via npm) dependencies.
 
 3. **Create your configuration**
 
