@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo, useCallback } from 'react'
 import {
   AddTransactionModal,
@@ -9,6 +9,8 @@ import {
   TransactionsPageHeader,
   TransactionsReviewBanner,
 } from '@/components/transactions'
+import { SyncProgressModal } from '@/components/SyncProgressModal'
+import { useSyncProgress } from '@/hooks/useSyncProgress'
 import { listTransactions } from '@/api'
 import type { TransactionListItem } from '@/types/api'
 
@@ -17,6 +19,7 @@ export const Route = createFileRoute('/_app/transactions')({
 })
 
 function TransactionsPage() {
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [days, setDays] = useState(30)
   const [statusFilter, setStatusFilter] = useState<'all' | 'posted' | 'draft'>('all')
@@ -24,6 +27,15 @@ function TransactionsPage() {
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isReviewMode, setIsReviewMode] = useState(false)
+
+  // Sync progress hook
+  const sync = useSyncProgress({
+    onSuccess: () => {
+      // Invalidate queries to refresh data after sync
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+  })
 
   // Toggle Review Mode - automatically filter to drafts
   const toggleReviewMode = () => {
@@ -82,6 +94,8 @@ function TransactionsPage() {
         isReviewMode={isReviewMode}
         onToggleReviewMode={toggleReviewMode}
         onAddTransaction={() => setIsAddModalOpen(true)}
+        onSyncBank={() => sync.checkAndSync()}
+        isSyncing={sync.step === 'syncing'}
       />
 
       <TransactionsReviewBanner isReviewMode={isReviewMode} onExit={toggleReviewMode} />
@@ -119,6 +133,20 @@ function TransactionsPage() {
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      {/* Sync Progress Modal */}
+      <SyncProgressModal
+        open={sync.isOpen}
+        onClose={sync.reset}
+        step={sync.step}
+        progress={sync.progress}
+        result={sync.result}
+        error={sync.error}
+        firstSyncDays={sync.firstSyncDays}
+        onSetFirstSyncDays={sync.setFirstSyncDays}
+        onConfirmFirstSync={sync.confirmFirstSync}
+        onSkipSync={sync.skip}
       />
     </div>
   )

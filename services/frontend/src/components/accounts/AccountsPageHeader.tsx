@@ -1,26 +1,19 @@
-import { Plus, RefreshCw, Sparkles } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui'
-import { cn } from '@/lib/utils'
 
 interface AccountsPageHeaderProps {
   accountsCount: number
-  hasCredentials: boolean
   showInactive: boolean
-  isSyncing: boolean
   onOpenInitAccounts: () => void
   onToggleShowInactive: () => void
-  onSyncAllBanks: () => void
   onAddAccount: () => void
 }
 
 export function AccountsPageHeader({
   accountsCount,
-  hasCredentials,
   showInactive,
-  isSyncing,
   onOpenInitAccounts,
   onToggleShowInactive,
-  onSyncAllBanks,
   onAddAccount,
 }: AccountsPageHeaderProps) {
   return (
@@ -43,17 +36,6 @@ export function AccountsPageHeader({
         >
           {showInactive ? 'Showing Inactive' : 'Show Inactive'}
         </Button>
-        {hasCredentials && (
-          <Button
-            variant="secondary"
-            onClick={onSyncAllBanks}
-            disabled={isSyncing}
-            className="whitespace-nowrap"
-          >
-            <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
-            Sync All Banks
-          </Button>
-        )}
         <Button variant="secondary" onClick={onAddAccount} className="whitespace-nowrap">
           <Plus className="h-4 w-4" />
           Add Account

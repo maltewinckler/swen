@@ -84,6 +84,7 @@ export function OnboardingManualAccountsStep({
 
             <FormField label="Account Name">
               <Input
+                autoFocus
                 placeholder="e.g., Trade Republic"
                 value={newManualAccount.name}
                 onChange={(e) => onChangeName(e.target.value)}
