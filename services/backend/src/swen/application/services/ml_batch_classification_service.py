@@ -54,12 +54,31 @@ class BatchClassificationStats:
     processing_time_ms: int
 
 
-class MLBatchClassificationService:
-    """Service for batch ML classification of transactions.
+@dataclass
+class _ChunkProcessingState:
+    """Mutable state for chunk processing."""
 
-    Calls the ML service batch endpoint and yields progress events
-    for SSE streaming to the frontend.
-    """
+    results: dict[UUID, BatchClassificationResult]
+    tier_counts: dict[str, int]
+    processed: int
+    last_tier: str | None
+    last_merchant: str | None
+    ml_unavailable: bool
+
+    @classmethod
+    def initial(cls) -> _ChunkProcessingState:
+        return cls(
+            results={},
+            tier_counts={},
+            processed=0,
+            last_tier=None,
+            last_merchant=None,
+            ml_unavailable=False,
+        )
+
+
+class MLBatchClassificationService:
+    """Service for batch ML classification of transactions."""
 
     def __init__(
         self,
@@ -73,6 +92,7 @@ class MLBatchClassificationService:
         self,
         stored_transactions: list[StoredBankTransaction],
         iban: str,
+        chunk_size: int = 5,
     ) -> AsyncIterator[
         ClassificationStartedEvent
         | ClassificationProgressEvent
@@ -81,12 +101,25 @@ class MLBatchClassificationService:
     ]:
         """Classify a batch of transactions with streaming progress.
 
+        Processes transactions in chunks to provide real-time progress feedback.
+        Each chunk is sent to the ML service separately, with progress events
+        emitted after each chunk completes.
+
+        Parameters
+        ----------
+        stored_transactions
+            Transactions to classify
+        iban
+            Account IBAN for progress events
+        chunk_size
+            Number of transactions per chunk (default: 5)
+
         Yields
         ------
         ClassificationStartedEvent
             When classification begins
         ClassificationProgressEvent
-            Progress updates during classification
+            Progress updates after each chunk
         ClassificationCompletedEvent
             When classification completes
         dict[UUID, BatchClassificationResult]
@@ -98,48 +131,124 @@ class MLBatchClassificationService:
             return
 
         start_time = time.monotonic()
-
-        # Emit start event
         yield ClassificationStartedEvent(iban=iban, total=total)
 
-        # Build ML inputs
-        ml_transactions = []
-        for stored in stored_transactions:
-            tx = stored.transaction
-            ml_transactions.append(
-                TransactionInput(
-                    transaction_id=stored.id,
-                    booking_date=tx.booking_date,
-                    purpose=tx.purpose or "",
-                    amount=tx.amount,
-                    counterparty_name=tx.applicant_name,
-                    counterparty_iban=tx.applicant_iban,
-                )
+        ml_transactions = self._build_ml_inputs(stored_transactions)
+        state = _ChunkProcessingState.initial()
+
+        async for progress_event in self._process_chunks(
+            ml_transactions, iban, chunk_size, state
+        ):
+            yield progress_event
+
+        self._handle_remaining_fallbacks(ml_transactions, state)
+
+        yield self._build_completion_event(
+            iban=iban,
+            results=state.results,
+            tier_counts=state.tier_counts,
+            start_time=start_time,
+        )
+        yield state.results
+
+    def _build_ml_inputs(
+        self,
+        stored_transactions: list[StoredBankTransaction],
+    ) -> list[TransactionInput]:
+        return [
+            TransactionInput(
+                transaction_id=stored.id,
+                booking_date=stored.transaction.booking_date,
+                purpose=stored.transaction.purpose or "",
+                amount=stored.transaction.amount,
+                counterparty_name=stored.transaction.applicant_name,
+                counterparty_iban=stored.transaction.applicant_iban,
+            )
+            for stored in stored_transactions
+        ]
+
+    async def _process_chunks(
+        self,
+        ml_transactions: list[TransactionInput],
+        iban: str,
+        chunk_size: int,
+        state: _ChunkProcessingState,
+    ) -> AsyncIterator[ClassificationProgressEvent]:
+        total = len(ml_transactions)
+
+        for chunk_start in range(0, total, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, total)
+            chunk = ml_transactions[chunk_start:chunk_end]
+
+            await self._process_single_chunk(chunk, chunk_start, chunk_end, state)
+            state.processed = chunk_end
+
+            yield ClassificationProgressEvent(
+                iban=iban,
+                current=state.processed,
+                total=total,
+                last_tier=state.last_tier,
+                last_merchant=state.last_merchant,
             )
 
-        # Call ML service batch endpoint
+            if state.ml_unavailable:
+                break
+
+    async def _process_single_chunk(
+        self,
+        chunk: list[TransactionInput],
+        chunk_start: int,
+        chunk_end: int,
+        state: _ChunkProcessingState,
+    ) -> None:
         response = await self._ml_client.classify_batch(
             user_id=self._user_id,
-            transactions=ml_transactions,
+            transactions=chunk,
         )
 
         if response is None:
-            # ML service unavailable - return empty results
-            logger.warning("ML service unavailable, returning empty classification")
-            yield ClassificationCompletedEvent(
-                iban=iban,
-                total=total,
-                by_tier={"fallback": total},
-                processing_time_ms=int((time.monotonic() - start_time) * 1000),
+            state.ml_unavailable = True
+            logger.warning(
+                "ML service unavailable at chunk %d-%d",
+                chunk_start,
+                chunk_end,
             )
-            yield {}
-            return
+            self._add_fallback_results(chunk, state)
+        else:
+            self._process_chunk_response(response, state)
 
-        # Build results mapping
-        results: dict[UUID, BatchClassificationResult] = {}
+    def _add_fallback_results(
+        self,
+        transactions: list[TransactionInput],
+        state: _ChunkProcessingState,
+    ) -> None:
+        for ml_txn in transactions:
+            state.results[ml_txn.transaction_id] = self._create_fallback_result(
+                ml_txn.transaction_id
+            )
+            state.tier_counts["fallback"] = state.tier_counts.get("fallback", 0) + 1
 
-        for i, classification in enumerate(response.classifications):
-            # Use account_id directly from ML response (already a UUID)
+    def _create_fallback_result(
+        self,
+        transaction_id: UUID,
+    ) -> BatchClassificationResult:
+        return BatchClassificationResult(
+            transaction_id=transaction_id,
+            counter_account_id=None,
+            counter_account_number=None,
+            confidence=0.0,
+            tier="fallback",
+            merchant=None,
+            is_recurring=False,
+            recurring_pattern=None,
+        )
+
+    def _process_chunk_response(
+        self,
+        response: object,
+        state: _ChunkProcessingState,
+    ) -> None:
+        for classification in response.classifications:  # type: ignore[attr-defined]
             account_id = classification.account_id
 
             if account_id:
@@ -157,7 +266,7 @@ class MLBatchClassificationService:
                     classification.account_number,
                 )
 
-            results[classification.transaction_id] = BatchClassificationResult(
+            state.results[classification.transaction_id] = BatchClassificationResult(
                 transaction_id=classification.transaction_id,
                 counter_account_id=account_id,
                 counter_account_number=classification.account_number,
@@ -168,34 +277,39 @@ class MLBatchClassificationService:
                 recurring_pattern=classification.recurring_pattern,
             )
 
-            # Emit progress every 10 transactions or at the end
-            if (i + 1) % 10 == 0 or i == len(response.classifications) - 1:
-                yield ClassificationProgressEvent(
-                    iban=iban,
-                    current=i + 1,
-                    total=total,
-                    last_tier=classification.tier,
-                    last_merchant=classification.merchant,
-                )
+            tier = classification.tier
+            state.tier_counts[tier] = state.tier_counts.get(tier, 0) + 1
+            state.last_tier = tier
+            state.last_merchant = classification.merchant
 
+    def _handle_remaining_fallbacks(
+        self,
+        ml_transactions: list[TransactionInput],
+        state: _ChunkProcessingState,
+    ) -> None:
+        if state.ml_unavailable and state.processed < len(ml_transactions):
+            self._add_fallback_results(ml_transactions[state.processed :], state)
+
+    def _build_completion_event(
+        self,
+        iban: str,
+        results: dict[UUID, BatchClassificationResult],
+        tier_counts: dict[str, int],
+        start_time: float,
+    ) -> ClassificationCompletedEvent:
+        """Build the completion event with statistics."""
         processing_time_ms = int((time.monotonic() - start_time) * 1000)
-
-        # Count stats
         recurring_count = sum(1 for r in results.values() if r.is_recurring)
         merchant_count = sum(1 for r in results.values() if r.merchant)
 
-        # Emit completion event
-        yield ClassificationCompletedEvent(
+        return ClassificationCompletedEvent(
             iban=iban,
-            total=total,
-            by_tier=response.stats.by_tier if response.stats else {},  # type: ignore[arg-type]
+            total=len(results),
+            by_tier=tier_counts,
             recurring_detected=recurring_count,
             merchants_extracted=merchant_count,
             processing_time_ms=processing_time_ms,
         )
-
-        # Yield final results
-        yield results
 
     async def classify_batch(
         self,

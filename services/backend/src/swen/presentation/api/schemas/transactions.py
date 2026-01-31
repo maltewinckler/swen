@@ -15,21 +15,12 @@ class JournalEntryResponse(BaseModel):
     that balance (total debits = total credits).
     """
 
-    account_id: UUID = Field(..., description="Account ID")
-    account_name: str = Field(..., description="Account name")
-    account_type: str = Field(
-        ...,
-        description="Account type (asset, liability, expense, etc.)",
-    )
-    debit: Optional[Decimal] = Field(
-        None,
-        description="Debit amount (increases assets/expenses, decreases liabilities/income)",
-    )
-    credit: Optional[Decimal] = Field(
-        None,
-        description="Credit amount (increases liabilities/income, decreases assets)",
-    )
-    currency: str = Field(..., description="ISO 4217 currency code")
+    account_id: UUID
+    account_name: str
+    account_type: str
+    debit: Optional[Decimal] = None
+    credit: Optional[Decimal] = None
+    currency: str
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -52,48 +43,18 @@ class TransactionResponse(BaseModel):
     double-entry bookkeeping principles.
     """
 
-    id: UUID = Field(..., description="Transaction unique identifier")
-    date: datetime = Field(..., description="Transaction date (when it occurred)")
-    description: str = Field(
-        ...,
-        description="Transaction description from bank or user",
-    )
-    counterparty: Optional[str] = Field(
-        None,
-        description="External party (merchant, employer, etc.)",
-    )
-    counterparty_iban: Optional[str] = Field(
-        None,
-        description="IBAN of the sender/recipient",
-    )
-    source: str = Field(
-        ...,
-        description="Transaction origin: bank_import, manual, opening_balance, reversal",
-    )
-    source_iban: Optional[str] = Field(
-        None,
-        description="IBAN of the source bank account (for bank imports)",
-    )
-    is_posted: bool = Field(
-        ...,
-        description="Whether transaction is finalized (affects balances)",
-    )
-    is_internal_transfer: bool = Field(
-        ...,
-        description="Auto-detected transfer between own accounts",
-    )
-    created_at: datetime = Field(
-        ...,
-        description="When the transaction was created in the system",
-    )
-    entries: list[JournalEntryResponse] = Field(
-        ...,
-        description="Double-entry journal entries (always balanced)",
-    )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata including AI resolution details",
-    )
+    id: UUID
+    date: datetime
+    description: str
+    counterparty: Optional[str] = None
+    counterparty_iban: Optional[str] = None
+    source: str
+    source_iban: Optional[str] = None
+    is_posted: bool
+    is_internal_transfer: bool
+    created_at: datetime
+    entries: list[JournalEntryResponse]
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -143,37 +104,19 @@ class TransactionResponse(BaseModel):
 class TransactionListItemResponse(BaseModel):
     """Response schema for transaction in list view (simplified for display)."""
 
-    id: UUID = Field(..., description="Transaction unique identifier")
-    short_id: str = Field(..., description="Truncated ID for display (first 8 chars)")
-    date: datetime = Field(..., description="Transaction date")
-    description: str = Field(..., description="Transaction description")
-    counterparty: Optional[str] = Field(
-        None,
-        description="External party (merchant, employer, etc.)",
-    )
-    counter_account: Optional[str] = Field(
-        None,
-        description="Contra account name in double-entry (legacy, use debit/credit_account)",
-    )
-    debit_account: Optional[str] = Field(
-        None,
-        description="Account being debited (money goes TO this account)",
-    )
-    credit_account: Optional[str] = Field(
-        None,
-        description="Account being credited (money comes FROM this account)",
-    )
-    amount: Decimal = Field(..., description="Transaction amount (always positive)")
-    currency: str = Field(..., description="ISO 4217 currency code")
-    is_income: bool = Field(
-        ...,
-        description="Direction: True = income/deposit, False = expense/withdrawal",
-    )
-    is_posted: bool = Field(..., description="Whether transaction is finalized")
-    is_internal_transfer: bool = Field(
-        ...,
-        description="Transfer between own accounts (e.g., checking to savings)",
-    )
+    id: UUID
+    short_id: str
+    date: datetime
+    description: str
+    counterparty: Optional[str] = None
+    counter_account: Optional[str] = None
+    debit_account: Optional[str] = None
+    credit_account: Optional[str] = None
+    amount: Decimal
+    currency: str
+    is_income: bool
+    is_posted: bool
+    is_internal_transfer: bool
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -199,19 +142,10 @@ class TransactionListItemResponse(BaseModel):
 class TransactionListResponse(BaseModel):
     """Response schema for transaction listing with summary counts."""
 
-    transactions: list[TransactionListItemResponse] = Field(
-        ...,
-        description="List of transactions matching the filters",
-    )
-    total: int = Field(..., description="Total transactions in the result set")
-    draft_count: int = Field(
-        ...,
-        description="Transactions pending review (not finalized)",
-    )
-    posted_count: int = Field(
-        ...,
-        description="Finalized transactions affecting balances",
-    )
+    transactions: list[TransactionListItemResponse]
+    total: int
+    draft_count: int
+    posted_count: int
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -262,17 +196,9 @@ class JournalEntryRequest(BaseModel):
     Each transaction needs at least two balanced entries (debits = credits).
     """
 
-    account_id: UUID = Field(..., description="Account UUID to debit or credit")
-    debit: Decimal = Field(
-        default=Decimal("0"),
-        ge=0,
-        description="Debit amount (use for expenses, asset increases)",
-    )
-    credit: Decimal = Field(
-        default=Decimal("0"),
-        ge=0,
-        description="Credit amount (use for income, asset decreases)",
-    )
+    account_id: UUID
+    debit: Decimal = Field(default=Decimal("0"), ge=0)
+    credit: Decimal = Field(default=Decimal("0"), ge=0)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -299,27 +225,11 @@ class TransactionCreateRequest(BaseModel):
     - Entry 2: Credit €3000 from "Salary" (income account)
     """
 
-    date: datetime = Field(..., description="Transaction date (when it occurred)")
-    description: str = Field(
-        ...,
-        min_length=1,
-        max_length=500,
-        description="Transaction description",
-    )
-    entries: list[JournalEntryRequest] = Field(
-        ...,
-        min_length=2,
-        description="Journal entries (min 2, must balance: sum of debits = sum of credits)",
-    )
-    counterparty: Optional[str] = Field(
-        None,
-        max_length=200,
-        description="External party (merchant, employer, etc.)",
-    )
-    auto_post: bool = Field(
-        default=False,
-        description="Automatically post (finalize) the transaction",
-    )
+    date: datetime
+    description: str = Field(min_length=1, max_length=500)
+    entries: list[JournalEntryRequest] = Field(min_length=2)
+    counterparty: Optional[str] = Field(None, max_length=200)
+    auto_post: bool = False
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -360,34 +270,13 @@ class TransactionCreateSimpleRequest(BaseModel):
     - Create the balanced journal entries
     """
 
-    date: datetime = Field(..., description="Transaction date")
-    description: str = Field(
-        ...,
-        min_length=1,
-        max_length=500,
-        description="Transaction description",
-    )
-    amount: Decimal = Field(
-        ...,
-        description="Signed amount: negative = expense, positive = income",
-    )
-    asset_account: Optional[str] = Field(
-        None,
-        description="Asset account number or name (optional, uses default if not specified)",
-    )
-    category_account: Optional[str] = Field(
-        None,
-        description="Expense/income account number (optional, uses default if not specified)",
-    )
-    counterparty: Optional[str] = Field(
-        None,
-        max_length=200,
-        description="External party (merchant, employer, etc.)",
-    )
-    auto_post: bool = Field(
-        default=False,
-        description="Automatically post (finalize) the transaction",
-    )
+    date: datetime
+    description: str = Field(min_length=1, max_length=500)
+    amount: Decimal
+    asset_account: Optional[str] = None
+    category_account: Optional[str] = None
+    counterparty: Optional[str] = Field(None, max_length=200)
+    auto_post: bool = False
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -420,34 +309,11 @@ class TransactionUpdateRequest(BaseModel):
     Note: `entries` and `category_account_id` are mutually exclusive.
     """
 
-    description: Optional[str] = Field(
-        None,
-        min_length=1,
-        max_length=500,
-        description="New transaction description",
-    )
-    counterparty: Optional[str] = Field(
-        None,
-        max_length=200,
-        description="New counterparty name",
-    )
-    category_account_id: Optional[UUID] = Field(
-        None,
-        description="New expense/income category account ID (for simple re-categorization)",
-    )
-    entries: Optional[list[JournalEntryRequest]] = Field(
-        None,
-        min_length=2,
-        description=(
-            "New journal entries to replace all existing entries. "
-            "Must have at least 2 entries that balance (sum of debits = sum of credits). "
-            "Mutually exclusive with category_account_id."
-        ),
-    )
-    repost: bool = Field(
-        default=True,
-        description="Re-post the transaction after editing (if it was posted)",
-    )
+    description: Optional[str] = Field(None, min_length=1, max_length=500)
+    counterparty: Optional[str] = Field(None, max_length=200)
+    category_account_id: Optional[UUID] = None
+    entries: Optional[list[JournalEntryRequest]] = Field(None, min_length=1)
+    repost: bool = True
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -497,34 +363,12 @@ class TransactionUpdateRequest(BaseModel):
 class TransactionFilterParams(BaseModel):
     """Query parameters for transaction filtering."""
 
-    days: int = Field(
-        default=30,
-        ge=1,
-        le=365,
-        description="Days to look back from today",
-    )
-    limit: int = Field(
-        default=50,
-        ge=1,
-        le=500,
-        description="Maximum transactions to return",
-    )
-    status: Optional[str] = Field(
-        None,
-        description="Filter by status: 'posted' (finalized) or 'draft' (pending)",
-    )
-    account_number: Optional[str] = Field(
-        None,
-        description="Filter by chart of accounts number or IBAN",
-    )
-    exclude_transfers: Optional[bool] = Field(
-        None,
-        description="Exclude internal transfers between your accounts (default: True when not filtering by account)",
-    )
-    source: Optional[str] = Field(
-        None,
-        description="Filter by source: 'bank_import', 'manual', 'opening_balance', 'reversal'",
-    )
+    days: int = Field(default=30, ge=1, le=365)
+    limit: int = Field(default=50, ge=1, le=500)
+    status: Optional[str] = None
+    account_number: Optional[str] = None
+    exclude_transfers: Optional[bool] = None
+    source: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
