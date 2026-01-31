@@ -87,9 +87,7 @@ class HealthResponse(BaseModel):
 
     # Model status
     embedding_model_loaded: bool
-    nli_model_loaded: bool
     embedding_model_name: str
-    nli_model_name: str
 
     # Cache stats
     users_cached: int = 0

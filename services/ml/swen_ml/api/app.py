@@ -11,7 +11,7 @@ from swen_ml.config.settings import get_settings
 from swen_ml.inference import ClassificationOrchestrator, SharedInfrastructure
 from swen_ml.inference._models import create_encoder
 from swen_ml.inference.classification.enrichment import (
-    EnrichmentService,
+    FileKeywordAdapter,
     SearXNGAdapter,
 )
 from swen_ml.storage import Base, get_engine
@@ -108,27 +108,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         encoder.dimension,
     )
 
-    # Initialize enrichment service (if enabled)
-    enrichment_service: EnrichmentService | None = None
+    # Initialize enrichment adapters (if enabled)
+    keyword_adapter = None
+    searxng_adapter = None
     if settings.enrichment_enabled:
         logger.info(
-            "Initializing enrichment service: %s",
+            "Initializing enrichment adapters: %s",
             settings.enrichment_searxng_url,
         )
         searxng_adapter = SearXNGAdapter(
             base_url=settings.enrichment_searxng_url,
             timeout=settings.enrichment_search_timeout,
         )
-        enrichment_service = EnrichmentService(adapter=searxng_adapter)
-        logger.info("Enrichment service ready")
+        keyword_adapter = FileKeywordAdapter()
+        logger.info("Enrichment adapters ready (keyword + search)")
     else:
-        logger.info("Enrichment service disabled")
+        logger.info("Enrichment disabled")
 
     # Create shared infrastructure
-    infra = SharedInfrastructure.create(
+    infra = SharedInfrastructure(
         encoder=encoder,
         settings=settings,
-        enrichment_service=enrichment_service,
+        keyword_adapter=keyword_adapter,
+        searxng_adapter=searxng_adapter,
     )
 
     # Create orchestrator and store in app state
@@ -136,7 +138,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Keep references for cleanup
     app.state.encoder = encoder
-    app.state.enrichment_service = enrichment_service
+    app.state.keyword_adapter = keyword_adapter
+    app.state.searxng_adapter = searxng_adapter
     app.state.infra = infra
 
     logger.info("ML service ready - orchestrators initialized")
@@ -146,8 +149,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     del app.state.classification
     del app.state.infra
     del app.state.encoder
-    if app.state.enrichment_service:
-        del app.state.enrichment_service
+    if app.state.keyword_adapter:
+        del app.state.keyword_adapter
+    if app.state.searxng_adapter:
+        del app.state.searxng_adapter
 
     # Close database connections
     await app.state.db_engine.dispose()

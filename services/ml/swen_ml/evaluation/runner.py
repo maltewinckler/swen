@@ -28,7 +28,6 @@ from swen_ml.inference import (
     ClassificationResult,
     ExampleClassifier,
     NoiseModel,
-    PatternMatcher,
     PipelineContext,
     TextCleaner,
     TransactionContext,
@@ -38,7 +37,7 @@ from swen_ml.inference.classification.context import EmbeddingStore
 
 if TYPE_CHECKING:
     from swen_ml.inference._models import Encoder
-    from swen_ml.inference.classification.enrichment import EnrichmentService
+    from swen_ml.inference.classification.enrichment import KeywordPort, SearXNGAdapter
 
 # Evaluation-specific tier control
 ClassificationTier = Literal["preprocessing", "example", "enrichment", "anchor"]
@@ -110,7 +109,8 @@ def load_evaluation_data(
 def create_pipeline_context(
     encoder: Encoder,
     accounts: list[AccountOption],
-    enrichment_service: EnrichmentService | None = None,
+    keyword_adapter: KeywordPort | None = None,
+    searxng_adapter: SearXNGAdapter | None = None,
     noise_model: NoiseModel | None = None,
     example_store: EmbeddingStore | None = None,
     anchor_store: EmbeddingStore | None = None,
@@ -121,7 +121,8 @@ def create_pipeline_context(
     Args:
         encoder: Embedding model
         accounts: Available accounts
-        enrichment_service: Optional enrichment service
+        keyword_adapter: Optional keyword adapter
+        searxng_adapter: Optional search adapter
         noise_model: Optional noise model (defaults to empty)
         example_store: Optional EmbeddingStore (defaults to empty)
         anchor_store: Optional EmbeddingStore (defaults to empty)
@@ -135,7 +136,8 @@ def create_pipeline_context(
         noise_model=noise_model or NoiseModel(),
         example_store=example_store or EmbeddingStore.empty(),
         anchor_store=anchor_store or EmbeddingStore.empty(),
-        enrichment_service=enrichment_service,
+        keyword_adapter=keyword_adapter,
+        searxng_adapter=searxng_adapter,
         confidence_threshold=confidence_threshold,
     )
 
@@ -172,17 +174,14 @@ async def run_classification_pipeline(
     # === TIER 1: Preprocessing (optional) ===
     if not skip_preprocessing:
         text_cleaner = TextCleaner(pipeline_ctx)
-        pattern_matcher = PatternMatcher()
-
         text_cleaner.process_batch(contexts)
-        pattern_matcher.process_batch(contexts)
 
     if max_tier_idx < TIER_ORDER.index("example"):
         return build_results(contexts)
 
     # === TIER 2: Example classifier ===
-    example_classifier = ExampleClassifier()
-    await example_classifier.classify_batch(contexts, pipeline_ctx)
+    example_classifier = ExampleClassifier(pipeline_ctx)
+    await example_classifier.classify_batch(contexts)
 
     if max_tier_idx < TIER_ORDER.index("enrichment"):
         return build_results(contexts)
@@ -191,23 +190,19 @@ async def run_classification_pipeline(
     if all(c.resolved for c in contexts):
         return build_results(contexts)
 
-    # === TIER 3: Enrichment (unresolved only) ===
-    unresolved = [ctx for ctx in contexts if not ctx.resolved]
+    # === TIER 3: Enrichment ===
+    from swen_ml.inference.classification.enrichment import EnrichmentService
 
-    if pipeline_ctx.enrichment_service:
-        for ctx in unresolved:
-            query = ctx.cleaned_counterparty
-            if query:
-                enrichment = await pipeline_ctx.enrichment_service.enrich(query)
-                if enrichment:
-                    ctx.search_enrichment = enrichment.text
+    enrichment_service = EnrichmentService(pipeline_ctx)
+    await enrichment_service.enrich_batch(contexts)
 
     if max_tier_idx < TIER_ORDER.index("anchor"):
         return build_results(contexts)
 
     # === TIER 4: Anchor classifier ===
-    anchor_classifier = AnchorClassifier()
-    await anchor_classifier.classify_batch(unresolved, pipeline_ctx)
+    _ = [ctx for ctx in contexts if not ctx.resolved]
+    anchor_classifier = AnchorClassifier(pipeline_ctx)
+    await anchor_classifier.classify_batch(contexts)
 
     return build_results(contexts)
 
@@ -218,7 +213,8 @@ def run_cold_start(
     expected: list[str],
     encoder: Encoder,
     max_tier: ClassificationTier = "anchor",
-    enrichment_service: EnrichmentService | None = None,
+    keyword_adapter: KeywordPort | None = None,
+    searxng_adapter: SearXNGAdapter | None = None,
     skip_preprocessing: bool = False,
 ) -> EvaluationResult:
     """Evaluate cold start scenario (no user examples).
@@ -229,7 +225,8 @@ def run_cold_start(
         expected: Expected account numbers
         encoder: Encoder model
         max_tier: Maximum classification tier to run
-        enrichment_service: Optional enrichment service
+        keyword_adapter: Optional keyword adapter
+        searxng_adapter: Optional search adapter
         skip_preprocessing: Skip text cleaning and pattern matching
 
     Returns:
@@ -238,7 +235,8 @@ def run_cold_start(
     pipeline_ctx = create_pipeline_context(
         encoder=encoder,
         accounts=accounts,
-        enrichment_service=enrichment_service,
+        keyword_adapter=keyword_adapter,
+        searxng_adapter=searxng_adapter,
     )
 
     classifications = asyncio.run(
@@ -271,7 +269,8 @@ def run_with_examples(
     encoder: Encoder,
     n_folds: int = 5,
     max_tier: ClassificationTier = "anchor",
-    enrichment_service: EnrichmentService | None = None,
+    keyword_adapter: KeywordPort | None = None,
+    searxng_adapter: SearXNGAdapter | None = None,
 ) -> list[EvaluationResult]:
     """Evaluate with k-fold cross-validation using examples.
 
@@ -282,7 +281,8 @@ def run_with_examples(
         encoder: Encoder model
         n_folds: Number of cross-validation folds
         max_tier: Maximum classification tier to run
-        enrichment_service: Optional enrichment service
+        keyword_adapter: Optional keyword adapter
+        searxng_adapter: Optional search adapter
 
     Returns:
         List of EvaluationResult, one per fold
@@ -309,7 +309,8 @@ def run_with_examples(
         pipeline_ctx = create_pipeline_context(
             encoder=encoder,
             accounts=accounts,
-            enrichment_service=enrichment_service,
+            keyword_adapter=keyword_adapter,
+            searxng_adapter=searxng_adapter,
         )
 
         classifications = asyncio.run(

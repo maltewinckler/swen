@@ -21,7 +21,8 @@ class AnchorClassifier:
 
     name = "anchor"
 
-    def __init__(self, accept_threshold: float = 0.55):
+    def __init__(self, pipeline_ctx: PipelineContext, accept_threshold: float = 0.55):
+        self.pipeline_ctx = pipeline_ctx
         self.accept_threshold = accept_threshold
 
     def _build_text(self, ctx: TransactionContext) -> str:
@@ -37,9 +38,8 @@ class AnchorClassifier:
     async def classify_batch(
         self,
         contexts: list[TransactionContext],
-        pipeline_ctx: PipelineContext,
     ):
-        anchors = pipeline_ctx.anchor_store
+        anchors = self.pipeline_ctx.anchor_store
 
         if len(anchors) == 0:
             logger.debug("Anchor classifier: no anchors available")
@@ -51,17 +51,7 @@ class AnchorClassifier:
 
         # Build texts (with enrichment) and compute embeddings
         texts = [self._build_text(ctx) for ctx in unresolved]
-
-        # Log what text is being classified
-        for i, ctx in enumerate(unresolved):
-            text_preview = texts[i][:100] + "..." if len(texts[i]) > 100 else texts[i]
-            logger.debug("  Classifying: %r", text_preview)
-
-        embeddings = pipeline_ctx.encoder.encode(texts)
-
-        # Store enriched embeddings
-        for i, ctx in enumerate(unresolved):
-            ctx.enriched_embedding = embeddings[i]
+        embeddings = self.pipeline_ctx.encoder.encode(texts)
 
         # Compute similarities and find best matches
         similarities = embeddings @ anchors.embeddings.T
@@ -71,16 +61,21 @@ class AnchorClassifier:
 
         n_resolved = 0
         for i, ctx in enumerate(unresolved):
+            # Store enriched embeddings
+            ctx.enriched_embedding = embeddings[i]
+            # check if classification works
             anchor_idx = int(best_idx[i])
             score = float(best_scores[i])
             best_account = anchors.account_numbers[anchor_idx]
 
+            text_preview = texts[i][:100] + "[...]" if len(texts[i]) > 100 else texts[i]
             logger.debug(
-                "  TX %s -> best=%s score=%.3f %s",
-                ctx.cleaned_counterparty or ctx.raw_purpose[:30],
+                "  TX %s -> best=%s score=%.3f %s (txt: %s)",
+                ctx.cleaned_counterparty,
                 best_account,
                 score,
                 "✓" if accept[i] else "",
+                text_preview,
             )
 
             if accept[i]:

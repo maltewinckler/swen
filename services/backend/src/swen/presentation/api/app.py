@@ -343,9 +343,7 @@ async def _check_ml_service_health() -> None:
         if health and health.status == "ok":
             models_info = []
             if health.embedding_model_loaded:
-                models_info.append("embeddings")
-            if health.nli_model_loaded:
-                models_info.append("NLI")
+                models_info.append(f"embeddings: {health.embedding_model_name}")
             logger.info(
                 "ML service healthy: %s (models: %s)",
                 health.status,

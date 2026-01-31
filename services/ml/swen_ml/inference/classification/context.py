@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -10,11 +10,14 @@ import numpy as np
 from numpy.typing import NDArray
 from swen_ml_contracts import TransactionInput
 
+from swen_ml.inference.classification.preprocessing.text_cleaner import (
+    NoiseModel,
+)
 from swen_ml.storage.protocols import EmbeddingRepository
 
 if TYPE_CHECKING:
     from swen_ml.inference._models import Encoder
-    from swen_ml.inference.classification.enrichment.service import EnrichmentService
+    from swen_ml.inference.classification.enrichment import KeywordPort, SearXNGAdapter
     from swen_ml.inference.classification.preprocessing.text_cleaner import NoiseModel
     from swen_ml.inference.shared import SharedInfrastructure
     from swen_ml.storage import RepositoryFactory
@@ -81,7 +84,6 @@ class TransactionContext:
     # === Step 1: Preprocessing ===
     cleaned_counterparty: str | None = None
     cleaned_purpose: str | None = None
-    matched_keywords: list[str] = field(default_factory=list)
 
     # === Step 2: Example Classifier ===
     embedding: NDArray[np.float32] | None = None
@@ -124,7 +126,8 @@ class PipelineContext:
     noise_model: NoiseModel
     example_store: EmbeddingStore
     anchor_store: EmbeddingStore
-    enrichment_service: EnrichmentService | None = None
+    keyword_adapter: KeywordPort | None = None
+    searxng_adapter: SearXNGAdapter | None = None
     confidence_threshold: float = 0.85
 
     @classmethod
@@ -134,9 +137,6 @@ class PipelineContext:
         repos: RepositoryFactory,
     ) -> PipelineContext:
         """Load user-specific data from repositories."""
-        from swen_ml.inference.classification.preprocessing.text_cleaner import (
-            NoiseModel,
-        )
 
         noise_model = await NoiseModel.from_repository(repos.noise)
         example_store = await EmbeddingStore.from_repository(repos.example)
@@ -147,6 +147,7 @@ class PipelineContext:
             noise_model=noise_model,
             example_store=example_store,
             anchor_store=anchor_store,
-            enrichment_service=infra.enrichment_service,
+            keyword_adapter=infra.keyword_adapter,
+            searxng_adapter=infra.searxng_adapter,
             confidence_threshold=infra.settings.example_high_confidence,
         )

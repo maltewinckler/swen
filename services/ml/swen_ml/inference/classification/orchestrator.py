@@ -4,7 +4,7 @@ This module provides the ClassificationOrchestrator, an application service
 that coordinates the full classification pipeline for production use.
 
 For evaluation and testing, use the pipeline components directly:
-- TextCleaner, PatternMatcher (preprocessing)
+- TextCleaner (preprocessing)
 - ExampleClassifier, AnchorClassifier (classifiers)
 - EnrichmentService (enrichment)
 """
@@ -165,7 +165,7 @@ class ClassificationOrchestrator:
         tiers = [
             PreprocessingTier(pipeline_ctx),
             ExampleTier(pipeline_ctx),
-            EnrichmentTier(pipeline_ctx.enrichment_service),
+            EnrichmentTier(pipeline_ctx),
             AnchorTier(pipeline_ctx, accept_threshold=anchor_threshold),
         ]
 

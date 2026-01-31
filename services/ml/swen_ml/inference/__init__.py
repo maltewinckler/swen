@@ -7,7 +7,6 @@ from .classification import (
     EmbeddingStore,
     ExampleClassifier,
     NoiseModel,
-    PatternMatcher,
     PipelineContext,
     TextCleaner,
     TransactionContext,
@@ -34,7 +33,6 @@ __all__ = [
     "SharedInfrastructure",
     # Classification components (evaluation)
     "TextCleaner",
-    "PatternMatcher",
     "NoiseModel",
     "ExampleClassifier",
     "AnchorClassifier",

@@ -23,15 +23,18 @@ class ExampleClassifier:
 
     def __init__(
         self,
+        pipeline_ctx: PipelineContext,
         high_confidence: float = 0.85,
         accept_threshold: float = 0.70,
         margin_threshold: float = 0.10,
     ):
+        self.pipeline_ctx = pipeline_ctx
         self.high_confidence = high_confidence
         self.accept_threshold = accept_threshold
         self.margin_threshold = margin_threshold
 
     def _build_text(self, ctx: TransactionContext) -> str:
+        # different from anchor's _build_text: no enrichment here
         parts = []
         if ctx.cleaned_counterparty:
             parts.append(ctx.cleaned_counterparty)
@@ -42,9 +45,8 @@ class ExampleClassifier:
     async def classify_batch(
         self,
         contexts: list[TransactionContext],
-        pipeline_ctx: PipelineContext,
     ):
-        examples = pipeline_ctx.example_store
+        examples = self.pipeline_ctx.example_store
 
         if len(examples) == 0:
             logger.debug("Example classifier: no examples available")
@@ -56,11 +58,7 @@ class ExampleClassifier:
 
         # Build texts and compute embeddings
         texts = [self._build_text(ctx) for ctx in unresolved]
-        embeddings = pipeline_ctx.encoder.encode(texts)
-
-        # Store embeddings in context for later use
-        for i, ctx in enumerate(unresolved):
-            ctx.embedding = embeddings[i]
+        embeddings = self.pipeline_ctx.encoder.encode(texts)
 
         # Compute similarities: (N, dim) @ (M, dim).T = (N, M)
         similarities = embeddings @ examples.embeddings.T
@@ -87,6 +85,9 @@ class ExampleClassifier:
         # Update contexts
         n_resolved = 0
         for i, ctx in enumerate(unresolved):
+            # Store embeddings in context for later use
+            ctx.embedding = embeddings[i]
+
             if accept[i]:
                 best_idx = int(top2_idx[i, 0])
                 ctx.example_match = ClassificationMatch(

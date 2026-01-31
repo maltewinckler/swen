@@ -1,7 +1,7 @@
 from .classifiers import AnchorClassifier, ExampleClassifier
 from .context import EmbeddingStore, PipelineContext, TransactionContext
 from .orchestrator import ClassificationOrchestrator, build_results
-from .preprocessing import NoiseModel, PatternMatcher, TextCleaner
+from .preprocessing import NoiseModel, TextCleaner
 from .result import ClassificationResult
 
 __all__ = [
@@ -9,7 +9,6 @@ __all__ = [
     "ClassificationOrchestrator",
     # Components (for evaluation)
     "TextCleaner",
-    "PatternMatcher",
     "NoiseModel",
     "ExampleClassifier",
     "AnchorClassifier",

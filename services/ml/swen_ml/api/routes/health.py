@@ -1,5 +1,3 @@
-"""Health check endpoint."""
-
 from fastapi import APIRouter, Request
 from swen_ml_contracts import HealthResponse
 
@@ -19,8 +17,6 @@ async def health_check(request: Request) -> HealthResponse:
         status="ok" if encoder_loaded else "degraded",
         version="0.1.0",
         embedding_model_loaded=encoder_loaded,
-        nli_model_loaded=False,  # NLI not used in production
         embedding_model_name=settings.encoder_model,
-        nli_model_name="n/a",
         users_cached=0,  # TODO: Get from cache
     )

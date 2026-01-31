@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ if TYPE_CHECKING:
         TransactionContext,
     )
     from swen_ml.storage import NoiseRepository
+
+logger = logging.getLogger(__name__)
 
 # Payment providers to strip from counterparty
 PAYMENT_PROVIDERS = {"PAYPAL", "SUMUP", "ZETTLE", "STRIPE", "KLARNA"}
@@ -136,3 +139,8 @@ class TextCleaner:
         for ctx in contexts:
             ctx.cleaned_counterparty = clean_counterparty(ctx.raw_counterparty)
             ctx.cleaned_purpose = self.clean_purpose(ctx.raw_purpose)
+            logger.debug(
+                "Preprocessed: counterparty=%r purpose=%r",
+                ctx.cleaned_counterparty,
+                (ctx.cleaned_purpose[:50] + "...") if ctx.cleaned_purpose else None,
+            )
