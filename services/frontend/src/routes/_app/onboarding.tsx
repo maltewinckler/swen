@@ -129,6 +129,7 @@ function OnboardingPage() {
             isLoading={initChartMutation.isPending}
             onBack={() => setCurrentStep('welcome')}
             onCreateAccounts={() => initChartMutation.mutate()}
+            onSkipToNext={() => setCurrentStep('connect_bank')}
           />
         )}
 

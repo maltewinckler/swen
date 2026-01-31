@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Spinner } from '@/components/ui'
 import { AccountStatsModal } from '@/components/accounts'
@@ -9,8 +9,6 @@ import { AccountsNoBankBanner } from '@/components/accounts/AccountsNoBankBanner
 import { AccountsPageHeader } from '@/components/accounts/AccountsPageHeader'
 import { ChartOfAccountsInitModal } from '@/components/accounts/ChartOfAccountsInitModal'
 import { CreateAccountModal } from '@/components/accounts/CreateAccountModal'
-import { SyncProgressModal } from '@/components/SyncProgressModal'
-import { useSyncProgress } from '@/hooks'
 import { listAccounts, listCredentials } from '@/api'
 
 type AccountsSearch = {
@@ -28,34 +26,12 @@ export const Route = createFileRoute('/_app/accounts')({
 
 
 function AccountsPage() {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { accountId: urlAccountId } = useSearch({ from: '/_app/accounts' })
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showChartTemplateModal, setShowChartTemplateModal] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
-
-  // Sync state (using shared hook)
-  const {
-    isOpen: showSyncModal,
-    step: syncStep,
-    progress: syncProgress,
-    result: syncResult,
-    error: syncError,
-    firstSyncDays,
-    setFirstSyncDays,
-    checkAndSync,
-    confirmFirstSync,
-    reset: closeSyncModal,
-  } = useSyncProgress({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
-    },
-  })
 
   // Queries
   const { data, isLoading, error } = useQuery({
@@ -69,10 +45,6 @@ function AccountsPage() {
   })
   const accounts = data?.items ?? []
   const credentials = credentialsData?.credentials ?? []
-
-  const handleSync = (blz?: string) => {
-    checkAndSync(blz)
-  }
 
   if (isLoading) {
     return (
@@ -94,12 +66,9 @@ function AccountsPage() {
     <div className="space-y-8 animate-fade-in">
       <AccountsPageHeader
         accountsCount={accounts.length}
-        hasCredentials={credentials.length > 0}
         showInactive={showInactive}
-        isSyncing={syncStep === 'syncing' || syncStep === 'checking'}
         onOpenInitAccounts={() => setShowChartTemplateModal(true)}
         onToggleShowInactive={() => setShowInactive(!showInactive)}
-        onSyncAllBanks={() => handleSync()}
         onAddAccount={() => setShowCreateModal(true)}
       />
 
@@ -127,7 +96,6 @@ function AccountsPage() {
         key={showChartTemplateModal ? 'open' : 'closed'}
         isOpen={showChartTemplateModal}
         onClose={() => setShowChartTemplateModal(false)}
-        onRequestManualSetup={() => setShowCreateModal(true)}
       />
 
       <CreateAccountModal
@@ -135,20 +103,6 @@ function AccountsPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
       />
-
-      {/* Sync Modal - using shared SyncProgressModal component */}
-      <SyncProgressModal
-        open={showSyncModal}
-        onClose={closeSyncModal}
-        step={syncStep}
-        progress={syncProgress}
-        result={syncResult}
-        error={syncError}
-        firstSyncDays={firstSyncDays}
-        onSetFirstSyncDays={setFirstSyncDays}
-        onConfirmFirstSync={confirmFirstSync}
-      />
-
 
       {/* Account Stats Modal */}
       <AccountStatsModal

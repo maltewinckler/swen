@@ -1,4 +1,4 @@
-import { ClipboardCheck, Plus } from 'lucide-react'
+import { ClipboardCheck, Plus, RefreshCw } from 'lucide-react'
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui'
 
 interface TransactionsPageHeaderProps {
@@ -7,6 +7,8 @@ interface TransactionsPageHeaderProps {
   isReviewMode: boolean
   onToggleReviewMode: () => void
   onAddTransaction: () => void
+  onSyncBank: () => void
+  isSyncing?: boolean
 }
 
 export function TransactionsPageHeader({
@@ -15,6 +17,8 @@ export function TransactionsPageHeader({
   isReviewMode,
   onToggleReviewMode,
   onAddTransaction,
+  onSyncBank,
+  isSyncing = false,
 }: TransactionsPageHeaderProps) {
   const hasCounts = typeof postedCount === 'number' && typeof draftCount === 'number'
 
@@ -40,6 +44,15 @@ export function TransactionsPageHeader({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Review and edit draft transactions</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="secondary" onClick={onSyncBank} disabled={isSyncing}>
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sync Bank
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Sync transactions from your bank accounts</TooltipContent>
         </Tooltip>
         <Button onClick={onAddTransaction}>
           <Plus className="h-4 w-4" />
