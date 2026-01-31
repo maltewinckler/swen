@@ -1,6 +1,6 @@
 """Unit tests for AuthenticationService."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import UUID, uuid4
 
@@ -213,7 +213,7 @@ class TestAuthenticationServiceLogin:
         """Test that login raises AccountLockedError for locked account."""
         # Arrange
         user = User.create(TEST_EMAIL)
-        locked_until = datetime.utcnow() + timedelta(minutes=15)
+        locked_until = datetime.now(UTC) + timedelta(minutes=15)
 
         self.user_repo.find_by_email.return_value = user
         self.credential_repo.is_account_locked.return_value = (True, locked_until)

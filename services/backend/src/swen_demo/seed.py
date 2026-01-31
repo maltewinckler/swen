@@ -178,7 +178,7 @@ async def create_default_category_accounts(
         logger.info("Category accounts already exist, skipping")
         return 0
 
-    total = result.get("total", 0)
+    total = int(result.get("total", 0))
     logger.info("Created %d category accounts", total)
     return total
 

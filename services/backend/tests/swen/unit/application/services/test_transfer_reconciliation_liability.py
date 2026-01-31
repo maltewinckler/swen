@@ -17,6 +17,7 @@ from swen.domain.accounting.value_objects import (
     Money,
     TransactionSource,
 )
+from swen.domain.shared.time import today_utc
 
 # Test user ID for all tests
 TEST_USER_ID = uuid4()
@@ -326,15 +327,14 @@ class TestLiabilityReconciliation:
         account_repo.find_by_id.return_value = liability_account
 
         # Create a bank transaction to the credit card
-        from datetime import date
 
         from swen.domain.banking.value_objects import BankTransaction
 
         bank_tx = BankTransaction(
             amount=Decimal("-50.00"),
             currency="EUR",
-            booking_date=date.today(),
-            value_date=date.today(),
+            booking_date=today_utc(),
+            value_date=today_utc(),
             purpose="Credit Card Payment",
             applicant_iban="DE89370400440532013000",
             applicant_name="Credit Card",

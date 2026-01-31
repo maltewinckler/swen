@@ -1,0 +1,66 @@
+[project]
+name = "swen-ml"
+version = "0.1.0"
+description = "ML Service for transaction classification"
+requires-python = ">=3.11"
+dependencies = [
+    # API Framework
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    # Embeddings
+    "sentence-transformers>=2.2.0",
+    # NLI / Zero-shot classification
+    "transformers>=4.36.0",
+    "torch>=2.0.0",
+    # Database
+    "sqlalchemy>=2.0.42",
+    "asyncpg>=0.31.0",
+    # Storage
+    "numpy>=1.26.0",
+    # HTTP client for SearXNG
+    "httpx>=0.26.0",
+    # CLI
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    # Data processing
+    "pandas>=2.0.0",
+    # Shared contracts (workspace dependency)
+    "swen-ml-contracts",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.26.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+swen-ml-eval = "swen_ml.evaluation.__main__:app"
+ml-db-init = "swen_ml.storage.utils.db:db_init"
+ml-db-reset = "swen_ml.storage.utils.db:db_reset"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["swen_ml"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

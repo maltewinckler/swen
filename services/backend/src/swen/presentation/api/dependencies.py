@@ -22,7 +22,12 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from swen.application.ports.identity import CurrentUser
+from swen.application.ports.ml_service import MLServicePort
 from swen.infrastructure.adapters.identity import IdentityAdapter
+from swen.infrastructure.integration.ml import (
+    MLServiceAdapter,
+    MLServiceClient,
+)
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
@@ -348,6 +353,39 @@ async def get_repository_factory(
 
 # Type alias for injected repository factory
 RepoFactory = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
+
+
+# -----------------------------------------------------------------------------
+# ML Service (Singleton)
+# -----------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=1)
+def get_ml_client() -> MLServiceClient:
+    """Get the shared ML service client (singleton)."""
+    settings = get_settings()
+    return MLServiceClient(
+        base_url=settings.ml_service_url,
+        timeout=settings.ml_service_timeout,
+        enabled=settings.ml_service_enabled,
+    )
+
+
+# Type alias for injected ML client (for routers that need direct access)
+MLClient = Annotated[MLServiceClient, Depends(get_ml_client)]
+
+
+@lru_cache(maxsize=1)
+def get_ml_port() -> MLServicePort | None:
+    """Get the ML service port for application layer (singleton)."""
+    settings = get_settings()
+    if not settings.ml_service_enabled:
+        return None
+    return MLServiceAdapter(client=get_ml_client())
+
+
+# Type alias for injected ML port (for commands)
+MLPort = Annotated[MLServicePort | None, Depends(get_ml_port)]
 
 
 # -----------------------------------------------------------------------------

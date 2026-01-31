@@ -139,7 +139,7 @@ class FinTSInstituteDirectory:
 
                         row_count += 1
 
-                except Exception as e:  # NOQA: PERF203
+                except Exception as e:
                     # Log but continue parsing other rows
                     logger.debug("Skipping row %d: %s", row_num, e)
                     continue

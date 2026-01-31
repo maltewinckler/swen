@@ -4,7 +4,6 @@
  * Shows the current state of a sync operation with:
  * - Phase steps (Fetching from bank, Classifying transactions)
  * - Progress bar during classification
- * - Last classified transaction info
  * - TAN approval notice during bank connection
  *
  * Used by:
@@ -45,8 +44,6 @@ export function SyncProgressDisplay({
     transactionsCurrent,
     transactionsTotal,
     currentAccountName,
-    lastTransactionDescription,
-    lastCounterAccountName,
   } = progress
 
   const progressPercent = transactionsTotal > 0 ? (transactionsCurrent / transactionsTotal) * 100 : 0
@@ -86,19 +83,6 @@ export function SyncProgressDisplay({
           </div>
           <p className="text-center text-sm text-text-muted">
             {transactionsCurrent} / {transactionsTotal}
-          </p>
-        </div>
-      )}
-
-      {/* Last classified transaction */}
-      {lastTransactionDescription && lastCounterAccountName && (
-        <div className="bg-bg-elevated rounded-lg p-4 space-y-1 animate-fade-in">
-          <p className="text-xs text-text-muted">Last classified:</p>
-          <p className="text-sm text-text-secondary truncate">
-            "{lastTransactionDescription}"
-          </p>
-          <p className="text-sm text-accent-primary">
-            → {lastCounterAccountName}
           </p>
         </div>
       )}

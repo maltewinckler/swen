@@ -19,17 +19,13 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from swen.infrastructure.persistence.sqlalchemy.models import Base
-from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
-    create_ai_provider_from_settings,
-)
-from swen.presentation.api.dependencies import get_engine
+from swen.presentation.api.dependencies import get_engine, get_ml_client
 from swen.presentation.api.exception_handlers import (
     setup_exception_handlers,
 )
 from swen.presentation.api.routers import (
     accounts_router,
     admin_router,
-    ai_router,
     analytics_router,
     auth_router,
     credentials_router,
@@ -301,45 +297,6 @@ account is detected.
 ]
 
 
-async def _check_ai_health() -> None:
-    """Check AI provider health at startup, auto-pulling model if needed."""
-    settings = get_settings()
-    if not settings.ai_enabled:
-        logger.info("AI counter-account resolution is disabled")
-        return
-
-    logger.info(
-        "Checking AI provider (Ollama at %s, model: %s)...",
-        settings.ollama_base_url,
-        settings.ai_ollama_model,
-    )
-
-    ai_provider = create_ai_provider_from_settings()
-    if ai_provider is None:
-        logger.warning("AI provider could not be created")
-        return
-
-    try:
-        # Use ensure_model_available which will auto-pull if needed
-        is_ready = await ai_provider.ensure_model_available(auto_pull=True)
-        if is_ready:
-            logger.info(
-                "✓ AI provider ready (model '%s' available)",
-                settings.ai_ollama_model,
-            )
-        else:
-            logger.warning(
-                "✗ AI provider not ready. AI-powered counter-account resolution "
-                "will be unavailable until the model is downloaded.",
-            )
-    except Exception as e:
-        logger.warning(
-            "✗ AI health check failed: %s. Ensure Ollama is running at %s",
-            e,
-            settings.ollama_base_url,
-        )
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager.
@@ -359,8 +316,8 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("Database schema initialized successfully")
 
-    # Check AI provider health
-    await _check_ai_health()
+    # Check ML service health (non-blocking - graceful degradation if unavailable)
+    await _check_ml_service_health()
 
     yield
 
@@ -368,6 +325,40 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Shutting down SWEN API...")
     await engine.dispose()
     logger.info("Database connections closed")
+
+
+async def _check_ml_service_health() -> None:
+    """Check ML service availability on startup.
+
+    Logs status but does not fail startup if unavailable (graceful degradation).
+    """
+    ml_client = get_ml_client()
+
+    if not ml_client.enabled:
+        logger.info("ML service disabled (SWEN_ML_SERVICE_ENABLED=false)")
+        return
+
+    try:
+        health = await ml_client.health_check()
+        if health and health.status == "ok":
+            models_info = []
+            if health.embedding_model_loaded:
+                models_info.append(f"embeddings: {health.embedding_model_name}")
+            logger.info(
+                "ML service healthy: %s (models: %s)",
+                health.status,
+                ", ".join(models_info) if models_info else "none",
+            )
+        else:
+            logger.warning(
+                "ML service unhealthy or returned unexpected response: %s",
+                health,
+            )
+    except Exception as e:
+        logger.warning(
+            "ML service unavailable at startup (classification will fail): %s",
+            str(e),
+        )
 
 
 def create_v1_router() -> APIRouter:
@@ -408,11 +399,6 @@ def create_v1_router() -> APIRouter:
         preferences_router,
         prefix="/preferences",
         tags=["Preferences"],
-    )
-    v1_router.include_router(
-        ai_router,
-        prefix="/ai",
-        tags=["AI"],
     )
 
     return v1_router

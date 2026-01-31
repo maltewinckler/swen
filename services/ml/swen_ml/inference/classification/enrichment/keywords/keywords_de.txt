@@ -1,0 +1,610 @@
+# German Keyword -> Enrichment Mappings
+# Format: keyword -> enrichment text
+# Keywords are matched case-insensitively with word boundaries
+# AI generated
+
+# Housing & Rent
+miete -> Wohnen, Wohnung, Haus, Loan, Miete, Vermieter, Nebenkosten
+vermieter -> Wohnen, Wohnung, Haus, Miete, Vermieter, Nebenkosten
+wohnung -> Wohnen, Wohnung, Haus, Miete, Immobilie
+mietvertrag -> Wohnen, Wohnung, Miete, Vermieter, Mietvertrag
+nebenkosten -> Wohnen, Wohnung, Nebenkosten, Betriebskosten, Heizung
+kaution -> Wohnen, Wohnung, Miete, Kaution, Sicherheit
+
+# Utilities
+strom -> Energie, Strom, Elektrizität, Versorgung, Nebenkosten
+gas -> Energie, Gas, Heizung, Versorgung, Nebenkosten
+wasser -> Wasser, Versorgung, Nebenkosten, Stadtwerke
+heizung -> Heizung, Energie, Wärme, Nebenkosten
+stadtwerke -> Stadtwerke, Versorgung, Energie, Nebenkosten
+eon -> Energie, EON, Strom, Versorgung
+vattenfall -> Energie, Vattenfall, Strom, Versorgung
+enbw -> Energie, EnBW, Strom, Versorgung
+rwe -> Energie, RWE, Strom, Versorgung
+internet -> Internet, Telekommunikation, Provider, DSL, Kabel
+telekom -> Telekommunikation, Telefon, Internet, Mobilfunk
+telefon -> Telekommunikation, Telefon, Mobilfunk
+vodafone -> Telekommunikation, Vodafone, Mobilfunk, Internet
+o2 -> Telekommunikation, O2, Mobilfunk, Internet
+1und1 -> Telekommunikation, 1&1, Internet, Provider
+unitymedia -> Telekommunikation, Unitymedia, Internet, Kabel
+kabel -> Internet, Kabel, Telekommunikation, Provider
+mobilfunk -> Telekommunikation, Mobilfunk, Handy
+provider -> Internet, Provider, Telekommunikation
+
+# Groceries & Shopping
+supermarkt -> Lebensmittel, Einkauf, Supermarkt, Nahrung
+rewe -> Lebensmittel, Einkauf, Supermarkt, REWE
+edeka -> Lebensmittel, Einkauf, Supermarkt, EDEKA
+aldi -> Lebensmittel, Einkauf, Supermarkt, ALDI, Discounter
+lidl -> Lebensmittel, Einkauf, Supermarkt, LIDL, Discounter
+netto -> Lebensmittel, Einkauf, Supermarkt, NETTO, Discounter
+penny -> Lebensmittel, Einkauf, Supermarkt, PENNY, Discounter
+kaufland -> Lebensmittel, Einkauf, Supermarkt, Kaufland
+norma -> Lebensmittel, Einkauf, Supermarkt, NORMA, Discounter
+real -> Lebensmittel, Einkauf, Supermarkt, Real
+bio -> Lebensmittel, Einkauf, Bio, Naturkost, Gesundheit
+bäckerei -> Lebensmittel, Bäckerei, Brot, Backwaren
+bäcker -> Lebensmittel, Bäckerei, Brot, Backwaren
+metzger -> Lebensmittel, Metzger, Fleisch, Wurst
+fleischer -> Lebensmittel, Metzger, Fleisch, Wurst
+markt -> Lebensmittel, Markt, Einkauf, Wochenmarkt
+
+# Drugstores & Personal Care
+dm -> Drogerie, Gesundheit, Kosmetik, DM
+rossmann -> Drogerie, Gesundheit, Kosmetik, Rossmann
+müller -> Drogerie, Gesundheit, Kosmetik, Müller
+drogerie -> Drogerie, Gesundheit, Kosmetik, Körperpflege
+parfümerie -> Kosmetik, Parfüm, Körperpflege, Shopping
+
+# Home Improvement & Furniture
+baumarkt -> Heimwerken, Baumarkt, Werkzeug, Renovierung
+obi -> Heimwerken, Baumarkt, OBI, Renovierung
+bauhaus -> Heimwerken, Baumarkt, BAUHAUS, Renovierung
+hornbach -> Heimwerken, Baumarkt, Hornbach, Renovierung
+toom -> Heimwerken, Baumarkt, Toom, Renovierung
+ikea -> Möbel, IKEA, Einrichtung, Wohnen
+möbel -> Möbel, Einrichtung, Wohnen, Shopping
+
+# Transportation
+tankstelle -> Auto, Kraftstoff, Tanken, Benzin, Diesel, Mobilität
+tanken -> Auto, Kraftstoff, Tanken, Benzin, Diesel
+benzin -> Auto, Kraftstoff, Benzin, Tanken
+diesel -> Auto, Kraftstoff, Diesel, Tanken
+shell -> Tankstelle, Kraftstoff, Shell, Tanken
+aral -> Tankstelle, Kraftstoff, Aral, Tanken
+esso -> Tankstelle, Kraftstoff, Esso, Tanken
+total -> Tankstelle, Kraftstoff, Total, Tanken
+jet -> Tankstelle, Kraftstoff, JET, Tanken
+db -> Bahn, Deutsche Bahn, Zug, Reise, Transport, ÖPNV
+bahn -> Bahn, Zug, Reise, Transport, ÖPNV
+bahnhof -> Bahn, Zug, Reise, Transport, ÖPNV, Bahnhof
+parkhaus -> Parken, Auto, Parkgebühr, Parkhaus
+parken -> Parken, Auto, Parkgebühr
+garage -> Auto, Garage, Parken, Werkstatt
+werkstatt -> Auto, Werkstatt, Reparatur, KFZ
+reifen -> Auto, Reifen, KFZ, Werkstatt
+tüv -> Auto, TÜV, Prüfung, KFZ
+bus -> Bus, ÖPNV, Transport, Nahverkehr
+ubahn -> U-Bahn, ÖPNV, Transport, Nahverkehr
+sbahn -> S-Bahn, ÖPNV, Transport, Nahverkehr
+straßenbahn -> Straßenbahn, ÖPNV, Transport, Nahverkehr
+tram -> Straßenbahn, ÖPNV, Transport, Nahverkehr
+taxi -> Taxi, Transport, Fahrdienst
+uber -> Taxi, Transport, Fahrdienst, Uber
+flug -> Reise, Flug, Flugzeug, Airline, Urlaub
+flughafen -> Reise, Flughafen, Flug, Airline
+lufthansa -> Reise, Flug, Lufthansa, Airline
+ryanair -> Reise, Flug, Ryanair, Airline, Budget
+eurowings -> Reise, Flug, Eurowings, Airline
+
+# Insurance
+versicherung -> Versicherung, Schutz, Absicherung
+krankenversicherung -> Versicherung, Gesundheit, Krankenversicherung
+kfz -> Auto, Versicherung, KFZ-Versicherung
+haftpflicht -> Versicherung, Haftpflicht, Schutz
+rechtsschutz -> Versicherung, Rechtsschutz, Rechtshilfe
+hausrat -> Versicherung, Hausrat, Wohnen, Schutz
+lebensversicherung -> Versicherung, Lebensversicherung, Vorsorge
+berufsunfähigkeit -> Versicherung, Berufsunfähigkeit, Vorsorge
+zahnzusatz -> Versicherung, Zahnzusatzversicherung, Gesundheit
+unfallversicherung -> Versicherung, Unfallversicherung, Schutz
+allianz -> Versicherung, Allianz, Schutz
+axa -> Versicherung, AXA, Schutz
+ergo -> Versicherung, ERGO, Schutz
+huk -> Versicherung, HUK, Auto, KFZ
+
+# Restaurants & Dining
+pizza -> Gastronomie, Restaurant, Pizza, Essen
+döner -> Gastronomie, Restaurant, Döner, Fast Food, Essen
+sushi -> Gastronomie, Restaurant, Sushi, Essen, Asiatisch
+asia -> Gastronomie, Restaurant, Asiatisch, Essen
+china -> Gastronomie, Restaurant, China, Asiatisch, Essen
+griechisch -> Gastronomie, Restaurant, Griechisch, Essen
+italienisch -> Gastronomie, Restaurant, Italienisch, Essen
+kaffee -> Gastronomie, Café, Kaffee, Getränke
+starbucks -> Gastronomie, Café, Starbucks, Kaffee
+bäckerei -> Gastronomie, Bäckerei, Backwaren, Snack
+mcdonald -> Gastronomie, Fast Food, McDonald's, Burger
+mcdonalds -> Gastronomie, Fast Food, McDonald's, Burger
+burger -> Gastronomie, Fast Food, Burger, Essen
+burgerking -> Gastronomie, Fast Food, Burger King, Burger
+kfc -> Gastronomie, Fast Food, KFC, Chicken
+subway -> Gastronomie, Fast Food, Subway, Sandwich
+lieferando -> Gastronomie, Lieferservice, Essen, Lieferando
+lieferheld -> Gastronomie, Lieferservice, Essen, Delivery
+delivery -> Gastronomie, Lieferservice, Essen, Delivery
+imbiss -> Gastronomie, Imbiss, Fast Food, Snack
+kantine -> Gastronomie, Kantine, Essen, Arbeit
+mensa -> Gastronomie, Mensa, Essen, Universität, Student
+
+# Entertainment & Leisure
+kino -> Unterhaltung, Kino, Film, Freizeit
+netflix -> Unterhaltung, Streaming, Netflix, Abonnement
+spotify -> Unterhaltung, Streaming, Spotify, Musik, Abonnement
+amazon -> Online Shopping, Amazon, E-Commerce, Versand
+prime -> Unterhaltung, Streaming, Amazon Prime, Abonnement
+disney -> Unterhaltung, Streaming, Disney Plus, Abonnement
+youtube -> Unterhaltung, Streaming, YouTube, Video
+twitch -> Unterhaltung, Streaming, Twitch, Gaming
+sky -> Unterhaltung, TV, Sky, Abonnement, Sport
+dazn -> Unterhaltung, Streaming, DAZN, Sport, Abonnement
+fitness -> Sport, Fitness, Gesundheit, Fitnessstudio
+fitnessstudio -> Sport, Fitness, Gesundheit, Fitnessstudio
+gym -> Sport, Fitness, Gesundheit, Fitnessstudio
+schwimmbad -> Sport, Schwimmbad, Freizeit, Erholung
+sauna -> Wellness, Sauna, Erholung, Gesundheit
+wellness -> Wellness, Erholung, Gesundheit, Spa
+theater -> Kultur, Theater, Unterhaltung, Freizeit
+konzert -> Kultur, Konzert, Musik, Unterhaltung
+museum -> Kultur, Museum, Bildung, Freizeit
+zoo -> Freizeit, Zoo, Tiere, Familie
+verein -> Freizeit, Verein, Mitgliedschaft, Hobby
+mitgliedsbeitrag -> Freizeit, Verein, Mitgliedsbeitrag, Abonnement
+
+# Health
+apotheke -> Gesundheit, Apotheke, Medikamente, Medizin
+arzt -> Gesundheit, Arzt, Medizin, Behandlung
+zahnarzt -> Gesundheit, Zahnarzt, Dental, Behandlung
+medikament -> Gesundheit, Medikamente, Apotheke, Medizin
+krankenhaus -> Gesundheit, Krankenhaus, Medizin, Behandlung
+klinik -> Gesundheit, Klinik, Medizin, Behandlung
+physiotherapie -> Gesundheit, Physiotherapie, Behandlung, Therapie
+massage -> Gesundheit, Massage, Wellness, Behandlung
+brille -> Gesundheit, Brille, Optiker, Sehhilfe
+optiker -> Gesundheit, Optiker, Brille, Sehhilfe
+kontaktlinsen -> Gesundheit, Kontaktlinsen, Optiker, Sehhilfe
+
+# Banking & Finance
+gehalt -> Einkommen, Gehalt, Lohn, Arbeit
+lohn -> Einkommen, Lohn, Gehalt, Arbeit
+sold -> Einkommen, Sold, Gehalt, Militär
+honorar -> Einkommen, Honorar, Selbstständig, Arbeit
+provision -> Einkommen, Provision, Arbeit, Verkauf
+rente -> Einkommen, Rente, Ruhestand, Sozial
+pension -> Einkommen, Pension, Ruhestand
+sparkasse -> Banking, Sparkasse, Bank, Finanzen
+volksbank -> Banking, Volksbank, Bank, Finanzen
+commerzbank -> Banking, Commerzbank, Bank, Finanzen
+postbank -> Banking, Postbank, Bank, Finanzen
+ing -> Banking, ING, Bank, Finanzen
+dkb -> Banking, DKB, Bank, Finanzen
+n26 -> Banking, N26, Bank, Digital
+revolut -> Banking, Revolut, Bank, Digital
+wise -> Banking, Wise, Transfer, International
+bausparen -> Banking, Bausparen, Sparen, Vorsorge
+depot -> Banking, Depot, Wertpapiere, Investition
+fonds -> Banking, Fonds, Investition, Wertpapiere
+aktien -> Banking, Aktien, Investition, Börse
+etf -> Banking, ETF, Investition, Wertpapiere
+
+# Taxes & Government
+steuer -> Steuern, Finanzamt, Abgaben, Staat
+finanzamt -> Steuern, Finanzamt, Abgaben, Staat
+rentenversicherung -> Sozialversicherung, Rente, Versicherung
+arbeitsamt -> Arbeitsamt, Sozial, Staat, Arbeitslosigkeit
+jobcenter -> Arbeitsamt, Sozial, Jobcenter, Staat
+krankenkasse -> Versicherung, Krankenkasse, Gesundheit, Sozial
+kindergeld -> Familie, Kindergeld, Sozial, Staat
+bafög -> Bildung, BAföG, Student, Staat, Förderung
+
+# Online Shopping & E-Commerce
+amazon -> Online Shopping, Amazon, E-Commerce, Versand
+ebay -> Online Shopping, eBay, E-Commerce, Auktion
+zalando -> Online Shopping, Zalando, Mode, E-Commerce
+otto -> Online Shopping, Otto, E-Commerce, Versand
+about -> Online Shopping, About You, Mode, E-Commerce
+paypal -> Online Zahlung, PayPal, E-Commerce, Banking
+klarna -> Online Zahlung, Klarna, E-Commerce, Ratenkauf
+dhl -> Versand, DHL, Paket, Logistik
+hermes -> Versand, Hermes, Paket, Logistik
+ups -> Versand, UPS, Paket, Logistik
+dpd -> Versand, DPD, Paket, Logistik
+
+# Electronics & Technology
+mediamarkt -> Elektronik, Media Markt, Shopping, Technik
+saturn -> Elektronik, Saturn, Shopping, Technik
+apple -> Elektronik, Apple, Technik, Computer
+microsoft -> Elektronik, Microsoft, Software, Technik
+computer -> Elektronik, Computer, Technik, IT
+laptop -> Elektronik, Laptop, Computer, Technik
+handy -> Elektronik, Handy, Smartphone, Mobilfunk
+smartphone -> Elektronik, Smartphone, Handy, Mobilfunk
+
+# Fashion & Clothing
+zara -> Mode, Zara, Shopping, Fashion
+h&m -> Mode, H&M, Shopping, Fashion
+c&a -> Mode, C&A, Shopping, Fashion
+primark -> Mode, Primark, Shopping, Budget
+decathlon -> Sport, Decathlon, Shopping, Sportartikel
+
+# Services
+friseur -> Dienstleistung, Friseur, Körperpflege, Salon
+frisör -> Dienstleistung, Friseur, Körperpflege, Salon
+salon -> Dienstleistung, Salon, Körperpflege, Beauty
+reinigung -> Dienstleistung, Reinigung, Wäsche, Service
+wäscherei -> Dienstleistung, Wäscherei, Reinigung, Wäsche
+schneider -> Dienstleistung, Schneider, Änderung, Textil
+
+# Education & Children
+schule -> Bildung, Schule, Kinder, Lernen
+kindergarten -> Bildung, Kindergarten, Kinder, Betreuung
+kita -> Bildung, Kita, Kinder, Betreuung
+universität -> Bildung, Universität, Studium, Hochschule
+uni -> Bildung, Universität, Studium, Hochschule
+hochschule -> Bildung, Hochschule, Studium, Lehre
+volkshochschule -> Bildung, Volkshochschule, Weiterbildung, Kurs
+nachhilfe -> Bildung, Nachhilfe, Lernen, Unterricht
+bücher -> Bildung, Bücher, Lesen, Shopping
+buchhandlung -> Bildung, Buchhandlung, Bücher, Shopping
+thalia -> Bildung, Thalia, Buchhandlung, Bücher
+
+# Pets
+tierarzt -> Haustier, Tierarzt, Gesundheit, Veterinär
+fressnapf -> Haustier, Fressnapf, Tierbedarf, Shopping
+zoo&co -> Haustier, Tierbedarf, Shopping, Tiere
+tiernahrung -> Haustier, Tiernahrung, Tierbedarf, Futter
+
+# Charity & Donations
+spende -> Spende, Charity, Hilfe, Sozial
+donation -> Spende, Donation, Charity, Hilfe
+
+# Cash & ATM
+geldautomat -> Banking, Geldautomat, Bargeld, ATM
+bargeld -> Banking, Bargeld, Cash, Geld
+atm -> Banking, ATM, Geldautomat, Bargeld
+
+# Alcohol & Tobacco
+getränkemarkt -> Getränke, Shopping, Getränkemarkt, Handel
+getränke -> Getränke, Shopping, Handel
+kiosk -> Kiosk, Shopping, Zeitschriften, Snack
+tabak -> Tabak, Rauchen, Kiosk
+zigaretten -> Tabak, Zigaretten, Rauchen
+
+# Hotels & Accommodation
+booking -> Reise, Booking, Hotel, Unterkunft
+airbnb -> Reise, Airbnb, Unterkunft, Urlaub
+hostel -> Reise, Hostel, Unterkunft, Budget
+pension -> Reise, Pension, Unterkunft, Hotel
+
+# Miscellaneous
+post -> Post, Versand, Postamt, Briefe
+postamt -> Post, Postamt, Versand, Briefe
+porto -> Post, Porto, Versand, Briefmarken
+lotto -> Glücksspiel, Lotto, Unterhaltung
+spielothek -> Glücksspiel, Spielothek, Unterhaltung
+wette -> Glücksspiel, Wette, Unterhaltung, Sport
+tipico -> Glücksspiel, Tipico, Wette, Sport
+blumen -> Geschenke, Blumen, Shopping, Garten
+geschenk -> Geschenke, Shopping, Präsent
+schmuck -> Schmuck, Geschenke, Shopping, Juwelier
+juwelier -> Schmuck, Juwelier, Geschenke, Shopping
+
+# Discount & Variety Stores
+action -> Shopping, Action, Discounter, Haushalt
+tedi -> Shopping, TEDi, Discounter, Haushalt
+kik -> Mode, KiK, Shopping, Discounter
+woolworth -> Shopping, Woolworth, Haushalt
+euroshop -> Shopping, EuroShop, Discounter, Haushalt
+
+# Department Stores
+galeria -> Shopping, Galeria, Kaufhaus, Warenhaus
+karstadt -> Shopping, Karstadt, Kaufhaus, Warenhaus
+kaufhof -> Shopping, Kaufhof, Kaufhaus, Warenhaus
+breuninger -> Shopping, Breuninger, Kaufhaus, Mode
+
+# Car Sharing & Mobility
+sixt -> Auto, Sixt, Carsharing, Mietwagen
+sharenow -> Auto, Share Now, Carsharing, Mobilität
+miles -> Auto, Miles, Carsharing, Mobilität
+flinkster -> Auto, Flinkster, Carsharing, Bahn
+lime -> Mobilität, Lime, E-Scooter, Sharing
+tier -> Mobilität, Tier, E-Scooter, Sharing
+voi -> Mobilität, Voi, E-Scooter, Sharing
+nextbike -> Mobilität, Nextbike, Fahrrad, Sharing
+call -> Auto, Call a Bike, Fahrrad, Sharing
+
+# Subscriptions & Media
+zeitschrift -> Medien, Zeitschrift, Abonnement, Presse
+zeitung -> Medien, Zeitung, Abonnement, Presse
+magazine -> Medien, Magazin, Zeitschrift, Abonnement
+bild -> Medien, Bild, Zeitung, Presse
+spiegel -> Medien, Spiegel, Zeitschrift, Presse
+focus -> Medien, Focus, Zeitschrift, Presse
+audible -> Medien, Audible, Hörbuch, Abonnement
+hörbuch -> Medien, Hörbuch, Audio, Unterhaltung
+podcast -> Medien, Podcast, Audio, Unterhaltung
+
+# Food & Beverages Specific
+brot -> Lebensmittel, Brot, Backwaren, Nahrung
+gemüse -> Lebensmittel, Gemüse, Nahrung, Gesund
+obst -> Lebensmittel, Obst, Früchte, Nahrung, Gesund
+fleisch -> Lebensmittel, Fleisch, Metzger, Nahrung
+fisch -> Lebensmittel, Fisch, Nahrung
+käse -> Lebensmittel, Käse, Milchprodukt, Nahrung
+milch -> Lebensmittel, Milch, Milchprodukt, Nahrung
+bier -> Getränke, Bier, Alkohol
+wein -> Getränke, Wein, Alkohol
+spirituosen -> Getränke, Spirituosen, Alkohol
+sekt -> Getränke, Sekt, Alkohol, Champagner
+wasserkiste -> Getränke, Wasser, Kiste, Getränkemarkt
+
+# Office & Stationery
+schreibwaren -> Büro, Schreibwaren, Office, Shopping
+papier -> Büro, Papier, Schreibwaren
+drucker -> Büro, Drucker, Elektronik, Office
+tinte -> Büro, Tinte, Drucker, Schreibwaren
+toner -> Büro, Toner, Drucker, Schreibwaren
+staples -> Büro, Staples, Schreibwaren, Office
+
+# Garden & Outdoor
+pflanzen -> Garten, Pflanzen, Grün, Natur
+blumenerde -> Garten, Blumenerde, Pflanzen
+gartencenter -> Garten, Gartencenter, Pflanzen, Shopping
+dehner -> Garten, Dehner, Pflanzen, Shopping
+
+# Household & Cleaning
+putzmittel -> Haushalt, Putzmittel, Reinigung
+waschmittel -> Haushalt, Waschmittel, Wäsche
+küche -> Haushalt, Küche, Wohnen
+geschirr -> Haushalt, Geschirr, Küche
+besteck -> Haushalt, Besteck, Küche
+
+# Children & Baby
+baby -> Kinder, Baby, Familie, Nachwuchs
+babyone -> Kinder, BabyOne, Baby, Shopping
+windeln -> Kinder, Baby, Windeln, Pflege
+spielzeug -> Kinder, Spielzeug, Shopping, Spielwaren
+spielwaren -> Kinder, Spielwaren, Spielzeug, Shopping
+lego -> Kinder, LEGO, Spielzeug, Shopping
+
+# Professional Services
+steuerberater -> Dienstleistung, Steuerberater, Steuern, Beratung
+rechtsanwalt -> Dienstleistung, Rechtsanwalt, Recht, Beratung
+anwalt -> Dienstleistung, Anwalt, Recht, Beratung
+notar -> Wohnen, Dienstleistung, Notar, Recht, Beurkundung
+architekt -> Wohnen, Dienstleistung, Architekt, Planung, Bau
+handwerker -> Wohnen, Dienstleistung, Handwerker, Reparatur, Bau
+elektriker -> Wohnen, Dienstleistung, Elektriker, Elektrik, Handwerk
+installateur -> Wohnen, Dienstleistung, Installateur, Handwerk, Sanitär
+sanitär -> Wohnen, Dienstleistung, Sanitär, Installateur, Handwerk
+maler -> Wohnen, Dienstleistung, Maler, Handwerk, Renovierung
+schornsteinfeger -> Wohnen, Dienstleistung, Schornsteinfeger, Handwerk, Wartung
+
+# Automotive Specific
+atu -> Auto, ATU, Werkstatt, KFZ
+pitstop -> Auto, Pit Stop, Werkstatt, KFZ
+euromaster -> Auto, Euromaster, Reifen, Werkstatt
+waschanlage -> Auto, Waschanlage, Autowäsche, Reinigung
+autowäsche -> Auto, Autowäsche, Reinigung, Pflege
+maut -> Auto, Maut, Gebühr, Straße
+vignette -> Auto, Vignette, Maut, Österreich, Schweiz
+
+# Tobacco & Lottery Points
+lotto -> Glücksspiel, Lotto, Unterhaltung
+toto -> Glücksspiel, Toto, Wette, Sport
+
+# Wellness & Beauty Specific
+kosmetik -> Beauty, Kosmetik, Pflege, Wellness
+nagelstudio -> Beauty, Nagelstudio, Maniküre, Wellness
+kosmetikstudio -> Beauty, Kosmetikstudio, Wellness, Pflege
+solarium -> Beauty, Solarium, Bräunung, Wellness
+tattoo -> Body Art, Tattoo, Dienstleistung
+piercing -> Body Art, Piercing, Dienstleistung
+
+# Specialty Foods
+bioladen -> Lebensmittel, Bioladen, Bio, Naturkost, Gesund
+reformhaus -> Lebensmittel, Reformhaus, Gesundheit, Naturkost
+alnatura -> Lebensmittel, Alnatura, Bio, Naturkost
+denn -> Lebensmittel, denn's, Bio, Naturkost
+
+# Second-Hand & Rental
+flohmarkt -> Shopping, Flohmarkt, Second Hand, Gebraucht
+secondhand -> Shopping, Second Hand, Gebraucht
+vintage -> Shopping, Vintage, Mode, Second Hand
+verleih -> Verleih, Miete, Service, Rental
+
+# Pharmacies & Health Chains
+apotal -> Gesundheit, Apotheke, Online, Medikamente
+docmorris -> Gesundheit, DocMorris, Apotheke, Online
+shopapotheke -> Gesundheit, Shop Apotheke, Online, Medikamente
+
+# Fast Food Chains (Extended)
+nordsee -> Gastronomie, Nordsee, Fast Food, Fisch
+backwerk -> Gastronomie, BackWerk, Bäckerei, Snack
+ditsch -> Gastronomie, Ditsch, Brezeln, Snack
+kamps -> Gastronomie, Kamps, Bäckerei, Backwaren
+wienerwald -> Gastronomie, Wienerwald, Hähnchen, Fast Food
+vapiano -> Gastronomie, Vapiano, Restaurant, Italienisch
+block -> Gastronomie, Block House, Steakhaus, Restaurant
+sausalitos -> Gastronomie, Sausalitos, Bar, Restaurant, Mexikanisch
+hans -> Gastronomie, Hans im Glück, Burger, Restaurant
+peter -> Gastronomie, Peter Pane, Burger, Restaurant
+
+# Coffee Chains
+tchibo -> Kaffee, Tchibo, Shopping, Einzelhandel
+balzac -> Café, Balzac Coffee, Kaffee, Getränke
+einstein -> Café, Einstein Kaffee, Getränke
+
+# Bakery Chains
+goeken -> Bäckerei, Goeken backen, Backwaren
+backfactory -> Bäckerei, BackFactory, Backwaren, Snack
+landbäckerei -> Bäckerei, Landbäckerei, Backwaren
+
+# Cinemas
+cinemaxx -> Kino, CinemaxX, Film, Unterhaltung
+uci -> Kino, UCI, Film, Unterhaltung
+cinestar -> Kino, Cinestar, Film, Unterhaltung
+
+# Gaming & Entertainment
+playstation -> Gaming, PlayStation, Unterhaltung, Konsole
+xbox -> Gaming, Xbox, Unterhaltung, Konsole
+nintendo -> Gaming, Nintendo, Unterhaltung, Konsole
+steam -> Gaming, Steam, PC, Software
+epic -> Gaming, Epic Games, PC, Software
+gamestop -> Gaming, GameStop, Shopping, Spiele
+
+# Bookstores (Extended)
+hugendubel -> Bücher, Hugendubel, Buchhandlung, Shopping
+mayersche -> Bücher, Mayersche, Buchhandlung, Shopping
+weltbild -> Bücher, Weltbild, Shopping, Medien
+
+# Music & Instruments
+musikschule -> Musik, Musikschule, Bildung, Unterricht
+musikhaus -> Musik, Musikhaus, Instrumente, Shopping
+thomann -> Musik, Thomann, Instrumente, Online
+
+# Sporting Goods (Extended)
+intersport -> Sport, Intersport, Sportartikel, Shopping
+sport2000 -> Sport, Sport 2000, Sportartikel, Shopping
+karstadt -> Sport, Karstadt Sports, Sportartikel, Shopping
+sportscheck -> Sport, SportScheck, Sportartikel, Shopping
+runners -> Sport, Runners Point, Laufsport, Shopping
+snipes -> Mode, Snipes, Sneaker, Shopping, Streetwear
+footlocker -> Mode, Foot Locker, Sneaker, Shopping
+deichmann -> Schuhe, Deichmann, Shopping, Mode
+reno -> Schuhe, Reno, Shopping, Mode
+
+# Jewelry & Watches
+christ -> Schmuck, Christ, Juwelier, Uhren
+wempe -> Schmuck, Wempe, Juwelier, Uhren, Luxus
+rolex -> Schmuck, Rolex, Uhren, Luxus
+swarovski -> Schmuck, Swarovski, Kristall, Juwelier
+
+# Optical Chains
+fielmann -> Optiker, Fielmann, Brille, Gesundheit
+apollo -> Optiker, Apollo, Brille, Gesundheit
+pearle -> Optiker, Pearle, Brille, Gesundheit
+
+# Fitness Chains (Extended)
+mcfit -> Fitness, McFit, Sport, Fitnessstudio
+clever -> Fitness, Clever Fit, Sport, Fitnessstudio
+johnreed -> Fitness, John Reed, Sport, Fitnessstudio
+urban -> Fitness, Urban Sports Club, Sport, Abonnement
+
+# Hotels & Accommodation (Extended)
+ibis -> Hotel, Ibis, Unterkunft, Reise
+hilton -> Hotel, Hilton, Unterkunft, Reise, Luxus
+marriott -> Hotel, Marriott, Unterkunft, Reise
+motel -> Hotel, Motel One, Unterkunft, Reise
+premier -> Hotel, Premier Inn, Unterkunft, Reise
+
+# Car Rental (Extended)
+europcar -> Mietwagen, Europcar, Auto, Reise
+hertz -> Mietwagen, Hertz, Auto, Reise
+avis -> Mietwagen, Avis, Auto, Reise
+budget -> Mietwagen, Budget, Auto, Reise
+enterprise -> Mietwagen, Enterprise, Auto, Reise
+
+# Festivals & Events
+konzertticket -> Event, Konzert, Ticket, Unterhaltung
+eventim -> Event, Eventim, Ticket, Konzert
+ticketmaster -> Event, Ticketmaster, Ticket, Konzert
+festival -> Event, Festival, Musik, Unterhaltung
+messe -> Event, Messe, Veranstaltung, Business
+
+# Religious & Community
+kirche -> Spende, Kirche, Religion, Gemeinschaft
+kirchensteuer -> Steuern, Kirchensteuer, Religion, Abgaben
+gemeinde -> Gemeinschaft, Gemeinde, Kommune, Sozial
+
+# Legal & Official Fees
+gerichtskosten -> Recht, Gerichtskosten, Gebühren, Staat
+gerichtsgebühr -> Recht, Gerichtsgebühren, Gebühren, Staat
+bußgeld -> Strafe, Bußgeld, Ordnungswidrigkeit, Staat
+knöllchen -> Strafe, Parkstrafe, Bußgeld, Auto
+gez -> Gebühren, GEZ, Rundfunkbeitrag, Staat
+rundfunkbeitrag -> Gebühren, Rundfunkbeitrag, GEZ, Staat
+
+# Moving & Relocation
+umzug -> Umzug, Dienstleistung, Transport, Wohnen
+umzugsfirma -> Umzug, Umzugsfirma, Dienstleistung, Transport
+spedition -> Spedition, Transport, Logistik, Umzug
+lagerung -> Lagerung, Storage, Dienstleistung
+
+# Real Estate
+makler -> Immobilien, Makler, Wohnung, Haus
+immobilie -> Immobilien, Wohnung, Haus, Eigentum
+grundsteuer -> Steuern, Grundsteuer, Immobilien, Eigentum
+hausgeld -> Wohnen, Hausgeld, Eigentumswohnung, Nebenkosten
+
+# Funeral & Memorial
+bestattung -> Bestattung, Beerdigung, Trauerfall
+friedhof -> Friedhof, Grabpflege, Beerdigung
+grabpflege -> Friedhof, Grabpflege, Dienstleistung
+
+# Memberships & Clubs
+fanclub -> Freizeit, Fanclub, Mitgliedschaft, Sport
+clubmitgliedschaft -> Freizeit, Club, Mitgliedschaft
+golfclub -> Sport, Golf, Club, Mitgliedschaft
+
+# Crafts & Hobbies
+bastelshop -> Hobby, Basteln, Shopping, Kreativ
+nähmaschine -> Hobby, Nähen, Handarbeit
+wolle -> Hobby, Wolle, Stricken, Handarbeit
+stoffladen -> Hobby, Stoff, Nähen, Shopping
+
+# Photography
+fotograf -> Dienstleistung, Fotograf, Foto, Event
+fotostudio -> Dienstleistung, Fotostudio, Foto
+rossmann -> Foto, Rossmann, Drogerie, Fotoservice
+cewe -> Foto, CEWE, Fotoservice, Online
+
+# Lottery & Games Specific
+eurojackpot -> Glücksspiel, Eurojackpot, Lotto
+sixaus49 -> Glücksspiel, 6 aus 49, Lotto
+glücksspirale -> Glücksspiel, Glücksspirale, Lotto
+keno -> Glücksspiel, Keno, Lotto
+
+# Tobacco Shops
+tabakwaren -> Tabak, Tabakwaren, Rauchen
+zigarrenladen -> Tabak, Zigarren, Rauchen, Luxus
+
+# Adult & Nightlife
+kneipe -> Gastronomie, Kneipe, Bar, Getränke
+pub -> Gastronomie, Pub, Bar, Getränke
+disco -> Unterhaltung, Disco, Club, Nightlife
+cocktail -> Gastronomie, Cocktail, Bar, Getränke
+
+# Ice Cream & Sweets
+eisdiele -> Gastronomie, Eisdiele, Eis, Süßwaren
+konditorei -> Gastronomie, Konditorei, Süßwaren, Backwaren
+confiserie -> Gastronomie, Confiserie, Süßwaren, Luxus
+chocolatier -> Gastronomie, Chocolatier, Schokolade, Süßwaren
+
+# Laundromat
+waschsalon -> Dienstleistung, Waschsalon, Wäsche, Reinigung
+
+# Tourist Services
+touristeninformation -> Reise, Tourist, Information, Service
+stadtführung -> Reise, Stadtführung, Tour, Kultur
+seilbahn -> Reise, Seilbahn, Transport, Ausflug
+bergbahn -> Reise, Bergbahn, Transport, Ausflug
+
+# Seasonal & Christmas
+weihnachtsmarkt -> Freizeit, Weihnachtsmarkt, Event, Saison
+christkindlmarkt -> Freizeit, Christkindlmarkt, Event, Saison
+jahrmarkt -> Freizeit, Jahrmarkt, Event, Kirmes
+kirmes -> Freizeit, Kirmes, Event, Jahrmarkt
+volksfest -> Freizeit, Volksfest, Event, Oktoberfest
+oktoberfest -> Freizeit, Oktoberfest, Event, Bier

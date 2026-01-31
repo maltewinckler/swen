@@ -6,9 +6,11 @@
     "tests"
   ],
   "extraPaths": [
-    "src"
+    "src",
+    "../../services/contracts",
+    "../../services/ml"
   ],
-  "venvPath": ".",
+  "venvPath": "../..",
   "venv": ".venv",
   "typeCheckingMode": "basic"
 }

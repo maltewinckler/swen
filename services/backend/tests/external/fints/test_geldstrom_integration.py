@@ -10,7 +10,7 @@ Run with: pytest tests/external/ --run-external
 
 import os
 import warnings
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,6 +18,7 @@ import pytest
 from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
+from swen.domain.shared.time import today_utc
 from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 
 warnings.filterwarnings(
@@ -282,7 +283,7 @@ class TestRealTransactionFetching:
             pytest.skip("No accounts available")
 
         iban = accounts[0].iban
-        start_date = date.today() - timedelta(days=30)
+        start_date = today_utc() - timedelta(days=30)
 
         transactions = await connected_adapter.fetch_transactions(
             iban,
@@ -301,7 +302,7 @@ class TestRealTransactionFetching:
             pytest.skip("No accounts available")
 
         iban = accounts[0].iban
-        start_date = date.today() - timedelta(days=30)
+        start_date = today_utc() - timedelta(days=30)
 
         transactions = await connected_adapter.fetch_transactions(
             iban,
@@ -326,7 +327,7 @@ class TestRealTransactionFetching:
             pytest.skip("No accounts available")
 
         iban = accounts[0].iban
-        start_date = date.today() - timedelta(days=30)
+        start_date = today_utc() - timedelta(days=30)
 
         transactions = await connected_adapter.fetch_transactions(
             iban,
@@ -351,7 +352,7 @@ class TestRealTransactionFetching:
             pytest.skip("No accounts available")
 
         iban = accounts[0].iban
-        start_date = date.today() - timedelta(days=30)
+        start_date = today_utc() - timedelta(days=30)
 
         transactions = await connected_adapter.fetch_transactions(
             iban,
@@ -375,7 +376,7 @@ class TestRealTransactionFetching:
             pytest.skip("No accounts available")
 
         iban = accounts[0].iban
-        start_date = date.today() - timedelta(days=7)  # Only last 7 days
+        start_date = today_utc() - timedelta(days=7)  # Only last 7 days
 
         transactions = await connected_adapter.fetch_transactions(
             iban,
@@ -395,7 +396,7 @@ class TestRealTransactionFetching:
         if not accounts:
             pytest.skip("No accounts available")
 
-        start_date = date.today() - timedelta(days=30)
+        start_date = today_utc() - timedelta(days=30)
 
         # Try to fetch for each account
         for account in accounts:

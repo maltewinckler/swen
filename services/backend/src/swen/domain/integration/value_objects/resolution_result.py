@@ -22,7 +22,7 @@ class ResolutionResult:
 
     account: Optional[Account]
     ai_result: Optional[AICounterAccountResult] = None
-    source: Optional[str] = None  # "rule", "ai", "ai_low_confidence", or "none"
+    source: Optional[str] = None  # "rule", "ai", or "none"
 
     @property
     def is_resolved(self) -> bool:
@@ -39,10 +39,6 @@ class ResolutionResult:
     @property
     def has_ai_result(self) -> bool:
         return self.ai_result is not None
-
-    @property
-    def is_ai_low_confidence(self) -> bool:
-        return self.source == "ai_low_confidence"
 
 
 @dataclass

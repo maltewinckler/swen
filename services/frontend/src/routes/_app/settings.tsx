@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores'
 import {
   AdminSection,
-  AISettingsSection,
   AppearanceSection,
   BankConnectionsSection,
   ExportsSection,
@@ -86,9 +85,6 @@ function SettingsPage() {
 
           {/* Notifications Section */}
           {activeSection === 'notifications' && <NotificationsSection />}
-
-          {/* AI Section */}
-          {activeSection === 'ai' && <AISettingsSection />}
 
           {/* Appearance Section */}
           {activeSection === 'appearance' && <AppearanceSection />}

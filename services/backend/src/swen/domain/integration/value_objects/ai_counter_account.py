@@ -12,6 +12,7 @@ class AICounterAccountResult:
     counter_account_id: UUID
     confidence: float  # 0.0 - 1.0
     reasoning: Optional[str] = None
+    tier: Optional[str] = None  # e.g., "pattern", "example", "nli", "fallback"
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:

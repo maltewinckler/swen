@@ -1,10 +1,15 @@
 """Sync progress events for SSE streaming."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(UTC)
 
 
 class SyncEventType(str, Enum):
@@ -21,6 +26,11 @@ class SyncEventType(str, Enum):
     ACCOUNT_COMPLETED = "account_completed"
     ACCOUNT_FAILED = "account_failed"
 
+    # ML Classification events (batch)
+    CLASSIFICATION_STARTED = "classification_started"
+    CLASSIFICATION_PROGRESS = "classification_progress"
+    CLASSIFICATION_COMPLETED = "classification_completed"
+
     TRANSACTION_CLASSIFIED = "transaction_classified"
     TRANSACTION_SKIPPED = "transaction_skipped"
     TRANSACTION_FAILED = "transaction_failed"
@@ -32,7 +42,7 @@ class SyncProgressEvent:
 
     event_type: SyncEventType
     message: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utc_now)
 
     def to_dict(self) -> dict:
         return {
@@ -312,4 +322,118 @@ class TransactionClassifiedEvent(SyncProgressEvent):
         d["counter_account_name"] = self.counter_account_name
         d["current"] = self.current
         d["total"] = self.total
+        return d
+
+
+# -----------------------------------------------------------------------------
+# ML Classification Events (Batch)
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class ClassificationStartedEvent(SyncProgressEvent):
+    """Emitted when ML batch classification begins."""
+
+    iban: str = ""
+    total: int = 0
+
+    def __init__(
+        self,
+        iban: str,
+        total: int,
+        message: Optional[str] = None,
+    ):
+        super().__init__(
+            event_type=SyncEventType.CLASSIFICATION_STARTED,
+            message=message or f"Classifying {total} transactions...",
+        )
+        self.iban = iban
+        self.total = total
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["iban"] = self.iban
+        d["total"] = self.total
+        return d
+
+
+@dataclass
+class ClassificationProgressEvent(SyncProgressEvent):
+    """Emitted during ML batch classification for progress updates."""
+
+    iban: str = ""
+    current: int = 0
+    total: int = 0
+    last_tier: Optional[str] = None
+    last_merchant: Optional[str] = None
+
+    def __init__(  # noqa: PLR0913
+        self,
+        iban: str,
+        current: int,
+        total: int,
+        last_tier: Optional[str] = None,
+        last_merchant: Optional[str] = None,
+        message: Optional[str] = None,
+    ):
+        super().__init__(
+            event_type=SyncEventType.CLASSIFICATION_PROGRESS,
+            message=message or f"Classifying {current}/{total}",
+        )
+        self.iban = iban
+        self.current = current
+        self.total = total
+        self.last_tier = last_tier
+        self.last_merchant = last_merchant
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["iban"] = self.iban
+        d["current"] = self.current
+        d["total"] = self.total
+        d["last_tier"] = self.last_tier
+        d["last_merchant"] = self.last_merchant
+        return d
+
+
+@dataclass
+class ClassificationCompletedEvent(SyncProgressEvent):
+    """Emitted when ML batch classification completes."""
+
+    iban: str = ""
+    total: int = 0
+    by_tier: dict = field(default_factory=dict)
+    recurring_detected: int = 0
+    merchants_extracted: int = 0
+    processing_time_ms: int = 0
+
+    def __init__(  # noqa: PLR0913
+        self,
+        iban: str,
+        total: int,
+        by_tier: Optional[dict] = None,
+        recurring_detected: int = 0,
+        merchants_extracted: int = 0,
+        processing_time_ms: int = 0,
+        message: Optional[str] = None,
+    ):
+        super().__init__(
+            event_type=SyncEventType.CLASSIFICATION_COMPLETED,
+            message=message or f"Classified {total} transactions",
+        )
+        self.iban = iban
+        self.total = total
+        self.by_tier = by_tier or {}
+        self.recurring_detected = recurring_detected
+        self.merchants_extracted = merchants_extracted
+        self.processing_time_ms = processing_time_ms
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["iban"] = self.iban
+        d["total"] = self.total
+        d["by_tier"] = self.by_tier
+        d["recurring_detected"] = self.recurring_detected
+        d["merchants_extracted"] = self.merchants_extracted
+        d["processing_time_ms"] = self.processing_time_ms
         return d

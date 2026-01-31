@@ -30,11 +30,21 @@ htmlcov
 .nox
 .hypothesis
 .ruff_cache
+.python-version
+
+# Service-specific venvs and cache (8GB+)
+services/backend/.venv
+services/backend/.pytest_cache
+services/backend/.ruff_cache
+services/ml/.venv
+services/ml/.pytest_cache
+services/ml/.ruff_cache
 
 # Node.js / Frontend
 services/frontend/node_modules
 services/frontend/dist
 services/frontend/.vite
+services/frontend/coverage
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -45,6 +55,12 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+
+# ML Service - model cache and artifacts (9.6GB+)
+services/ml/data/cache
+services/ml/data/embeddings
+services/ml/.tmp
+services/ml/.venv
 
 # Documentation
 docs

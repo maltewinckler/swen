@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from enum import Enum
 from typing import TYPE_CHECKING
+
+from swen_ml_contracts import AccountOption
 
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.repositories import AccountRepository
@@ -12,13 +15,16 @@ from swen.domain.accounting.value_objects import Currency
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
     from swen.application.ports.identity import CurrentUser
+    from swen.infrastructure.integration.ml.client import MLServiceClient
+
+logger = logging.getLogger(__name__)
 
 
 class ChartTemplate(str, Enum):
     """Available chart of accounts templates.
 
     MINIMAL: Simple categories for basic personal finance tracking.
-        15 accounts covering essential income/expense categories.
+        13 accounts covering essential income/expense categories.
     """
 
     MINIMAL = "minimal"
@@ -31,18 +37,22 @@ class GenerateDefaultAccountsCommand:
         self,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
     ) -> GenerateDefaultAccountsCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
     async def execute(
@@ -67,6 +77,9 @@ class GenerateDefaultAccountsCommand:
             await self._account_repo.save(account)
             accounts_created[account.account_type.value.upper()] += 1
 
+        # Trigger ML embedding for expense/income accounts
+        self._trigger_account_embeddings(default_accounts)
+
         total = sum(accounts_created.values())
         return {
             **accounts_created,
@@ -74,6 +87,28 @@ class GenerateDefaultAccountsCommand:
             "skipped": False,
             "template": template.value,
         }
+
+    def _trigger_account_embeddings(self, accounts: list[Account]) -> None:
+        """Trigger ML service to embed account anchors for classification."""
+        if not self._ml_client:
+            return
+
+        classification_accounts = [
+            AccountOption(
+                account_id=account.id,
+                account_number=account.account_number,
+                name=account.name,
+                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                description=account.description,
+            )
+            for account in accounts
+            if account.account_type.value.lower() in ("expense", "income")
+        ]
+
+        if classification_accounts:
+            self._ml_client.embed_accounts_fire_and_forget(
+                self._user_id, classification_accounts
+            )
 
     def _get_minimal_accounts(self) -> list[Account]:
         return [
@@ -90,7 +125,7 @@ class GenerateDefaultAccountsCommand:
                 account_number="3000",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Employer payments, wages: Lohn, Gehalt, Arbeitgeber",
+                description="Arbeitgeber, Lohn, Gehalt, Bezüge, Vergütung",
             ),
             Account(
                 name="Sonstige Einnahmen",
@@ -98,33 +133,23 @@ class GenerateDefaultAccountsCommand:
                 account_number="3100",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Refunds, rebates, interest, dividends, gifts",
-            ),
-            # Housing
-            Account(
-                name="Miete",
-                account_type=AccountType.EXPENSE,
-                account_number="4100",
-                user_id=self._user_id,
-                default_currency=Currency("EUR"),
-                description="Rent payments: Miete, Vermieter, Hausverwaltung",
+                description="Erstattungen, Rückzahlungen, Zinsen, Dividenden",
             ),
             Account(
                 name="Wohnen & Nebenkosten",
                 account_type=AccountType.EXPENSE,
-                account_number="4110",
+                account_number="4100",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Utilities: Strom, Gas, Wasser, Vattenfall, E.ON, GEZ, Rundfunk",  # NOQA: E501
+                description="Miete, Vermieter, Hausverwaltung, Strom, Gas, Wasser, Heizung, Vattenfall, E.ON, GEZ, Rundfunk",  # noqa: E501
             ),
-            # Food & Dining
             Account(
                 name="Lebensmittel",
                 account_type=AccountType.EXPENSE,
                 account_number="4200",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Supermarkets, groceries: REWE, Lidl, EDEKA, Aldi, Penny, Netto",  # NOQA: E501
+                description="Supermarkt, Einkauf, REWE, Lidl, EDEKA, Aldi, Penny, Netto, Kaufland",  # noqa: E501
             ),
             Account(
                 name="Restaurants & Bars",
@@ -132,25 +157,23 @@ class GenerateDefaultAccountsCommand:
                 account_number="4210",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Restaurants, cafes, bars, takeaway: Lieferando, Wolt, UberEats",  # NOQA: E501
+                description="Restaurant, Café, Bar, Imbiss, Lieferando, Wolt, UberEats",
             ),
-            # Transportation
             Account(
                 name="Transport & Mobilität",
                 account_type=AccountType.EXPENSE,
                 account_number="4300",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Public transport, fuel, car: BVG, DB, Deutsche Bahn, Uber, Bolt, Shell",  # NOQA: E501
+                description="ÖPNV, Bahn, BVG, DB, Deutsche Bahn, Tanken, Benzin, Shell, Aral, Uber, Bolt, Taxi",  # noqa: E501
             ),
-            # Personal
             Account(
                 name="Kleidung",
                 account_type=AccountType.EXPENSE,
                 account_number="4400",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Clothing, shoes: H&M, Zara, Zalando, About You, C&A",
+                description="Bekleidung, Schuhe, H&M, Zara, Zalando, About You, C&A",
             ),
             Account(
                 name="Sport & Fitness",
@@ -158,7 +181,7 @@ class GenerateDefaultAccountsCommand:
                 account_number="4500",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Gym, sports equipment: McFit, FitX, Urban Sports Club",
+                description="Fitnessstudio, Sportverein, McFit, FitX",
             ),
             Account(
                 name="Gesundheit",
@@ -166,16 +189,15 @@ class GenerateDefaultAccountsCommand:
                 account_number="4600",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Pharmacy, doctor, medical: Apotheke, Arzt, dm, Rossmann health",  # NOQA: E501
+                description="Apotheke, Arzt, Medikamente, Krankenhaus, dm, Rossmann",
             ),
-            # Entertainment & Lifestyle
             Account(
                 name="Abonnements",
                 account_type=AccountType.EXPENSE,
                 account_number="4700",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Streaming, subscriptions: Netflix, Spotify, Amazon Prime, Disney+",  # NOQA: E501
+                description="Streaming, Abo, Netflix, Spotify, Amazon Prime, Disney+",
             ),
             Account(
                 name="Freizeit & Unterhaltung",
@@ -183,15 +205,14 @@ class GenerateDefaultAccountsCommand:
                 account_number="4800",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Cinema, concerts, hobbies, games: Kino, Eventim, Steam",
+                description="Kino, Konzert, Veranstaltung, Hobby, Spiele, Eventim",
             ),
-            # Catch-all
             Account(
                 name="Sonstiges",
                 account_type=AccountType.EXPENSE,
                 account_number="4900",
                 user_id=self._user_id,
                 default_currency=Currency("EUR"),
-                description="Uncategorized expenses, miscellaneous purchases",
+                description="Sonstige Ausgaben, Verschiedenes",
             ),
         ]

@@ -14,7 +14,7 @@ from swen.domain.shared.exceptions import (
     ErrorCode,
     ValidationError,
 )
-from swen.domain.shared.time import utc_now
+from swen.domain.shared.time import today_utc, utc_now
 
 __all__ = [
     # Error codes
@@ -28,5 +28,6 @@ __all__ = [
     "ConflictError",
     "ConcurrencyError",
     # Utilities
+    "today_utc",
     "utc_now",
 ]

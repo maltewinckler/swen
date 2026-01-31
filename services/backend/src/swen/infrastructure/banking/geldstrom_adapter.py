@@ -349,7 +349,7 @@ class GeldstromAdapter(BankConnectionPort):
                 )
                 domain_accounts.append(domain_account)
 
-            except Exception as e:  # NOQA: PERF203
+            except Exception as e:
                 logger.warning(
                     "Failed to map account %s: %s. Skipping.",
                     account.account_id,
@@ -405,7 +405,7 @@ class GeldstromAdapter(BankConnectionPort):
             try:
                 domain_tx = self._map_transaction_to_domain(entry)
                 domain_transactions.append(domain_tx)
-            except Exception as e:  # NOQA: PERF203
+            except Exception as e:
                 logger.warning(
                     "Failed to map transaction %s: %s. Skipping.",
                     entry.entry_id,

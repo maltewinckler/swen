@@ -24,7 +24,7 @@ from swen.application.queries import (
 )
 from swen.application.services import BankAccountImportService
 from swen.domain.shared.time import utc_now
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.accounts import (
     AccountCreateRequest,
     AccountListResponse,
@@ -130,13 +130,14 @@ async def list_accounts(
 async def create_account(
     request: AccountCreateRequest,
     factory: RepoFactory,
+    ml_client: MLClient,
 ) -> AccountResponse:
     """
     Create a new account in the chart of accounts.
 
     Account types: asset, liability, equity, income, expense
     """
-    command = CreateAccountCommand.from_factory(factory)
+    command = CreateAccountCommand.from_factory(factory, ml_client=ml_client)
 
     try:
         account = await command.execute(
@@ -181,6 +182,7 @@ async def create_account(
 )
 async def init_chart_of_accounts(
     factory: RepoFactory,
+    ml_client: MLClient,
     request: InitChartRequest | None = None,
 ) -> InitChartResponse:
     """
@@ -189,13 +191,13 @@ async def init_chart_of_accounts(
     ## Template
 
     Creates a **minimal** chart of accounts with simple categories for
-    everyday personal finance. ~15 accounts covering essentials:
-    salary, rent, groceries, restaurants, transport, subscriptions, etc.
+    everyday personal finance. ~13 accounts covering essentials:
+    salary, housing, groceries, restaurants, transport, subscriptions, etc.
 
     ## Accounts Created
 
     - **Income accounts** (3xxx): Salary, Other Income
-    - **Expense accounts** (4xxx): Rent, Utilities, Groceries, Restaurants, etc.
+    - **Expense accounts** (4xxx): Housing, Groceries, Restaurants, etc.
     - **Equity accounts** (2xxx): Opening Balance (required for bank sync)
 
     This is idempotent - if accounts already exist, it will return
@@ -210,7 +212,7 @@ async def init_chart_of_accounts(
     # Convert API enum to domain enum
     template = ChartTemplate(template_enum.value)
 
-    command = GenerateDefaultAccountsCommand.from_factory(factory)
+    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
     result = await command.execute(template=template)
     await factory.session.commit()
 
@@ -494,6 +496,7 @@ async def update_account(
     account_id: UUID,
     request: AccountUpdateRequest,
     factory: RepoFactory,
+    ml_client: MLClient,
 ) -> AccountResponse:
     """Update an account (name, account_number, description, and/or parent).
 
@@ -502,7 +505,7 @@ async def update_account(
     - 'set': Set parent to parent_id (requires parent_id)
     - 'remove': Remove parent, make top-level
     """
-    command = UpdateAccountCommand.from_factory(factory)
+    command = UpdateAccountCommand.from_factory(factory, ml_client=ml_client)
 
     # Map API enum to application enum (same values, ensures decoupling)
     parent_action = ParentAction(request.parent_action.value)
@@ -550,13 +553,14 @@ async def update_account(
 async def deactivate_account(
     account_id: UUID,
     factory: RepoFactory,
+    ml_client: MLClient,
 ) -> None:
     """
     Deactivate an account (soft delete).
 
     The account is marked as inactive but not removed from the database.
     """
-    command = DeactivateAccountCommand.from_factory(factory)
+    command = DeactivateAccountCommand.from_factory(factory, ml_client=ml_client)
 
     try:
         await command.execute(account_id=account_id)
@@ -580,13 +584,14 @@ async def deactivate_account(
 async def reactivate_account(
     account_id: UUID,
     factory: RepoFactory,
+    ml_client: MLClient,
 ) -> AccountResponse:
     """
     Reactivate a previously deactivated account.
 
     The account will become visible in account lists and usable again.
     """
-    command = ReactivateAccountCommand.from_factory(factory)
+    command = ReactivateAccountCommand.from_factory(factory, ml_client=ml_client)
 
     try:
         account = await command.execute(account_id=account_id)
@@ -626,6 +631,7 @@ async def reactivate_account(
 async def delete_account(
     account_id: UUID,
     factory: RepoFactory,
+    ml_client: MLClient,
 ) -> None:
     """
     Permanently delete an account.
@@ -634,7 +640,7 @@ async def delete_account(
     Only accounts with no transactions and no child accounts can be deleted.
     For accounts with data, use deactivate instead (soft delete).
     """
-    command = DeleteAccountCommand.from_factory(factory)
+    command = DeleteAccountCommand.from_factory(factory, ml_client=ml_client)
 
     try:
         await command.execute(account_id=account_id)

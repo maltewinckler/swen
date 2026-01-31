@@ -166,7 +166,7 @@ describe('SyncProgressDisplay', () => {
       expect(screen.getByText('Classifying transactions (10/50)')).toBeInTheDocument()
     })
 
-    it('shows last classified transaction', () => {
+    it('shows classifying label with progress', () => {
       const progress: SyncProgress = {
         phase: 'classifying',
         currentAccount: 'DE123',
@@ -182,9 +182,7 @@ describe('SyncProgressDisplay', () => {
 
       render(<SyncProgressDisplay progress={progress} />)
 
-      expect(screen.getByText('Last classified:')).toBeInTheDocument()
-      expect(screen.getByText('"REWE Supermarket"')).toBeInTheDocument()
-      expect(screen.getByText('→ Groceries')).toBeInTheDocument()
+      expect(screen.getByText('Classifying transactions (10/50)')).toBeInTheDocument()
     })
 
     it('does not show TAN notice during classification', () => {

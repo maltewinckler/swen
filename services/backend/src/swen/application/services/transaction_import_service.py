@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from uuid import UUID
 
 from swen.application.factories import BankImportTransactionFactory
 from swen.application.queries.integration import OpeningBalanceQuery
@@ -35,7 +36,11 @@ from swen.domain.banking.repositories import StoredBankTransaction
 from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.entities import TransactionImport
 from swen.domain.integration.services import CounterAccountResolutionService
-from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
+from swen.domain.integration.value_objects import (
+    AICounterAccountResult,
+    ImportStatus,
+    ResolutionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +49,15 @@ if TYPE_CHECKING:
 
     from swen.application.factories import RepositoryFactory
     from swen.application.ports.identity import CurrentUser
+    from swen.application.services.ml_batch_classification_service import (
+        BatchClassificationResult,
+    )
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,
     )
     from swen.domain.integration.repositories import TransactionImportRepository
-    from swen.domain.integration.services import AICounterAccountProvider
 
 
 class TransactionImportResult:
@@ -118,11 +125,10 @@ class TransactionImportService:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ai_provider: Optional[AICounterAccountProvider] = None,
     ) -> TransactionImportService:
         counter_account_service = CounterAccountResolutionService(
             rule_repository=factory.counter_account_rule_repository(),
-            ai_provider=ai_provider,
+            user_id=factory.current_user.user_id,
         )
 
         ob_query = OpeningBalanceQuery.from_factory(factory)
@@ -136,7 +142,6 @@ class TransactionImportService:
 
         transaction_factory = BankImportTransactionFactory(
             current_user=factory.current_user,
-            ai_provider=ai_provider,
         )
 
         ob_adjustment_service = OpeningBalanceAdjustmentService(
@@ -203,6 +208,263 @@ class TransactionImportService:
                 auto_post=auto_post,
             )
             yield (i + 1, total, result)
+
+    async def import_with_preclassified(
+        self,
+        stored_transactions: list[StoredBankTransaction],
+        source_iban: str,
+        preclassified: dict[UUID, BatchClassificationResult],
+        auto_post: bool = False,
+    ) -> list[TransactionImportResult]:
+        """Import transactions using pre-classified ML results.
+
+        Parameters
+        ----------
+        stored_transactions
+            Bank transactions to import
+        source_iban
+            Source IBAN for asset account lookup
+        preclassified
+            Dict mapping bank_transaction_id -> BatchClassificationResult
+        auto_post
+            Whether to auto-post transactions
+
+        Returns
+        -------
+        list[TransactionImportResult]
+            Import results for each transaction
+        """
+        results = []
+        for stored in stored_transactions:
+            ml_result = preclassified.get(stored.id)
+            result = await self._import_stored_transaction_preclassified(
+                stored,
+                source_iban,
+                ml_result,
+                auto_post=auto_post,
+            )
+            results.append(result)
+        return results
+
+    async def import_with_preclassified_streaming(
+        self,
+        stored_transactions: list[StoredBankTransaction],
+        source_iban: str,
+        preclassified: dict[UUID, BatchClassificationResult],
+        auto_post: bool = False,
+    ):
+        """Import transactions using pre-classified ML results (streaming).
+
+        Parameters
+        ----------
+        stored_transactions
+            Bank transactions to import
+        source_iban
+            Source IBAN for asset account lookup
+        preclassified
+            Dict mapping bank_transaction_id -> BatchClassificationResult
+        auto_post
+            Whether to auto-post transactions
+
+        Yields
+        ------
+        tuple[int, int, TransactionImportResult]
+            (current, total, result) for each transaction
+        """
+        total = len(stored_transactions)
+        logger.debug(
+            "import_with_preclassified_streaming: %d txns, %d preclassified results",
+            total,
+            len(preclassified),
+        )
+        for i, stored in enumerate(stored_transactions):
+            ml_result = preclassified.get(stored.id)
+            if ml_result is None and len(preclassified) > 0:
+                logger.warning(
+                    "No ML result for stored.id=%s. Preclassified keys: %s",
+                    stored.id,
+                    list(preclassified.keys())[:5],
+                )
+            result = await self._import_stored_transaction_preclassified(
+                stored,
+                source_iban,
+                ml_result,
+                auto_post=auto_post,
+            )
+            yield (i + 1, total, result)
+
+    async def _import_stored_transaction_preclassified(
+        self,
+        stored: StoredBankTransaction,
+        source_iban: str,
+        ml_result: BatchClassificationResult | None,
+        auto_post: bool = False,
+    ) -> TransactionImportResult:
+        """Import a transaction using pre-classified ML result."""
+        bank_transaction = stored.transaction
+
+        if await self._is_already_imported(stored.id):
+            return TransactionImportResult(
+                bank_transaction=bank_transaction,
+                status=ImportStatus.DUPLICATE,
+                error_message="Transaction already imported",
+            )
+
+        import_record = TransactionImport(
+            user_id=self._user_id,
+            bank_transaction_id=stored.id,
+            status=ImportStatus.PENDING,
+        )
+
+        skip_result = await self._check_skip_conditions(bank_transaction, import_record)
+        if skip_result:
+            return skip_result
+
+        try:
+            return await self._process_import_preclassified(
+                bank_transaction=bank_transaction,
+                source_iban=source_iban,
+                import_record=import_record,
+                ml_result=ml_result,
+                auto_post=auto_post,
+            )
+        except Exception as e:
+            return await self._handle_failure(bank_transaction, import_record, e)
+
+    async def _process_import_preclassified(
+        self,
+        bank_transaction: BankTransaction,
+        source_iban: str,
+        import_record: TransactionImport,
+        ml_result: BatchClassificationResult | None,
+        auto_post: bool,
+    ) -> TransactionImportResult:
+        """Process import using pre-classified ML result."""
+        asset_account = await self._bank_account_service.get_or_create_asset_account(
+            iban=source_iban,
+        )
+
+        transfer_context = await self._transfer_service.detect_transfer(
+            bank_transaction,
+        )
+
+        if transfer_context.can_reconcile:
+            result = await self._try_reconcile(
+                bank_transaction=bank_transaction,
+                source_iban=source_iban,
+                transfer_context=transfer_context,
+                asset_account=asset_account,
+                import_record=import_record,
+            )
+            if result:
+                return result
+
+        # Use pre-classified result instead of calling AI
+        counter_account, resolution_result = await self._resolve_with_preclassified(
+            bank_transaction=bank_transaction,
+            transfer_context=transfer_context,
+            ml_result=ml_result,
+        )
+
+        accounting_tx = self._factory.create(
+            bank_transaction=bank_transaction,
+            asset_account=asset_account,
+            counter_account=counter_account,
+            source_iban=source_iban,
+            is_internal_transfer=transfer_context.is_internal_transfer,
+            resolution_result=resolution_result,
+            merchant=ml_result.merchant if ml_result else None,
+            is_recurring=ml_result.is_recurring if ml_result else False,
+            recurring_pattern=ml_result.recurring_pattern if ml_result else None,
+        )
+
+        if auto_post:
+            accounting_tx.post()
+
+        await self._persist_with_ob_adjustment(
+            accounting_tx=accounting_tx,
+            bank_transaction=bank_transaction,
+            source_iban=source_iban,
+            transfer_context=transfer_context,
+            import_record=import_record,
+        )
+
+        return TransactionImportResult(
+            bank_transaction=bank_transaction,
+            status=ImportStatus.SUCCESS,
+            accounting_transaction=accounting_tx,
+        )
+
+    async def _resolve_with_preclassified(
+        self,
+        bank_transaction: BankTransaction,
+        transfer_context: TransferContext,
+        ml_result: BatchClassificationResult | None,
+    ) -> tuple["Account", ResolutionResult | None]:
+        """Resolve counter account using pre-classified ML result."""
+        # Debug: log the incoming ml_result
+        if ml_result:
+            logger.debug(
+                "Resolving with ML: tx_id=%s, account_id=%s, account_number=%s, "
+                "tier=%s, conf=%.2f",
+                ml_result.transaction_id,
+                ml_result.counter_account_id,
+                ml_result.counter_account_number,
+                ml_result.tier,
+                ml_result.confidence,
+            )
+        else:
+            logger.debug(
+                "Resolving without ML result for: %s",
+                bank_transaction.applicant_name or bank_transaction.purpose[:30],
+            )
+
+        # Internal transfers use the counterparty account
+        if (
+            transfer_context.is_internal_transfer
+            and transfer_context.counterparty_account
+        ):
+            return transfer_context.counterparty_account, None
+
+        # If we have a valid ML result, use it
+        if ml_result and ml_result.counter_account_id:
+            account = await self._account_repo.find_by_id(ml_result.counter_account_id)
+            if account:
+                ai_result = AICounterAccountResult(
+                    counter_account_id=ml_result.counter_account_id,
+                    confidence=ml_result.confidence,
+                    tier=ml_result.tier,
+                )
+                logger.debug(
+                    "Using ML classification: account=%s (%s), tier=%s, conf=%.2f",
+                    account.account_number,
+                    account.name,
+                    ml_result.tier,
+                    ml_result.confidence,
+                )
+                return account, ResolutionResult(
+                    account=account,
+                    ai_result=ai_result,
+                    source="ai",
+                )
+
+            logger.warning(
+                "ML result has account_id=%s but account not found in repository",
+                ml_result.counter_account_id,
+            )
+        elif ml_result:
+            logger.debug(
+                "ML result has no account_id (tier=%s, conf=%.2f)",
+                ml_result.tier,
+                ml_result.confidence,
+            )
+
+        # Fallback to default account
+        fallback = await self._counter_account_service.get_fallback_account(
+            is_expense=bank_transaction.is_debit(),
+            account_repository=self._account_repo,
+        )
+        return fallback, ResolutionResult(account=fallback, source="fallback")
 
     async def _import_stored_transaction(
         self,

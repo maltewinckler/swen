@@ -25,6 +25,7 @@ from swen.application.queries.export_report_query import ExportReportQuery
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.time import today_utc
 
 
 class TestExportReportQuery:
@@ -374,7 +375,7 @@ class TestExportReportQueryDateRangeResolution:
         )
 
         assert resolved_start is not None
-        assert resolved_end == date.today()
+        assert resolved_end == today_utc()
         assert label == "Last 30 days"
 
     def test_resolve_month_parameter(self, query):

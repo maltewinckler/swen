@@ -1,0 +1,54 @@
+[project]
+name = "swen-workspace"
+version = "0.0.0"
+description = "SWEN - Personal finance management system"
+readme = "README.md"
+requires-python = ">=3.11"
+# Virtual root package - no direct dependencies, everything comes from workspace members
+dependencies = []
+
+[dependency-groups]
+dev = [
+    # Shared dev dependencies across all services
+    "pytest>=8.0",
+    "pytest-asyncio>=1.2",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+    "ruff>=0.14",
+    "pyright>=1.1.391",
+    "httpx>=0.28.1",
+    "pre-commit>=4.5.1",
+    "detect-secrets>=1.5.0",
+    "ipykernel>=6.0",
+    "testcontainers[postgres]>=4.0",
+    # Include all workspace members for consolidated IDE support
+    "swen-backend",
+    "swen-ml",
+    "swen-ml-contracts",
+]
+
+[tool.uv.workspace]
+members = [
+    "services/contracts",
+    "services/backend",
+    "services/ml",
+]
+
+[tool.uv.sources]
+# Local workspace packages - uv resolves these from workspace members
+swen-ml-contracts = { workspace = true }
+swen-backend = { workspace = true }
+swen-ml = { workspace = true }
+# Git dependency for backend
+geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "main" }
+
+[tool.ruff]
+line-length = 88
+exclude = ["_deprecated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"

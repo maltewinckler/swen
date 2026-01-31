@@ -23,7 +23,7 @@ from swen.domain.accounting.repositories import (
     TransactionRepository,
 )
 from swen.domain.integration.repositories import AccountMappingRepository
-from swen.domain.shared.time import utc_now
+from swen.domain.shared.time import today_utc, utc_now
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -105,7 +105,7 @@ class ExportReportQuery:
         month: str | None,
     ) -> tuple[date | None, date | None, str]:
         """Resolve the effective date range and period label."""
-        today = date.today()
+        today = today_utc()
 
         if start_date and end_date:
             label = (

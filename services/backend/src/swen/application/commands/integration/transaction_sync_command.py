@@ -13,11 +13,17 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from swen.application.dtos.integration import (
     AccountClassifyingEvent,
     AccountFetchedEvent,
+    ClassificationCompletedEvent,
+    ClassificationProgressEvent,
+    ClassificationStartedEvent,
     SyncProgressEvent,
     SyncResult,
     TransactionClassifiedEvent,
 )
-from swen.application.services import TransactionImportService
+from swen.application.services import (
+    MLBatchClassificationService,
+    TransactionImportService,
+)
 from swen.domain.accounting.services import (
     OPENING_BALANCE_IBAN_KEY,
     OpeningBalanceService,
@@ -40,11 +46,8 @@ from swen.domain.integration.repositories import (
 )
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.iban import extract_blz_from_iban
-from swen.domain.shared.time import utc_now
+from swen.domain.shared.time import today_utc, utc_now
 from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
-from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
-    create_ai_provider_from_settings,
-)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -53,6 +56,7 @@ if TYPE_CHECKING:
         AccountRepository,
         TransactionRepository,
     )
+    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +101,7 @@ class TransactionSyncCommand:
         transaction_repo: Optional[TransactionRepository] = None,
         bank_account_repo: Optional[BankAccountRepository] = None,
         bank_transaction_repo: Optional[BankTransactionRepository] = None,
+        ml_classification_service: Optional[MLBatchClassificationService] = None,
     ):
         self._adapter = bank_adapter
         self._import_service = import_service
@@ -109,14 +114,24 @@ class TransactionSyncCommand:
         self._bank_account_repo = bank_account_repo
         self._bank_transaction_repo = bank_transaction_repo
         self._opening_balance_service = OpeningBalanceService()
+        self._ml_classification_service = ml_classification_service
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> TransactionSyncCommand:
-        ai_provider = create_ai_provider_from_settings()
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: Optional[MLServiceClient] = None,
+    ) -> TransactionSyncCommand:
+        ml_classification_service = None
+        if ml_client:
+            ml_classification_service = MLBatchClassificationService(
+                ml_client=ml_client,
+                current_user=factory.current_user,
+            )
 
         return cls(
             bank_adapter=GeldstromAdapter(),
-            import_service=TransactionImportService.from_factory(factory, ai_provider),
+            import_service=TransactionImportService.from_factory(factory),
             mapping_repo=factory.account_mapping_repository(),
             import_repo=factory.import_repository(),
             current_user=factory.current_user,
@@ -125,6 +140,7 @@ class TransactionSyncCommand:
             transaction_repo=factory.transaction_repository(),
             bank_account_repo=factory.bank_account_repository(),
             bank_transaction_repo=factory.bank_transaction_repository(),
+            ml_classification_service=ml_classification_service,
         )
 
     async def execute(  # noqa: PLR0913
@@ -258,7 +274,7 @@ class TransactionSyncCommand:
             start_date = await self._determine_default_start_date(iban)
 
         if end_date is None:
-            end_date = date.today()
+            end_date = today_utc()
 
         start_date = min(start_date, end_date)
 
@@ -348,12 +364,34 @@ class TransactionSyncCommand:
                 retry_count,
             )
 
-            # Phase 2: Import transactions to accounting
-            import_results = await self._import_service.import_from_stored_transactions(
-                stored_transactions=to_import,
-                source_iban=iban,
-                auto_post=auto_post,
-            )
+            # Phase 2: ML Batch Classification (if available)
+            preclassified = {}
+            if self._ml_classification_service:
+                ml_svc = self._ml_classification_service
+                async for event in ml_svc.classify_batch_streaming(
+                    stored_transactions=to_import,
+                    iban=iban,
+                ):
+                    if isinstance(event, dict):
+                        preclassified = event
+                    # Ignore progress events in non-streaming mode
+
+            # Phase 3: Import transactions to accounting
+            if preclassified:
+                import_results = await self._import_service.import_with_preclassified(
+                    stored_transactions=to_import,
+                    source_iban=iban,
+                    preclassified=preclassified,
+                    auto_post=auto_post,
+                )
+            else:
+                import_results = (
+                    await self._import_service.import_from_stored_transactions(
+                        stored_transactions=to_import,
+                        source_iban=iban,
+                        auto_post=auto_post,
+                    )
+                )
 
             return bank_transactions, import_results, ob_created, ob_amount
 
@@ -361,7 +399,7 @@ class TransactionSyncCommand:
             # Always disconnect
             await self._adapter.disconnect()
 
-    async def _perform_sync_streaming(  # NOQA: PLR0913
+    async def _perform_sync_streaming(  # noqa: PLR0913, PLR0912, C901
         self,
         credentials: BankCredentials,
         iban: str,
@@ -445,50 +483,63 @@ class TransactionSyncCommand:
                 retry_count,
             )
 
-            # Yield classifying start event
+            # Phase 2: ML Batch Classification (if available)
+            preclassified = {}
+            if self._ml_classification_service:
+                ml_svc = self._ml_classification_service
+                async for event in ml_svc.classify_batch_streaming(
+                    stored_transactions=to_import,
+                    iban=iban,
+                ):
+                    if isinstance(
+                        event,
+                        (
+                            ClassificationStartedEvent,
+                            ClassificationProgressEvent,
+                            ClassificationCompletedEvent,
+                        ),
+                    ):
+                        yield event
+                    elif isinstance(event, dict):
+                        preclassified = event
+
+            # Phase 3: Import transactions to accounting (streaming)
             yield AccountClassifyingEvent(
                 iban=iban,
                 current=0,
                 total=len(to_import),
             )
 
-            # Phase 2: Import transactions to accounting (streaming)
             import_results = []
-            async for (
-                current,
-                total,
-                result,
-            ) in self._import_service.import_from_stored_transactions_streaming(
-                stored_transactions=to_import,
-                source_iban=iban,
-                auto_post=auto_post,
-            ):
-                import_results.append(result)
-
-                # Yield progress for each transaction
-                if result.status == ImportStatus.SUCCESS:
-                    counter_account_name = ""
-                    if result.accounting_transaction:
-                        # Get counter account from journal entries
-                        # Entry order:
-                        # [0] = counter_account (expense/income),
-                        # [1] = asset_account (bank)
-                        entries = result.accounting_transaction.entries
-                        if len(entries) >= 1:
-                            counter_account_name = entries[0].account.name
-
-                    yield TransactionClassifiedEvent(
-                        iban=iban,
-                        current=current,
-                        total=total,
-                        description=result.bank_transaction.purpose or "",
-                        counter_account_name=counter_account_name,
-                        transaction_id=(
-                            result.accounting_transaction.id
-                            if result.accounting_transaction
-                            else None
-                        ),
-                    )
+            if preclassified:
+                # Use pre-classified results from ML service
+                stream = self._import_service.import_with_preclassified_streaming(
+                    stored_transactions=to_import,
+                    source_iban=iban,
+                    preclassified=preclassified,
+                    auto_post=auto_post,
+                )
+                async for current, total, result in stream:
+                    import_results.append(result)
+                    if result.status == ImportStatus.SUCCESS:
+                        event = self._create_classified_event(
+                            iban, current, total, result
+                        )
+                        yield event
+            else:
+                # Fallback: classify one-by-one (legacy flow)
+                stream = self._import_service.import_from_stored_transactions_streaming(
+                    stored_transactions=to_import,
+                    source_iban=iban,
+                    auto_post=auto_post,
+                )
+                async for current, total, result in stream:
+                    import_results.append(result)
+                    if result.status == ImportStatus.SUCCESS:
+                        event = self._create_classified_event(
+                            iban, current, total, result
+                        )
+                        yield event
 
             # Yield final result tuple
             yield (bank_transactions, import_results, ob_created, ob_amount)
@@ -944,8 +995,8 @@ class TransactionSyncCommand:
             success=False,
             synced_at=synced_at,
             iban=iban,
-            start_date=start_date or date.today(),
-            end_date=end_date or date.today(),
+            start_date=start_date or today_utc(),
+            end_date=end_date or today_utc(),
             transactions_fetched=0,
             transactions_imported=0,
             transactions_skipped=0,
@@ -1016,10 +1067,10 @@ class TransactionSyncCommand:
                 candidate_dates.append(record.imported_at.date())
 
         if not candidate_dates:
-            return date.today() - timedelta(days=90)
+            return today_utc() - timedelta(days=90)
 
         last_booking_date = max(candidate_dates)
-        today = date.today()
+        today = today_utc()
         next_sync_start = last_booking_date + timedelta(days=1)
 
         if next_sync_start > today:
@@ -1062,6 +1113,35 @@ class TransactionSyncCommand:
             return mapping.get(normalized)
 
         return None
+
+    @staticmethod
+    def _create_classified_event(
+        iban: str,
+        current: int,
+        total: int,
+        result,
+    ) -> TransactionClassifiedEvent:
+        """Create a TransactionClassifiedEvent from an import result."""
+        counter_account_name = ""
+        if result.accounting_transaction:
+            # Get counter account from journal entries
+            # Entry order: [0] = counter_account, [1] = asset_account
+            entries = result.accounting_transaction.entries
+            if len(entries) >= 1:
+                counter_account_name = entries[0].account.name
+
+        return TransactionClassifiedEvent(
+            iban=iban,
+            current=current,
+            total=total,
+            description=result.bank_transaction.purpose or "",
+            counter_account_name=counter_account_name,
+            transaction_id=(
+                result.accounting_transaction.id
+                if result.accounting_transaction
+                else None
+            ),
+        )
 
     @staticmethod
     def _wrap_tan_callback(

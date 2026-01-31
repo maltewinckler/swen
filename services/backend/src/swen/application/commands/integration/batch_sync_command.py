@@ -22,10 +22,11 @@ from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.iban import extract_blz_from_iban
-from swen.domain.shared.time import utc_now
+from swen.domain.shared.time import today_utc, utc_now
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 
 class BatchSyncCommand:
@@ -46,14 +47,21 @@ class BatchSyncCommand:
         self._opening_balance_account_exists = opening_balance_account_exists
 
     @classmethod
-    async def from_factory(cls, factory: RepositoryFactory) -> BatchSyncCommand:
+    async def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: Optional[MLServiceClient] = None,
+    ) -> BatchSyncCommand:
         account_repo = factory.account_repository()
         opening_balance_account = await account_repo.find_by_account_number(
             WellKnownAccounts.OPENING_BALANCE_EQUITY,
         )
 
         return cls(
-            sync_command=TransactionSyncCommand.from_factory(factory),
+            sync_command=TransactionSyncCommand.from_factory(
+                factory,
+                ml_client=ml_client,
+            ),
             settings_repo=factory.user_settings_repository(),
             mapping_query=ListAccountMappingsQuery.from_factory(factory),
             credential_repo=factory.credential_repository(),
@@ -74,8 +82,8 @@ class BatchSyncCommand:
         if adaptive_mode:
             # In adaptive mode, actual dates are determined per-account
             # Use today as placeholder for the result DTO
-            start_date = date.today()
-            end_date = date.today()
+            start_date = today_utc()
+            end_date = today_utc()
         else:
             start_date, end_date = self._calculate_date_range(days)
 
@@ -183,7 +191,7 @@ class BatchSyncCommand:
         synced_at = utc_now()
 
         if days is None:
-            start_date = end_date = date.today()
+            start_date = end_date = today_utc()
         else:
             start_date, end_date = self._calculate_date_range(days)
 
@@ -307,7 +315,7 @@ class BatchSyncCommand:
         return syncable_mappings
 
     @staticmethod
-    def _calculate_date_range(days: int) -> tuple[date, date]:
-        end_date = date.today()
+    def _calculate_date_range(days: int) -> tuple:
+        end_date = today_utc()
         start_date = end_date - timedelta(days=days)
         return start_date, end_date

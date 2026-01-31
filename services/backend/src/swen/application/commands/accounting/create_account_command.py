@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+import logging
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+from swen_ml_contracts import AccountOption
 
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
@@ -20,6 +23,9 @@ from swen.domain.accounting.value_objects.currency import SUPPORTED_CURRENCIES
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
     from swen.application.ports.identity import CurrentUser
+    from swen.infrastructure.integration.ml.client import MLServiceClient
+
+logger = logging.getLogger(__name__)
 
 
 class CreateAccountCommand:
@@ -30,27 +36,34 @@ class CreateAccountCommand:
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
+        ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
+        self._ml_client = ml_client
 
     @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> CreateAccountCommand:
+    def from_factory(
+        cls,
+        factory: RepositoryFactory,
+        ml_client: MLServiceClient | None = None,
+    ) -> CreateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
+            ml_client=ml_client,
         )
 
-    async def execute(  # NOQA: PLR0913
+    async def execute(  # noqa: PLR0913
         self,
         name: str,
         account_type: str,
         account_number: str,
         currency: str = "EUR",
-        description: Optional[str] = None,
-        parent_id: Optional[UUID] = None,
+        description: str | None = None,
+        parent_id: UUID | None = None,
     ) -> Account:
         try:
             acc_type = AccountType(account_type.lower())
@@ -110,4 +123,25 @@ class CreateAccountCommand:
         # Save account
         await self._account_repo.save(account)
 
+        # Trigger ML account embedding (fire-and-forget)
+        # Only for expense/income accounts (used for classification)
+        if account.account_type.value.lower() in ("expense", "income"):
+            self._trigger_account_embedding(account)
+
         return account
+
+    def _trigger_account_embedding(self, account: Account) -> None:
+        """Trigger ML service to embed this account's anchor for classification."""
+        if not self._ml_client:
+            return
+
+        accounts = [
+            AccountOption(
+                account_id=account.id,
+                account_number=account.account_number,
+                name=account.name,
+                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                description=account.description,
+            )
+        ]
+        self._ml_client.embed_accounts_fire_and_forget(self._user_id, accounts)

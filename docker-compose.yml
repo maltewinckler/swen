@@ -9,8 +9,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./services/database/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,21 +46,25 @@ services:
     networks:
       - swenetwork
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: swen-ollama
+  ml:
+    build:
+      context: .
+      dockerfile: services/ml/Dockerfile
+    container_name: swen-ml
     restart: unless-stopped
     ports:
-      - "11434:11434"
-    volumes:
-      # Persist downloaded models
-      - ollama-data:/root/.ollama
+      - "8001:8100"
+    env_file:
+      - ./config/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8100/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s  # model loading takes time
     networks:
       - swenetwork
 
@@ -76,6 +81,26 @@ services:
         condition: service_healthy
     networks:
       - swenetwork
+
+  # SearXNG - Internal metasearch engine
+  searxng:
+    image: searxng/searxng:latest
+    container_name: swen-searxng
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+    networks:
+      - swenetwork
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Caddy Reverse Proxy (optional, use --profile proxy)
   proxy:
@@ -110,8 +135,6 @@ networks:
 
 volumes:
   postgres-data:
-    driver: local
-  ollama-data:
     driver: local
   # Caddy volumes (used when --profile proxy is enabled)
   caddy-data:

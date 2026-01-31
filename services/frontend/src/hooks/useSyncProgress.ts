@@ -248,6 +248,39 @@ export function useSyncProgress(
         }))
         break
 
+      case 'classification_started':
+        // ML batch classification starting
+        setProgress(prev => ({
+          ...prev!,
+          transactionsCurrent: 0,
+          transactionsTotal: event.total,
+          phase: 'classifying',
+          lastMessage: event.message || `Classifying ${event.total} transactions...`,
+        }))
+        break
+
+      case 'classification_progress':
+        // ML batch classification progress
+        setProgress(prev => ({
+          ...prev!,
+          transactionsCurrent: event.current,
+          transactionsTotal: event.total,
+          phase: 'classifying',
+          lastMessage: event.message || `Classifying ${event.current}/${event.total}`,
+        }))
+        break
+
+      case 'classification_completed':
+        // ML batch classification completed, import phase starts
+        setProgress(prev => ({
+          ...prev!,
+          transactionsCurrent: event.total,
+          transactionsTotal: event.total,
+          phase: 'classifying',
+          lastMessage: event.message || `Classified ${event.total} transactions`,
+        }))
+        break
+
       case 'account_classifying':
         setProgress(prev => ({
           ...prev!,

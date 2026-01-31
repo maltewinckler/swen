@@ -5,7 +5,6 @@ from swen.domain.integration.entities import (
     TransactionImport,
 )
 from swen.domain.integration.services import (
-    AICounterAccountProvider,
     CounterAccountResolutionService,
 )
 from swen.domain.integration.value_objects import (
@@ -23,8 +22,7 @@ __all__ = [
     # Entities
     "AccountMapping",
     "TransactionImport",
-    # Services & Interfaces
-    "AICounterAccountProvider",
+    # Services
     "CounterAccountResolutionService",
     # Value Objects
     "AICounterAccountResult",

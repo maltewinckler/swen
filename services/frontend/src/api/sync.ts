@@ -142,6 +142,9 @@ export type SyncEventType =
   | 'account_classifying'
   | 'account_completed'
   | 'account_failed'
+  | 'classification_started'
+  | 'classification_progress'
+  | 'classification_completed'
   | 'transaction_classified'
   | 'result'
 
@@ -202,6 +205,38 @@ export interface AccountClassifyingEvent extends SyncProgressEvent {
   iban: string
   current: number
   total: number
+}
+
+/**
+ * Classification started event (ML batch processing begins)
+ */
+export interface ClassificationStartedEvent extends SyncProgressEvent {
+  event_type: 'classification_started'
+  iban: string
+  total: number
+}
+
+/**
+ * Classification progress event (ML batch processing progress)
+ */
+export interface ClassificationProgressEvent extends SyncProgressEvent {
+  event_type: 'classification_progress'
+  iban: string
+  current: number
+  total: number
+  last_tier?: string | null
+  last_merchant?: string | null
+}
+
+/**
+ * Classification completed event (ML batch processing done)
+ */
+export interface ClassificationCompletedEvent extends SyncProgressEvent {
+  event_type: 'classification_completed'
+  iban: string
+  total: number
+  by_tier?: Record<string, number>
+  processing_time_ms?: number
 }
 
 /**
@@ -267,6 +302,9 @@ export type SyncEvent =
   | AccountStartedEvent
   | AccountFetchedEvent
   | AccountClassifyingEvent
+  | ClassificationStartedEvent
+  | ClassificationProgressEvent
+  | ClassificationCompletedEvent
   | AccountCompletedEvent
   | AccountFailedEvent
   | TransactionClassifiedEvent

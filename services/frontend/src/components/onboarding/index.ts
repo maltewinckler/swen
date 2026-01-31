@@ -1,5 +1,4 @@
 export { OnboardingWelcomeStep } from './OnboardingWelcomeStep'
-export { OnboardingAIModelStep } from './OnboardingAIModelStep'
 export { OnboardingAccountsSetupStep } from './OnboardingAccountsSetupStep'
 export { OnboardingConnectBankStep } from './OnboardingConnectBankStep'
 export { OnboardingManualAccountsStep } from './OnboardingManualAccountsStep'

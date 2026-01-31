@@ -40,6 +40,11 @@ class Transaction:
     - source_iban: IBAN of the synced bank account
     - counterparty_iban: IBAN of the sender/recipient
     - is_internal_transfer: Whether this is a transfer between own accounts
+
+    ML Classification Fields (first-class properties):
+    - merchant: Extracted/normalized merchant name (e.g., "REWE")
+    - is_recurring: Whether detected as recurring (subscription, rent)
+    - recurring_pattern: Pattern type if recurring ("monthly", "weekly")
     """
 
     def __init__(  # NOQA: PLR0913
@@ -53,6 +58,10 @@ class Transaction:
         source_iban: Optional[str] = None,
         is_internal_transfer: bool = False,
         metadata: Optional[Dict[str, Any]] = None,
+        # ML classification fields
+        merchant: Optional[str] = None,
+        is_recurring: bool = False,
+        recurring_pattern: Optional[str] = None,
     ):
         """
         Initialize a new transaction.
@@ -77,6 +86,12 @@ class Transaction:
             Whether this is a transfer between own accounts
         metadata
             Flexible key-value store for tags and categorization info
+        merchant
+            Extracted/normalized merchant name from ML classification
+        is_recurring
+            Whether ML detected this as a recurring transaction
+        recurring_pattern
+            Pattern type if recurring ("monthly" or "weekly")
         """
         self._id = uuid4()
         self._user_id = user_id
@@ -87,6 +102,10 @@ class Transaction:
         self._source = source
         self._source_iban = normalize_iban(source_iban)
         self._is_internal_transfer = is_internal_transfer
+        # ML classification fields
+        self._merchant = merchant
+        self._is_recurring = is_recurring
+        self._recurring_pattern = recurring_pattern
         # Ensure metadata always has source synced with first-class field
         self._metadata: Dict[str, Any] = metadata.copy() if metadata else {}
         self._metadata["source"] = source.value
@@ -133,6 +152,21 @@ class Transaction:
     @property
     def source_iban(self) -> Optional[str]:
         return self._source_iban
+
+    @property
+    def merchant(self) -> Optional[str]:
+        """Extracted/normalized merchant name from ML classification."""
+        return self._merchant
+
+    @property
+    def is_recurring(self) -> bool:
+        """Whether ML detected this as a recurring transaction."""
+        return self._is_recurring
+
+    @property
+    def recurring_pattern(self) -> Optional[str]:
+        """Pattern type if recurring ('monthly' or 'weekly')."""
+        return self._recurring_pattern
 
     @property
     def metadata(self) -> TransactionMetadata:
@@ -243,6 +277,29 @@ class Transaction:
         if self._is_posted:
             raise TransactionAlreadyPostedError(self._id)
         self._counterparty_iban = normalize_iban(counterparty_iban)
+
+    def set_ml_classification(
+        self,
+        merchant: Optional[str] = None,
+        is_recurring: bool = False,
+        recurring_pattern: Optional[str] = None,
+    ) -> None:
+        """Set ML classification fields.
+
+        Parameters
+        ----------
+        merchant
+            Extracted/normalized merchant name
+        is_recurring
+            Whether detected as recurring
+        recurring_pattern
+            "monthly" or "weekly" if recurring
+        """
+        if self._is_posted:
+            raise TransactionAlreadyPostedError(self._id)
+        self._merchant = merchant
+        self._is_recurring = is_recurring
+        self._recurring_pattern = recurring_pattern
 
     def mark_as_internal_transfer(self, is_transfer: bool = True) -> None:
         if self._is_posted:

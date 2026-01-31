@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-from functools import lru_cache
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from swen.infrastructure.integration.ai import OllamaCounterAccountProvider
 from swen.infrastructure.persistence.sqlalchemy.adapters.analytics import (
     SqlAlchemyAnalyticsReadAdapter,
 )
@@ -35,16 +32,12 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
 )
-from swen_config.settings import get_settings
 from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )
 
 if TYPE_CHECKING:
     from swen.application.ports.identity import CurrentUser
-    from swen.domain.integration.services import AICounterAccountProvider
-
-logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyRepositoryFactory:
@@ -171,38 +164,3 @@ class SQLAlchemyRepositoryFactory:
                 self._current_user,
             )
         return self._settings_repo
-
-
-@lru_cache(maxsize=1)
-def create_ai_provider_from_settings() -> Optional[AICounterAccountProvider]:
-    """Create an AI provider from application settings (cached)."""
-    settings = get_settings()
-
-    ai_enabled: bool = settings.ai_enabled
-    ai_provider_name: str = settings.ai_provider
-
-    if not ai_enabled:
-        logger.debug("AI counter-account resolution is disabled")
-        return None
-
-    if ai_provider_name == "ollama":
-        model: str = settings.ai_ollama_model
-        base_url: str = settings.ollama_base_url
-        min_confidence: float = settings.ai_min_confidence
-        timeout: float = settings.ai_ollama_timeout
-
-        logger.info(
-            "Creating Ollama AI provider (model: %s, url: %s)",
-            model,
-            base_url,
-        )
-
-        return OllamaCounterAccountProvider(
-            model=model,
-            base_url=base_url,
-            min_confidence=min_confidence,
-            timeout=timeout,
-        )
-
-    logger.warning("Unknown AI provider: %s", ai_provider_name)
-    return None

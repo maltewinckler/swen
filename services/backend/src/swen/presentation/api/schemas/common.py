@@ -1,9 +1,14 @@
 """Common schemas shared across API endpoints."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(UTC)
 
 
 class ErrorResponse(BaseModel):
@@ -12,7 +17,7 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error message")
     code: str | None = Field(None, description="Error code for programmatic handling")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=_utc_now,
         description="When the error occurred",
     )
 

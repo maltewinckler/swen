@@ -63,9 +63,6 @@ mkdir -p data && sudo chown 65532:65532 data
 # Start
 docker compose up -d --build
 
-# Pull LLM (optional)
-docker exec swen-ollama ollama pull qwen2.5:3b
-
 # Verify
 curl https://swen.example.com/health
 ```

@@ -1,43 +1,56 @@
-[tool.poetry]
+[project]
 name = "swen-backend"
 version = "0.1.0"
 description = "SWEN - Personal finance management backend"
-authors = ["Malte Winckler <malte@nichts-ist-einfach.de>"]
-packages = [
-    { include = "swen", from = "src" },
-    { include = "swen_identity", from = "src" },
-    { include = "swen_config", from = "src" },
-    { include = "swen_demo", from = "src" },
+authors = [{ name = "Malte Winckler", email = "malte@nichts-ist-einfach.de" }]
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "python-dotenv>=1.2.1",
+    "pydantic>=2.11.7",
+    "sqlalchemy>=2.0.42",
+    "sqlmodel>=0.0.24",
+    "pydantic-settings>=2.10.1",
+    "PyYAML>=6.0.2",
+    "tenacity>=9.1.2",
+    "aiosqlite>=0.21.0",
+    "greenlet>=3.2.4",
+    "cryptography>=46.0.3",
+    "typer>=0.20.0",
+    "rich>=13.7.0",
+    "geldstrom @ git+https://github.com/maltewinckler/geldstrom.git@main",
+    # Authentication (swen_auth)
+    "bcrypt>=4.0.0",
+    "PyJWT>=2.8.0",
+    # REST API
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",  # For form data support
+    "email-validator>=2.0.0",    # For Pydantic EmailStr
+    # Excel export
+    "openpyxl>=3.1.0",
+    "asyncpg>=0.31.0",
+    # Workspace dependency
+    "swen-ml-contracts",
+    # HTTP client for ML service
+    "httpx>=0.28.1",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.14"
-python-dotenv = "^1.2.1"
-pydantic = "^2.11.7"
-sqlalchemy = "^2.0.42"
-sqlmodel = "^0.0.24"
-pydantic-settings = "^2.10.1"
-PyYAML = "^6.0.2"
-tenacity = "^9.1.2"
-aiosqlite = "^0.21.0"
-greenlet = "^3.2.4"
-cryptography = "^46.0.3"
-typer = {extras = ["all"], version = ">=0.20.0"}
-rich = "^13.7.0"
-geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "main"}
-# Authentication (swen_auth)
-bcrypt = "^4.0.0"
-PyJWT = "^2.8.0"
-# REST API
-fastapi = "^0.115.0"
-uvicorn = {extras = ["standard"], version = "^0.32.0"}
-python-multipart = "^0.0.12"  # For form data support
-email-validator = "^2.0.0"    # For Pydantic EmailStr
-# Excel export
-openpyxl = ">=3.1.0"
-asyncpg = "^0.31.0"
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2,<9",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+    "pytest-asyncio>=1.2",
+    "ipykernel>=6.0",
+    "httpx>=0.28.1",
+    "ruff>=0.14.10",
+    "pyright>=1.1.391",
+    "pre-commit>=4.5.1",
+    "detect-secrets>=1.5.0",
+    "testcontainers[postgres]>=4.0",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 swen = "swen.presentation.cli.app:cli"
 swen-api = "uvicorn:main"
 # Database management
@@ -47,22 +60,15 @@ db-reset = "swen.infrastructure.persistence.sqlalchemy.init_db:db_reset"
 # Demo data
 seed-demo = "swen_demo.seed:main"
 
-[tool.poetry.group.dev.dependencies]
-pytest = ">=8.2,<9"
-pytest-cov = "^4.0"
-pytest-mock = "^3.10"
-pytest-asyncio = ">=1.2"
-ipykernel = ">=6.0"
-httpx = "^0.28.1"
-ruff = "^0.14.10"
-pyright = "^1.1.391"
-pre-commit = "^4.5.1"
-detect-secrets = "^1.5.0"
-testcontainers = { extras = ["postgres"], version = "^4.0" }
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/swen", "src/swen_identity", "src/swen_config", "src/swen_demo"]
 
 [tool.black]
 line-length = 88
@@ -169,6 +175,13 @@ convention = "numpy"
     "PLW0603",  # Global statement (sometimes needed in test fixtures)
     "INP001",   # Implicit namespace package (tests don't need __init__.py)
     "RUF015",   # Prefer next() over [0] (clarity in tests)
-    "DTZ003",   # datetime.utcnow() deprecated (will fix separately)
     "A006"      # Lambda shadowing builtins
 ]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

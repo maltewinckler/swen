@@ -1,0 +1,55 @@
+# SearXNG Configuration
+# All engines enabled for distributed load
+
+use_default_settings: true
+
+general:
+  instance_name: "SWEN Search"
+  debug: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "de-DE"
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "b4c9f8e2a1d6c3e5f7b8a9d0c1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0"
+  limiter: false
+  image_proxy: false
+  bind_address: "0.0.0.0"
+  port: 8080
+
+outgoing:
+  # Aggressive timeouts for fast response
+  request_timeout: 2.0      # Per-engine timeout
+  max_request_timeout: 3.0  # Max total wait time
+  pool_connections: 100
+  pool_maxsize: 20
+
+ui:
+  static_use_hash: true
+
+# Enable multiple engines (distributes load, more reliable)
+engines:
+  - name: google
+    disabled: false
+    weight: 1.5
+
+  - name: bing
+    disabled: false
+    weight: 1.0
+
+  - name: brave
+    disabled: false
+    weight: 1.0
+
+  - name: duckduckgo
+    disabled: false
+    weight: 1.0
+
+  - name: wikipedia
+    disabled: false
+    weight: 1.2
