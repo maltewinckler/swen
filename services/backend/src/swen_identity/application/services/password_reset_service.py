@@ -68,7 +68,9 @@ class PasswordResetService:
         # Send email with reset link
         reset_link = f"{self._frontend_base_url}/reset-password?token={raw_token}"
         try:
-            self._email_service.send_password_reset_email(email, reset_link)
+            self._email_service.send_password_reset_email(
+                to_email=email, reset_link=reset_link
+            )
             logger.info("Password reset email sent to %s", email)
         except Exception as e:
             logger.error("Failed to send password reset email: %s", e)
