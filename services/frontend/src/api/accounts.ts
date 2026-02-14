@@ -126,6 +126,26 @@ export async function initChartOfAccounts(
   return api.post<InitChartResponse>('/accounts/init-chart', { template })
 }
 
+interface InitEssentialsResponse {
+  message: string
+  skipped: boolean
+  accounts_created: number
+}
+
+/**
+ * Initialize essential accounts only (Bargeld, Sonstiges, Sonstige Einnahmen)
+ *
+ * Creates the 3 accounts required for:
+ * - Cash transactions (Bargeld)
+ * - Fallback expense categorization (Sonstiges)
+ * - Fallback income categorization (Sonstige Einnahmen)
+ *
+ * Idempotent - skips accounts that already exist.
+ */
+export async function initEssentialAccounts(): Promise<InitEssentialsResponse> {
+  return api.post<InitEssentialsResponse>('/accounts/init-essentials')
+}
+
 interface GetAccountStatsParams {
   days?: number
   include_drafts?: boolean

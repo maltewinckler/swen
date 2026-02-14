@@ -1,0 +1,16 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#0a0a0b"/>
+
+  <!-- SWEN Logo - Flow Balance (scaled for icon) -->
+  <!-- Left flow -->
+  <path d="M64 256 Q160 192 256 256" stroke="#6366f1" stroke-width="24" stroke-linecap="round" fill="none"/>
+  <!-- Right flow -->
+  <path d="M256 256 Q352 320 448 256" stroke="#6366f1" stroke-width="24" stroke-linecap="round" fill="none"/>
+  <!-- Center -->
+  <circle cx="256" cy="256" r="48" fill="#6366f1"/>
+  <!-- Entry -->
+  <circle cx="64" cy="256" r="24" stroke="#6366f1" stroke-width="16" fill="none"/>
+  <!-- Exit -->
+  <circle cx="448" cy="256" r="24" stroke="#6366f1" stroke-width="16" fill="none"/>
+</svg>

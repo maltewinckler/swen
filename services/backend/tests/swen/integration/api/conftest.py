@@ -203,6 +203,38 @@ def auth_headers(test_client, registered_user_data, api_v1_prefix) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+@pytest.fixture
+def authenticated_user(test_client, registered_user_data, api_v1_prefix) -> dict:
+    """Get authenticated user data with headers and credentials.
+
+    Returns a dict compatible with tests expecting:
+    - headers: Authorization headers with Bearer token
+    - email: User's email
+    - password: User's password
+    - user_id: User's ID from registration response
+    """
+    # Register the user
+    response = test_client.post(
+        f"{api_v1_prefix}/auth/register",
+        json=registered_user_data,
+    )
+    assert response.status_code == 201, (
+        f"Registration failed: {response.status_code} - {response.text}"
+    )
+
+    data = response.json()
+    token = data["access_token"]
+    # User info is nested under 'user' key
+    user_id = data["user"]["id"]
+
+    return {
+        "headers": {"Authorization": f"Bearer {token}"},
+        "email": registered_user_data["email"],
+        "password": registered_user_data["password"],
+        "user_id": user_id,
+    }
+
+
 # ============================================================================
 # Admin-specific fixtures (empty database, admin_only registration mode)
 # ============================================================================

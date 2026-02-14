@@ -14,3 +14,5 @@ export type {
   UseBankConnectionOptions,
   UseBankConnectionReturn,
 } from './useBankConnection'
+
+export { useIsMobile } from './useIsMobile'

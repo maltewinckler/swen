@@ -55,10 +55,10 @@ class TestPasswordResetServiceRequestReset:
         self.token_repo.create.assert_called_once()
         self.email_service.send_password_reset_email.assert_called_once()
 
-        # Verify reset link contains frontend URL
+        # Verify reset link contains frontend URL (using keyword arguments)
         call_args = self.email_service.send_password_reset_email.call_args
-        assert call_args[0][0] == TEST_EMAIL  # to_email
-        assert FRONTEND_URL in call_args[0][1]  # reset_link
+        assert call_args[1]["to_email"] == TEST_EMAIL  # to_email keyword arg
+        assert FRONTEND_URL in call_args[1]["reset_link"]  # reset_link keyword arg
 
     @pytest.mark.asyncio
     async def test_request_reset_unknown_email_silent(self):

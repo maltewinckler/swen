@@ -110,8 +110,65 @@ class GenerateDefaultAccountsCommand:
                 self._user_id, classification_accounts
             )
 
+    async def execute_essentials(self) -> dict[str, int | bool]:
+        """Create only the essentials (Bargeld, Sonstiges, Sonstige Einnahmen)."""
+        essential_accounts = self._get_essential_accounts()
+        created_count = 0
+
+        for account in essential_accounts:
+            existing = await self._account_repo.find_by_account_number(
+                account.account_number
+            )
+            if not existing:
+                await self._account_repo.save(account)
+                created_count += 1
+        if created_count > 0:
+            self._trigger_account_embeddings(essential_accounts)
+
+        return {
+            "accounts_created": created_count,
+            "skipped": created_count == 0,
+        }
+
+    def _get_essential_accounts(self) -> list[Account]:
+        """Return the 3 essential accounts that must always exist."""
+        return [
+            Account(
+                name="Bargeld",
+                account_type=AccountType.ASSET,
+                account_number="1000",
+                user_id=self._user_id,
+                default_currency=Currency("EUR"),
+                description="Bargeld, Cash, Portemonnaie, Geldbörse",
+            ),
+            Account(
+                name="Sonstige Einnahmen",
+                account_type=AccountType.INCOME,
+                account_number="3100",
+                user_id=self._user_id,
+                default_currency=Currency("EUR"),
+                description="Erstattungen, Rückzahlungen, Zinsen, Dividenden",
+            ),
+            Account(
+                name="Sonstiges",
+                account_type=AccountType.EXPENSE,
+                account_number="4900",
+                user_id=self._user_id,
+                default_currency=Currency("EUR"),
+                description="Sonstige Ausgaben, Verschiedenes",
+            ),
+        ]
+
     def _get_minimal_accounts(self) -> list[Account]:
         return [
+            Account(
+                name="Bargeld",
+                account_type=AccountType.ASSET,
+                account_number="1000",
+                user_id=self._user_id,
+                default_currency=Currency("EUR"),
+                description="Bargeld, Cash, Portemonnaie, Geldbörse",
+            ),
             Account(
                 name="Anfangssaldo",
                 account_type=AccountType.EQUITY,

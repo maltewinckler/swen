@@ -21,7 +21,7 @@ import {
   Input,
   Textarea,
 } from '@/components/ui'
-import { createAccount } from '@/api'
+import { createAccount, initEssentialAccounts } from '@/api'
 import { cn } from '@/lib/utils'
 import type { AccountType } from '@/types/api'
 
@@ -96,6 +96,25 @@ export function OnboardingAccountsSetupStep({
       setFormError(err instanceof Error ? err.message : 'Failed to create account')
     },
   })
+
+  const initEssentialsMutation = useMutation({
+    mutationFn: initEssentialAccounts,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      onSkipToNext()
+    },
+    onError: (err) => {
+      // Still proceed even if essentials fail (they might already exist)
+      console.warn('Failed to init essential accounts:', err)
+      onSkipToNext()
+    },
+  })
+
+  const handleManualContinue = () => {
+    // Always create essential accounts (Bargeld, Sonstiges, Sonstige Einnahmen)
+    // before continuing, even if user created their own accounts
+    initEssentialsMutation.mutate()
+  }
 
   const handleAddAccount = () => {
     setFormError('')
@@ -395,7 +414,8 @@ export function OnboardingAccountsSetupStep({
               <Button
                 variant={createdAccounts.length > 0 ? 'primary' : 'secondary'}
                 className="flex-1"
-                onClick={onSkipToNext}
+                onClick={handleManualContinue}
+                isLoading={initEssentialsMutation.isPending}
               >
                 {createdAccounts.length > 0 ? (
                   <>
