@@ -11,7 +11,7 @@ SWEN allows you to:
 * Track and organize your transactions in a double-entry bookkeeping system;
 * Define categories (in the double entry bookkeeping language `accounts`) yourself or from a template;
 * Connect to your FINTS/HBCI enabled bank (find a maybe outdated list [under subsembly.com](https://subsembly.com/banken.html))and automatically import your transactions with a solid duplicate detection.
-* Assign your income, expenses, and internal transfers automatically to the respective income/expense/asset accounts using selfhosted LLMs (based on ollama; still in MVP phase, want to experiment with something better suited for this purpose in the future.)
+* Assign your income, expenses, and internal transfers automatically to the respective income/expense/asset accounts. We follow a stepwise approach which is based on `sentence-transformers` and keyword enhancements. More details can be found below.
 
 > **Version Note**: I consider SWEN to be in version 0.1. There are still important parts missing which I decided to cut short for MVP. This includes among others other TAN methods than the decoupled app 2FA (e.g. SecureGo App, ING App, DKB App, ...). Moreover, the TAN process has not been tested for *all* banks. Hence, if you find an issue, please create an issue :-).
 
@@ -45,15 +45,15 @@ SWEN allows you to:
 Below you can find two different deployment guides: One for the production usage with Docker and one for barebone install, best suited for development and testing purposes.
 
 Both ways require roughly:
-- **RAM**: 4 GB minimum, 8 GB+ recommended if using Ollama with AI models
-- **Disk**: ~500 MB for dependencies, plus space for your database (marginal)
+- **RAM**: 4+ GB recommended for ML classification features
+- **Disk**: ~500 MB for dependencies, plus space for your database and ML models (~500 MB)
 
 Both installation methods use `.env` files in the `config/` directory:
 
-| File | Used by | `POSTGRES_HOST` | `OLLAMA_HOST` |
-|---|---|---|---|
-| `config/.env.dev` | Bare metal (Makefile) | `localhost` | `localhost` |
-| `config/.env` | Docker Compose | `postgres` | `ollama` |
+| File | Used by | `POSTGRES_HOST` |
+|---|---|---|
+| `config/.env.dev` | Bare metal (Makefile) | `localhost` |
+| `config/.env` | Docker Compose | `postgres` |
 
 
 ## Docker Compose
@@ -94,7 +94,6 @@ FINTS_PRODUCT_ID=<your-deutsche-kreditwirtschaft-product-id>
 
 # Docker networking (use service names, not localhost!)
 POSTGRES_HOST=postgres
-OLLAMA_HOST=ollama
 
 # Your domain and security settings
 API_COOKIE_SECURE=true
@@ -137,8 +136,7 @@ docker compose up -d
 docker compose --profile proxy up -d
 ```
 
-> **Note:** The LLM is automatically downloaded on first startup. To pre-download it:
-> `docker exec swen-ollama ollama pull qwen2.5:1.5b`
+> **Note:** The ML models are automatically downloaded on first startup of the ML service.
 
 > **Note**: The proxy built into SWEN is mostly for testing purposes and a quick setup in a fresh homelab VM. We recommend to use your own reverse proxy in production. Moreover, We use port 8080/8443 by default for rootless container compatibility. If you need ports 80/443, run the proxy deployment as root.
 
@@ -148,11 +146,10 @@ This guide covers running SWEN without Docker, directly on your machine. This is
 
 ### Prerequisites
 
-* `Python >= 3.10` (backend)
+* `Python >= 3.10` (backend and ML service)
 * `uv >= 0.5` (Python package manager)
 * `Node.js >= 24` (frontend)
 * `PostgreSQL >= 18` (database)
-* `Ollama` (*Optional* but required for LLM categorization)
 
 ### Installation
 
@@ -195,11 +192,12 @@ This guide covers running SWEN without Docker, directly on your machine. This is
 
 ### Running the Application
 
-SWEN consists of three services. Run each in a separate terminal:
+SWEN consists of four services. Run each in a separate terminal:
 
-   * `make ollama`: Starts Ollama server (optional, for AI features)
    * `make backend`: Starts the backend API on http://127.0.0.1:8000
    * `make frontend`: Starts the React dev server on http://localhost:3000
+   * `make ml`: Starts the ML service for transaction classification (optional, for AI features)
+   * Database (Postgres) must be running (via system service or Docker)
 
 Then open http://localhost:3000 in your browser.
 
@@ -210,7 +208,7 @@ Run `make help` for a full list of commands. Here are the most common:
 - `make install`: Install all dependencies
 - `make backend`: Start the backend API server
 - `make frontend`: Start the frontend dev server
-- `make ollama`: Start Ollama for AI features
+- `make ml`: Start the ML service for AI classification
 - `make test`: Run all tests
 - `make lint`: Run linters (backend + frontend)
 - `make build`: Build frontend for production
