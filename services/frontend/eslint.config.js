@@ -33,6 +33,8 @@ export default defineConfig([
       'src/main.tsx',
       'src/components/dashboard/widgets/shared/**',
       'src/components/ui/toast.tsx',
+      'src/components/ui/tooltip.tsx',
+      'src/routes/**/*.tsx',
       'tests/**/*.{ts,tsx}',
       'src/**/*.test.{ts,tsx}',
     ],

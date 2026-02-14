@@ -161,8 +161,8 @@ export function WidgetCard({
 // =============================================================================
 
 interface RotatedTickProps {
-  x: number
-  y: number
+  x: string | number
+  y: string | number
   payload: { value: string }
 }
 
