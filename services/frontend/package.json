@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/forms": "^0.5.11",
     "@tanstack/router-devtools": "^1.150.0",
     "@tanstack/router-plugin": "^1.139.14",
     "@testing-library/jest-dom": "^6.9.1",
