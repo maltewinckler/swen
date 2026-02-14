@@ -23,10 +23,7 @@ export function useIsMobile(): boolean {
       setIsMobile(e.matches)
     }
 
-    // Set initial value
-    setIsMobile(mediaQuery.matches)
-
-    // Listen for changes
+    // Listen for changes (initial value already set in useState)
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
