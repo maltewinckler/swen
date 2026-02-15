@@ -13,9 +13,9 @@ export const API_BASE = '/api/v1'
 // Default timeout: 30 seconds
 const DEFAULT_TIMEOUT = 30000
 
-// Long timeout for bank operations: 20 minutes
+// Long timeout for bank operations: 60 minutes
 // TAN approval can take 5 minutes, large imports with classification can take much longer
-export const LONG_TIMEOUT = 1200000
+export const LONG_TIMEOUT = 3600000
 
 // Minimum timeout for retry requests
 const MIN_RETRY_TIMEOUT = 5000
