@@ -102,6 +102,9 @@ API_CORS_ORIGINS=https://swen.example.com
 # Frontend URL (required for password reset emails)
 FRONTEND_BASE_URL=https://swen.example.com
 
+# Frontend: Allow access from your domain (required for Vite preview server)
+VITE_ALLOWED_HOSTS=swen.example.com
+
 # User registration: "open" (anyone can register) or "admin_only" (default)
 REGISTRATION_MODE=admin_only
 

@@ -36,6 +36,9 @@ POSTGRES_PASSWORD=<generated-key>
 # Your domain
 API_CORS_ORIGINS=https://swen.example.com
 API_COOKIE_SECURE=true
+
+# Frontend: Allow access from your domain (required for Vite preview server)
+VITE_ALLOWED_HOSTS=swen.example.com
 ```
 
 ### 4. Configure Your Reverse Proxy
