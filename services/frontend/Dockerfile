@@ -14,12 +14,6 @@ COPY services/frontend/package.json services/frontend/package-lock.json ./
 # Install dependencies
 RUN npm ci
 
-# Build args for Vite environment variables (embedded at build time)
-ARG VITE_ALLOWED_HOSTS
-ARG VITE_LONG_TIMEOUT
-ENV VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS}
-ENV VITE_LONG_TIMEOUT=${VITE_LONG_TIMEOUT}
-
 # Copy source code
 COPY services/frontend/ ./
 
