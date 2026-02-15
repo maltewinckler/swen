@@ -72,6 +72,9 @@ services:
     build:
       context: .
       dockerfile: services/frontend/Dockerfile
+      args:
+        - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS}
+        - VITE_LONG_TIMEOUT=${VITE_LONG_TIMEOUT}
     container_name: swen-frontend
     restart: unless-stopped
     ports:
