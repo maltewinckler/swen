@@ -17,6 +17,9 @@ RUN npm ci
 # Copy source code
 COPY services/frontend/ ./
 
+# Generate TanStack Router route tree (required before TypeScript build)
+RUN npx @tanstack/router-cli generate
+
 # Build the production bundle
 RUN npm run build
 
