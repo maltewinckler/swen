@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import path from 'path'
 
+// Parse allowed hosts from environment variable
+// Format: comma-separated list (e.g., "swen.example.com,www.swen.example.com")
+const allowedHosts = process.env.VITE_ALLOWED_HOSTS
+  ? process.env.VITE_ALLOWED_HOSTS.split(',').map((host) => host.trim()).filter(Boolean)
+  : []
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -24,5 +30,12 @@ export default defineConfig({
         timeout: 360000,
       },
     },
+  },
+  preview: {
+    port: 3000,
+    host: '0.0.0.0',
+    ...(allowedHosts.length > 0 && {
+      allowedHosts,
+    }),
   },
 })
