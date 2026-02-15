@@ -34,6 +34,7 @@ WORKDIR /app
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/vite.config.ts ./
 
 # Vite preview defaults to 4173 and binds to localhost; we override to 0.0.0.0:3000
 EXPOSE 3000
