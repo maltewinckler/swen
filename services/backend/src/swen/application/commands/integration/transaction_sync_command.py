@@ -130,7 +130,9 @@ class TransactionSyncCommand:
             )
 
         return cls(
-            bank_adapter=GeldstromAdapter(),
+            bank_adapter=GeldstromAdapter(
+                config_repository=factory.fints_config_repository(),
+            ),
             import_service=TransactionImportService.from_factory(factory),
             mapping_repo=factory.account_mapping_repository(),
             import_repo=factory.import_repository(),

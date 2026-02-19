@@ -17,6 +17,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankAccountRepositorySQLAlchemy,
     BankCredentialRepositorySQLAlchemy,
     BankTransactionRepositorySQLAlchemy,
+    FinTSConfigRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
@@ -64,6 +65,7 @@ class SQLAlchemyRepositoryFactory:
         self._bank_transaction_repo: BankTransactionRepositorySQLAlchemy | None = None
         self._analytics_read_adapter: SqlAlchemyAnalyticsReadAdapter | None = None
         self._settings_repo: UserSettingsRepositorySQLAlchemy | None = None
+        self._fints_config_repo: FinTSConfigRepositorySQLAlchemy | None = None
 
     @property
     def current_user(self) -> CurrentUser:
@@ -164,3 +166,15 @@ class SQLAlchemyRepositoryFactory:
                 self._current_user,
             )
         return self._settings_repo
+
+    def fints_config_repository(self) -> FinTSConfigRepositorySQLAlchemy:
+        """Get FinTS configuration repository (system-wide, not user-scoped)."""
+        if self._fints_config_repo is None:
+            encryption_service = FernetEncryptionService(
+                encryption_key=self._encryption_key,
+            )
+            self._fints_config_repo = FinTSConfigRepositorySQLAlchemy(
+                self._session,
+                encryption_service,
+            )
+        return self._fints_config_repo

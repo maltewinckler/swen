@@ -6,6 +6,7 @@ import {
   AppearanceSection,
   BankConnectionsSection,
   ExportsSection,
+  FinTSConfigSection,
   NotificationsSection,
   ProfileSection,
   SecuritySection,
@@ -90,7 +91,12 @@ function SettingsPage() {
           {activeSection === 'appearance' && <AppearanceSection />}
 
           {/* Admin Section (admin only) */}
-          {activeSection === 'admin' && user?.role === 'admin' && <AdminSection />}
+          {activeSection === 'admin' && user?.role === 'admin' && (
+            <>
+              <AdminSection />
+              <FinTSConfigSection />
+            </>
+          )}
         </div>
       </div>
     </div>

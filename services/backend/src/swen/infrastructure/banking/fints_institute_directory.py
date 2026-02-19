@@ -1,11 +1,18 @@
 """FinTS Institute Directory - lookup bank endpoint information from CSV."""
 
+from __future__ import annotations
+
 import csv
 import logging
 from dataclasses import dataclass
-from functools import lru_cache
+from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from swen.infrastructure.banking.fints_config_repository import (
+        FinTSConfigRepository,
+    )
 
 from swen_config import get_config_dir
 
@@ -82,11 +89,12 @@ class FinTSInstituteDirectory:
         return len(self._blz_index)
 
     def load(self) -> bool:
+        """Load institute data from CSV file on disk."""
         if self._loaded:
             return True
 
         try:
-            self._parse_csv()
+            self._parse_csv_file()
             self._loaded = True
             self._load_error = None
             logger.info(
@@ -108,45 +116,101 @@ class FinTSInstituteDirectory:
             logger.warning("Failed to parse FinTS institute CSV: %s", e)
             return False
 
-    def _parse_csv(self) -> None:
+    def load_from_bytes(self, csv_content: bytes, encoding: str = "cp1252") -> bool:
+        """Load institute data from raw CSV bytes.
+
+        Used for loading CSV data stored in the database.
+
+        Parameters
+        ----------
+        csv_content
+            Raw CSV file bytes.
+        encoding
+            Character encoding of the CSV content.
+
+        Returns
+        -------
+        True if loading succeeded, False otherwise.
+        """
+        if self._loaded:
+            return True
+
+        try:
+            text = csv_content.decode(encoding)
+            reader = csv.reader(StringIO(text), delimiter=";")
+            self._process_csv_reader(reader)
+            self._loaded = True
+            self._load_error = None
+            logger.info(
+                "Loaded %d FinTS institutes from bytes (%d bytes)",
+                len(self._blz_index),
+                len(csv_content),
+            )
+            return True
+
+        except (UnicodeDecodeError, ValueError) as e:
+            self._load_error = CsvParseError(f"Failed to decode CSV bytes: {e}")
+            logger.warning("Failed to decode FinTS institute CSV bytes: %s", e)
+            return False
+
+        except Exception as e:
+            self._load_error = CsvParseError(f"Failed to parse CSV bytes: {e}")
+            logger.warning("Failed to parse FinTS institute CSV bytes: %s", e)
+            return False
+
+    def invalidate_cache(self) -> None:
+        """Clear loaded data and force reload on next access.
+
+        Called when a new CSV is uploaded via the admin API.
+        """
+        self._loaded = False
+        self._load_error = None
+        self._blz_index.clear()
+        self._bic_index.clear()
+
+    def _parse_csv_file(self) -> None:
+        """Parse CSV from file on disk."""
         if not self._csv_path.exists():
             msg = f"CSV file not found: {self._csv_path}"
             raise FileNotFoundError(msg) from FileNotFoundError
 
         with Path(self._csv_path).open(encoding=self._encoding, newline="") as f:
             reader = csv.reader(f, delimiter=";")
+            self._process_csv_reader(reader)
 
-            # Skip header row
+    def _process_csv_reader(self, reader: csv.reader) -> None:  # type: ignore[type-arg]
+        """Process a CSV reader and populate indexes."""
+        # Skip header row
+        try:
+            next(reader)
+        except StopIteration:
+            msg = "CSV file is empty"
+            raise CsvParseError(msg) from StopIteration
+
+        row_count = 0
+        for row_num, row in enumerate(reader, start=2):
             try:
-                next(reader)
-            except StopIteration:
-                msg = "CSV file is empty"
-                raise CsvParseError(msg) from StopIteration
+                institute = self._parse_row(row)
+                if institute:
+                    # Only store first occurrence of each BLZ
+                    # (same bank may have multiple locations)
+                    if institute.blz not in self._blz_index:
+                        self._blz_index[institute.blz] = institute
 
-            row_count = 0
-            for row_num, row in enumerate(reader, start=2):
-                try:
-                    institute = self._parse_row(row)
-                    if institute:
-                        # Only store first occurrence of each BLZ
-                        # (same bank may have multiple locations)
-                        if institute.blz not in self._blz_index:
-                            self._blz_index[institute.blz] = institute
+                    # BIC index (may have multiple BLZs per BIC)
+                    if institute.bic and institute.bic not in self._bic_index:
+                        self._bic_index[institute.bic] = institute
 
-                        # BIC index (may have multiple BLZs per BIC)
-                        if institute.bic and institute.bic not in self._bic_index:
-                            self._bic_index[institute.bic] = institute
+                    row_count += 1
 
-                        row_count += 1
+            except Exception as e:
+                # Log but continue parsing other rows
+                logger.debug("Skipping row %d: %s", row_num, e)
+                continue
 
-                except Exception as e:
-                    # Log but continue parsing other rows
-                    logger.debug("Skipping row %d: %s", row_num, e)
-                    continue
-
-            if row_count == 0:
-                msg = "No valid institute entries found in CSV"
-                raise CsvParseError(msg) from ValueError
+        if row_count == 0:
+            msg = "No valid institute entries found in CSV"
+            raise CsvParseError(msg) from ValueError
 
     def _parse_row(self, row: list[str]) -> Optional[FinTSInstituteInfo]:
         # Ensure row has enough columns
@@ -200,7 +264,80 @@ class FinTSInstituteDirectory:
         return self._bic_index.get(bic)
 
 
-@lru_cache(maxsize=1)
+# ═══════════════════════════════════════════════════════════════
+#           Module-Level Accessors and Caching
+# ═══════════════════════════════════════════════════════════════
+
+# File-based singleton (for testing / legacy use)
+_file_based_directory: FinTSInstituteDirectory | None = None
+
+
 def get_fints_institute_directory() -> FinTSInstituteDirectory:
-    """Get the FinTS institute directory singleton."""
-    return FinTSInstituteDirectory()
+    """Get the file-based FinTS institute directory singleton.
+
+    Kept for backward compatibility and testing.
+    Production code should use ``get_fints_institute_directory_async``.
+    """
+    global _file_based_directory  # noqa: PLW0603
+    if _file_based_directory is None:
+        _file_based_directory = FinTSInstituteDirectory()
+    return _file_based_directory
+
+
+# DB-backed singleton (production use)
+_db_backed_directory: FinTSInstituteDirectory | None = None
+
+
+async def get_fints_institute_directory_async(
+    config_repo: FinTSConfigRepository,
+) -> FinTSInstituteDirectory:
+    """Get DB-backed FinTS institute directory with in-memory caching.
+
+    Loads the institute CSV from the database on first call and caches
+    the parsed result. Subsequent calls return the cached directory
+    until ``invalidate_fints_directory_cache`` is called.
+
+    Parameters
+    ----------
+    config_repo
+        Repository providing access to the stored CSV data.
+
+    Returns
+    -------
+    Loaded FinTSInstituteDirectory instance.
+
+    Raises
+    ------
+    FinTSInstituteDirectoryError
+        If configuration is missing or CSV cannot be parsed.
+    """
+    global _db_backed_directory  # noqa: PLW0603
+    if _db_backed_directory is not None and _db_backed_directory.is_loaded:
+        return _db_backed_directory
+
+    config = await config_repo.get_configuration()
+    if config is None:
+        msg = (
+            "FinTS institute directory not configured. "
+            "An administrator must upload the institute CSV file."
+        )
+        raise FinTSInstituteDirectoryError(msg)
+
+    directory = FinTSInstituteDirectory()
+    if not directory.load_from_bytes(config.csv_content, config.csv_encoding):
+        raise directory.load_error or FinTSInstituteDirectoryError(
+            "Failed to load institute directory from database",
+        )
+
+    _db_backed_directory = directory
+    return _db_backed_directory
+
+
+def invalidate_fints_directory_cache() -> None:
+    """Invalidate the cached DB-backed directory.
+
+    Must be called after the admin uploads a new CSV so that
+    subsequent lookups use the updated data.
+    """
+    global _db_backed_directory  # noqa: PLW0603
+    _db_backed_directory = None

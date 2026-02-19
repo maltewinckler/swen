@@ -13,9 +13,10 @@ from swen.application.commands.banking import BankConnectionCommand
 from swen.application.queries import ListCredentialsQuery, QueryTanMethodsQuery
 from swen.application.queries.integration import BankConnectionDetailsQuery
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
-from swen.infrastructure.banking import (
-    GeldstromAdapter,
-    get_fints_institute_directory,
+from swen.infrastructure.banking import GeldstromAdapter
+from swen.infrastructure.banking.fints_institute_directory import (
+    FinTSInstituteDirectoryError,
+    get_fints_institute_directory_async,
 )
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.schemas.credentials import (
@@ -102,7 +103,14 @@ async def store_credentials(
     - 982: photoTAN
     """
     # Lookup bank info from institute directory
-    directory = get_fints_institute_directory()
+    config_repo = factory.fints_config_repository()
+    try:
+        directory = await get_fints_institute_directory_async(config_repo)
+    except FinTSInstituteDirectoryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
     institute_info = directory.find_by_blz(request.blz)
 
     if institute_info is None:
@@ -251,12 +259,19 @@ async def discover_bank_accounts(
     tan_method, tan_medium = await query.get_tan_settings(blz)
 
     # Lookup bank name from institute directory
-    directory = get_fints_institute_directory()
+    config_repo = factory.fints_config_repository()
+    try:
+        directory = await get_fints_institute_directory_async(config_repo)
+    except FinTSInstituteDirectoryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
     institute_info = directory.find_by_blz(blz)
     bank_name = institute_info.name if institute_info else f"Bank {blz}"
 
     # Connect and fetch accounts
-    adapter = GeldstromAdapter()
+    adapter = GeldstromAdapter(config_repository=config_repo)
 
     if tan_method:
         adapter.set_tan_method(tan_method)
@@ -489,7 +504,14 @@ async def query_tan_methods(
     - **manual**: Manual code entry
     """
     # Lookup bank info from institute directory
-    directory = get_fints_institute_directory()
+    config_repo = factory.fints_config_repository()
+    try:
+        directory = await get_fints_institute_directory_async(config_repo)
+    except FinTSInstituteDirectoryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
     institute_info = directory.find_by_blz(request.blz)
 
     if institute_info is None:
@@ -569,6 +591,7 @@ async def query_tan_methods(
 )
 async def lookup_bank(
     blz: str,
+    factory: RepoFactory,
 ) -> BankLookupResponse:
     """
     Lookup bank information by BLZ.
@@ -583,7 +606,14 @@ async def lookup_bank(
             detail="BLZ must be exactly 8 digits",
         )
 
-    directory = get_fints_institute_directory()
+    config_repo = factory.fints_config_repository()
+    try:
+        directory = await get_fints_institute_directory_async(config_repo)
+    except FinTSInstituteDirectoryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
     info = directory.find_by_blz(blz)
 
     if info is None:

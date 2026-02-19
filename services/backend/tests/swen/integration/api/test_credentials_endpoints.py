@@ -1,7 +1,7 @@
 """Integration tests for credentials endpoints."""
 
 from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -61,7 +61,10 @@ class TestListCredentials:
 class TestStoreCredentials:
     """Tests for POST /api/v1/credentials."""
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_store_credentials_success(
         self,
         mock_directory,
@@ -70,7 +73,9 @@ class TestStoreCredentials:
         api_v1_prefix: str,
     ):
         """Successfully store bank credentials."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         response = test_client.post(
             f"{api_v1_prefix}/credentials",
@@ -92,7 +97,10 @@ class TestStoreCredentials:
         assert "credential_id" in data
         assert data["message"] == "Credentials stored successfully"
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_store_credentials_bank_not_found(
         self,
         mock_directory,
@@ -101,7 +109,9 @@ class TestStoreCredentials:
         api_v1_prefix: str,
     ):
         """Cannot store credentials for unknown bank."""
-        mock_directory.return_value.find_by_blz.return_value = None
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = None
+        mock_directory.return_value = mock_dir
 
         response = test_client.post(
             f"{api_v1_prefix}/credentials",
@@ -118,7 +128,10 @@ class TestStoreCredentials:
         assert response.status_code == 400
         assert "not found" in response.json()["detail"].lower()
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_store_credentials_duplicate(
         self,
         mock_directory,
@@ -136,7 +149,9 @@ class TestStoreCredentials:
             city="Munich",
             endpoint_url="https://banking.duplicate.de/fints",
         )
-        mock_directory.return_value.find_by_blz.return_value = duplicate_institute
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = duplicate_institute
+        mock_directory.return_value = mock_dir
 
         # Store first
         first_response = test_client.post(
@@ -213,7 +228,10 @@ class TestStoreCredentials:
 class TestDeleteCredentials:
     """Tests for DELETE /api/v1/credentials/{blz}."""
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_delete_credentials_success(
         self,
         mock_directory,
@@ -222,7 +240,9 @@ class TestDeleteCredentials:
         api_v1_prefix: str,
     ):
         """Successfully delete stored credentials."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         # Store first
         test_client.post(
@@ -294,7 +314,10 @@ class TestDeleteCredentials:
 class TestLookupBank:
     """Tests for GET /api/v1/credentials/lookup/{blz}."""
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_lookup_bank_success(
         self,
         mock_directory,
@@ -303,7 +326,9 @@ class TestLookupBank:
         api_v1_prefix: str,
     ):
         """Successfully lookup bank info."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         response = test_client.get(
             f"{api_v1_prefix}/credentials/lookup/12345678",
@@ -317,7 +342,10 @@ class TestLookupBank:
         assert data["name"] == "Test Bank"
         assert data["endpoint_url"] == "https://banking.test.de/fints"
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_lookup_bank_not_found(
         self,
         mock_directory,
@@ -326,7 +354,9 @@ class TestLookupBank:
         api_v1_prefix: str,
     ):
         """Lookup unknown bank returns 404."""
-        mock_directory.return_value.find_by_blz.return_value = None
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = None
+        mock_directory.return_value = mock_dir
 
         response = test_client.get(
             f"{api_v1_prefix}/credentials/lookup/99999999",
@@ -353,7 +383,10 @@ class TestLookupBank:
 class TestQueryTanMethods:
     """Tests for POST /api/v1/credentials/tan-methods."""
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_success(
         self,
@@ -366,7 +399,9 @@ class TestQueryTanMethods:
         """Successfully query TAN methods from bank."""
         from swen.domain.banking.value_objects import TANMethod, TANMethodType
 
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         # Mock the adapter instance
         mock_adapter = MagicMock()
@@ -420,7 +455,10 @@ class TestQueryTanMethods:
         assert method1["method_type"] == "decoupled"
         assert method1["is_decoupled"] is True
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     def test_query_tan_methods_bank_not_found(
         self,
         mock_directory,
@@ -429,7 +467,9 @@ class TestQueryTanMethods:
         api_v1_prefix: str,
     ):
         """Query TAN methods fails for unknown bank."""
-        mock_directory.return_value.find_by_blz.return_value = None
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = None
+        mock_directory.return_value = mock_dir
 
         response = test_client.post(
             f"{api_v1_prefix}/credentials/tan-methods",
@@ -516,7 +556,10 @@ class TestQueryTanMethods:
 
         assert response.status_code == 401
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_connection_failure(
         self,
@@ -527,7 +570,9 @@ class TestQueryTanMethods:
         api_v1_prefix: str,
     ):
         """Query TAN methods returns 503 on connection failure."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
         mock_adapter_class.return_value = mock_adapter
@@ -550,7 +595,10 @@ class TestQueryTanMethods:
         assert response.status_code == 503
         assert "Failed to connect to bank" in response.json()["detail"]
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_invalid_credentials(
         self,
@@ -561,7 +609,9 @@ class TestQueryTanMethods:
         api_v1_prefix: str,
     ):
         """Query TAN methods returns 401 on invalid credentials."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
         mock_adapter_class.return_value = mock_adapter
@@ -584,7 +634,10 @@ class TestQueryTanMethods:
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
 
-    @patch("swen.presentation.api.routers.credentials.get_fints_institute_directory")
+    @patch(
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
+    )
     @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
     def test_query_tan_methods_empty_result(
         self,
@@ -595,7 +648,9 @@ class TestQueryTanMethods:
         api_v1_prefix: str,
     ):
         """Query TAN methods handles empty result from bank."""
-        mock_directory.return_value.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_dir = MagicMock()
+        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE_INFO
+        mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
         mock_adapter_class.return_value = mock_adapter

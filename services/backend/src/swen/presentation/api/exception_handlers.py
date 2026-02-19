@@ -37,6 +37,9 @@ from swen.domain.shared.exceptions import (
     ErrorCode,
     ValidationError,
 )
+from swen.infrastructure.banking.fints_institute_directory import (
+    FinTSInstituteDirectoryError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +89,7 @@ ERROR_CODE_TO_STATUS: dict[ErrorCode, int] = {
     # 503 Service Unavailable - external service errors
     ErrorCode.BANK_CONNECTION_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
     ErrorCode.BANK_TRANSACTION_FETCH_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
+    ErrorCode.FINTS_NOT_CONFIGURED: status.HTTP_503_SERVICE_UNAVAILABLE,
     ErrorCode.SYNC_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
     ErrorCode.IMPORT_FAILED: status.HTTP_503_SERVICE_UNAVAILABLE,
     # 504 Gateway Timeout
@@ -226,6 +230,15 @@ def setup_exception_handlers(app: FastAPI) -> None:
                 request.url.path,
                 exc.message,
             )
+
+            # Detect FinTS-not-configured errors and return a specific code
+            if "not configured" in exc.message.lower():
+                return _create_error_response(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    message=exc.message,
+                    code=ErrorCode.FINTS_NOT_CONFIGURED.value,
+                )
+
             return _create_error_response(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 message="Failed to connect to bank. Please try again later.",
@@ -246,6 +259,28 @@ def setup_exception_handlers(app: FastAPI) -> None:
             status_code=status_code,
             message=exc.message,
             code=exc.code.value,
+        )
+
+    @app.exception_handler(FinTSInstituteDirectoryError)
+    async def fints_directory_exception_handler(
+        request: Request,
+        exc: FinTSInstituteDirectoryError,
+    ) -> JSONResponse:
+        """Handle FinTS institute directory errors.
+
+        These occur when the directory is not configured or cannot be loaded.
+        Returns a specific error code so the frontend can show targeted guidance.
+        """
+        logger.warning(
+            "FinTS directory error on %s %s: %s",
+            request.method,
+            request.url.path,
+            exc,
+        )
+        return _create_error_response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            message=str(exc),
+            code=ErrorCode.FINTS_NOT_CONFIGURED.value,
         )
 
     @app.exception_handler(Exception)

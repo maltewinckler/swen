@@ -20,6 +20,9 @@ from swen.domain.integration.repositories import (
     TransactionImportRepository,
 )
 from swen.domain.settings import UserSettingsRepository
+from swen.infrastructure.banking.fints_config_repository import (
+    FinTSConfigRepository,
+)
 from swen_identity.domain.user.repositories import UserRepository
 
 if TYPE_CHECKING:
@@ -86,4 +89,8 @@ class RepositoryFactory(Protocol):
 
     def user_settings_repository(self) -> UserSettingsRepository:
         """Get user settings repository."""
+        ...
+
+    def fints_config_repository(self) -> FinTSConfigRepository:
+        """Get FinTS configuration repository (system-wide)."""
         ...

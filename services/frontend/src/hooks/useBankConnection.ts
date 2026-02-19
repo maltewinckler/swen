@@ -6,13 +6,24 @@ import {
   storeCredentials,
   discoverBankAccounts,
   setupBankAccounts,
-  queryTANMethods
+  queryTANMethods,
+  ApiRequestError,
 } from '@/api'
 import type {
   BankLookupResponse,
   TANMethod,
   DiscoveredAccount
 } from '@/api/credentials'
+
+const FINTS_NOT_CONFIGURED_CODE = 'FINTS_NOT_CONFIGURED'
+
+/** Map FINTS_NOT_CONFIGURED errors to a user-friendly message. */
+function getUserMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiRequestError && err.code === FINTS_NOT_CONFIGURED_CODE) {
+    return 'FinTS is not configured. An administrator must set up the FinTS Product ID and institute directory in Settings → Administration before banking connections can be used.'
+  }
+  return err instanceof Error ? err.message : fallback
+}
 
 // ============================================================================
 // Types
@@ -435,7 +446,7 @@ export function useBankConnection(
       const result = await lookupBank(state.bankForm.blz)
       dispatch({ type: 'LOOKUP_SUCCESS', payload: result })
     } catch (err) {
-      dispatch({ type: 'LOOKUP_ERROR', payload: err instanceof Error ? err.message : 'Bank not found' })
+      dispatch({ type: 'LOOKUP_ERROR', payload: getUserMessage(err, 'Bank not found') })
     }
   }, [state.bankForm.blz])
 
@@ -519,7 +530,7 @@ export function useBankConnection(
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       queryClient.invalidateQueries({ queryKey: ['reconciliation'] })
     } catch (err) {
-      dispatch({ type: 'CONNECT_ERROR', payload: err instanceof Error ? err.message : 'Connection failed' })
+      dispatch({ type: 'CONNECT_ERROR', payload: getUserMessage(err, 'Connection failed') })
     }
   }, [state.bankForm.blz, state.discoveredAccounts, state.accountNames, queryClient])
 

@@ -6,13 +6,17 @@ import * as api from '@/api'
 import type { ReactNode } from 'react'
 
 // Mock the API module
-vi.mock('@/api', () => ({
-  lookupBank: vi.fn(),
-  storeCredentials: vi.fn(),
-  discoverBankAccounts: vi.fn(),
-  setupBankAccounts: vi.fn(),
-  queryTANMethods: vi.fn(),
-}))
+vi.mock('@/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api')>()
+  return {
+    lookupBank: vi.fn(),
+    storeCredentials: vi.fn(),
+    discoverBankAccounts: vi.fn(),
+    setupBankAccounts: vi.fn(),
+    queryTANMethods: vi.fn(),
+    ApiRequestError: actual.ApiRequestError,
+  }
+})
 
 // Mock useSyncProgress
 vi.mock('./useSyncProgress', () => ({
