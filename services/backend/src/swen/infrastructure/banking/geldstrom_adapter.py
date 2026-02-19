@@ -39,7 +39,9 @@ from swen.domain.shared.time import utc_now
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-from swen_config.settings import get_settings
+    from swen.infrastructure.banking.fints_config_repository import (
+        FinTSConfigRepository,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,11 @@ class GeldstromAdapter(BankConnectionPort):
     4. Manage geldstrom client lifecycle
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        config_repository: FinTSConfigRepository | None = None,
+    ) -> None:
+        self._config_repository = config_repository
         self._client: FinTS3Client | None = None
         self._credentials: BankCredentials | None = None
         self._accounts_cache: list[BankAccount] | None = None
@@ -80,13 +86,13 @@ class GeldstromAdapter(BankConnectionPort):
                 logger.info("Using TAN medium: %s", self._tan_medium)
 
             # Create geldstrom client with challenge handler
-            settings = get_settings()
+            product_id = await self._get_product_id()
             self._client = FinTS3Client(
                 bank_code=credentials.blz,
                 server_url=credentials.endpoint,
                 user_id=credentials.username.get_value(),
                 pin=credentials.pin.get_value(),
-                product_id=settings.fints_product_id,
+                product_id=product_id,
                 tan_method=self._preferred_tan_method,
                 tan_medium=self._tan_medium,
                 tan_config=TANConfig(
@@ -258,13 +264,13 @@ class GeldstromAdapter(BankConnectionPort):
             )
 
             # Create a temporary client to query TAN methods
-            settings = get_settings()
+            product_id = await self._get_product_id()
             client = FinTS3Client(
                 bank_code=credentials.blz,
                 server_url=credentials.endpoint,
                 user_id=credentials.username.get_value(),
                 pin=credentials.pin.get_value(),
-                product_id=settings.fints_product_id,
+                product_id=product_id,
             )
 
             # Query TAN methods (uses sync dialog, no TAN needed)
@@ -449,3 +455,33 @@ class GeldstromAdapter(BankConnectionPort):
                 return account
 
         return None
+
+    async def _get_product_id(self) -> str:
+        """Get Product ID from database via config repository.
+
+        Returns
+        -------
+        Decrypted Product ID string.
+
+        Raises
+        ------
+        BankConnectionError
+            If the configuration repository is not available or
+            no Product ID has been configured.
+        """
+        if not self._config_repository:
+            msg = (
+                "FinTS configuration repository not available. "
+                "Cannot connect to bank without configuration."
+            )
+            raise BankConnectionError(msg)
+
+        config = await self._config_repository.get_configuration()
+        if not config or not config.product_id:
+            msg = (
+                "FinTS Product ID not configured. "
+                "An administrator must configure the Product ID."
+            )
+            raise BankConnectionError(msg)
+
+        return config.product_id

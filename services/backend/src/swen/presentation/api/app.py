@@ -17,6 +17,7 @@ from typing import AsyncGenerator
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from swen.infrastructure.persistence.sqlalchemy.models import Base
 from swen.presentation.api.dependencies import get_engine, get_ml_client
@@ -299,26 +300,12 @@ account is detected.
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan manager.
-
-    Handles startup and shutdown events, including database initialization.
-    """
+    """Application lifespan manager."""
     # Startup
     logger.info("Starting SWEN API v%s...", API_VERSION)
-
-    # Get the shared engine (this initializes the singleton)
     engine = get_engine()
-
-    # Initialize database schema (idempotent - only creates tables if they don't exist)
-    logger.info("Initializing database schema...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    logger.info("Database schema initialized successfully")
-
-    # Check ML service health (non-blocking - graceful degradation if unavailable)
+    await _init_database_schema(engine)
     await _check_ml_service_health()
-
     yield
 
     # Shutdown - dispose the shared engine and its connection pool
@@ -327,11 +314,21 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Database connections closed")
 
 
-async def _check_ml_service_health() -> None:
-    """Check ML service availability on startup.
+async def _init_database_schema(engine: AsyncEngine) -> None:
+    """Initialize database schema (if not existent) and verify connectivity."""
+    logger.info("Initializing database schema...")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except ConnectionRefusedError:
+        logger.critical("Could not connect to the database.")
+        raise SystemExit(1) from None
 
-    Logs status but does not fail startup if unavailable (graceful degradation).
-    """
+    logger.info("Database schema initialized successfully")
+
+
+async def _check_ml_service_health() -> None:
+    """Check ML service availability on startup."""
     ml_client = get_ml_client()
 
     if not ml_client.enabled:

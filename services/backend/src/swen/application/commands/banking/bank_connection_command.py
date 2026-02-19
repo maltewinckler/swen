@@ -45,7 +45,9 @@ class BankConnectionCommand:
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> BankConnectionCommand:
         return cls(
-            bank_adapter=GeldstromAdapter(),
+            bank_adapter=GeldstromAdapter(
+                config_repository=factory.fints_config_repository(),
+            ),
             import_service=BankAccountImportService.from_factory(factory),
             credential_repo=factory.credential_repository(),
             bank_account_repo=factory.bank_account_repository(),

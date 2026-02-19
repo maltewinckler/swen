@@ -122,7 +122,8 @@ def create_mock_transaction(
 def mock_fints_directory():
     """Mock the FinTS institute directory."""
     with patch(
-        "swen.presentation.api.routers.credentials.get_fints_institute_directory"
+        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
+        new_callable=AsyncMock,
     ) as mock:
         mock_dir = MagicMock()
         mock_dir.find_by_blz.return_value = MOCK_INSTITUTE

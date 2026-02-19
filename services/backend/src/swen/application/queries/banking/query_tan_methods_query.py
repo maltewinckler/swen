@@ -68,8 +68,11 @@ class QueryTanMethodsQuery:
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> QueryTanMethodsQuery:
-        _ = factory  # factory not necessary as no persisstence
-        return cls(bank_adapter=GeldstromAdapter())
+        return cls(
+            bank_adapter=GeldstromAdapter(
+                config_repository=factory.fints_config_repository(),
+            ),
+        )
 
     async def execute(
         self,

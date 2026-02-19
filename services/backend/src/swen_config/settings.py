@@ -127,9 +127,6 @@ class Settings(BaseSettings):
     ml_service_url: str = "http://localhost:8001"
     ml_service_timeout: float = 10.0
 
-    # Banking
-    fints_product_id: str = ""
-
     # Registration
     registration_mode: Literal["open", "admin_only"] = "admin_only"
 

@@ -11,6 +11,7 @@ export { NotificationsSection } from './NotificationsSection'
 export { AppearanceSection } from './AppearanceSection'
 export { AdminSection } from './AdminSection'
 export { CreateUserModal } from './CreateUserModal'
+export { FinTSConfigSection } from './FinTSConfigSection'
 
 export { SettingsNav } from './SettingsNav'
 export { BankConnectionsSection } from './BankConnectionsSection'

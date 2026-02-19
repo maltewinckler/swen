@@ -8,6 +8,7 @@ from swen.infrastructure.persistence.sqlalchemy.models.accounting import (
 from swen.infrastructure.persistence.sqlalchemy.models.banking import (
     BankAccountModel,
     BankTransactionModel,
+    FinTSConfigModel,
 )
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.models.integration import (
@@ -26,6 +27,7 @@ __all__ = [
     "Base",
     "BankAccountModel",
     "BankTransactionModel",
+    "FinTSConfigModel",
     "AccountModel",
     "TransactionModel",
     "JournalEntryModel",

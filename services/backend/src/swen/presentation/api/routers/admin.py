@@ -9,6 +9,9 @@ from swen.presentation.api.dependencies import (
     DBSession,
     get_password_service,
 )
+from swen.presentation.api.routers.admin_fints_config import (
+    router as fints_config_router,
+)
 from swen.presentation.api.schemas.admin import (
     CreateUserRequest,
     UpdateRoleRequest,
@@ -37,6 +40,9 @@ logger = logging.getLogger(__name__)
 PasswordService = Annotated[PasswordHashingService, Depends(get_password_service)]
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Include FinTS configuration sub-router
+router.include_router(fints_config_router)
 
 
 @router.get(

@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, StepIndicator, useToast } from '@/components/ui'
 import { useBankConnection } from '@/hooks'
-import { initChartOfAccounts, listCredentials, createExternalAccount } from '@/api'
+import { initChartOfAccounts, listCredentials, createExternalAccount, saveInitialFinTSConfig, getFinTSConfigStatus } from '@/api'
+import { useAuthStore } from '@/stores'
 import {
   OnboardingAccountsSetupStep,
   OnboardingCompleteStep,
   OnboardingConnectBankStep,
+  OnboardingFinTSConfigStep,
   OnboardingManualAccountsStep,
   OnboardingWelcomeStep,
   type ManualAccount,
@@ -17,12 +19,14 @@ export const Route = createFileRoute('/_app/onboarding')({
   component: OnboardingPage,
 })
 
-type OnboardingStep = 'welcome' | 'accounts' | 'connect_bank' | 'manual_accounts' | 'complete'
+type OnboardingStep = 'welcome' | 'fints_config' | 'accounts' | 'connect_bank' | 'manual_accounts' | 'complete'
 
 function OnboardingPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const toast = useToast()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome')
 
@@ -105,8 +109,45 @@ function OnboardingPage() {
     navigate({ to: '/dashboard' })
   }
 
+  // FinTS config mutation (admin only)
+  const [fintsError, setFintsError] = useState<string | null>(null)
+  const fintsConfigMutation = useMutation({
+    mutationFn: ({ productId, file }: { productId: string; file: File }) =>
+      saveInitialFinTSConfig(productId, file),
+    onSuccess: (data) => {
+      toast.success({
+        title: 'FinTS configured',
+        description: `${data.institute_count} institutes loaded`,
+      })
+      setFintsError(null)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'fints-config'] })
+      setCurrentStep('accounts')
+    },
+    onError: (err) => {
+      setFintsError(err instanceof Error ? err.message : 'Failed to save FinTS configuration')
+    },
+  })
+
+  // Check if FinTS is already configured (admin only)
+  const { data: fintsStatus } = useQuery({
+    queryKey: ['admin', 'fints-config', 'status'],
+    queryFn: getFinTSConfigStatus,
+    enabled: isAdmin,
+  })
+  const showFinTSStep = isAdmin && !fintsStatus?.is_configured
+
+  // Navigate from welcome: admins who need FinTS go to fints_config, others go to accounts
+  const handleWelcomeNext = () => {
+    if (showFinTSStep) {
+      setCurrentStep('fints_config')
+    } else {
+      setCurrentStep('accounts')
+    }
+  }
+
   const ONBOARDING_STEPS = [
     { id: 'welcome', label: 'Welcome' },
+    ...(showFinTSStep ? [{ id: 'fints_config', label: 'FinTS' }] : []),
     { id: 'accounts', label: 'Accounts' },
     { id: 'connect_bank', label: 'Banks' },
     { id: 'manual_accounts', label: 'Manual' },
@@ -121,13 +162,22 @@ function OnboardingPage() {
 
       <Card className="w-full max-w-2xl animate-scale-in">
         {currentStep === 'welcome' && (
-          <OnboardingWelcomeStep onNext={() => setCurrentStep('accounts')} />
+          <OnboardingWelcomeStep onNext={handleWelcomeNext} />
+        )}
+
+        {currentStep === 'fints_config' && (
+          <OnboardingFinTSConfigStep
+            onSkip={() => setCurrentStep('accounts')}
+            onSave={(productId, file) => fintsConfigMutation.mutate({ productId, file })}
+            isSaving={fintsConfigMutation.isPending}
+            saveError={fintsError}
+          />
         )}
 
         {currentStep === 'accounts' && (
           <OnboardingAccountsSetupStep
             isLoading={initChartMutation.isPending}
-            onBack={() => setCurrentStep('welcome')}
+            onBack={() => setCurrentStep(showFinTSStep ? 'fints_config' : 'welcome')}
             onCreateAccounts={() => initChartMutation.mutate()}
             onSkipToNext={() => setCurrentStep('connect_bank')}
           />
