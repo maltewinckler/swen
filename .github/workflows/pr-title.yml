@@ -35,9 +35,9 @@ jobs:
               'WIP'
             ];
 
-            // Build regex pattern: [Type] followed by space and description
+            // Build regex pattern: [Type] optionally followed by colon, then space and description
             const prefixPattern = validPrefixes.join('|');
-            const regex = new RegExp(`^\\[(${prefixPattern})\\]\\s+.+$`, 'i');
+            const regex = new RegExp(`^\\[(${prefixPattern})\\]:?\\s+.+$`, 'i');
 
             if (!regex.test(title)) {
               const validTypes = validPrefixes.map(p => `[${p}]`).join(', ');
