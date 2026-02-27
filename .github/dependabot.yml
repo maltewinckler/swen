@@ -32,6 +32,13 @@ updates:
       - "javascript"
     commit-message:
       prefix: "[Chore]"
+    ignore:
+      # eslint-plugin-react-hooks doesn't support ESLint 10 yet
+      # dependabot is semi nice here and override my package.json
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-dependencies:
         patterns:
