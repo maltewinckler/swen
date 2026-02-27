@@ -15,6 +15,10 @@ updates:
       - "python"
     commit-message:
       prefix: "[Chore]"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
 
   # Frontend (npm)
   - package-ecosystem: "npm"
@@ -28,6 +32,10 @@ updates:
       - "javascript"
     commit-message:
       prefix: "[Chore]"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -41,3 +49,7 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "[Chore]"
+    groups:
+      github-actions-dependencies:
+        patterns:
+          - "*"
