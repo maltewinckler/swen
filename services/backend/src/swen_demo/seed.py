@@ -5,12 +5,7 @@ German personal finance transactions for screenshots and demonstrations.
 
 The demo user is always recreated with fresh data for reproducibility.
 
-Usage:
-    poetry run seed-demo
-    # or
-    python -m swen_demo.seed
-    # or
-    make seed-demo
+Usage: make seed-demo
 
 Options:
     --dry-run   Show what would be created without writing to database
@@ -307,9 +302,9 @@ async def generate_transactions(
         return category_accounts.get(account_number)
 
     # Primary payment account (DKB Girokonto)
-    primary_asset = asset_accounts.get("1000")
+    primary_asset = asset_accounts.get("1010")
     if not primary_asset:
-        logger.error("Primary asset account (1000) not found")
+        logger.error("Primary asset account (1010) not found")
         return 0, 0
 
     created = 0

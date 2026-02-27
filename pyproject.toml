@@ -4,7 +4,7 @@ version = "0.0.0"
 description = "SWEN - Personal finance management system"
 readme = "README.md"
 requires-python = ">=3.11"
-# Virtual root package - no direct dependencies, everything comes from workspace members
+# Virtual root package with no direct dependencies, everything comes from workspace members
 dependencies = []
 
 [dependency-groups]
@@ -21,7 +21,7 @@ dev = [
     "detect-secrets>=1.5.0",
     "ipykernel>=6.0",
     "testcontainers[postgres]>=4.0",
-    # Include all workspace members for consolidated IDE support
+    # Include all workspace packages for development purposes
     "swen-backend",
     "swen-ml",
     "swen-ml-contracts",
