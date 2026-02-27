@@ -42,7 +42,7 @@ class AssetAccountDef:
 DEMO_ASSET_ACCOUNTS: list[AssetAccountDef] = [
     AssetAccountDef(
         name="DKB Girokonto",
-        account_number="1000",
+        account_number="1010",
         iban="DE89370400440532013000",
         opening_balance=Decimal("4850.00"),
         description="Main checking account for daily expenses",
@@ -446,7 +446,7 @@ class TransferTemplate:
 
 TRANSFER_TEMPLATES: list[TransferTemplate] = [
     TransferTemplate(
-        from_account_number="1000",  # DKB Girokonto
+        from_account_number="1010",  # DKB Girokonto
         to_account_number="1100",  # ING Tagesgeld
         description="Sparen",
         amount_min=Decimal("200.00"),

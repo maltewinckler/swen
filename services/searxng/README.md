@@ -1,12 +1,12 @@
-# SearXNG - Internal Search Engine
+# SearXNG Internal Search Engine
 
-Privacy-respecting metasearch engine for internal use.
+Privacy-respecting metasearch engine for use in ML.
 
 ## Usage
 
 ### Web UI
 
-Access at: http://localhost:8888
+Access at: http://localhost:8888 (should not be necessary)
 
 ### JSON API
 
@@ -40,5 +40,4 @@ Edit `settings.yml` to:
 ## Resources
 
 - RAM: ~128 MB
-- No additional containers required (Redis disabled)
 - Documentation: https://docs.searxng.org
