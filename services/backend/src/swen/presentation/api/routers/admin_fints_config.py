@@ -13,6 +13,7 @@ from swen.application.queries.system import (
     GetFinTSConfigurationQuery,
     GetFinTSConfigurationStatusQuery,
 )
+from swen.domain.shared.exceptions import ConflictError
 from swen.infrastructure.system.fints_configuration_service import (
     FinTSConfigurationService,
 )
@@ -178,16 +179,7 @@ async def save_initial_configuration(
     factory: RepoFactory,
     product_id: Annotated[str, Form(min_length=1, max_length=100)],
 ) -> SaveInitialConfigResponse:
-    """Save initial FinTS configuration during onboarding."""
-    # Check if already configured
-    status_query = GetFinTSConfigurationStatusQuery.from_factory(factory)
-    config_status = await status_query.execute()
-    if config_status.is_configured:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="FinTS configuration already exists",
-        )
-
+    """Save FinTS configuration (Product ID + CSV). Creates or updates."""
     csv_content = await file.read()
 
     if len(csv_content) > 10 * 1024 * 1024:
@@ -206,6 +198,12 @@ async def save_initial_configuration(
             admin_user_id=admin.id,
         )
         await session.commit()
+    except ConflictError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        ) from e
     except ValueError as e:
         await session.rollback()
         raise HTTPException(

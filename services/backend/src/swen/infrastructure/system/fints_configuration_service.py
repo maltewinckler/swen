@@ -7,6 +7,7 @@ import logging
 from io import StringIO
 from uuid import UUID
 
+from swen.domain.shared.exceptions import ConflictError
 from swen.domain.shared.time import utc_now
 from swen.infrastructure.banking.fints_config import (
     CSVValidationResult,
@@ -208,11 +209,12 @@ class FinTSConfigurationService:
         csv_content: bytes,
         admin_user_id: UUID,
     ) -> FinTSConfig:
-        """Save initial configuration (for onboarding).
+        """Save FinTS configuration (Product ID + CSV). Only creates if none exists."""
+        existing = await self._repository.get_configuration()
+        if existing is not None:
+            msg = "FinTS configuration already exists. Use the update endpoints."
+            raise ConflictError(msg)
 
-        Creates the singleton configuration row with both Product ID
-        and CSV data in a single operation.
-        """
         # Validate both
         pid_validation = self.validate_product_id(product_id)
         if not pid_validation.is_valid:

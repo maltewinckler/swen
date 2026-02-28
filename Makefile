@@ -2,7 +2,8 @@
 # ==============================
 # Run `make help` to see all available commands
 
-.PHONY: help install dev backend frontend ml build test lint secrets clean pre-commit
+.PHONY: help install dev backend frontend ml build test lint secrets clean pre-commit \
+        docs-serve docs-build docs-deploy serve-docs build-docs
 
 # Default target
 help:
@@ -46,6 +47,11 @@ help:
 	@echo "Utilities:"
 	@echo "  make secrets      - Generate encryption key and JWT secret"
 	@echo "  make clean        - Remove build artifacts"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  make docs-serve   - Serve docs locally (http://127.0.0.1:8002)"
+	@echo "  make docs-build   - Build docs to site/"
+	@echo "  make docs-deploy  - Deploy docs to GitHub Pages"
 
 # =============================================================================
 # Setup
@@ -166,6 +172,20 @@ seed-demo:
 secrets:
 	@echo "Generating secrets for config/config.yaml..."
 	uv run --package swen-backend swen secrets generate
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+docs-serve: ## Serve docs locally with live reload at http://127.0.0.1:8002
+	uv run zensical serve --dev-addr 127.0.0.1:8002
+
+serve-docs: docs-serve
+
+docs-build: ## Build docs to site/
+	uv run zensical build
+
+build-docs: docs-build
 
 # =============================================================================
 # Cleanup

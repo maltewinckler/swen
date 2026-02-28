@@ -1,0 +1,96 @@
+/* ── Screenshot gallery / carousel ───────────────────────────────────────── */
+
+.swen-gallery {
+  position: relative;
+  max-width: 960px;
+  margin: 2rem auto;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  background: var(--md-code-bg-color);
+  transition: height 0.35s ease;
+}
+
+.swen-gallery__track {
+  display: flex;
+  transition: transform 0.35s ease;
+  will-change: transform;
+}
+
+.swen-gallery__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+.swen-gallery__slide img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Nav buttons ─────────────────────────────────────────────────────────── */
+
+.swen-gallery__btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  user-select: none;
+}
+
+.swen-gallery__btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.swen-gallery__btn--prev { left: 12px; }
+.swen-gallery__btn--next { right: 12px; }
+
+/* ── Dot indicators ──────────────────────────────────────────────────────── */
+
+.swen-gallery__dots {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+}
+
+.swen-gallery__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.swen-gallery__dot.active {
+  background: #fff;
+  transform: scale(1.25);
+}
+
+/* ── Caption ─────────────────────────────────────────────────────────────── */
+
+.swen-gallery__caption {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--md-default-fg-color--light);
+  margin-top: 0.5rem;
+  min-height: 1.4em;
+}

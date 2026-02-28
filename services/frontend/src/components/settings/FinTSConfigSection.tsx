@@ -7,7 +7,7 @@
 
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Upload, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
+import { Upload, CheckCircle, XCircle } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -24,9 +24,8 @@ import {
 } from '@/components/ui'
 import {
   getFinTSConfiguration,
-  updateFinTSProductId,
-  uploadFinTSCSV,
   getFinTSConfigStatus,
+  saveInitialFinTSConfig,
 } from '@/api'
 import type { FinTSConfigResponse } from '@/api/admin-fints-config'
 import { formatDate } from '@/lib/utils'
@@ -96,22 +95,13 @@ export function FinTSConfigSection() {
               </InlineAlert>
             )}
 
-            {/* Product ID form */}
-            <ProductIdForm
+            {/* Single form — creates or updates regardless of current state */}
+            <InitialSetupForm
               isConfigured={isConfigured}
               onSuccess={() => {
                 queryClient.invalidateQueries({ queryKey: ['admin', 'fints-config'] })
               }}
             />
-
-            {/* CSV upload (only after initial config exists) */}
-            {isConfigured && (
-              <CsvUploadForm
-                onSuccess={() => {
-                  queryClient.invalidateQueries({ queryKey: ['admin', 'fints-config'] })
-                }}
-              />
-            )}
           </>
         )}
       </CardContent>
@@ -169,88 +159,29 @@ function ConfigDisplay({ config }: { config: FinTSConfigResponse }) {
   )
 }
 
-function ProductIdForm({
-  isConfigured,
-  onSuccess,
-}: {
-  isConfigured: boolean
-  onSuccess: () => void
-}) {
-  const toast = useToast()
-  const [productId, setProductId] = useState('')
-  const [error, setError] = useState('')
-
-  const mutation = useMutation({
-    mutationFn: (id: string) => updateFinTSProductId(id),
-    onSuccess: () => {
-      toast.success({ description: 'Product ID updated successfully' })
-      setProductId('')
-      setError('')
-      onSuccess()
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Failed to update Product ID')
-    },
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (!productId.trim()) {
-      setError('Product ID is required')
-      return
-    }
-
-    mutation.mutate(productId.trim())
-  }
-
-  return (
-    <div className="space-y-3">
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {error && <InlineAlert variant="danger">{error}</InlineAlert>}
-        <FormField
-          label={isConfigured ? 'Update Product ID' : 'Set Product ID'}
-          helperText="Obtain your Product ID from the Deutsche Kreditwirtschaft registration portal"
-        >
-          <div className="flex items-center gap-3">
-            <Input
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              placeholder="Enter Product ID"
-              maxLength={100}
-              required
-            />
-            <Button type="submit" size="sm" isLoading={mutation.isPending} className="shrink-0">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {isConfigured ? 'Update Product ID' : 'Save Product ID'}
-            </Button>
-          </div>
-        </FormField>
-      </form>
-    </div>
-  )
-}
-
-function CsvUploadForm({ onSuccess }: { onSuccess: () => void }) {
+function InitialSetupForm({ isConfigured, onSuccess }: { isConfigured: boolean; onSuccess: () => void }) {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [productId, setProductId] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: (file: File) => uploadFinTSCSV(file),
+    mutationFn: ({ productId, file }: { productId: string; file: File }) =>
+      saveInitialFinTSConfig(productId, file),
     onSuccess: (data) => {
       toast.success({
-        description: `CSV uploaded: ${data.institute_count} institutes (${data.file_size_kb} KB)`,
+        title: 'FinTS configured',
+        description: `${data.institute_count} institutes loaded`,
       })
+      setProductId('')
       setSelectedFile(null)
       setError('')
       if (fileInputRef.current) fileInputRef.current.value = ''
       onSuccess()
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Failed to upload CSV')
+      setError(err instanceof Error ? err.message : 'Failed to save FinTS configuration')
     },
   })
 
@@ -265,45 +196,59 @@ function CsvUploadForm({ onSuccess }: { onSuccess: () => void }) {
     setSelectedFile(file)
   }
 
-  const handleUpload = () => {
-    if (!selectedFile) return
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     setError('')
-    mutation.mutate(selectedFile)
+
+    if (!productId.trim()) {
+      setError('Product ID is required')
+      return
+    }
+    if (!selectedFile) {
+      setError('Please select an institute directory CSV file')
+      return
+    }
+
+    mutation.mutate({ productId: productId.trim(), file: selectedFile })
   }
 
   return (
-    <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && <InlineAlert variant="danger">{error}</InlineAlert>}
       <FormField
-        label="Update Institute Directory"
+        label="Product ID"
+        helperText="Obtain your Product ID from the Deutsche Kreditwirtschaft registration portal"
+      >
+        <Input
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          placeholder="Enter Product ID"
+          maxLength={100}
+          required
+        />
+      </FormField>
+      <FormField
+        label="Institute Directory (CSV)"
         helperText="Upload the fints_institute.csv file (CP1252 encoded, max 10 MB)"
       >
-        <div className="flex items-center gap-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-text-secondary
-              file:mr-4 file:py-2 file:px-4
-              file:rounded-md file:border-0
-              file:text-sm file:font-medium
-              file:bg-bg-hover file:text-text-primary
-              hover:file:bg-bg-active
-              file:cursor-pointer cursor-pointer"
-          />
-          <Button
-            size="sm"
-            onClick={handleUpload}
-            isLoading={mutation.isPending}
-            disabled={!selectedFile}
-            className="shrink-0"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Upload CSV
-          </Button>
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="block w-full text-sm text-text-secondary
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-md file:border-0
+            file:text-sm file:font-medium
+            file:bg-bg-hover file:text-text-primary
+            hover:file:bg-bg-active
+            file:cursor-pointer cursor-pointer"
+        />
       </FormField>
-    </div>
+      <Button type="submit" isLoading={mutation.isPending} disabled={!productId.trim() || !selectedFile}>
+        <Upload className="h-4 w-4 mr-2" />
+        {isConfigured ? 'Update Configuration' : 'Save Configuration'}
+      </Button>
+    </form>
   )
 }

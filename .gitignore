@@ -72,3 +72,7 @@ services/frontend/coverage/
 
 # pre commit stuff
 .secrets.baseline
+
+# ignore local doc builds
+site/
+internal_docs/
