@@ -43,6 +43,8 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
 from swen.presentation.api.dependencies import get_encryption_key, get_session_maker
 from swen_config.settings import get_settings
 from swen_demo.data import (
+    DEMO_ADMIN_EMAIL,
+    DEMO_ADMIN_PASSWORD,
     DEMO_ASSET_ACCOUNTS,
     DEMO_USER_EMAIL,
     DEMO_USER_PASSWORD,
@@ -114,6 +116,27 @@ async def create_demo_user(session: AsyncSession) -> User:
     await credential_repo.save(user_id=user.id, password_hash=password_hash)
 
     return user
+
+
+async def create_demo_admin(session: AsyncSession) -> User:
+    """Create demo admin user, deleting any existing one first."""
+    user_repo = UserRepositorySQLAlchemy(session)
+    credential_repo = UserCredentialRepositorySQLAlchemy(session)
+    password_service = PasswordHashingService()
+
+    existing = await user_repo.find_by_email(DEMO_ADMIN_EMAIL)
+    if existing:
+        logger.info("Deleting existing demo admin: %s", existing.id)
+        await user_repo.delete_with_all_data(existing.id)
+
+    logger.info("Creating demo admin: %s", DEMO_ADMIN_EMAIL)
+    admin = User.create(DEMO_ADMIN_EMAIL, role=UserRole.ADMIN)
+    password_hash = password_service.hash(DEMO_ADMIN_PASSWORD)
+
+    await user_repo.save(admin)
+    await credential_repo.save(user_id=admin.id, password_hash=password_hash)
+
+    return admin
 
 
 def create_current_user(user: User) -> CurrentUser:
@@ -504,8 +527,9 @@ async def seed_demo_data(dry_run: bool = False) -> SeedStats:
     session_maker = get_session_maker()
 
     async with session_maker() as session:
-        # Create demo user (deletes existing if present)
+        # Create demo user and admin (deletes existing if present)
         user = await create_demo_user(session)
+        await create_demo_admin(session)
 
         # Create current user context
         current_user = create_current_user(user)
@@ -551,8 +575,8 @@ async def seed_demo_data(dry_run: bool = False) -> SeedStats:
         logger.info("=" * 50)
         logger.info("Demo data seeding complete!")
         logger.info("=" * 50)
-        logger.info("  User: %s", DEMO_USER_EMAIL)
-        logger.info("  Password: %s", DEMO_USER_PASSWORD)
+        logger.info("  User:     %s / %s", DEMO_USER_EMAIL, DEMO_USER_PASSWORD)
+        logger.info("  Admin:    %s / %s", DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD)
         logger.info("  Asset accounts: %d", asset_count)
         logger.info("  Category accounts: %d", category_count)
         logger.info("  Transactions: %d", txn_created)

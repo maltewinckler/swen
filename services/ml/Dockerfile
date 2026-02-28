@@ -19,7 +19,7 @@ COPY pyproject.toml uv.lock ./
 COPY services/contracts ./services/contracts
 COPY services/ml/pyproject.toml ./services/ml/
 
-# Install dependencies (first heavy downloads)
+# Install dependencies
 RUN uv sync --frozen --no-dev --no-install-workspace --package swen-ml
 # Then copy source code
 COPY services/ml/swen_ml ./services/ml/swen_ml

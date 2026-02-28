@@ -471,6 +471,10 @@ DEMO_USER_EMAIL = "demo@example.com"
 DEMO_USER_PASSWORD = "demo1234"
 DEMO_USER_NAME = "Demo User"
 
+DEMO_ADMIN_EMAIL = "admin@example.com"
+DEMO_ADMIN_PASSWORD = "admin1234"
+DEMO_ADMIN_NAME = "Demo Admin"
+
 # Seed for reproducibility
 RANDOM_SEED = 42
 

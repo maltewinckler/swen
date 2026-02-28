@@ -1,0 +1,118 @@
+[project]
+site_name = "SWEN"
+site_description = "Self-hosted personal accounting with German FinTS bank sync"
+site_url = "https://maltewinckler.github.io/swen"
+repo_url = "https://github.com/maltewinckler/swen"
+repo_name = "maltewinckler/swen"
+edit_uri = "edit/main/docs/"
+extra_css = ["assets/gallery/gallery.css"]
+extra_javascript = ["assets/gallery/gallery.js"]
+
+nav = [
+    {"Home" = "index.md"},
+    {"Concepts" = [
+        "concepts/index.md",
+        {"Double-Entry Bookkeeping" = "concepts/double-entry.md"},
+        {"Domain Model" = "concepts/domain-model.md"},
+        {"Deduplication" = "concepts/deduplication.md"},
+    ]},
+    {"Machine Learning" = [
+        "ml/index.md",
+        {"Classification Pipeline" = "ml/pipeline.md"},
+        {"Embeddings" = "ml/embeddings.md"},
+        {"Web Enrichment" = "ml/enrichment.md"},
+    ]},
+    {"Deployment" = [
+        "deployment/index.md",
+        {"Docker Deployment" = "deployment/docker.md"},
+        {"Bare Metal / Dev" = "deployment/bare-metal.md"},
+    ]},
+    {"FinTS Bank Connection" = "fints.md"},
+    {"Developer Guide" = [
+        "dev/index.md",
+        {"Architecture" = "dev/architecture.md"},
+        {"Backend" = "dev/backend.md"},
+        {"Frontend" = "dev/frontend.md"},
+        {"ML Service" = "dev/ml-service.md"},
+        {"Database" = "dev/database.md"},
+        {"Testing" = "dev/testing.md"},
+        {"CI / GitHub Actions" = "dev/ci.md"},
+        {"Release Process" = "dev/releasing.md"},
+    ]},
+    {"Contributing" = [
+        "contributing/index.md",
+        {"Dev Setup" = "contributing/setup.md"},
+        {"Conventions" = "contributing/conventions.md"},
+    ]},
+]
+
+# ---------------------------------------------------------------------------
+# Theme
+# ---------------------------------------------------------------------------
+
+[project.theme]
+features = [
+    "navigation.tabs",
+    "navigation.sections",
+    "navigation.top",
+    "navigation.indexes",
+    "search.highlight",
+    "search.suggest",
+    "content.code.copy",
+    "content.action.edit",
+]
+
+# Dark mode first = default; light mode second = manual override
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+# ---------------------------------------------------------------------------
+# Plugins
+# ---------------------------------------------------------------------------
+
+[project.plugins.search]
+
+# ---------------------------------------------------------------------------
+# Markdown extensions
+# ---------------------------------------------------------------------------
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.tables]
+
+[project.markdown_extensions.toc]
+permalink = true
+
+[project.markdown_extensions.pymdownx.details]
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.snippets]
+
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+    {name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format"},
+]
+
+[project.markdown_extensions.pymdownx.emoji]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"

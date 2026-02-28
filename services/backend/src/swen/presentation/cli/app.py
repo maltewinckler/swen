@@ -10,6 +10,8 @@ import typer
 from cryptography.fernet import Fernet
 from rich.console import Console
 
+from swen.presentation.cli.setup import setup_command
+
 app = typer.Typer(
     name="swen",
     help="SWEN - Secure Wallet & Expense Navigator CLI",
@@ -25,6 +27,7 @@ secrets_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(secrets_app)
+app.command("setup")(setup_command)
 
 
 @secrets_app.command("generate")
