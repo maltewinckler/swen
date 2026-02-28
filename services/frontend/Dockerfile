@@ -1,5 +1,5 @@
 # SWEN Frontend Dockerfile
-# Multi-stage build: Node.js for building, Node.js for serving
+# Multi-stage build: Node.js for building, nginx for serving
 
 # ============================================
 # Stage 1: Build the React application
@@ -24,19 +24,35 @@ RUN npx @tanstack/router-cli generate
 RUN npm run build
 
 # ============================================
-# Stage 2: Serve built assets (vite preview)
+# Stage 2: Serve built assets with nginx
 # ============================================
-FROM node:24-alpine AS runtime
+FROM nginx:1.29-alpine AS runtime
 
-WORKDIR /app
+ARG VERSION=dev
 
-# Copy what we need to run `vite preview`
-COPY --from=builder /app/package.json /app/package-lock.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/vite.config.ts ./
+# Remove default nginx config and replace with ours
+RUN rm /etc/nginx/conf.d/default.conf
+COPY services/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Vite preview defaults to 4173 and binds to localhost; we override to 0.0.0.0:3000
+# Copy built assets from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# nginx by default runs as root but serves as 'nginx' user
+# run fully unprivileged
+# Use port 3000 (non-privileged) as set in nginx.conf
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /var/cache/nginx \
+    && chown -R nginx:nginx /var/log/nginx \
+    && touch /var/run/nginx.pid \
+    && chown nginx:nginx /var/run/nginx.pid
+
+USER nginx
+
+LABEL org.opencontainers.image.title="swen-frontend" \
+      org.opencontainers.image.description="SWEN Frontend" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="https://github.com/maltewinckler/swen"
+
 EXPOSE 3000
 
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["nginx", "-g", "daemon off;"]

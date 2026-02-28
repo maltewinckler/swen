@@ -16,28 +16,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /bin/
 
 # Copy workspace root files and dependency files (for workspace dependencies)
 COPY pyproject.toml uv.lock ./
 COPY services/contracts ./services/contracts
 COPY services/backend/pyproject.toml ./services/backend/
 
-# Install dependencies (without the local packages yet)
+# Install dependencies (just heavy downloads first)
 RUN uv sync --frozen --no-dev --no-install-workspace --package swen-backend
-
-# Copy source code
+# Then copy source code
 COPY services/backend/src/swen ./services/backend/src/swen
 COPY services/backend/src/swen_identity ./services/backend/src/swen_identity
 COPY services/backend/src/swen_config ./services/backend/src/swen_config
-
-# Install the workspace packages
+# Install the local packages
 RUN uv sync --frozen --no-dev --package swen-backend
 
 # ============================================
 # Stage 2: Hardened Slim Runtime
 # ============================================
 FROM python:3.13-slim AS runtime
+
+# Version only for fallback for local builds, CI uses GH tag
+ARG VERSION=dev
 
 WORKDIR /app
 
@@ -65,6 +66,11 @@ ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+LABEL org.opencontainers.image.title="swen-backend" \
+      org.opencontainers.image.description="SWEN Backend API" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="https://github.com/maltewinckler/swen"
+
 # Create data and config directories
 RUN mkdir -p /app/data /app/config && chown -R nonroot:nonroot /app/data /app/config
 
@@ -73,10 +79,6 @@ USER nonroot
 
 # Expose API port
 EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl --fail --silent http://localhost:8000/health || exit 1
 
 # Default command: run the API server
 CMD ["python", "-m", "uvicorn", "swen.presentation.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

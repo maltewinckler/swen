@@ -179,7 +179,7 @@ convention = "numpy"
 ]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 typeCheckingMode = "basic"
 
 [tool.pytest.ini_options]
