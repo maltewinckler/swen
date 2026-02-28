@@ -2,7 +2,7 @@
 name = "swen-ml"
 version = "0.1.0"
 description = "ML Service for transaction classification"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     # API Framework
     "fastapi>=0.109.0",

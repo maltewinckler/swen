@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from swen_ml_contracts import HealthResponse
 
 from swen_ml.config.settings import get_settings
@@ -7,11 +7,14 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check(request: Request) -> HealthResponse:
+async def health_check(request: Request, response: Response) -> HealthResponse:
     """Check service health and model status."""
     settings = get_settings()
 
     encoder_loaded = hasattr(request.app.state, "encoder")
+
+    if not encoder_loaded:
+        response.status_code = 503
 
     return HealthResponse(
         status="ok" if encoder_loaded else "degraded",

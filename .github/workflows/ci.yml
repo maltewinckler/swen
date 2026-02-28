@@ -8,6 +8,22 @@ on:
 
 jobs:
   # ===========================================================================
+  # Lock file integrity check
+  # ===========================================================================
+  check-lockfile:
+    name: Check uv.lock is up to date
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Verify lock file is consistent with pyproject.toml
+        run: uv lock --check
+
+  # ===========================================================================
   # Backend: Python linting with Ruff
   # ===========================================================================
   lint-backend:
