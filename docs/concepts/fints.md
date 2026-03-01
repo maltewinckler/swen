@@ -1,4 +1,8 @@
-# FinTS Credentials
+# FinTS / HBCI
+
+FinTS (Financial Transaction Services), formerly known as HBCI (Home Banking Computer Interface), is a bank-independent protocol for online banking, developed and used by German banks (cf. [Wikipedia](https://en.wikipedia.org/wiki/FinTS)).
+
+The banking sector is highly regulated. This means, the German banking industry (Deutsche Kreditwirtschaft) requires all FinTS software to be registered. This requirement has been in force since 2020. Banks will reject connections from unregistered software. The registration is **free** and typically approved within a **few weeks** (yes, German bureaucracy...).
 
 To connect SWEN to your German bank you need two things from Deutsche Kreditwirtschaft:
 
@@ -7,23 +11,23 @@ To connect SWEN to your German bank you need two things from Deutsche Kreditwirt
 
 Both are configured through the SWEN admin UI — no config file editing needed after the initial setup.
 
-## Why You Need a Product ID
-
-The German banking industry (Deutsche Kreditwirtschaft) requires all FinTS software to be registered. This requirement has been in force since 2020. Banks will reject connections from unregistered software.
-
-The registration is **free** and typically approved within a few business days.
-
-## Registering
+## Registeration
 
 1. Go to [fints.org/de/hersteller/produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung)
 2. Fill out the form:
-   - **Produktname**: e.g. "SWEN Personal Finance"
-   - **Produktversion**: `0.1`
-   - **Hersteller**: your name or organisation
-   - **Produktart**: "Privatanwender-Software" works fine for self-hosted use
+2. Fill out the form:
+
+    - **Produktname**: e.g. "SWEN Personal Finance"
+
+    - **Produktversion**: `0.1`
+
+    - **Hersteller**: your name or organisation
+
+    - **Produktart**: "Privatanwender-Software" works fine for self-hosted use
+
 3. Submit — you will receive a confirmation email with your **Product ID** and a **CSV file** of bank routing data
 
-## Configuring in SWEN
+## Configuration in SWEN
 
 Once SWEN is running:
 
@@ -51,7 +55,7 @@ SWEN currently supports the **decoupled push-TAN** method (used by apps like Sec
 
 ## Finding Your Bank
 
-Not all German banks support FinTS. Check the [Subsembly bank list](https://subsembly.com/banken.html) for an (admittedly outdated) overview of supported banks and their BLZ.
+Unfortunately, not all German banks support FinTS (very young banks like N26 or Scalable Capital for example). Check the [Subsembly bank list](https://subsembly.com/banken.html) for an (admittedly outdated) overview of supported banks and their BLZ.
 
 ## Known Limitations
 

@@ -75,11 +75,10 @@ erDiagram
 
 | Table | Description |
 |---|---|
-| `examples` | Stored transaction texts with known counter-account |
-| `embeddings` | Pre-computed embedding vectors (binary, 1024-dim float32) |
-| `anchor_ibans` | Tier 0: IBAN → account_id mapping |
-| `keyword_patterns` | Tier 2: user-defined regex patterns |
-| `enrichment_cache` | SearXNG result cache (keyed by counterparty name) |
+| `user_examples` | Stored transaction texts with known counter-account + embedding vector |
+| `anchor_embeddings` | Per-account anchor embeddings (account name/description encoded as vectors for cold-start classification) |
+| `user_noise_models` | Per-user IDF noise model (tracks boilerplate token frequencies) |
+| `enrichment_cache` | SearXNG result cache (keyed by query hash, with expiry TTL) |
 
 ## Backups
 

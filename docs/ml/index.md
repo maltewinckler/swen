@@ -1,6 +1,6 @@
 # Machine Learning
 
-SWEN includes a self-contained ML service that **automatically classifies transactions** by predicting which counter-account should be assigned.
+SWEN includes a self-contained ML service that **automatically classifies transactions** by predicting which counter-account should be assigned. For example, a transaction to REWE will be assigned to something like 'Groceries'. This task is intricate because the user has total freedom **how to define the categories**.
 
 <!-- SCREENSHOT: classification-result.png — A transaction with AI-suggested counter-account and confidence badge -->
 ![Classification result](../assets/screenshots/classification-result.png)
@@ -15,9 +15,9 @@ When a `BankTransaction` is imported, SWEN calls the ML service to predict the m
 
 | Phase | Behaviour |
 |---|---|
-| **Cold start** (no examples yet) | Falls back to keyword patterns (Tier 2) or manual (Tier 3) |
-| **Early use** (few examples) | Embedding similarity (Tier 1) may be unreliable; keyword patterns compensate |
-| **Steady state** (50+ examples per account) | Tier 1 embedding retrieval dominates with high confidence |
+| **Cold start** (no examples yet) | Uses the Anchor Classifier — embedding similarity between transaction text and account name embeddings. Web enrichment augments sparse descriptions |
+| **Early use** (few examples) | Example Classifier may be unreliable with few examples; Anchor Classifier compensates |
+| **Steady state** (50+ examples per account) | Example Classifier dominates; most transactions resolved before reaching the Anchor Classifier |
 
 ## Confidence Thresholds
 
@@ -26,8 +26,9 @@ Each prediction comes with a **confidence score** (0–1):
 | Score | Displayed as | Action required |
 |---|---|---|
 | ≥ 0.85 | High confidence | Auto-suggested; one click to post |
-| 0.60–0.84 | Medium confidence | Suggested with caution indicator |
-| < 0.60 | Low confidence | Falls through to next tier or shows "Needs review" |
+| 0.70–0.84 | Medium confidence | Suggested with caution indicator |
+| 0.35–0.69 | Low confidence | Anchor Classifier result — shown with low-confidence indicator |
+| < 0.35 | Unresolved | No suggestion aka “Needs review” |
 
 Thresholds are configurable via environment variables (see [ML Service internals](../dev/ml-service.md)).
 
@@ -44,12 +45,13 @@ The ML service is a separate **FastAPI** microservice that the backend calls ove
 
 ```mermaid
 graph LR
-    backend["Backend\n(FastAPI)"] -->|"POST /classify"| ml["ML Service\n(FastAPI :8100)"]
-    ml --> tier0["Tier 0\nIBAN Anchor"]
-    tier0 -->|no match| tier1["Tier 1\nEmbedding Similarity"]
-    tier1 -->|below threshold| tier2["Tier 2\nKeyword Patterns"]
-    tier2 -->|no match| tier3["Tier 3\nFallback / Manual"]
-    ml --> searxng["SearXNG\n(web enrichment)"]
+    backend["Backend<br>(FastAPI)"] -->|"POST /classify"| ml["ML Service<br>(FastAPI :8100)"]
+    ml --> pre["Preprocessing<br>(text cleaning)"]
+    pre --> example["Example Classifier<br>(embedding similarity)"]
+    example -->|unresolved| enrich["Enrichment<br>(keywords + SearXNG)"]
+    enrich --> anchor["Anchor Classifier<br>(cold start)"]
+    anchor -->|unresolved| fallback["Unresolved<br>(manual review)"]
+    enrich --> searxng["SearXNG<br>(web enrichment)"]
 ```
 
 For a deep dive into the pipeline see [Classification Pipeline](pipeline.md).

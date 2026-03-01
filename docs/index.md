@@ -1,8 +1,8 @@
-# SWEN
+# SWEN - Secure Wallet & Expense Navigator
 
-**Self-hosted personal accounting with German FinTS bank sync and AI-powered classification.**
+**Self-hosted personal accounting with German FinTS bank sync and ML classification.**
 
-SWEN is a privacy-first personal finance application you run on your own hardware. No cloud, no telemetry, no third party ever sees your bank data.
+SWEN is a privacy-first personal finance application you run on your own hardware. It is based on double-entry bookkeeping and unfolds its full power when automating bank imports with FinTS/HBCI. No cloud, no telemetry, no third party ever sees your bank data.
 
 <div class="swen-gallery" role="region" aria-label="Screenshots">
   <div class="swen-gallery__track">
@@ -30,7 +30,7 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
 </div>
 <p class="swen-gallery__caption"></p>
 
----
+
 
 ## Features
 
@@ -44,17 +44,15 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
 
     Every transaction is recorded as a proper journal entry. Full audit trail, no "lost" money. Define your own chart of accounts or start from a template.
 
--   :robot: **AI Classification**
+-   :robot: **ML Classification**
 
     A four-tier ML pipeline (IBAN anchor → embedding similarity → keyword patterns → fallback) automatically assigns counter-accounts. Learns from your corrections.
 
 -   :house: **Fully Self-Hosted**
 
-    Ships as a single `docker compose up` command. All data stays on your machine — no SaaS subscription, no data sharing.
+    Ships as a single `docker compose up` command. All data stays on your machine — no SaaS subscription, no data sharing, full transparency with open source.
 
 </div>
-
----
 
 ## Get Started in 5 Minutes
 
@@ -168,7 +166,7 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
     docker compose up -d
     ```
 
-    The wizard will ask for the environment (choose **Production**), registration mode, optional SMTP, then write `config/.env` automatically. Webapp can be reached on `http://localhost:3000` or use a reverse proxy (recommended!). First registered user becomes admin.
+    The wizard will ask for the environment (choose **Production**), registration mode (admin-only or free), and optional SMTP. Then it writes `config/.env` automatically. The webapp can be reached on port `3000`. The use a reverse proxy is highly recommended!. First registered user becomes admin.
 
     [:material-arrow-right: Full Docker guide](deployment/docker.md)
 
@@ -186,40 +184,26 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
 
     [:material-arrow-right: Bare-metal guide](deployment/bare-metal.md)
 
----
-
-## Core Principles
-
-!!! info "Philosophy"
-    - **Self-hosted first** — runs on a Raspberry Pi or a VPS, no cloud dependency
-    - **No telemetry** — zero data sent anywhere except your own bank
-    - **Double-entry discipline** — every euro in equals every euro out, auditable forever
-    - **Privacy by design** — FinTS credentials are encrypted at rest, never logged
-
----
-
 ## Architecture at a Glance
 
 ```mermaid
 graph LR
-    Browser["Browser\n(React)"] --> nginx["nginx\n:3000"]
-    nginx --> backend["Backend\n(FastAPI :8000)"]
+    Browser["Browser<br>(React)"] --> nginx["nginx<br>:3000"]
+    nginx --> backend["Backend<br>(FastAPI :8000)"]
     nginx --> backend
     backend --> postgres[("PostgreSQL")]
-    backend --> ml["ML Service\n(FastAPI :8100)"]
-    ml --> searxng["SearXNG\n(internal)"]
+    backend --> ml["ML Service<br>(FastAPI :8100)"]
+    ml --> searxng["SearXNG<br>(internal)"]
 ```
 
-All services run in the same Docker network — only port 3000 is exposed to the host.
-
----
+All services run in the same Docker network such that only port 3000 is exposed to the host.
 
 ## Status
 
 SWEN is at **v0.1**. It is a personal project, actively used and maintained. Key known limitations:
 
-- Only the decoupled app TAN method is fully tested across all banks
-- No Alembic migrations — schema is created fresh (existing data safe across updates)
+- Only the decoupled app TAN method (App based 2FA) is functional all banks
+- Not all banks are tested yet.
 - Frontend is largely AI-generated (React/TypeScript), pending thorough review
 
 See the [GitHub Issues](https://github.com/maltewinckler/swen/issues) for the current backlog.

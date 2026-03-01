@@ -1,50 +1,57 @@
 # Classification Pipeline
 
-SWEN's ML service uses a **four-tier pipeline** to classify transactions. Each tier is attempted in order; if a tier cannot produce a confident result, the next tier is tried.
+SWEN's ML service uses a **four-stage pipeline** to classify transactions. Each stage runs in order; the pipeline exits early once all transactions in a batch are resolved.
 
 ## Pipeline Overview
 
 ```mermaid
 flowchart TD
     input["BankTransaction\n(purpose, counterparty, amount, date)"]
-    input --> enrich["Web Enrichment\n(SearXNG lookup — optional)"]
-    enrich --> t0
+    input --> pre["Stage 1: Preprocessing\n(text cleaning, noise filtering)"]
+    pre --> example
 
-    t0{"Tier 0\nIBAN Anchor"}
-    t0 -->|"exact IBAN match"| result0["✅ High confidence\nresult"]
-    t0 -->|"no match"| t1
+    example{"Stage 2\nExample Classifier"}
+    example -->|"similarity ≥ threshold"| result1["✅ Resolved\ntier: example"]
+    example -->|"below threshold"| enrich
 
-    t1{"Tier 1\nEmbedding Similarity"}
-    t1 -->|"similarity ≥ threshold"| result1["✅ High/medium result"]
-    t1 -->|"below threshold"| t2
+    enrich["Stage 3: Enrichment\n(keywords + SearXNG — optional)"]
+    enrich --> anchor
 
-    t2{"Tier 2\nKeyword Patterns"}
-    t2 -->|"pattern matched"| result2["✅ Medium confidence\nresult"]
-    t2 -->|"no match"| t3
-
-    t3["Tier 3\nFallback / Manual"]
-    t3 --> result3["⚠️ Low confidence\n'Needs review'"]
+    anchor{"Stage 4\nAnchor Classifier"}
+    anchor -->|"similarity ≥ threshold"| result2["✅ Resolved\ntier: anchor"]
+    anchor -->|"below threshold"| unresolved["⚠️ Unresolved\ntier: unresolved — manual review"]
 ```
 
-## Tier 0 — IBAN Anchor
+## Stage 1 — Preprocessing
 
-**Fires when:** The transaction has a counterparty IBAN that exactly matches a known IBAN in the example store.
+**Always runs** on every transaction before any classifier.
 
-This is the most reliable tier. If you have ever received your salary from IBAN `DE12…` and classified it as "Salary", all future transactions from that IBAN are automatically classified as "Salary" with maximum confidence.
+The `TextCleaner` performs:
 
-**Confidence:** Always ≥ 0.95
+- **Payment provider stripping** — removes payment intermediary prefixes (`PAYPAL`, `SUMUP`, `ZETTLE`, `STRIPE`, `KLARNA`) from the counterparty name to expose the underlying merchant
+- **Separator normalisation** — converts `.`, `/`, `*` to spaces
+- **Noise filtering** — an IDF-based noise model learns which tokens are boilerplate for a user's bank (e.g. `KARTE`, `UHR`, reference numbers). High-frequency boilerplate tokens are stripped before embeddings are built.
 
-**Example:** `DE56 200 400 600 1234 5678` → previously classified as `Income / Salary` → new transaction from same IBAN → Tier 0 matches → confidence 0.97
+Preprocessing writes `cleaned_counterparty` and `cleaned_purpose` into the transaction context for all downstream stages.
 
-## Tier 1 — Embedding Similarity
+## Stage 2 — Example Classifier
 
-**Fires when:** Tier 0 finds no IBAN match, but there are stored example transactions.
+**Fires when:** The user's example store is non-empty.
 
-The transaction's text (purpose + counterparty name, optionally enriched via SearXNG) is encoded as a **vector embedding** using a sentence-transformer model. The embedding is compared against all stored example embeddings using **cosine similarity**.
+The transaction's cleaned text (`cleaned_counterparty` + `cleaned_purpose`) is encoded as a vector and compared against all stored **example transaction embeddings** using cosine similarity.
 
-The top-k nearest neighbours vote on the counter-account. If the top neighbour's similarity exceeds the configured threshold (default `0.75`), that account is returned.
+**Decision logic:**
 
-**Confidence:** Proportional to cosine similarity
+| Condition | Outcome |
+|---|---|
+| Top similarity ≥ **0.85** (high confidence) | Accepted |
+| Top similarity ≥ **0.70** *and* margin vs 2nd-best ≥ **0.10** | Accepted |
+| Otherwise | Not resolved — passes to Stage 3 |
+
+**Cold start behaviour:** If the example store is empty, this stage is skipped entirely.
+
+!!! note "No enrichment here"
+    The Example Classifier uses un-enriched text only. Enrichment is reserved for Stage 4 where it has the most impact on cold-start accuracy.
 
 **Example:**
 ```
@@ -53,37 +60,38 @@ Stored:   "REWE SAGT DANKE 123"     → embedding [0.11, 0.84, ...]
                                         similarity = 0.93 → "Groceries"
 ```
 
-**Cold start behaviour:** If fewer than 3 examples exist for any account, Tier 1 skips to avoid unreliable k-NN with too little data.
+## Stage 3 — Enrichment
 
-## Tier 2 — Keyword Patterns
+**Runs on:** Transactions not resolved by Stage 2.
 
-**Fires when:** Tiers 0 and 1 produce no confident result.
+The enrichment stage appends extra context to sparse transaction descriptions before the Anchor Classifier runs. Two methods are tried in order:
 
-A set of configurable regex / keyword patterns is matched against the transaction purpose. Patterns are defined per-user and cover common German merchants and transaction types.
+1. **Keyword enrichment** — each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match appends a descriptive phrase (e.g. `rewe` → `"REWE Lebensmittel Supermarkt"`). Fast O(m) lookup with no network call required.
+2. **Search enrichment** — if no keyword match and SearXNG is configured and reachable, a web search is performed for the counterparty name. The top result's title and first sentence are appended.
 
-**Confidence:** Fixed per pattern (typically 0.70)
+The enriched text is stored in the transaction context and used only by Stage 4.
 
-**Examples:**
-```
-"PAYPAL"            → "Online Shopping / Payments"
-"EDEKA|REWE|ALDI"  → "Groceries"
-"NETFLIX"           → "Subscriptions"
-"GEHALT|LOHN"      → "Income / Salary"
-```
+See [Web Enrichment](enrichment.md) for configuration details.
 
-See the admin UI under **Settings → ML → Keyword Patterns** to add or edit patterns.
+## Stage 4 — Anchor Classifier
 
-## Tier 3 — Fallback
+**Fires on:** Transactions still unresolved after Stage 3.
 
-**Fires when:** No other tier produces a match.
+Each account has a pre-computed **anchor embedding** — a vector of the account's name and description. The transaction's enriched text (counterparty + purpose + enrichment) is encoded and compared against all anchor embeddings using cosine similarity.
 
-Returns a low-confidence result with no account suggestion, marking the transaction as "Needs review". The user must manually assign the counter-account.
+If the best similarity exceeds the configured threshold (default **0.35**), that account is returned.
 
-**Confidence:** 0.0 — not shown as a prediction, shown as "Unclassified"
+**Cold start:** This is what enables classification with zero user history. Anchor embeddings are computed from account names when accounts are created, so the pipeline produces suggestions from day one.
+
+**Confidence:** Proportional to cosine similarity (typically 0.35–0.65 for anchor matches)
+
+## Unresolved
+
+If no stage produces a match above threshold, the pipeline returns `tier: "unresolved"` with `confidence: 0.0`. The transaction is marked **Needs review** — no account is suggested and the user assigns it manually. Every manual assignment becomes a new example for Stage 2.
 
 ## The Feedback Loop
 
-Every transaction you **post with a correction** (i.e. you changed the suggested account) is automatically added to the example store. This example is then used by Tier 1 on future similar transactions.
+Every transaction you **post with a correction** (i.e. you changed the suggested account) is automatically added to the example store and improves Stage 2 on future similar transactions.
 
 ```mermaid
 sequenceDiagram
@@ -92,21 +100,20 @@ sequenceDiagram
     participant MLService
 
     Backend->>MLService: POST /classify (transaction)
-    MLService-->>Backend: {account: "Groceries", confidence: 0.82, tier: 1}
+    MLService-->>Backend: {account: "Groceries", confidence: 0.82, tier: "example"}
     Backend-->>User: Draft transaction — suggested "Groceries"
     User->>Backend: POST /transactions/{id}/post (change to "Restaurants")
     Backend->>MLService: POST /examples (transaction + "Restaurants")
-    Note over MLService: New example stored — improves Tier 1 next time
+    Note over MLService: New example stored — improves Stage 2 next time
 ```
 
 ## ClassificationOrchestrator
 
-The `ClassificationOrchestrator` class in `swen_ml/inference/` coordinates the pipeline. It:
+The `ClassificationOrchestrator` class in `swen_ml/inference/classification/orchestrator.py` coordinates the full pipeline. It:
 
-1. Calls the enrichment service (optional, async with timeout)
-2. Runs Tier 0 (sync, O(1) IBAN lookup)
-3. Runs Tier 1 (vector similarity search against example store)
-4. Runs Tier 2 (regex pattern matching)
-5. Returns the first result that exceeds the confidence threshold
+1. Loads user-specific data from the database (examples, anchors, noise model)
+2. Observes incoming transaction texts to update the IDF noise model
+3. Builds and executes the four pipeline stages in sequence
+4. Exits early if all transactions are resolved before all stages complete
 
-Each tier returns a `ClassificationResult` with `account_id`, `confidence`, and `tier` (for transparency).
+The API response uses a `tier` field (`"example"` | `"anchor"` | `"unresolved"`) to indicate which stage resolved each transaction.

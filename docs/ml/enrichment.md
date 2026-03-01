@@ -4,12 +4,14 @@ Many bank transaction purposes are cryptic abbreviations like `KARTE 09.05 UM 14
 
 ## What Enrichment Does
 
-When a transaction arrives for classification, the enrichment step:
+Enrichment runs as **Stage 3** of the classification pipeline — after the Example Classifier and before the Anchor Classifier. It only processes transactions that were not resolved by the Example Classifier.
 
-1. Extracts the **counterparty name** (and optionally the purpose text)
-2. Searches a self-hosted **SearXNG** instance for information about that merchant
-3. Appends the top search result snippet to the transaction text
-4. Passes the enriched text to the embedding encoder
+When a transaction requires enrichment, two methods are tried in order:
+
+1. **Keyword lookup** — each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match immediately appends a descriptive phrase (e.g. `edeka` → `"EDEKA Lebensmittel Supermarkt"`) with no network call.
+2. **Web search** — if no keyword match, and SearXNG is configured and reachable, a search is performed for the counterparty name. The top result's title and first sentence are appended to the transaction text.
+
+The enriched text is then passed to the Anchor Classifier (Stage 4) only.
 
 **Example:**
 
@@ -32,10 +34,12 @@ SWEN uses [SearXNG](https://docs.searxng.org/) — a self-hosted, privacy-respec
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `SWEN_ML_ENRICHMENT_SEARXNG_URL` | *(none)* | URL of your SearXNG instance. Set to `http://searxng:8080` in Docker |
-| `SWEN_ML_ENRICHMENT_ENABLED` | `true` | Set to `false` to disable enrichment entirely |
-| `SWEN_ML_ENRICHMENT_TIMEOUT_SECONDS` | `3` | Max wait time per lookup |
-| `SWEN_ML_ENRICHMENT_CACHE_TTL_HOURS` | `168` | How long lookup results are cached (default: 7 days) |
+| `SWEN_ML_ENRICHMENT_SEARXNG_URL` | `http://localhost:8888` | URL of your SearXNG instance. Set to `http://searxng:8080` when using Docker Compose |
+| `SWEN_ML_ENRICHMENT_ENABLED` | `true` | Set to `false` to disable SearXNG-based enrichment (keyword enrichment still runs) |
+| `SWEN_ML_ENRICHMENT_SEARCH_TIMEOUT` | `5.0` | Max seconds to wait for a SearXNG response |
+| `SWEN_ML_ENRICHMENT_RATE_LIMIT_SECONDS` | `1.0` | Minimum seconds between SearXNG requests |
+| `SWEN_ML_ENRICHMENT_CACHE_TTL_DAYS` | `7` | How long search results are cached (in days) |
+| `SWEN_ML_ENRICHMENT_MAX_CACHE_SIZE` | `10000` | Maximum number of cached enrichment entries |
 
 Set these in `config/.env`:
 
@@ -74,4 +78,4 @@ If you prefer not to run SearXNG at all:
 1. Set `SWEN_ML_ENRICHMENT_ENABLED=false` in `config/.env`
 2. Comment out the `searxng` service in `docker-compose.yml`
 
-Classification still works via Tier 0 (IBAN anchor), Tier 1 (embeddings, slightly less effective), and Tier 2 (keyword patterns).
+Keyword enrichment (via `keywords_de.txt`) continues to run regardless. Classification still works via the Example Classifier and Anchor Classifier.

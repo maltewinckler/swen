@@ -8,13 +8,24 @@ The ML service is a separate **FastAPI** microservice (`swen-ml`), communicating
 services/ml/swen_ml/
 ├── api/            ← FastAPI app, routers (/classify, /examples, /health)
 ├── config/         ← pydantic-settings for ML-specific config
-├── data_models/    ← Pydantic request/response models
+├── data_models/    ← domain models (Anchor, Example, Noise, Enrichment)
 ├── inference/
-│   ├── orchestrator.py     ← ClassificationOrchestrator (4-tier pipeline)
-│   ├── anchor.py           ← Tier 0: IBAN exact match
-│   ├── similarity.py       ← Tier 1: embedding cosine similarity
-│   ├── patterns.py         ← Tier 2: keyword/regex patterns
-│   └── enrichment/         ← SearXNG web enrichment client
+│   ├── shared.py               ← SharedInfrastructure dataclass
+│   ├── _models/                ← Encoder protocol + backends (sentence-transformers, HuggingFace)
+│   └── classification/
+│       ├── orchestrator.py     ← ClassificationOrchestrator
+│       ├── tiers.py            ← PreprocessingTier, ExampleTier, EnrichmentTier, AnchorTier
+│       ├── context.py          ← PipelineContext, TransactionContext
+│       ├── result.py           ← ClassificationResult
+│       ├── classifiers/
+│       │   ├── anchor.py       ← AnchorClassifier (account embedding similarity)
+│       │   └── example.py      ← ExampleClassifier (user history k-NN)
+│       ├── enrichment/
+│       │   ├── service.py      ← EnrichmentService (keyword + SearXNG)
+│       │   ├── keywords/       ← FileKeywordAdapter + keywords_de.txt
+│       │   └── search/         ← SearXNGAdapter
+│       └── preprocessing/
+│           └── text_cleaner.py ← TextCleaner + NoiseModel
 ├── storage/        ← SQLAlchemy models + async repos (swen_ml DB)
 ├── training/       ← Example ingestion, embedding computation, storage
 └── evaluation/     ← Offline evaluation tooling (__main__.py)
@@ -25,7 +36,7 @@ services/ml/swen_ml/
 On startup, the ML service performs the following steps in order (FastAPI `lifespan`):
 
 1. **DB init** — Create `swen_ml` schema if it doesn't exist
-2. **Encoder load** — Load `gbert-large-paraphrase-cosine` from HuggingFace (or local cache)
+2. **Encoder load** — Load the configured sentence encoder from HuggingFace (or local cache); default: `paraphrase-multilingual-MiniLM-L12-v2`
 3. **Warm-up** — Run one dummy inference to compile CUDA/CPU kernels
 4. **Enrichment init** — Verify SearXNG connectivity (non-fatal if unreachable)
 5. **SharedInfrastructure** — Assemble the shared object and attach to `app.state`
@@ -39,10 +50,10 @@ All request handlers receive a `SharedInfrastructure` object via FastAPI `Depend
 ```python
 @dataclass
 class SharedInfrastructure:
-    encoder: SentenceTransformer
-    example_repo: ExampleRepository
-    enrichment_client: EnrichmentClient | None
-    config: MLConfig
+    encoder: Encoder          # protocol — sentence-transformers or HuggingFace backend
+    settings: Settings        # ML service config
+    keyword_adapter: KeywordPort | None = None    # keyword enrichment (always loaded)
+    searxng_adapter: SearXNGAdapter | None = None # web search enrichment (optional)
 ```
 
 This avoids re-loading the model on every request and centralises resource management.
@@ -56,11 +67,10 @@ The ML service uses its own **SQLite / PostgreSQL** database (`swen_ml`), separa
 - The main backend never reads ML storage directly
 
 Tables:
-- `examples` — stored transaction texts + their known counter-account
-- `embeddings` — pre-computed embedding vectors (stored as binary blobs)
-- `anchor_ibans` — IBAN → account_id mapping for Tier 0
-- `keyword_patterns` — user-defined regex patterns for Tier 2
-- `enrichment_cache` — SearXNG lookup results (keyed by counterparty name)
+- `user_examples` — stored transaction texts + their known counter-account + embedding vector
+- `anchor_embeddings` — per-account anchor embeddings (account name/description encoded as vectors)
+- `user_noise_models` — per-user IDF noise model (boilerplate token frequencies)
+- `enrichment_cache` — SearXNG lookup results (keyed by query hash, with TTL)
 
 ## Training Data Flow
 
@@ -70,11 +80,13 @@ sequenceDiagram
     participant Backend
     participant MLService
 
-    User->>Backend: POST /transactions/{id}/post\n(with corrected account)
-    Backend->>MLService: POST /examples\n{text, account_id, iban}
+    User->>Backend: POST /transactions/{id}/post
+(with corrected account)
+    Backend->>MLService: POST /examples
+{text, account_id, account_number}
     MLService->>MLService: Encode text → embedding vector
-    MLService->>MLService: Store in examples + embeddings tables
-    Note over MLService: Available for Tier 0/1 on next classify request
+    MLService->>MLService: Store in user_examples table
+    Note over MLService: Available for ExampleClassifier on next classify request
 ```
 
 The backend sends a training example whenever a transaction is posted **with a correction** (or on first post if no suggestion was made). No retraining loop — the example is immediately available for k-NN retrieval.

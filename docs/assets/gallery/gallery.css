@@ -3,7 +3,7 @@
 .swen-gallery {
   position: relative;
   max-width: 960px;
-  margin: 2rem auto;
+  margin: 2rem auto 0.5rem;
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
@@ -91,6 +91,6 @@
   text-align: center;
   font-size: 0.82rem;
   color: var(--md-default-fg-color--light);
-  margin-top: 0.5rem;
+  margin-top: 0.1rem;
   min-height: 1.4em;
 }

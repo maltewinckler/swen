@@ -4,26 +4,25 @@ SWEN's Tier 1 classification uses **sentence embeddings** to find transactions t
 
 ## The Model
 
-SWEN uses [`deutsche-telekom/gbert-large-paraphrase-cosine`](https://huggingface.co/deutsche-telekom/gbert-large-paraphrase-cosine) from HuggingFace.
+The encoder model is **configurable** via the `SWEN_ML_ENCODER_MODEL` environment variable. The default is:
+[`paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
 
-| Property | Value |
+| Property | Value (default model) |
 |---|---|
-| Architecture | BERT-large |
-| Language | German |
+| Architecture | MiniLM-L12 |
+| Language | Multilingual (50+ languages, including German) |
 | Training objective | Paraphrase similarity (cosine) |
-| Embedding dimension | 1024 |
-| Model size | ~1.5 GB |
-| Licence | MIT |
+| Embedding dimension | 384 |
+| Model size | ~120 MB |
+| Licence | Apache 2.0 |
 
-### Why German?
+### Why a paraphrase model?
 
-FinTS transaction purposes (`Verwendungszweck`) are almost always in German. Using a German-language BERT model gives significantly better semantic clustering than a multilingual model — German merchant names, abbreviations, and purpose text patterns are well-represented in the training data.
+FinTS transaction purposes (`Verwendungszweck`) contain many variations of the same merchant — `REWE MARKT 123 HAMBURG`, `REWE SAGT DANKE 456`. A paraphrase-optimised model is explicitly trained to embed such variations close to each other, making cosine similarity a reliable clustering signal.
 
-### Why `gbert-large-paraphrase-cosine`?
+### Custom models
 
-- **Paraphrase-optimised**: explicitly trained to produce similar embeddings for sentences that mean the same thing. "REWE MARKT 123 HAMBURG" and "REWE SAGT DANKE 456" both embed close to each other.
-- **Cosine distance**: embeddings are already normalised, so cosine similarity is the natural distance metric.
-- **Deutsche Telekom model**: tested extensively on German NLP benchmarks.
+Any model supported by the configured encoder backend can be substituted. For higher accuracy (at the cost of a larger download and slower inference), replace the default with a larger German-specific model such as [`deutsche-telekom/gbert-large-paraphrase-cosine`](https://huggingface.co/deutsche-telekom/gbert-large-paraphrase-cosine).
 
 ## HuggingFace Cache
 
@@ -50,17 +49,23 @@ The environment variable `HF_HOME` can override the cache directory.
 
 ## Encoder Backend
 
-SWEN uses `sentence-transformers` as the encoder backend. The `SentenceTransformer` class handles tokenisation, batching, and embedding extraction.
+SWEN supports two encoder backends, selected via `SWEN_ML_ENCODER_BACKEND`:
+
+| Backend | `SWEN_ML_ENCODER_BACKEND` value | Notes |
+|---|---|---|
+| `sentence-transformers` | `sentence-transformers` | Recommended — automatic pooling and normalisation |
+| HuggingFace `transformers` | `huggingface` | Manual pooling via `SWEN_ML_ENCODER_POOLING` (`mean` / `cls` / `max`) |
+
+**`sentence-transformers` example:**
 
 ```python
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer(
-    "deutsche-telekom/gbert-large-paraphrase-cosine",
-    cache_folder="/root/.cache/huggingface",
-)
+model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 embedding = model.encode("REWE MARKT 123 HAMBURG", normalize_embeddings=True)
 ```
+
+**HuggingFace backend** additionally respects `SWEN_ML_ENCODER_NORMALIZE`, `SWEN_ML_ENCODER_MAX_LENGTH`, and `SWEN_ML_ENCODER_POOLING`.
 
 ## Pooling Strategy
 
@@ -76,7 +81,12 @@ $$
 
 Since embeddings are already L2-normalised (`normalize_embeddings=True`), this reduces to a simple dot product — fast and numerically stable.
 
-The top-k nearest neighbours (k=5 by default) vote on the counter-account. If the top neighbour exceeds the confidence threshold, its account is returned.
+The **top-2** nearest neighbours are compared. A match is accepted when:
+
+- the best similarity ≥ **0.85** (high confidence), or
+- the best similarity ≥ **0.70** *and* the margin over the 2nd-best ≥ **0.10**
+
+The margin check prevents accepting an ambiguous result when two accounts score similarly close.
 
 ## Warm-up
 
