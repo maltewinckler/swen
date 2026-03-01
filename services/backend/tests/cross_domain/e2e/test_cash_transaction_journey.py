@@ -135,7 +135,7 @@ class TestCashTransactionJourney:
 
         # Step 6: View dashboard - should reflect expenses
         dashboard = test_client.get(
-            f"{api_v1_prefix}/dashboard/summary",
+            f"{api_v1_prefix}/dashboard/summary?days=30",
             headers=headers,
         )
         assert dashboard.status_code == 200

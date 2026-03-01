@@ -25,9 +25,10 @@ services/backend/tests/
 │   ├── unit/
 │   └── integration/
 ├── cross_domain/            ← Tests spanning multiple domains
-│   └── integration/
+│   ├── integration/
+│   └── e2e/                 ← Full user journeys (bank connection, cash transactions)
 ├── external/                ← Real bank connections (manual only)
-└── shared/fixtures/         ← Shared fixtures and utilities
+└── shared/                  ← Shared fixtures and utilities
 ```
 
 ## Running Tests

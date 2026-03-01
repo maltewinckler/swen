@@ -149,7 +149,7 @@ class TestUserOnboardingJourney:
 
         # Step 5: View dashboard to see the transaction reflected
         dashboard_response = test_client.get(
-            f"{api_v1_prefix}/dashboard/summary",
+            f"{api_v1_prefix}/dashboard/summary?days=30",
             headers=headers,
         )
         assert dashboard_response.status_code == 200

@@ -1,6 +1,6 @@
 # Double-Entry Bookkeeping
 
-SWEN records every transaction using **double-entry bookkeeping** — the same system banks, businesses, and accountants have used for 500 years. You do not need an accounting degree to use it, but knowing the basics makes SWEN's UI click into place.
+SWEN records every transaction using **double-entry bookkeeping** — the same system banks, businesses, and accountants have used for 500 years. In this section we try to explain the basics that can help a personal user.
 
 ## The Core Rule
 
@@ -24,18 +24,18 @@ SWEN uses the standard five account types:
 | **Income** | Money earned | Credit | Debit | Salary, interest |
 | **Expense** | Money spent | Debit | Credit | Groceries, rent |
 
-!!! tip "A useful shorthand"
-    For personal finance: Assets and Expenses go up on the **left** (debit); Liabilities, Equity, and Income go up on the **right** (credit).
+!!! tip "A note on Equity Accounts in SWEN"
+    When first synchronizing bank accounts, SWEN has to create an opening balance that virtually stands for the bank account balance at the day of the first imported transaction. This means, the bank account balance matches SWEN's account asset balance.
 
 ## A Worked Example
 
-You pay €85.00 at the supermarket. Your bank account (Asset) decreases; your Groceries expense account increases.
+You pay €7.80 at Starbucks (if you can drink that 'coffee'). Your bank account (Asset) decreases; your Restaurants & Bars expense account increases.
 
 | Account | Debit | Credit |
 |---|---|---|
-| Groceries (Expense) | €85.00 | |
-| Checking Account (Asset) | | €85.00 |
-| **Total** | **€85.00** | **€85.00** |
+| Restaurants & Bars (Expense) | €7.80 | |
+| Checking Account (Asset) | | 7.80 |
+| **Total** | **€7.80** | **€7.80** |
 
 In SWEN this looks like:
 
@@ -44,28 +44,7 @@ In SWEN this looks like:
 
 ## SWEN's Account Hierarchy
 
-```
-Assets
-├── Checking Account (DE12 3456 …)    ← linked to your BankAccount
-├── Savings Account
-└── Cash
-
-Liabilities
-└── Credit Card
-
-Equity
-└── Opening Balances
-
-Income
-├── Salary
-└── Interest
-
-Expenses
-├── Groceries
-├── Transport
-├── Rent
-└── …
-```
+In the UI, the accounts are grouped under their respective types.
 
 <!-- SCREENSHOT: accounts-chart-of-accounts.png — Chart of accounts tree (Asset / Liability / Equity / Income / Expense) -->
 ![Chart of accounts](../assets/screenshots/accounts-chart-of-accounts.png)
@@ -79,24 +58,19 @@ These two terms are often confused:
 | `BankAccount` | Your actual bank account with an IBAN | `DE12 3456 7890 0000 1234 56` |
 | `Account` | A bookkeeping ledger account | `Groceries (Expense)` |
 
-A `BankAccount` is **always linked to an `Account`** of type Asset. When you import a bank statement, raw `BankTransaction` records are created. SWEN then creates a double-entry `Transaction` (journal entry) that posts the movement between the Asset account (your bank) and the appropriate counter-account (e.g. Groceries).
+A `BankAccount` is **always linked to exactly one `Account`** of type Asset. When you import a bank statement, raw `BankTransaction` records are created. SWEN then creates a double-entry `Transaction` (journal entry) that posts the movement between the Asset account (your bank) and the appropriate counter-account (e.g. Groceries). The raw `BankTransaction` is also persisted in the database.
 
 ## Draft vs Posted Transactions
 
 | State | Meaning |
 |---|---|
-| **Draft** | AI has suggested a counter-account; awaiting your review |
-| **Posted** | You have confirmed the entry; included in all reports |
+| **Draft** | ML has suggested a counter-account; awaiting your review and changes |
+| **Posted** | You have confirmed the entry; included in all reports; immutable |
 
-Only **Posted** transactions affect your account balances. Drafts are work in progress.
+Drafts are work in progress but still affect account balances and can be shown in the analytics dashboard. When you click **Post** on a Draft transaction, SWEN:
 
-## What "Posting" Means
+1. Validates that debits equal credits again
+2. Records the journal entry permanently and makes them immutable
+3. Marks the linked `BankTransaction` as reconciled
 
-When you click **Post** on a Draft transaction, SWEN:
-
-1. Validates that debits equal credits
-2. Records the journal entry permanently
-3. Updates the running balance of all affected accounts
-4. Marks the linked `BankTransaction` as reconciled
-
-Posted transactions cannot be edited — they can only be reversed with a correcting entry (coming in a future version).
+Posted transactions must not be edited according to the double entry theory. To not make personal accounting too bureaucatic, we still allow to delete posted transactions. It is discouraged though.

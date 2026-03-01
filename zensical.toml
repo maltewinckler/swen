@@ -6,13 +6,18 @@ repo_url = "https://github.com/maltewinckler/swen"
 repo_name = "maltewinckler/swen"
 edit_uri = "edit/main/docs/"
 extra_css = ["assets/gallery/gallery.css"]
-extra_javascript = ["assets/gallery/gallery.js"]
+extra_javascript = [
+    "assets/gallery/gallery.js",
+    "assets/mathjax.js",
+    "https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js",
+]
 
 nav = [
     {"Home" = "index.md"},
     {"Concepts" = [
         "concepts/index.md",
         {"Double-Entry Bookkeeping" = "concepts/double-entry.md"},
+        {"FinTS Bank Connection" = "concepts/fints.md"},
         {"Domain Model" = "concepts/domain-model.md"},
         {"Deduplication" = "concepts/deduplication.md"},
     ]},
@@ -27,7 +32,6 @@ nav = [
         {"Docker Deployment" = "deployment/docker.md"},
         {"Bare Metal / Dev" = "deployment/bare-metal.md"},
     ]},
-    {"FinTS Bank Connection" = "fints.md"},
     {"Developer Guide" = [
         "dev/index.md",
         {"Architecture" = "dev/architecture.md"},
@@ -96,6 +100,9 @@ toggle.name = "Switch to dark mode"
 
 [project.markdown_extensions.toc]
 permalink = true
+
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true
 
 [project.markdown_extensions.pymdownx.details]
 
