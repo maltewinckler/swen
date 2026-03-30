@@ -41,8 +41,6 @@ members = [
 swen-ml-contracts = { workspace = true }
 swen-backend = { workspace = true }
 swen-ml = { workspace = true }
-# Git dependency for backend
-geldstrom = { git = "https://github.com/maltewinckler/geldstrom.git", branch = "main" }
 
 [tool.ruff]
 line-length = 88
