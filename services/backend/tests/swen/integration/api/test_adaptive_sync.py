@@ -23,6 +23,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects import BankAccount
+from swen.domain.banking.value_objects.bank_info import BankInfo
 
 
 @dataclass
@@ -41,39 +42,12 @@ class MockBankTransaction:
     end_to_end_id: str | None = None
 
 
-@dataclass
-class MockInstituteInfo:
-    """Mock FinTS institute info."""
-
-    blz: str
-    name: str
-    bic: str
-    city: str
-    endpoint_url: str
-
-
-@dataclass
-class MockBankAccount:
-    """Mock bank account."""
-
-    iban: str
-    account_number: str
-    account_holder: str
-    account_type: str
-    blz: str
-    bic: str
-    bank_name: str
-    currency: str
-    balance: Decimal | None = None
-    balance_date: datetime | None = None
-
-
-MOCK_INSTITUTE = MockInstituteInfo(
+MOCK_BANK_INFO = BankInfo(
     blz="12345678",
     name="Test Bank AG",
     bic="TESTDE00XXX",
-    city="Berlin",
-    endpoint_url="https://banking.test.de/fints",
+    organization=None,
+    is_fints_capable=True,
 )
 
 # Use real domain BankAccount instead of mock
@@ -120,14 +94,13 @@ def create_mock_transaction(
 
 @pytest.fixture
 def mock_fints_directory():
-    """Mock the FinTS institute directory."""
+    """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
-        new_callable=AsyncMock,
+        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
-        mock_dir = MagicMock()
-        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE
-        mock.return_value = mock_dir
+        mock_query = AsyncMock()
+        mock_query.execute.return_value = MOCK_BANK_INFO
+        mock.return_value = mock_query
         yield mock
 
 

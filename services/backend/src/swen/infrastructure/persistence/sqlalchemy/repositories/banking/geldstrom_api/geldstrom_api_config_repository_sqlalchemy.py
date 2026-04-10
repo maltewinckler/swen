@@ -14,7 +14,7 @@ from swen.infrastructure.banking.geldstrom_api.config import GeldstromApiConfig
 from swen.infrastructure.banking.geldstrom_api.config_repository import (
     GeldstromApiConfigRepository,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom_api_config_model import (  # NOQA: E501
+from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom_api.geldstrom_api_config_model import (  # NOQA: E501
     GeldstromApiConfigModel,
 )
 

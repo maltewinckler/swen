@@ -11,7 +11,7 @@ from io import StringIO
 
 import pytest
 
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.system.geldstrom.fints_configuration_service import (
     MAX_CSV_SIZE_BYTES,
     FinTSConfigurationService,
 )

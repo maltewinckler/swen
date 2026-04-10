@@ -27,7 +27,6 @@ class TestQueryTanMethodsQuery:
             blz="12345678",
             username="testuser",
             pin="testpin",
-            endpoint="https://bank.example.com/fints",
         )
 
     @pytest.fixture

@@ -69,6 +69,7 @@ class BankConnectionDispatcher(BankConnectionPort):
         return cls(
             fints_adapter=GeldstromAdapter(
                 config_repository=factory.fints_config_repository(),
+                fints_endpoint_repo=factory.fints_endpoint_repository(),
             ),
             api_adapter=GeldstromApiAdapter(
                 config_repository=factory.geldstrom_api_config_repository(),

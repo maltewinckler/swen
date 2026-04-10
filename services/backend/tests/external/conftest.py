@@ -12,10 +12,14 @@ from dataclasses import dataclass
 
 import pytest
 
+from swen.infrastructure.banking.geldstrom.fints_endpoint_repository import (
+    FinTSEndpointRepository,
+)
+
 
 @dataclass
-class BankCredentials:
-    """Bank credentials loaded from environment."""
+class BankTestCredentials:
+    """Bank credentials loaded from environment (test-only)."""
 
     blz: str
     username: str
@@ -23,7 +27,21 @@ class BankCredentials:
     endpoint: str
 
 
-def _load_credentials() -> BankCredentials | None:
+class InMemoryFinTSEndpointRepository(FinTSEndpointRepository):
+    """In-memory endpoint repo for external tests."""
+
+    def __init__(self, endpoints: dict[str, str] | None = None) -> None:
+        self._endpoints = dict(endpoints or {})
+
+    async def find_by_blz(self, blz: str) -> str | None:
+        return self._endpoints.get(blz)
+
+    async def save_batch(self, endpoints: dict[str, str]) -> int:
+        self._endpoints.update(endpoints)
+        return len(endpoints)
+
+
+def _load_credentials() -> BankTestCredentials | None:
     """Load credentials from environment variables."""
     blz = os.environ.get("FINTS_BLZ")
     username = os.environ.get("FINTS_USERNAME")
@@ -39,7 +57,7 @@ def _load_credentials() -> BankCredentials | None:
     assert pin is not None
     assert endpoint is not None
 
-    return BankCredentials(
+    return BankTestCredentials(
         blz=blz,
         username=username,
         pin=pin,

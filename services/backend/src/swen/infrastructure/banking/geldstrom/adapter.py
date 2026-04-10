@@ -42,6 +42,9 @@ if TYPE_CHECKING:
     from swen.infrastructure.banking.geldstrom.fints_config_repository import (
         FinTSConfigRepository,
     )
+    from swen.infrastructure.banking.geldstrom.fints_endpoint_repository import (
+        FinTSEndpointRepository,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +73,10 @@ class GeldstromAdapter(BankConnectionPort):
     def __init__(
         self,
         config_repository: FinTSConfigRepository | None = None,
+        fints_endpoint_repo: FinTSEndpointRepository | None = None,
     ) -> None:
         self._config_repository = config_repository
+        self._fints_endpoint_repo = fints_endpoint_repo
         self._client: FinTS3Client | None = None
         self._credentials: BankCredentials | None = None
         self._accounts_cache: list[BankAccount] | None = None
@@ -79,12 +84,22 @@ class GeldstromAdapter(BankConnectionPort):
         self._preferred_tan_method: str | None = None
         self._tan_medium: str | None = None
 
+    async def _resolve_endpoint(self, blz: str) -> str:
+        """Resolve the FinTS endpoint URL for a BLZ from the fints_endpoints table."""
+        if self._fints_endpoint_repo is not None:
+            url = await self._fints_endpoint_repo.find_by_blz(blz)
+            if url:
+                return url
+        msg = f"No FinTS endpoint found for BLZ {blz}"
+        raise BankConnectionError(msg)
+
     async def connect(self, credentials: BankCredentials) -> bool:
         try:
+            endpoint = await self._resolve_endpoint(credentials.blz)
             logger.info(
                 "Connecting to bank with BLZ %s at %s",
                 credentials.blz,
-                credentials.endpoint,
+                endpoint,
             )
 
             if self._preferred_tan_method:
@@ -96,7 +111,7 @@ class GeldstromAdapter(BankConnectionPort):
             product_id = await self._get_product_id()
             self._client = FinTS3Client(
                 bank_code=credentials.blz,
-                server_url=credentials.endpoint,
+                server_url=endpoint,
                 user_id=credentials.username.get_value(),
                 pin=credentials.pin.get_value(),
                 product_id=product_id,
@@ -264,17 +279,18 @@ class GeldstromAdapter(BankConnectionPort):
         credentials: BankCredentials,
     ) -> list[TANMethod]:
         try:
+            endpoint = await self._resolve_endpoint(credentials.blz)
             logger.info(
                 "Querying TAN methods for BLZ %s at %s",
                 credentials.blz,
-                credentials.endpoint,
+                endpoint,
             )
 
             # Create a temporary client to query TAN methods
             product_id = await self._get_product_id()
             client = FinTS3Client(
                 bank_code=credentials.blz,
-                server_url=credentials.endpoint,
+                server_url=endpoint,
                 user_id=credentials.username.get_value(),
                 pin=credentials.pin.get_value(),
                 product_id=product_id,

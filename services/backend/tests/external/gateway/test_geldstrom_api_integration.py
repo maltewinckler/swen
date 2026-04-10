@@ -93,7 +93,6 @@ def credentials():
         blz=blz,
         username=username,
         pin=pin,
-        endpoint=endpoint,
     )
 
 

@@ -14,7 +14,7 @@ from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 from swen.infrastructure.banking.geldstrom.fints_config_repository import (
     FinTSConfigRepository,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.fints_config_model import (  # NOQA: E501
+from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_config_model import (  # NOQA: E501
     FinTSConfigModel,
 )
 

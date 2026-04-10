@@ -14,7 +14,7 @@ from swen.application.queries.system import (
     GetFinTSConfigurationStatusQuery,
 )
 from swen.domain.shared.exceptions import ConflictError
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.system.geldstrom.fints_configuration_service import (
     FinTSConfigurationService,
 )
 from swen.presentation.api.dependencies import (

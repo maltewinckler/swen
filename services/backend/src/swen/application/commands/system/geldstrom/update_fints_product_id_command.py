@@ -1,4 +1,4 @@
-"""Command to upload FinTS institute CSV."""
+"""Command to update FinTS Product ID."""
 
 from __future__ import annotations
 
@@ -6,8 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen.infrastructure.banking.geldstrom.fints_config import UploadResult
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.system.geldstrom.fints_configuration_service import (
     FinTSConfigurationService,
 )
 
@@ -17,8 +16,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class UploadFinTSInstituteCSVCommand:
-    """Upload and process FinTS institute CSV file."""
+class UpdateFinTSProductIDCommand:
+    """Update the system-wide FinTS Product ID."""
 
     def __init__(
         self,
@@ -32,7 +31,7 @@ class UploadFinTSInstituteCSVCommand:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-    ) -> UploadFinTSInstituteCSVCommand:
+    ) -> UpdateFinTSProductIDCommand:
         """Create command from repository factory."""
         return cls(
             config_service=FinTSConfigurationService(
@@ -41,17 +40,11 @@ class UploadFinTSInstituteCSVCommand:
             admin_user_id=factory.current_user.user_id,
         )
 
-    async def execute(self, csv_content: bytes) -> UploadResult:
-        """Upload CSV with validation."""
-        result = await self._service.upload_csv(
-            csv_content=csv_content,
+    async def execute(self, product_id: str) -> None:
+        """Update Product ID with validation."""
+        await self._service.update_product_id(
+            product_id=product_id,
             admin_user_id=self._admin_user_id,
         )
 
-        logger.info(
-            "CSV uploaded by admin %s: %d institutes parsed",
-            self._admin_user_id,
-            result.institute_count,
-        )
-
-        return result
+        logger.info("Product ID updated by admin %s", self._admin_user_id)

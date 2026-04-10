@@ -38,6 +38,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
+from tests.external.conftest import InMemoryFinTSEndpointRepository
 
 # Load .env from repository root so we share credentials with other integration tests
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
@@ -102,7 +103,6 @@ def credentials(integration_enabled):  # noqa: ARG001
         blz=blz,
         username=username,
         pin=pin,
-        endpoint=endpoint,
     )
 
 
@@ -122,10 +122,18 @@ def tan_settings():
 
 
 @pytest.fixture(scope="module")
-async def connected_adapter(credentials, tan_settings):
+def fints_endpoint_repo():
+    """In-memory endpoint repo seeded from FINTS_ENDPOINT env var."""
+    blz = os.getenv("FINTS_BLZ", "")
+    endpoint = os.getenv("FINTS_ENDPOINT", "")
+    return InMemoryFinTSEndpointRepository({blz: endpoint})
+
+
+@pytest.fixture(scope="module")
+async def connected_adapter(credentials, tan_settings, fints_endpoint_repo):
     """Provide a connected Geldstrom adapter for fetching real data."""
 
-    adapter = GeldstromAdapter()
+    adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
     adapter.set_tan_method(tan_settings["tan_method"])
     adapter.set_tan_medium(tan_settings["tan_medium"])
 

@@ -21,7 +21,7 @@ from swen.application.queries.system import (
     GetFinTSConfigurationStatusQuery,
 )
 from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.system.geldstrom.fints_configuration_service import (
     FinTSConfigurationService,
 )
 
@@ -167,6 +167,8 @@ class TestUploadFinTSInstituteCSVCommand:
         command = UploadFinTSInstituteCSVCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
+            bank_info_repo=AsyncMock(),
+            fints_endpoint_repo=AsyncMock(),
         )
 
         with pytest.raises(ValueError, match="Invalid CSV"):
