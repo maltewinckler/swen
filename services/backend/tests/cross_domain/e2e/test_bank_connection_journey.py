@@ -165,14 +165,14 @@ def mock_bank_adapter():
 
     with (
         patch(
-            "swen.presentation.api.routers.credentials.GeldstromAdapter"
+            "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_adapter_class_router,
         patch(
-            "swen.application.commands.banking.bank_connection_command.GeldstromAdapter"
+            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
         ) as mock_adapter_class_command,
     ):
-        mock_adapter_class_router.return_value = adapter_instance
-        mock_adapter_class_command.return_value = adapter_instance
+        mock_adapter_class_router.from_factory.return_value = adapter_instance
+        mock_adapter_class_command.from_factory.return_value = adapter_instance
         yield adapter_instance
 
 
@@ -180,7 +180,7 @@ def mock_bank_adapter():
 def mock_sync_adapter():
     """Mock the adapter for sync operations."""
     with patch(
-        "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+        "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
     ) as mock_adapter_class:
         adapter_instance = AsyncMock()
         adapter_instance.is_connected.return_value = False

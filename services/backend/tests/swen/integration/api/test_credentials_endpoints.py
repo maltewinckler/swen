@@ -387,7 +387,9 @@ class TestQueryTanMethods:
         "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
         new_callable=AsyncMock,
     )
-    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
+    @patch(
+        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+    )
     def test_query_tan_methods_success(
         self,
         mock_adapter_class,
@@ -405,7 +407,7 @@ class TestQueryTanMethods:
 
         # Mock the adapter instance
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
+        mock_adapter_class.from_factory.return_value = mock_adapter
 
         # Create async mock for get_tan_methods
         async def mock_get_tan_methods(credentials):
@@ -560,7 +562,9 @@ class TestQueryTanMethods:
         "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
         new_callable=AsyncMock,
     )
-    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
+    @patch(
+        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+    )
     def test_query_tan_methods_connection_failure(
         self,
         mock_adapter_class,
@@ -575,7 +579,7 @@ class TestQueryTanMethods:
         mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
+        mock_adapter_class.from_factory.return_value = mock_adapter
 
         async def mock_get_tan_methods_failure(credentials):
             raise Exception("Connection timeout")
@@ -599,7 +603,9 @@ class TestQueryTanMethods:
         "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
         new_callable=AsyncMock,
     )
-    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
+    @patch(
+        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+    )
     def test_query_tan_methods_invalid_credentials(
         self,
         mock_adapter_class,
@@ -614,7 +620,7 @@ class TestQueryTanMethods:
         mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
+        mock_adapter_class.from_factory.return_value = mock_adapter
 
         async def mock_get_tan_methods_auth_error(credentials):
             raise Exception("Authentication failed: invalid PIN")
@@ -638,7 +644,9 @@ class TestQueryTanMethods:
         "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
         new_callable=AsyncMock,
     )
-    @patch("swen.application.queries.banking.query_tan_methods_query.GeldstromAdapter")
+    @patch(
+        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+    )
     def test_query_tan_methods_empty_result(
         self,
         mock_adapter_class,
@@ -653,7 +661,7 @@ class TestQueryTanMethods:
         mock_directory.return_value = mock_dir
 
         mock_adapter = MagicMock()
-        mock_adapter_class.return_value = mock_adapter
+        mock_adapter_class.from_factory.return_value = mock_adapter
 
         async def mock_get_tan_methods_empty(credentials):
             return []
