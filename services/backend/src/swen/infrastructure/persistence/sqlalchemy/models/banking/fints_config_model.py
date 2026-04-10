@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -50,6 +51,14 @@ class FinTSConfigModel(Base, TimestampMixin):
     )
     csv_file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     csv_institute_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Provider active flag
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+    )
 
     # Audit fields (created_at and updated_at from TimestampMixin)
     created_by: Mapped[UUID] = mapped_column(

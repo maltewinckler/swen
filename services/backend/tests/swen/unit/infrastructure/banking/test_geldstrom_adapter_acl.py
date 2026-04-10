@@ -21,7 +21,7 @@ from geldstrom.domain import (
 
 from swen.domain.banking.value_objects.bank_account import BankAccount
 from swen.domain.banking.value_objects.bank_transaction import BankTransaction
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
 
 # ═══════════════════════════════════════════════════════════════
 #                     Fixtures for Mock Data

@@ -184,7 +184,7 @@ class TestGetConfigurationStatus:
     async def test_configured(self):
         from datetime import datetime, timezone
 
-        from swen.infrastructure.banking.fints_config import FinTSConfig
+        from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 
         repo = _make_mock_repository()
         repo.get_configuration.return_value = FinTSConfig(

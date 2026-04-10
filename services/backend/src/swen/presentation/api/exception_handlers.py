@@ -37,7 +37,7 @@ from swen.domain.shared.exceptions import (
     ErrorCode,
     ValidationError,
 )
-from swen.infrastructure.banking.fints_institute_directory import (
+from swen.infrastructure.banking.geldstrom.fints_institute_directory import (
     FinTSInstituteDirectoryError,
 )
 

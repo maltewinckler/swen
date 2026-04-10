@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from swen.infrastructure.banking.fints_config import FinTSConfig
+from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 
 
 class FinTSConfigRepository(ABC):

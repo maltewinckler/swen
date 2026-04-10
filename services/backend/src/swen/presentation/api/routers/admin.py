@@ -12,6 +12,9 @@ from swen.presentation.api.dependencies import (
 from swen.presentation.api.routers.admin_fints_config import (
     router as fints_config_router,
 )
+from swen.presentation.api.routers.admin_fints_provider import (
+    router as fints_provider_router,
+)
 from swen.presentation.api.schemas.admin import (
     CreateUserRequest,
     UpdateRoleRequest,
@@ -43,6 +46,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Include FinTS configuration sub-router
 router.include_router(fints_config_router)
+
+# Include FinTS provider management sub-router
+router.include_router(fints_provider_router)
 
 
 @router.get(

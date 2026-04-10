@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from swen.infrastructure.banking.fints_config_repository import (
+from swen.infrastructure.banking.geldstrom.fints_config_repository import (
     FinTSConfigRepository,
 )
 

@@ -12,10 +12,14 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transa
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking.fints_config_repository_sqlalchemy import (  # NOQA: E501
     FinTSConfigRepositorySQLAlchemy,
 )
+from swen.infrastructure.persistence.sqlalchemy.repositories.banking.geldstrom_api_config_repository_sqlalchemy import (  # NOQA: E501
+    GeldstromApiConfigRepositorySQLAlchemy,
+)
 
 __all__ = [
     "BankAccountRepositorySQLAlchemy",
     "BankCredentialRepositorySQLAlchemy",
     "BankTransactionRepositorySQLAlchemy",
     "FinTSConfigRepositorySQLAlchemy",
+    "GeldstromApiConfigRepositorySQLAlchemy",
 ]

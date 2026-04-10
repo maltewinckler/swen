@@ -28,7 +28,7 @@ from swen.domain.integration.value_objects import (
     RuleSource,
 )
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,

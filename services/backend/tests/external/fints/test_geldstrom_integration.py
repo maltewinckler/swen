@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
 
 warnings.filterwarnings(
     "ignore",

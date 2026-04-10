@@ -13,8 +13,7 @@ from swen.application.commands.banking import BankConnectionCommand
 from swen.application.queries import ListCredentialsQuery, QueryTanMethodsQuery
 from swen.application.queries.integration import BankConnectionDetailsQuery
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
-from swen.infrastructure.banking import GeldstromAdapter
-from swen.infrastructure.banking.fints_institute_directory import (
+from swen.infrastructure.banking.geldstrom.fints_institute_directory import (
     FinTSInstituteDirectoryError,
     get_fints_institute_directory_async,
 )
@@ -271,7 +270,11 @@ async def discover_bank_accounts(
     bank_name = institute_info.name if institute_info else f"Bank {blz}"
 
     # Connect and fetch accounts
-    adapter = GeldstromAdapter(config_repository=config_repo)
+    from swen.infrastructure.banking.bank_connection_dispatcher import (  # noqa: PLC0415
+        BankConnectionDispatcher,
+    )
+
+    adapter = BankConnectionDispatcher.from_factory(factory)
 
     if tan_method:
         adapter.set_tan_method(tan_method)

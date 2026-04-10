@@ -39,7 +39,7 @@ from swen.domain.shared.time import utc_now
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from swen.infrastructure.banking.fints_config_repository import (
+    from swen.infrastructure.banking.geldstrom.fints_config_repository import (
         FinTSConfigRepository,
     )
 
@@ -58,6 +58,13 @@ class GeldstromAdapter(BankConnectionPort):
     2. Translate geldstrom data structures to domain value objects
     3. Handle geldstrom-specific errors and convert to domain exceptions
     4. Manage geldstrom client lifecycle
+
+    Note: This adapter is stateful because it stores the credentials for the connection
+    and the polling. This is necessary because the FinTS protocol is stateful. However,
+    each http request creates a new instance of this adapter and there is no shared
+    state between requests. Thus, this does not cause issues in the current setup.
+
+    In the long term this should be redesigned to be architecturally bulletproof.
     """
 
     def __init__(

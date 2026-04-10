@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Optional
 
 from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.value_objects import BankCredentials, TANMethod
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -69,9 +71,7 @@ class QueryTanMethodsQuery:
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> QueryTanMethodsQuery:
         return cls(
-            bank_adapter=GeldstromAdapter(
-                config_repository=factory.fints_config_repository(),
-            ),
+            bank_adapter=BankConnectionDispatcher.from_factory(factory),
         )
 
     async def execute(

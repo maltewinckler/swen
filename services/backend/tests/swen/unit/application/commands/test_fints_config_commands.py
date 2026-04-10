@@ -20,7 +20,7 @@ from swen.application.queries.system import (
     GetFinTSConfigurationQuery,
     GetFinTSConfigurationStatusQuery,
 )
-from swen.infrastructure.banking.fints_config import FinTSConfig
+from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 from swen.infrastructure.system.fints_configuration_service import (
     FinTSConfigurationService,
 )

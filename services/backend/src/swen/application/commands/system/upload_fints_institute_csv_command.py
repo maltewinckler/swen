@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen.infrastructure.banking.fints_config import UploadResult
+from swen.infrastructure.banking.geldstrom.fints_config import UploadResult
 from swen.infrastructure.system.fints_configuration_service import (
     FinTSConfigurationService,
 )

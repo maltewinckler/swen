@@ -17,7 +17,7 @@ dependencies = [
     "cryptography>=46.0.3",
     "typer>=0.20.0",
     "rich>=13.7.0",
-    "geldstrom>=0.0.1",
+    "geldstrom==0.0.1",
     # Authentication (swen_auth)
     "bcrypt>=4.0.0",
     "PyJWT>=2.8.0",

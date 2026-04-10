@@ -9,9 +9,13 @@ from swen.infrastructure.persistence.sqlalchemy.models.banking.bank_transaction_
 from swen.infrastructure.persistence.sqlalchemy.models.banking.fints_config_model import (  # NOQA: E501
     FinTSConfigModel,
 )
+from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom_api_config_model import (  # NOQA: E501
+    GeldstromApiConfigModel,
+)
 
 __all__ = [
     "BankAccountModel",
     "BankTransactionModel",
     "FinTSConfigModel",
+    "GeldstromApiConfigModel",
 ]
