@@ -204,7 +204,7 @@ def mock_sync_adapter():
         )
         adapter_instance.set_tan_method = MagicMock()
         adapter_instance.set_tan_medium = MagicMock()
-        mock_adapter_class.return_value = adapter_instance
+        mock_adapter_class.from_factory.return_value = adapter_instance
         yield adapter_instance
 
 
