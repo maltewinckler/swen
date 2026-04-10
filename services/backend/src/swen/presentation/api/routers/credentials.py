@@ -11,13 +11,9 @@ from fastapi import APIRouter, HTTPException, status
 from swen.application.commands import StoreCredentialsCommand
 from swen.application.commands.banking import BankConnectionCommand
 from swen.application.queries import ListCredentialsQuery, QueryTanMethodsQuery
+from swen.application.queries.banking import LookupBankQuery
 from swen.application.queries.integration import BankConnectionDetailsQuery
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
-from swen.infrastructure.banking import GeldstromAdapter
-from swen.infrastructure.banking.fints_institute_directory import (
-    FinTSInstituteDirectoryError,
-    get_fints_institute_directory_async,
-)
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.schemas.credentials import (
     AccountImportInfo,
@@ -92,8 +88,8 @@ async def store_credentials(
     """
     Store bank credentials securely for automated sync.
 
-    The credentials are encrypted before storage. Bank information (name, endpoint)
-    is automatically looked up from the FinTS institute directory.
+    The credentials are encrypted before storage. Bank name is automatically
+    looked up from the bank information directory.
 
     Common TAN methods:
     - 946: SecureGo plus / Direktfreigabe (decoupled)
@@ -102,21 +98,14 @@ async def store_credentials(
     - 972: chipTAN optical
     - 982: photoTAN
     """
-    # Lookup bank info from institute directory
-    config_repo = factory.fints_config_repository()
-    try:
-        directory = await get_fints_institute_directory_async(config_repo)
-    except FinTSInstituteDirectoryError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        ) from e
-    institute_info = directory.find_by_blz(request.blz)
+    # Lookup bank info
+    lookup = LookupBankQuery.from_factory(factory)
+    bank_info = await lookup.execute(request.blz)
 
-    if institute_info is None:
+    if bank_info is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Bank with BLZ {request.blz} not found in institute directory",
+            detail=f"Bank with BLZ {request.blz} not found in bank directory",
         )
 
     # Create credentials value object
@@ -125,7 +114,6 @@ async def store_credentials(
             blz=request.blz,
             username=request.username,
             pin=request.pin,
-            endpoint=institute_info.endpoint_url,
         )
     except ValueError as e:
         logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
@@ -140,7 +128,7 @@ async def store_credentials(
     try:
         credential_id = await command.execute(
             credentials=credentials,
-            label=institute_info.name,
+            label=bank_info.name,
             tan_method=request.tan_method,
             tan_medium=request.tan_medium,
         )
@@ -155,7 +143,7 @@ async def store_credentials(
     return CredentialCreateResponse(
         credential_id=credential_id,
         blz=request.blz,
-        label=institute_info.name,
+        label=bank_info.name,
         message="Credentials stored successfully",
     )
 
@@ -259,19 +247,16 @@ async def discover_bank_accounts(
     tan_method, tan_medium = await query.get_tan_settings(blz)
 
     # Lookup bank name from institute directory
-    config_repo = factory.fints_config_repository()
-    try:
-        directory = await get_fints_institute_directory_async(config_repo)
-    except FinTSInstituteDirectoryError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        ) from e
-    institute_info = directory.find_by_blz(blz)
-    bank_name = institute_info.name if institute_info else f"Bank {blz}"
+    lookup = LookupBankQuery.from_factory(factory)
+    bank_info = await lookup.execute(blz)
+    bank_name = bank_info.name if bank_info else f"Bank {blz}"
 
     # Connect and fetch accounts
-    adapter = GeldstromAdapter(config_repository=config_repo)
+    from swen.infrastructure.banking.bank_connection_dispatcher import (  # noqa: PLC0415
+        BankConnectionDispatcher,
+    )
+
+    adapter = BankConnectionDispatcher.from_factory(factory)
 
     if tan_method:
         adapter.set_tan_method(tan_method)
@@ -503,21 +488,14 @@ async def query_tan_methods(
     - **sms**: SMS-based TAN
     - **manual**: Manual code entry
     """
-    # Lookup bank info from institute directory
-    config_repo = factory.fints_config_repository()
-    try:
-        directory = await get_fints_institute_directory_async(config_repo)
-    except FinTSInstituteDirectoryError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        ) from e
-    institute_info = directory.find_by_blz(request.blz)
+    # Lookup bank info
+    lookup = LookupBankQuery.from_factory(factory)
+    bank_info = await lookup.execute(request.blz)
 
-    if institute_info is None:
+    if bank_info is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Bank with BLZ {request.blz} not found in institute directory",
+            detail=f"Bank with BLZ {request.blz} not found in bank directory",
         )
 
     # Create credentials value object
@@ -526,7 +504,6 @@ async def query_tan_methods(
             blz=request.blz,
             username=request.username,
             pin=request.pin,
-            endpoint=institute_info.endpoint_url,
         )
     except ValueError as e:
         logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
@@ -539,7 +516,7 @@ async def query_tan_methods(
     query = QueryTanMethodsQuery.from_factory(factory)
 
     try:
-        result = await query.execute(credentials, institute_info.name)
+        result = await query.execute(credentials, bank_info.name)
     except Exception as e:
         error_msg = str(e).lower()
         if "authentication" in error_msg or "pin" in error_msg:
@@ -596,8 +573,7 @@ async def lookup_bank(
     """
     Lookup bank information by BLZ.
 
-    Returns FinTS endpoint URL and other information for a given bank code.
-    Uses the Deutsche Kreditwirtschaft institute directory.
+    Returns bank metadata for a given bank code.
     """
     # Validate BLZ format
     if not blz.isdigit() or len(blz) != 8:
@@ -606,28 +582,21 @@ async def lookup_bank(
             detail="BLZ must be exactly 8 digits",
         )
 
-    config_repo = factory.fints_config_repository()
-    try:
-        directory = await get_fints_institute_directory_async(config_repo)
-    except FinTSInstituteDirectoryError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e),
-        ) from e
-    info = directory.find_by_blz(blz)
+    lookup = LookupBankQuery.from_factory(factory)
+    info = await lookup.execute(blz)
 
     if info is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Bank with BLZ {blz} not found in institute directory",
+            detail=f"Bank with BLZ {blz} not found in bank directory",
         )
 
     return BankLookupResponse(
         blz=info.blz,
         name=info.name,
         bic=info.bic,
-        city=info.city,
-        endpoint_url=info.endpoint_url,
+        organization=info.organization,
+        is_fints_capable=info.is_fints_capable,
     )
 
 

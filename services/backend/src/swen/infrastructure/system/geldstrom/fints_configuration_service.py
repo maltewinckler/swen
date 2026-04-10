@@ -9,17 +9,17 @@ from uuid import UUID
 
 from swen.domain.shared.exceptions import ConflictError
 from swen.domain.shared.time import utc_now
-from swen.infrastructure.banking.fints_config import (
+from swen.infrastructure.banking.geldstrom.fints_config import (
     CSVValidationResult,
     FinTSConfig,
     FinTSConfigStatus,
     UploadResult,
     ValidationResult,
 )
-from swen.infrastructure.banking.fints_config_repository import (
+from swen.infrastructure.banking.geldstrom.fints_config_repository import (
     FinTSConfigRepository,
 )
-from swen.infrastructure.banking.fints_institute_directory import (
+from swen.infrastructure.banking.geldstrom.fints_institute_directory import (
     invalidate_fints_directory_cache,
 )
 

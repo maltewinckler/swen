@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
+from tests.external.conftest import InMemoryFinTSEndpointRepository
 
 warnings.filterwarnings(
     "ignore",
@@ -83,8 +84,15 @@ def credentials():
         blz=blz,
         username=username,
         pin=pin,
-        endpoint=endpoint,
     )
+
+
+@pytest.fixture(scope="module")
+def fints_endpoint_repo():
+    """Provide an in-memory endpoint repo seeded from FINTS_ENDPOINT env var."""
+    blz = os.getenv("FINTS_BLZ", "")
+    endpoint = os.getenv("FINTS_ENDPOINT", "")
+    return InMemoryFinTSEndpointRepository({blz: endpoint})
 
 
 @pytest.fixture(scope="module")
@@ -103,9 +111,9 @@ def tan_settings():
 
 
 @pytest.fixture(scope="module")
-async def connected_adapter(credentials, tan_settings):
+async def connected_adapter(credentials, tan_settings, fints_endpoint_repo):
     """Create and connect Geldstrom adapter (reused across tests in module)."""
-    adapter = GeldstromAdapter()
+    adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
 
     # Set TAN method/medium before connecting (required by some banks)
     adapter.set_tan_method(tan_settings["tan_method"])
@@ -130,9 +138,11 @@ class TestRealBankConnection:
     """
 
     @pytest.mark.asyncio
-    async def test_connect_to_bank(self, credentials, tan_settings):
+    async def test_connect_to_bank(
+        self, credentials, tan_settings, fints_endpoint_repo
+    ):
         """Verify successful connection to real bank."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -147,9 +157,9 @@ class TestRealBankConnection:
                 await adapter.disconnect()
 
     @pytest.mark.asyncio
-    async def test_disconnect(self, credentials, tan_settings):
+    async def test_disconnect(self, credentials, tan_settings, fints_endpoint_repo):
         """Verify clean disconnect."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -160,9 +170,11 @@ class TestRealBankConnection:
         assert not adapter.is_connected()
 
     @pytest.mark.asyncio
-    async def test_multiple_connect_disconnect_cycles(self, credentials, tan_settings):
+    async def test_multiple_connect_disconnect_cycles(
+        self, credentials, tan_settings, fints_endpoint_repo
+    ):
         """Verify connection can be established multiple times."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -179,14 +191,13 @@ class TestRealBankConnection:
         await adapter.disconnect()
 
     @pytest.mark.asyncio
-    async def test_connection_with_invalid_credentials_fails(self):
+    async def test_connection_with_invalid_credentials_fails(self, fints_endpoint_repo):
         """Verify that invalid credentials result in connection failure."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
         invalid_creds = BankCredentials.from_plain(
             blz="12345678",
             username="invalid_user",
             pin="invalid_pin",
-            endpoint="https://invalid.example.com/fints",
         )
 
         try:

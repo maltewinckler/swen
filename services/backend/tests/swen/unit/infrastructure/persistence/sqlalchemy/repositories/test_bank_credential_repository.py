@@ -80,7 +80,6 @@ class TestBankCredentialRepositorySave:
             blz="12345678",
             username="testuser",
             pin="1234",
-            endpoint="https://banking.test.de/fints",
         )
 
         # Act
@@ -99,7 +98,6 @@ class TestBankCredentialRepositorySave:
         assert isinstance(stored_cred, StoredBankCredentials)
         assert stored_cred.user_id == TEST_USER_ID
         assert stored_cred.blz == "12345678"
-        assert stored_cred.endpoint == "https://banking.test.de/fints"
         assert stored_cred.username_encrypted == b"encrypted_testuser"
         assert stored_cred.pin_encrypted == b"encrypted_1234"
         assert stored_cred.label == "Test Bank"
@@ -119,7 +117,6 @@ class TestBankCredentialRepositorySave:
             blz="50031000",
             username="testuser",
             pin="1234",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         # Act
@@ -149,7 +146,6 @@ class TestBankCredentialRepositoryFindByBlz:
             id="test-id-123",
             user_id=TEST_USER_ID,
             blz=blz,
-            endpoint="https://banking.test.de/fints",
             username_encrypted=b"encrypted_testuser",
             pin_encrypted=b"encrypted_1234",
             encryption_version=1,
@@ -177,7 +173,6 @@ class TestBankCredentialRepositoryFindByBlz:
         # Assert - returns decrypted BankCredentials
         assert isinstance(result, BankCredentials)
         assert result.blz == blz
-        assert result.endpoint == "https://banking.test.de/fints"
         assert result.username.get_value() == "testuser"
         assert result.pin.get_value() == "1234"
 
@@ -215,7 +210,6 @@ class TestBankCredentialRepositoryFindAll:
                 id="cred-id-1",
                 user_id=TEST_USER_ID,
                 blz="12345678",
-                endpoint="https://bank1.test.de/fints",
                 username_encrypted=b"encrypted_user1",
                 pin_encrypted=b"encrypted_pin1",
                 encryption_version=1,
@@ -231,7 +225,6 @@ class TestBankCredentialRepositoryFindAll:
                 id="cred-id-2",
                 user_id=TEST_USER_ID,
                 blz="87654321",
-                endpoint="https://bank2.test.de/fints",
                 username_encrypted=b"encrypted_user2",
                 pin_encrypted=b"encrypted_pin2",
                 encryption_version=1,

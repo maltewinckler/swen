@@ -10,11 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from swen.domain.security.services import EncryptionService
-from swen.infrastructure.banking.fints_config import FinTSConfig
-from swen.infrastructure.banking.fints_config_repository import (
+from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
+from swen.infrastructure.banking.geldstrom.fints_config_repository import (
     FinTSConfigRepository,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.fints_config_model import (  # NOQA: E501
+from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_config_model import (  # NOQA: E501
     FinTSConfigModel,
 )
 
@@ -59,6 +59,7 @@ class FinTSConfigRepositorySQLAlchemy(FinTSConfigRepository):
             created_by_id=str(model.created_by),
             updated_at=model.updated_at,
             updated_by_id=str(model.updated_by),
+            is_active=model.is_active,
         )
 
     async def save_configuration(
@@ -145,3 +146,33 @@ class FinTSConfigRepositorySQLAlchemy(FinTSConfigRepository):
         stmt = select(FinTSConfigModel.id).where(FinTSConfigModel.id == 1)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def activate(self, admin_user_id: UUID) -> None:
+        """Set is_active=True."""
+        existing = await self._session.get(FinTSConfigModel, 1)
+        if not existing:
+            msg = "Cannot activate: FinTS configuration does not exist"
+            raise ValueError(msg)
+        existing.is_active = True
+        existing.updated_at = datetime.now(timezone.utc)
+        existing.updated_by = admin_user_id
+        await self._session.flush()
+
+    async def deactivate(self, admin_user_id: UUID) -> None:
+        """Set is_active=False."""
+        existing = await self._session.get(FinTSConfigModel, 1)
+        if not existing:
+            return  # Nothing to deactivate
+        existing.is_active = False
+        existing.updated_at = datetime.now(timezone.utc)
+        existing.updated_by = admin_user_id
+        await self._session.flush()
+
+    async def is_active(self) -> bool:
+        """Check if configuration exists and is active."""
+        stmt = select(FinTSConfigModel.is_active).where(
+            FinTSConfigModel.id == 1,
+        )
+        result = await self._session.execute(stmt)
+        value = result.scalar_one_or_none()
+        return value is True

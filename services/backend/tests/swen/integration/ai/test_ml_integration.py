@@ -367,7 +367,7 @@ class TestClassificationDuringSyncMocked:
 
         # Run sync (with mocked bank adapter returning empty)
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
         ) as mock_adapter_class:
             from unittest.mock import AsyncMock
 
@@ -378,7 +378,7 @@ class TestClassificationDuringSyncMocked:
             adapter.set_tan_method = MagicMock()
             adapter.set_tan_medium = MagicMock()
             adapter.fetch_transactions = AsyncMock(return_value=[])
-            mock_adapter_class.return_value = adapter
+            mock_adapter_class.from_factory.return_value = adapter
 
             with patch(
                 "swen.presentation.api.dependencies.get_ml_client",

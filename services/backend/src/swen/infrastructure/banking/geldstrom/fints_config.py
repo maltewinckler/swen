@@ -22,6 +22,7 @@ class FinTSConfig:
     created_by_id: str
     updated_at: datetime
     updated_by_id: str
+    is_active: bool = True
     updated_by_email: str | None = None  # Populated via join
 
 
@@ -30,6 +31,7 @@ class FinTSConfigStatus:
     """Configuration status for display and validation."""
 
     is_configured: bool
+    is_active: bool = False
     has_product_id: bool = False
     has_csv: bool = False
     institute_count: int = 0

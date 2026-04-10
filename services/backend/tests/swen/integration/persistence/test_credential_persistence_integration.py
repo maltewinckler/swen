@@ -87,7 +87,6 @@ class TestCredentialPersistenceBasic:
             blz="50031000",
             username="testuser",
             pin="secretpin123",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         # Act - save credentials (repo is user-scoped, no need for user_id)
@@ -107,7 +106,6 @@ class TestCredentialPersistenceBasic:
         assert retrieved.blz == "50031000"
         assert retrieved.username.get_value() == "testuser"
         assert retrieved.pin.get_value() == "secretpin123"
-        assert retrieved.endpoint == "https://banking.triodos.de/fints"
 
     @pytest.mark.asyncio
     async def test_saved_credentials_are_encrypted_in_database(
@@ -121,7 +119,6 @@ class TestCredentialPersistenceBasic:
             blz="12345678",
             username="plainuser",
             pin="plainpin",
-            endpoint="https://banking.test.de/fints",
         )
 
         # Act - save credentials (repo is user-scoped)
@@ -182,19 +179,16 @@ class TestMultipleCredentials:
                 blz="50031000",
                 username="user_triodos",
                 pin="pin1",
-                endpoint="https://banking.triodos.de/fints",
             ),
             BankCredentials.from_plain(
                 blz="50050000",
                 username="user_dkb",
                 pin="pin2",
-                endpoint="https://banking.dkb.de/fints",
             ),
             BankCredentials.from_plain(
                 blz="12345678",
                 username="user_comdirect",
                 pin="pin3",
-                endpoint="https://banking.comdirect.de/fints",
             ),
         ]
         labels = ["Triodos Bank", "DKB", "Comdirect"]
@@ -239,14 +233,12 @@ class TestMultipleCredentials:
             blz="50031000",
             username="user1_name",
             pin="user1_pin",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         creds2 = BankCredentials.from_plain(
             blz="50031000",  # Same bank!
             username="user2_name",
             pin="user2_pin",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         # Act - save credentials for both users via their own repos
@@ -290,7 +282,6 @@ class TestCredentialManagement:
             blz="12345678",
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.test.de/fints",
         )
 
         await credential_repository.save(credentials, label="Test Bank")
@@ -335,7 +326,6 @@ class TestCredentialManagement:
             blz=blz,
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.test.de/fints",
         )
 
         await credential_repository.save(credentials, label="Test Bank")
@@ -402,14 +392,12 @@ class TestErrorHandling:
             blz="12345678",
             username="original_user",
             pin="original_pin",
-            endpoint="https://banking.test.de/fints",
         )
 
         credentials2 = BankCredentials.from_plain(
             blz="12345678",  # Same BLZ!
             username="updated_user",
             pin="updated_pin",
-            endpoint="https://banking.test.de/fints",
         )
 
         # Act - save first credentials
@@ -446,7 +434,6 @@ class TestErrorHandling:
             blz="12345678",
             username="user@example.com",
             pin="P@ssw0rd!#$%^&*()",
-            endpoint="https://banking.test.de/fints?param=value&foo=bar",
         )
 
         # Act
@@ -457,7 +444,6 @@ class TestErrorHandling:
         assert retrieved is not None
         assert retrieved.username.get_value() == "user@example.com"
         assert retrieved.pin.get_value() == "P@ssw0rd!#$%^&*()"
-        assert retrieved.endpoint == "https://banking.test.de/fints?param=value&foo=bar"
 
 
 # ============================================================================
@@ -483,7 +469,6 @@ class TestRealWorldScenarios:
             blz=blz,
             username="lifecycle_test",
             pin="test123",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         cred_id = await credential_repository.save(
@@ -532,7 +517,6 @@ class TestRealWorldScenarios:
                 blz=blz,
                 username=username,
                 pin=pin,
-                endpoint=f"https://banking.{label.lower()}.de/fints",
             )
             await credential_repository.save(creds, label=label)
 

@@ -11,7 +11,7 @@ from io import StringIO
 
 import pytest
 
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.system.geldstrom.fints_configuration_service import (
     MAX_CSV_SIZE_BYTES,
     FinTSConfigurationService,
 )
@@ -184,7 +184,7 @@ class TestGetConfigurationStatus:
     async def test_configured(self):
         from datetime import datetime, timezone
 
-        from swen.infrastructure.banking.fints_config import FinTSConfig
+        from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 
         repo = _make_mock_repository()
         repo.get_configuration.return_value = FinTSConfig(

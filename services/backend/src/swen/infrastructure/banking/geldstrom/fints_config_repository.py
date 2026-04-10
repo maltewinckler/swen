@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from swen.infrastructure.banking.fints_config import FinTSConfig
+from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
 
 
 class FinTSConfigRepository(ABC):
@@ -54,4 +54,19 @@ class FinTSConfigRepository(ABC):
     @abstractmethod
     async def exists(self) -> bool:
         """Check if configuration exists."""
+        ...
+
+    @abstractmethod
+    async def activate(self, admin_user_id: UUID) -> None:
+        """Set is_active=True."""
+        ...
+
+    @abstractmethod
+    async def deactivate(self, admin_user_id: UUID) -> None:
+        """Set is_active=False."""
+        ...
+
+    @abstractmethod
+    async def is_active(self) -> bool:
+        """Check if configuration exists and is active."""
         ...

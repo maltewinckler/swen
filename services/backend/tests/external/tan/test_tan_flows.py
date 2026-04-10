@@ -16,7 +16,8 @@ from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
+from tests.external.conftest import InMemoryFinTSEndpointRepository
 
 # Load environment variables from repository root
 root_dir = Path(__file__).parent.parent.parent.parent
@@ -65,8 +66,15 @@ def credentials():
         blz=blz,
         username=username,
         pin=pin,
-        endpoint=endpoint,
     )
+
+
+@pytest.fixture(scope="module")
+def fints_endpoint_repo():
+    """Provide an in-memory endpoint repo seeded from FINTS_ENDPOINT env var."""
+    blz = os.getenv("FINTS_BLZ", "")
+    endpoint_val = os.getenv("FINTS_ENDPOINT", "")
+    return InMemoryFinTSEndpointRepository({blz: endpoint_val})
 
 
 @pytest.fixture(scope="module")
@@ -94,7 +102,9 @@ class TestTANFlow:
     """
 
     @pytest.mark.asyncio
-    async def test_long_history_with_tan_polling(self, credentials, tan_settings):
+    async def test_long_history_with_tan_polling(
+        self, credentials, tan_settings, fints_endpoint_repo
+    ):
         """Fetch 200+ days of transactions - approve TAN in banking app when prompted.
 
         Geldstrom automatically detects when TAN is required and polls for
@@ -110,7 +120,7 @@ class TestTANFlow:
                 "to enable TAN flow (approve in banking app).",
             )
 
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 

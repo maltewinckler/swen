@@ -40,7 +40,6 @@ class StoredCredentialModel(Base, TimestampMixin):
 
     # Bank Identification (plaintext - not sensitive)
     blz: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
-    endpoint: Mapped[str] = mapped_column(String, nullable=False)
 
     # Encrypted Credentials (binary blobs)
     username_encrypted: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

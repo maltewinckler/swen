@@ -123,8 +123,8 @@ class BankLookupResponse(BaseModel):
     blz: str = Field(..., description="Bank code (BLZ)")
     name: str = Field(..., description="Bank name")
     bic: Optional[str] = Field(None, description="Bank BIC code")
-    city: Optional[str] = Field(None, description="Bank city")
-    endpoint_url: str = Field(..., description="FinTS endpoint URL")
+    organization: Optional[str] = Field(None, description="Parent organization")
+    is_fints_capable: bool = Field(True, description="Whether this bank supports FinTS")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -132,8 +132,8 @@ class BankLookupResponse(BaseModel):
                 "blz": "50031000",
                 "name": "Triodos Bank N.V. Deutschland",
                 "bic": "TRODDEF1",
-                "city": "Frankfurt am Main",
-                "endpoint_url": "https://banking-dkb.s-fints-pt-dkb.de/fints30",
+                "organization": None,
+                "is_fints_capable": True,
             },
         },
     )
