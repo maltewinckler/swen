@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from swen.infrastructure.banking.geldstrom.fints_config_repository import (
+    from swen.infrastructure.banking.local_fints.repositories.config_repository import (
         FinTSConfigRepository,
     )
 

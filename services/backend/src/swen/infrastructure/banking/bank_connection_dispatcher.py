@@ -17,6 +17,12 @@ from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.banking.value_objects.bank_transaction import BankTransaction
 from swen.domain.banking.value_objects.tan_challenge import TANChallenge
 from swen.domain.banking.value_objects.tan_method import TANMethod
+from swen.infrastructure.banking.geldstrom_api.adapter import (
+    GeldstromApiAdapter,
+)
+from swen.infrastructure.banking.local_fints.adapter import (
+    GeldstromAdapter,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -59,13 +65,6 @@ class BankConnectionDispatcher(BankConnectionPort):
         cls,
         factory: RepositoryFactory,
     ) -> BankConnectionDispatcher:
-        from swen.infrastructure.banking.geldstrom.adapter import (  # noqa: PLC0415
-            GeldstromAdapter,
-        )
-        from swen.infrastructure.banking.geldstrom_api.adapter import (  # noqa: PLC0415
-            GeldstromApiAdapter,
-        )
-
         return cls(
             fints_adapter=GeldstromAdapter(
                 config_repository=factory.fints_config_repository(),
@@ -98,10 +97,6 @@ class BankConnectionDispatcher(BankConnectionPort):
             self._resolved.set_tan_medium(self._buffered_tan_medium)
 
         return self._resolved
-
-    # ═══════════════════════════════════════════════════════════════
-    #           BankConnectionPort — async methods (delegated)
-    # ═══════════════════════════════════════════════════════════════
 
     async def connect(self, credentials: BankCredentials) -> bool:
         adapter = await self._resolve_adapter()

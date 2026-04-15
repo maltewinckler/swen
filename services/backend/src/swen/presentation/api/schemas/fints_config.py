@@ -1,31 +1,12 @@
-"""DTOs for FinTS configuration API endpoints."""
+"""DTOs for local FinTS configuration API endpoints."""
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
-
-
-class UpdateProductIDRequest(BaseModel):
-    """Request to update Product ID."""
-
-    product_id: str = Field(
-        ...,
-        min_length=1,
-        max_length=100,
-        description="FinTS Product ID from Deutsche Kreditwirtschaft",
-    )
-
-
-class UploadCSVResponse(BaseModel):
-    """Response after CSV upload."""
-
-    message: str
-    institute_count: int
-    file_size_kb: int
+from pydantic import BaseModel
 
 
 class FinTSConfigResponse(BaseModel):
-    """FinTS configuration details."""
+    """Local FinTS configuration details."""
 
     product_id_masked: str
     csv_institute_count: int
@@ -35,21 +16,15 @@ class FinTSConfigResponse(BaseModel):
 
 
 class ConfigStatusResponse(BaseModel):
-    """FinTS configuration status."""
+    """Local FinTS configuration status."""
 
     is_configured: bool
     message: str
 
 
-class MessageResponse(BaseModel):
-    """Generic message response."""
+class UpdateLocalFinTSConfigResponse(BaseModel):
+    """Response after creating or updating local FinTS configuration."""
 
     message: str
-
-
-class SaveInitialConfigResponse(BaseModel):
-    """Response after saving initial FinTS configuration."""
-
-    message: str
-    institute_count: int
-    file_size_kb: int
+    institute_count: int | None = None
+    file_size_kb: int | None = None

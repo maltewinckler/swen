@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
+from swen.infrastructure.banking.local_fints.models.config import FinTSConfig
 
 
 class FinTSConfigRepository(ABC):
@@ -48,7 +48,7 @@ class FinTSConfigRepository(ABC):
         institute_count: int,
         admin_user_id: UUID,
     ) -> None:
-        """Update only the CSV data, keeping Product ID unchanged."""
+        """Update only the CSV data (DB and CSV blob), keeping Product ID unchanged."""
         ...
 
     @abstractmethod

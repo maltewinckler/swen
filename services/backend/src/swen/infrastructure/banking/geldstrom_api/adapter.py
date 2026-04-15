@@ -121,8 +121,14 @@ class GeldstromApiAdapter(BankConnectionPort):
             )
 
             raw_accounts = result.get("accounts", [])
+            raw_balances = await self._fetch_balances(client, raw_accounts)
+            balance_by_iban = self._merge_balances(raw_accounts, raw_balances)
+
             self._accounts_cache = [
-                self._map_account(acc, self._credentials.blz) for acc in raw_accounts
+                self._map_account(
+                    acc, self._credentials.blz, balance_by_iban.get(acc.get("iban", ""))
+                )
+                for acc in raw_accounts
             ]
 
             logger.info(
@@ -136,6 +142,58 @@ class GeldstromApiAdapter(BankConnectionPort):
         except Exception as e:
             msg = f"Failed to fetch accounts via Geldstrom API: {e}"
             raise BankConnectionError(msg) from e
+
+    async def _fetch_balances(
+        self,
+        client: httpx.AsyncClient,
+        raw_accounts: list[dict[str, Any]],  # noqa: ARG002
+    ) -> list[dict[str, Any]]:
+        """Fetch raw balance dictionaries from /v1/banking/balances."""
+        if not self._credentials:
+            return []
+        try:
+            payload = self._build_base_payload(self._credentials)
+            result = await self._request_with_polling(
+                client,
+                "/v1/banking/balances",
+                payload,
+                self._credentials,
+            )
+            return result.get("balances", [])
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch balances; accounts will have no balance info: %s", e
+            )
+            return []
+
+    @staticmethod
+    def _merge_balances(
+        raw_accounts: list[dict[str, Any]],
+        raw_balances: list[dict[str, Any]],
+    ) -> dict[str, tuple[Decimal, datetime | None]]:
+        """Build an iban → (booked_balance, balance_date) mapping from raw API data."""
+        balance_by_account_id: dict[str, tuple[Decimal, datetime | None]] = {}
+        for bal in raw_balances:
+            account_id = bal.get("account_id")
+            raw_amount = bal.get("booked_amount")
+            if not account_id or raw_amount is None:
+                continue
+            with contextlib.suppress(Exception):
+                amount = Decimal(str(raw_amount))
+                bal_date: datetime | None = None
+                if raw_as_of := bal.get("as_of"):
+                    with contextlib.suppress(Exception):
+                        bal_date = datetime.fromisoformat(str(raw_as_of))
+                balance_by_account_id[account_id] = (amount, bal_date)
+
+        balance_by_iban: dict[str, tuple[Decimal, datetime | None]] = {}
+        for acc in raw_accounts:
+            account_id = acc.get("account_id")
+            iban = acc.get("iban")
+            if account_id and iban and account_id in balance_by_account_id:
+                balance_by_iban[iban] = balance_by_account_id[account_id]
+
+        return balance_by_iban
 
     async def fetch_transactions(
         self,
@@ -437,25 +495,19 @@ class GeldstromApiAdapter(BankConnectionPort):
     def _map_account(
         data: dict[str, Any],
         blz: str,
+        balance_info: tuple[Decimal, datetime | None] | None = None,
     ) -> BankAccount:
         iban = data.get("iban", "")
-        balance = None
-        raw_balance = data.get("balance")
-        if raw_balance is not None:
-            with contextlib.suppress(Exception):
-                balance = Decimal(str(raw_balance))
-
-        balance_date = None
-        raw_bd = data.get("balance_date")
-        if raw_bd:
-            with contextlib.suppress(Exception):
-                balance_date = datetime.fromisoformat(str(raw_bd))
+        balance: Decimal | None = None
+        balance_date: datetime | None = None
+        if balance_info is not None:
+            balance, balance_date = balance_info
 
         return BankAccount(
             iban=iban or f"UNKNOWN-{blz}",
             account_number=data.get("account_number", iban[:10] if iban else ""),
-            blz=data.get("blz", blz),
-            account_holder=data.get("owner", "Unknown"),
+            blz=data.get("bank_code", blz),
+            account_holder=data.get("owner_name") or "Unknown",
             account_type=data.get("product_name", "Unknown Account Type"),
             currency=data.get("currency", "EUR"),
             bic=data.get("bic"),

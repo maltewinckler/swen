@@ -7,11 +7,11 @@ from enum import Enum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen.infrastructure.banking.geldstrom.fints_config_repository import (
-    FinTSConfigRepository,
-)
 from swen.infrastructure.banking.geldstrom_api.config_repository import (
     GeldstromApiConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.config_repository import (
+    FinTSConfigRepository,
 )
 
 if TYPE_CHECKING:

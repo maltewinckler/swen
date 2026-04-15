@@ -122,7 +122,7 @@ export function OnboardingBankingProviderStep({
         </div>
         <CardTitle className="text-2xl">Banking Provider</CardTitle>
         <CardDescription className="text-base mt-2">
-          Choose how SWEN connects to your bank — via the Geldstrom API or a local FinTS setup.
+          Choose how SWEN connects to your bank (centralized Geldstrom API or local FinTS).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -155,8 +155,7 @@ export function OnboardingBankingProviderStep({
             <>
               <WizardInfoBanner>
                 <p className="text-sm text-text-secondary">
-                  The Geldstrom API handles the institute directory and product key centrally —
-                  no local CSV or product registration needed.
+                  The Geldstrom API handles the institute directory and product key centrally.
                 </p>
               </WizardInfoBanner>
 

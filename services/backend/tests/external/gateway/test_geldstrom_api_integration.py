@@ -160,6 +160,57 @@ class TestGeldstromApiConnect:
         assert not adapter.is_connected()
 
 
+class TestGeldstromApiBalances:
+    """Balance data is fetched and merged into the BankAccount domain objects."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_accounts_includes_balance(self, adapter, credentials):
+        """Every account returned by fetch_accounts must have a non-None balance."""
+        await adapter.connect(credentials)
+
+        accounts = await adapter.fetch_accounts()
+
+        assert len(accounts) >= 1, "Expected at least one account"
+        for account in accounts:
+            assert account.balance is not None, (
+                f"Account {account.iban} has no balance — "
+                "_fetch_and_merge_balances may not have worked"
+            )
+            assert account.balance_date is not None, (
+                f"Account {account.iban} has no balance_date"
+            )
+
+        await adapter.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_balance_is_decimal(self, adapter, credentials):
+        """Balance must be a Decimal so arithmetic in opening-balance logic works."""
+        await adapter.connect(credentials)
+
+        accounts = await adapter.fetch_accounts()
+        for account in accounts:
+            if account.balance is not None:
+                assert isinstance(account.balance, Decimal), (
+                    f"Expected Decimal balance, got {type(account.balance)}"
+                )
+
+        await adapter.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_second_fetch_accounts_uses_cache(self, adapter, credentials):
+        """fetch_accounts is cached; the second call must return identical objects."""
+        await adapter.connect(credentials)
+
+        first = await adapter.fetch_accounts()
+        second = await adapter.fetch_accounts()
+
+        assert first is second, (
+            "Expected the same cached list object on the second call"
+        )
+
+        await adapter.disconnect()
+
+
 class TestGeldstromApiTransactionsShort:
     """Short-range transaction fetches (≤90 days, no TAN)."""
 

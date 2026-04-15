@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
+from swen.infrastructure.banking.local_fints.adapter import GeldstromAdapter
 from tests.external.conftest import InMemoryFinTSEndpointRepository
 
 # Load environment variables from repository root

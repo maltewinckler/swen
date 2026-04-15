@@ -39,7 +39,7 @@ export async function saveGeldstromApiConfig(
   return api.put<{ message: string }>('/admin/fints_provider/geldstrom-api', {
     api_key: apiKey,
     endpoint_url: endpointUrl,
-  })
+  }, { timeout: 90_000 })
 }
 
 export async function activateProvider(

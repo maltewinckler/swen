@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _HEALTH_TIMEOUT = 10.0
-_LOOKUP_TIMEOUT = 30.0
+_LOOKUP_TIMEOUT = 60.0
 
 
 class GeldstromApiVerificationError(Exception):
@@ -94,12 +94,13 @@ class SaveGeldstromApiConfigCommand:
         try:
             async with httpx.AsyncClient(timeout=_LOOKUP_TIMEOUT) as client:
                 response = await client.get(
-                    f"{endpoint_url}/v1/banking/lookup",
+                    f"{endpoint_url}/v1/lookup",
                     headers={"Authorization": f"Bearer {api_key}"},
                 )
                 response.raise_for_status()
 
-            entries = response.json()
+            data = response.json()
+            entries = data.get("banks", []) if isinstance(data, dict) else data
             if not isinstance(entries, list):
                 logger.warning("Unexpected lookup response format")
                 return

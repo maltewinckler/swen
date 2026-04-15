@@ -13,6 +13,7 @@ class FinTSEndpointRepository(ABC):
     @abstractmethod
     async def find_by_blz(self, blz: str) -> str | None:
         """Return the FinTS endpoint URL for the given BLZ, or None."""
+        ...
 
     @abstractmethod
     async def save_batch(self, endpoints: dict[str, str]) -> int:
@@ -20,3 +21,4 @@ class FinTSEndpointRepository(ABC):
 
         Returns the number of records upserted.
         """
+        ...

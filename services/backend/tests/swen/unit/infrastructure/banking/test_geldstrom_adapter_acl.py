@@ -21,7 +21,7 @@ from geldstrom.domain import (
 
 from swen.domain.banking.value_objects.bank_account import BankAccount
 from swen.domain.banking.value_objects.bank_transaction import BankTransaction
-from swen.infrastructure.banking.geldstrom.adapter import GeldstromAdapter
+from swen.infrastructure.banking.local_fints.adapter import GeldstromAdapter
 
 # ═══════════════════════════════════════════════════════════════
 #                     Fixtures for Mock Data
@@ -376,6 +376,88 @@ class TestACLRobustness:
         result = adapter._find_geldstrom_account("DE89370400440532013000")
 
         assert result is None
+
+
+# ═══════════════════════════════════════════════════════════════
+#                       TAN Method Mapping
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestTANMethodMapping:
+    """Test that TANMethod objects are correctly mapped from geldstrom 0.1.x.
+
+    geldstrom 0.1.x removed the `method_type` field from TANMethod.
+    The adapter now derives TANMethodType from the `is_decoupled` flag.
+    """
+
+    def test_map_decoupled_tan_method(self, adapter):
+        """Decoupled TAN method should map to TANMethodType.DECOUPLED."""
+        from geldstrom import TANMethod as GeldstromTANMethod
+
+        from swen.domain.banking.value_objects.tan_method import TANMethodType
+
+        geldstrom_method = GeldstromTANMethod(
+            code="946",
+            name="SecureGo plus (Direktfreigabe)",
+            is_decoupled=True,
+            decoupled_max_polls=60,
+            decoupled_first_poll_delay=5,
+            decoupled_poll_interval=3,
+            supports_cancel=True,
+        )
+
+        result = adapter._map_tan_method(geldstrom_method)
+
+        assert result.code == "946"
+        assert result.name == "SecureGo plus (Direktfreigabe)"
+        assert result.method_type == TANMethodType.DECOUPLED
+        assert result.is_decoupled is True
+        assert result.decoupled_max_polls == 60
+        assert result.decoupled_first_poll_delay == 5
+        assert result.decoupled_poll_interval == 3
+        assert result.supports_cancel is True
+
+    def test_map_non_decoupled_tan_method(self, adapter):
+        """Non-decoupled TAN method should map to TANMethodType.UNKNOWN."""
+        from geldstrom import TANMethod as GeldstromTANMethod
+
+        from swen.domain.banking.value_objects.tan_method import TANMethodType
+
+        geldstrom_method = GeldstromTANMethod(
+            code="942",
+            name="mobile TAN",
+            is_decoupled=False,
+        )
+
+        result = adapter._map_tan_method(geldstrom_method)
+
+        assert result.code == "942"
+        assert result.name == "mobile TAN"
+        assert result.method_type == TANMethodType.UNKNOWN
+        assert result.is_decoupled is False
+
+    def test_map_tan_method_preserves_technical_fields(self, adapter):
+        """All technical fields should be preserved during mapping."""
+        from geldstrom import TANMethod as GeldstromTANMethod
+
+        geldstrom_method = GeldstromTANMethod(
+            code="972",
+            name="Smart-TAN plus optisch / USB",
+            is_decoupled=False,
+            technical_id="TECH123",
+            zka_id="ZKA456",
+            zka_version="1.0",
+            max_tan_length=8,
+            supports_multiple_tan=True,
+        )
+
+        result = adapter._map_tan_method(geldstrom_method)
+
+        assert result.technical_id == "TECH123"
+        assert result.zka_id == "ZKA456"
+        assert result.zka_version == "1.0"
+        assert result.max_tan_length == 8
+        assert result.supports_multiple_tan is True
 
 
 # ═══════════════════════════════════════════════════════════════

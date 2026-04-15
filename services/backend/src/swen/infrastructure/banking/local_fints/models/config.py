@@ -56,8 +56,8 @@ class CSVValidationResult:
 
 
 @dataclass(frozen=True)
-class UploadResult:
-    """Result of CSV upload operation."""
+class UpdateConfigResult:
+    """Result of a local FinTS configuration update."""
 
-    institute_count: int
-    file_size_bytes: int
+    institute_count: int | None = None
+    file_size_bytes: int | None = None

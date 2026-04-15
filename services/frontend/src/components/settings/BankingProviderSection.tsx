@@ -28,7 +28,7 @@ import {
   saveGeldstromApiConfig,
   activateProvider,
   getFinTSConfiguration,
-  saveInitialFinTSConfig,
+  saveLocalFinTSConfig,
 } from '@/api'
 import type { BankingProviderMode, GeldstromApiConfigResponse } from '@/api/admin-banking-provider'
 import type { FinTSConfigResponse } from '@/api/admin-fints-config'
@@ -76,7 +76,7 @@ export function BankingProviderSection() {
           <div>
             <CardTitle>Banking Provider</CardTitle>
             <CardDescription>
-              Configure how SWEN connects to banks — via the Geldstrom API or a local FinTS setup
+              Configure how SWEN connects to banks (centralized Geldstrom API or local FinTS).
             </CardDescription>
           </div>
           <ConfigStatusBadge activeProvider={activeProvider} isLoading={statusLoading} />
@@ -178,6 +178,7 @@ function GeldstromApiPanel({
   const [apiKey, setApiKey] = useState('')
   const [endpointUrl, setEndpointUrl] = useState('https://geldstrom-api.de')
   const [formError, setFormError] = useState('')
+  const [isSavingAndActivating, setIsSavingAndActivating] = useState(false)
 
   const saveMutation = useMutation({
     mutationFn: () => saveGeldstromApiConfig(apiKey.trim(), endpointUrl.trim()),
@@ -213,6 +214,7 @@ function GeldstromApiPanel({
       setFormError('API Key and Endpoint URL are required')
       return
     }
+    setIsSavingAndActivating(true)
     try {
       await saveGeldstromApiConfig(apiKey.trim(), endpointUrl.trim())
       await activateProvider('api')
@@ -224,6 +226,8 @@ function GeldstromApiPanel({
       onInvalidate()
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to configure')
+    } finally {
+      setIsSavingAndActivating(false)
     }
   }
 
@@ -312,7 +316,7 @@ function GeldstromApiPanel({
             <Button variant="secondary" onClick={() => { setShowSwitchWarning(false); setShowForm(false); setFormError('') }}>
               Cancel
             </Button>
-            <Button onClick={handleSaveAndActivate} disabled={!apiKey.trim() || !endpointUrl.trim()}>
+            <Button onClick={handleSaveAndActivate} isLoading={isSavingAndActivating} disabled={isSavingAndActivating || !apiKey.trim() || !endpointUrl.trim()}>
               Save & Activate
             </Button>
           </div>
@@ -408,10 +412,13 @@ function FinTSPanel({
   const [formError, setFormError] = useState('')
 
   const saveMutation = useMutation({
-    mutationFn: ({ productId, file }: { productId: string; file: File }) =>
-      saveInitialFinTSConfig(productId, file),
+    mutationFn: ({ productId, file }: { productId?: string; file?: File }) =>
+      saveLocalFinTSConfig(productId, file),
     onSuccess: (data) => {
-      toast.success({ description: `${data.institute_count} institutes loaded` })
+      const msg = data.institute_count != null
+        ? `${data.institute_count} institutes loaded`
+        : 'Configuration updated'
+      toast.success({ description: msg })
       setProductId('')
       setSelectedFile(null)
       setShowForm(false)
@@ -442,9 +449,43 @@ function FinTSPanel({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setFormError('')
+    if (isConfigured) {
+      // Partial update: at least one field must be provided
+      if (!productId.trim() && !selectedFile) {
+        setFormError('Provide a new Product ID, a new CSV file, or both')
+        return
+      }
+      saveMutation.mutate({
+        productId: productId.trim() || undefined,
+        file: selectedFile ?? undefined,
+      })
+    } else {
+      // Initial setup: both fields required
+      if (!productId.trim()) { setFormError('Product ID is required'); return }
+      if (!selectedFile) { setFormError('Institute CSV file is required'); return }
+      saveMutation.mutate({ productId: productId.trim(), file: selectedFile })
+    }
+  }
+
+  const handleSaveAndActivate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError('')
     if (!productId.trim()) { setFormError('Product ID is required'); return }
     if (!selectedFile) { setFormError('Institute CSV file is required'); return }
-    saveMutation.mutate({ productId: productId.trim(), file: selectedFile })
+    try {
+      await saveLocalFinTSConfig(productId.trim(), selectedFile)
+      await activateProvider('local')
+      toast.success({ description: 'Local FinTS configured and activated' })
+      setProductId('')
+      setSelectedFile(null)
+      setShowForm(false)
+      setShowSwitchWarning(false)
+      setFormError('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      onInvalidate()
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to configure')
+    }
   }
 
   return (
@@ -460,11 +501,18 @@ function FinTSPanel({
             </Badge>
           )}
         </div>
-        {!isActive && otherProvider !== null && isConfigured && (
+        {!isActive && otherProvider !== null && (
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setShowSwitchWarning(true)}
+            onClick={() => {
+              if (isConfigured) {
+                setShowSwitchWarning(true)
+              } else {
+                setShowForm(true)
+                setShowSwitchWarning(true)
+              }
+            }}
           >
             Switch to Local FinTS
           </Button>
@@ -518,21 +566,28 @@ function FinTSPanel({
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={showSwitchWarning ? handleSaveAndActivate : handleSubmit} className="space-y-4">
+          {showSwitchWarning && (
+            <InlineAlert variant="warning">
+              <AlertTriangle className="h-4 w-4 mr-1 inline" />
+              Configure Local FinTS to switch from Geldstrom API. Switching may interrupt active bank syncs.
+            </InlineAlert>
+          )}
           {formError && <InlineAlert variant="danger">{formError}</InlineAlert>}
           <FinTSConfigFormFields
             productId={productId}
             onProductIdChange={(v) => { setProductId(v); setFormError('') }}
             selectedFile={selectedFile}
             onFileChange={(f) => { setSelectedFile(f); setFormError('') }}
+            required={!isConfigured}
           />
           <div className="flex gap-2">
-            <Button variant="secondary" type="button" onClick={() => { setShowForm(false); setFormError('') }}>
+            <Button variant="secondary" type="button" onClick={() => { setShowForm(false); setShowSwitchWarning(false); setFormError('') }}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saveMutation.isPending} disabled={!productId.trim() || !selectedFile}>
+            <Button type="submit" isLoading={saveMutation.isPending} disabled={isConfigured ? (!productId.trim() && !selectedFile) : (!productId.trim() || !selectedFile)}>
               <Upload className="h-4 w-4 mr-2" />
-              {isConfigured ? 'Update Configuration' : 'Save Configuration'}
+              {showSwitchWarning ? 'Save & Activate' : (isConfigured ? 'Update Configuration' : 'Save Configuration')}
             </Button>
           </div>
         </form>

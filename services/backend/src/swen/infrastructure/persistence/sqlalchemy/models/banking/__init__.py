@@ -9,14 +9,14 @@ from swen.infrastructure.persistence.sqlalchemy.models.banking.bank_info_model i
 from swen.infrastructure.persistence.sqlalchemy.models.banking.bank_transaction_model import (  # NOQA: E501
     BankTransactionModel,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_config_model import (  # NOQA: E501
-    FinTSConfigModel,
-)
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_endpoint_model import (  # NOQA: E501
-    FinTSEndpointModel,
-)
 from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom_api.geldstrom_api_config_model import (  # NOQA: E501
     GeldstromApiConfigModel,
+)
+from swen.infrastructure.persistence.sqlalchemy.models.banking.local_fints.config_model import (  # NOQA: E501
+    FinTSConfigModel,
+)
+from swen.infrastructure.persistence.sqlalchemy.models.banking.local_fints.endpoint_model import (  # NOQA: E501
+    FinTSEndpointModel,
 )
 
 __all__ = [

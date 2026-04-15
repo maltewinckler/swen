@@ -5,8 +5,10 @@ from __future__ import annotations
 import csv
 import logging
 from io import StringIO
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+from swen.domain.banking.value_objects.bank_info import BankInfo
 from swen.domain.shared.time import utc_now
 from swen.infrastructure.banking.local_fints.models.config import (
     CSVValidationResult,
@@ -19,8 +21,17 @@ from swen.infrastructure.banking.local_fints.repositories.config_repository impo
     FinTSConfigRepository,
 )
 from swen.infrastructure.banking.local_fints.value_objects.institute_directory import (
+    FinTSInstituteDirectory,
     invalidate_fints_directory_cache,
 )
+
+if TYPE_CHECKING:
+    from swen.domain.banking.repositories.bank_info_repository import (
+        BankInfoRepository,
+    )
+    from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (  # noqa: E501
+        FinTSEndpointRepository,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +46,23 @@ MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 class FinTSConfigurationService:
     """Orchestrates FinTS configuration operations.
 
-    Handles validation, CSV parsing verification, and coordination
-    between the repository and in-memory caches.
+    Handles validation, CSV parsing verification, coordination between the
+    repository and in-memory caches, and population of BLZ lookup tables.
     """
 
     def __init__(
         self,
-        repository: FinTSConfigRepository,
+        config_repository: FinTSConfigRepository,
+        bank_info_repo: BankInfoRepository | None = None,
+        fints_endpoint_repo: FinTSEndpointRepository | None = None,
     ):
-        self._repository = repository
+        self._config_repository = config_repository
+        self._bank_info_repo = bank_info_repo
+        self._fints_endpoint_repo = fints_endpoint_repo
 
     async def get_configuration_status(self) -> FinTSConfigStatus:
         """Get current configuration status for admin display."""
-        config = await self._repository.get_configuration()
+        config = await self._config_repository.get_configuration()
 
         if config is None:
             return FinTSConfigStatus(is_configured=False)
@@ -163,13 +178,17 @@ class FinTSConfigurationService:
         At least one of ``product_id`` or ``csv_content`` must be provided.
         On first call (no config exists yet) both are required.  On subsequent
         calls each field is patched independently when supplied.
+
+        When ``csv_content`` is provided the ``bank_information`` and
+        ``fints_endpoints`` lookup tables are repopulated automatically if
+        ``bank_info_repo`` and ``fints_endpoint_repo`` were injected.
         """
         if product_id is None and csv_content is None:
             msg = "At least one of product_id or csv_content must be provided"
             raise ValueError(msg)
 
         csv_validation = self._validate_inputs(product_id, csv_content)
-        exists = await self._repository.exists()
+        exists = await self._config_repository.exists()
 
         if not exists:
             await self._create_configuration(
@@ -182,6 +201,7 @@ class FinTSConfigurationService:
 
         if csv_content is not None:
             invalidate_fints_directory_cache()
+            await self.populate_bank_tables(csv_content)
 
         logger.info(
             "Local FinTS configuration updated by admin %s (product_id=%s, csv=%s)",
@@ -193,6 +213,42 @@ class FinTSConfigurationService:
         return UpdateConfigResult(
             institute_count=csv_validation.institute_count if csv_validation else None,
             file_size_bytes=csv_validation.file_size_bytes if csv_validation else None,
+        )
+
+    async def populate_bank_tables(self, csv_content: bytes) -> None:
+        """Parse CSV and upsert ``bank_information`` + ``fints_endpoints`` tables."""
+        # No-op when the repository dependencies are not injected (e.g. in tests
+        # that only exercise validation logic).
+        if self._bank_info_repo is None or self._fints_endpoint_repo is None:
+            return
+
+        directory = FinTSInstituteDirectory()
+        if not directory.load_from_bytes(csv_content):
+            logger.warning("Failed to parse CSV for bank table population")
+            return
+
+        banks: list[BankInfo] = []
+        endpoints: dict[str, str] = {}
+
+        for blz, info in directory._blz_index.items():
+            banks.append(
+                BankInfo(
+                    blz=blz,
+                    name=info.name,
+                    bic=info.bic or None,
+                    organization=None,
+                    is_fints_capable=True,
+                ),
+            )
+            endpoints[blz] = info.endpoint_url
+
+        bank_count = await self._bank_info_repo.save_batch(banks, source="csv")
+        endpoint_count = await self._fints_endpoint_repo.save_batch(endpoints)
+
+        logger.info(
+            "Populated bank tables: %d bank_information, %d fints_endpoints",
+            bank_count,
+            endpoint_count,
         )
 
     def _validate_inputs(
@@ -244,7 +300,7 @@ class FinTSConfigurationService:
             updated_at=now,
             updated_by_id=str(admin_user_id),
         )
-        await self._repository.save_configuration(config, admin_user_id)
+        await self._config_repository.save_configuration(config, admin_user_id)
 
     async def _patch_configuration(
         self,
@@ -255,12 +311,12 @@ class FinTSConfigurationService:
     ) -> None:
         """Patch only the supplied fields on an existing configuration."""
         if product_id is not None:
-            await self._repository.update_product_id(
+            await self._config_repository.update_product_id(
                 product_id=product_id.strip(),
                 admin_user_id=admin_user_id,
             )
         if csv_content is not None and csv_validation is not None:
-            await self._repository.update_csv(
+            await self._config_repository.update_csv(
                 csv_content=csv_content,
                 encoding="cp1252",
                 institute_count=csv_validation.institute_count,

@@ -21,14 +21,14 @@ from swen.domain.integration.repositories import (
     TransactionImportRepository,
 )
 from swen.domain.settings import UserSettingsRepository
-from swen.infrastructure.banking.geldstrom.fints_config_repository import (
-    FinTSConfigRepository,
-)
-from swen.infrastructure.banking.geldstrom.fints_endpoint_repository import (
-    FinTSEndpointRepository,
-)
 from swen.infrastructure.banking.geldstrom_api.config_repository import (
     GeldstromApiConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.config_repository import (
+    FinTSConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (
+    FinTSEndpointRepository,
 )
 from swen_identity.domain.user.repositories import UserRepository
 

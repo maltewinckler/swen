@@ -1,4 +1,4 @@
-"""Local FinTS banking via Geldstrom library."""
+"""Local FinTS banking via local Geldstrom library."""
 
 from swen.infrastructure.banking.local_fints.adapter import GeldstromAdapter
 from swen.infrastructure.banking.local_fints.models.config import (
@@ -10,6 +10,12 @@ from swen.infrastructure.banking.local_fints.models.config import (
 )
 from swen.infrastructure.banking.local_fints.repositories.config_repository import (
     FinTSConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (
+    FinTSEndpointRepository,
+)
+from swen.infrastructure.banking.local_fints.services.configuration_service import (
+    FinTSConfigurationService,
 )
 from swen.infrastructure.banking.local_fints.value_objects.institute_directory import (
     FinTSInstituteDirectory,
@@ -25,6 +31,8 @@ __all__ = [
     "FinTSConfig",
     "FinTSConfigRepository",
     "FinTSConfigStatus",
+    "FinTSConfigurationService",
+    "FinTSEndpointRepository",
     "FinTSInstituteDirectory",
     "FinTSInstituteDirectoryError",
     "FinTSInstituteInfo",

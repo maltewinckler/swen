@@ -10,11 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from swen.domain.security.services import EncryptionService
-from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
-from swen.infrastructure.banking.geldstrom.fints_config_repository import (
+from swen.infrastructure.banking.local_fints.models.config import FinTSConfig
+from swen.infrastructure.banking.local_fints.repositories.config_repository import (
     FinTSConfigRepository,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_config_model import (  # NOQA: E501
+from swen.infrastructure.persistence.sqlalchemy.models.banking.local_fints.config_model import (  # NOQA: E501
     FinTSConfigModel,
 )
 

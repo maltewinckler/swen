@@ -19,6 +19,8 @@ interface FinTSConfigFormFieldsProps {
   selectedFile: File | null
   onFileChange: (file: File | null) => void
   error?: string
+  /** When false, fields are optional (for partial updates in admin settings). Defaults to true. */
+  required?: boolean
 }
 
 export function FinTSConfigFormFields({
@@ -26,6 +28,7 @@ export function FinTSConfigFormFields({
   onProductIdChange,
   selectedFile,
   onFileChange,
+  required = true,
 }: FinTSConfigFormFieldsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -59,21 +62,21 @@ export function FinTSConfigFormFields({
       <FormField
         label="FinTS Product ID"
         helperText="The product registration ID assigned by Deutsche Kreditwirtschaft"
-        required
+        required={required}
       >
         <Input
           value={productId}
           onChange={(e) => onProductIdChange(e.target.value)}
           placeholder="e.g. 1234567890AB"
           maxLength={100}
-          required
+          required={required}
         />
       </FormField>
 
       <FormField
         label="Institute Directory CSV"
         helperText="The fints_institute.csv file (CP1252 encoded)"
-        required
+        required={required}
       >
         <input
           ref={fileInputRef}

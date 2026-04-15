@@ -11,13 +11,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Awaitable, Callable
 
-from geldstrom import FinTS3Client
+from geldstrom import FinTS3Client, TANConfig
+from geldstrom import TANMethod as GeldstromTANMethod
 from geldstrom.domain import (
     Account,
-    TANConfig,
     TransactionEntry,
 )
-from geldstrom.domain import TANMethod as GeldstromTANMethod
 
 from swen.domain.banking.exceptions import (
     BankAccountNotFoundError,
@@ -39,10 +38,10 @@ from swen.domain.shared.time import utc_now
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from swen.infrastructure.banking.geldstrom.fints_config_repository import (
+    from swen.infrastructure.banking.local_fints.repositories.config_repository import (
         FinTSConfigRepository,
     )
-    from swen.infrastructure.banking.geldstrom.fints_endpoint_repository import (
+    from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (  # noqa: E501
         FinTSEndpointRepository,
     )
 
@@ -270,7 +269,7 @@ class GeldstromAdapter(BankConnectionPort):
         self._preferred_tan_method = tan_method
         logger.info("Preferred TAN method set to: %s", tan_method)
 
-    def set_tan_medium(self, tan_medium: str):
+    def set_tan_medium(self, tan_medium: str | None):
         self._tan_medium = tan_medium
         logger.info("TAN medium set to: %s", tan_medium)
 
@@ -322,11 +321,12 @@ class GeldstromAdapter(BankConnectionPort):
             raise BankConnectionError(msg) from e
 
     def _map_tan_method(self, geldstrom_method: GeldstromTANMethod) -> TANMethod:
-        # Map the method type enum
-        try:
-            method_type = TANMethodType(geldstrom_method.method_type.value)
-        except ValueError:
-            method_type = TANMethodType.UNKNOWN
+        # Derive method_type from is_decoupled flag
+        method_type = (
+            TANMethodType.DECOUPLED
+            if geldstrom_method.is_decoupled
+            else TANMethodType.UNKNOWN
+        )
 
         return TANMethod(
             code=geldstrom_method.code,

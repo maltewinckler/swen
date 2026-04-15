@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, StepIndicator, useToast } from '@/components/ui'
 import { useBankConnection } from '@/hooks'
-import { initChartOfAccounts, listCredentials, createExternalAccount, saveInitialFinTSConfig, getBankingProviderStatus, saveGeldstromApiConfig, activateProvider } from '@/api'
+import { initChartOfAccounts, listCredentials, createExternalAccount, saveLocalFinTSConfig, getBankingProviderStatus, saveGeldstromApiConfig, activateProvider } from '@/api'
 import { useAuthStore } from '@/stores'
 import {
   OnboardingAccountsSetupStep,
@@ -112,12 +112,15 @@ function OnboardingPage() {
 
   // Banking provider mutation (admin only)
   const [bankingProviderError, setBankingProviderError] = useState<string | null>(null)
+  // Track whether the banking_provider step was shown this session so the step
+  // indicator and back-navigation remain stable after the provider is saved.
+  const [providerStepWasShown, setProviderStepWasShown] = useState(false)
   const bankingProviderMutation = useMutation({
     mutationFn: async (params: BankingProviderSaveParams) => {
       if (params.mode === 'api') {
         await saveGeldstromApiConfig(params.apiKey, params.endpointUrl)
       } else {
-        await saveInitialFinTSConfig(params.productId, params.file)
+        await saveLocalFinTSConfig(params.productId, params.file)
       }
       await activateProvider(params.mode)
     },
@@ -139,11 +142,14 @@ function OnboardingPage() {
     queryFn: getBankingProviderStatus,
     enabled: isAdmin,
   })
-  const showBankingProviderStep = isAdmin && !providerStatus?.active_provider
+  // Show the provider step when no provider is active yet, OR when we already
+  // navigated to it this session (so it stays stable after save).
+  const showBankingProviderStep = isAdmin && (!providerStatus?.active_provider || providerStepWasShown)
 
   // Navigate from welcome: admins who need provider setup go to banking_provider, others go to accounts
   const handleWelcomeNext = () => {
     if (showBankingProviderStep) {
+      setProviderStepWasShown(true)
       setCurrentStep('banking_provider')
     } else {
       setCurrentStep('accounts')

@@ -13,8 +13,8 @@ from uuid import UUID
 import pytest
 from cryptography.fernet import Fernet
 
-from swen.infrastructure.banking.geldstrom.fints_config import FinTSConfig
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_config_model import (
+from swen.infrastructure.banking.local_fints.models.config import FinTSConfig
+from swen.infrastructure.persistence.sqlalchemy.models.banking.local_fints.config_model import (
     FinTSConfigModel,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (

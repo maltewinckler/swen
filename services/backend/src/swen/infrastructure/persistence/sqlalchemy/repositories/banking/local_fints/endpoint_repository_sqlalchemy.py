@@ -8,10 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from swen.infrastructure.banking.geldstrom.fints_endpoint_repository import (
+from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (
     FinTSEndpointRepository,
 )
-from swen.infrastructure.persistence.sqlalchemy.models.banking.geldstrom.fints_endpoint_model import (  # noqa: E501
+from swen.infrastructure.persistence.sqlalchemy.models.banking.local_fints.endpoint_model import (  # noqa: E501
     FinTSEndpointModel,
 )
 
