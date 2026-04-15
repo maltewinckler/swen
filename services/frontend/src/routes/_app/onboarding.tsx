@@ -3,23 +3,24 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, StepIndicator, useToast } from '@/components/ui'
 import { useBankConnection } from '@/hooks'
-import { initChartOfAccounts, listCredentials, createExternalAccount, saveInitialFinTSConfig, getFinTSConfigStatus } from '@/api'
+import { initChartOfAccounts, listCredentials, createExternalAccount, saveLocalFinTSConfig, getBankingProviderStatus, saveGeldstromApiConfig, activateProvider } from '@/api'
 import { useAuthStore } from '@/stores'
 import {
   OnboardingAccountsSetupStep,
   OnboardingCompleteStep,
   OnboardingConnectBankStep,
-  OnboardingFinTSConfigStep,
+  OnboardingBankingProviderStep,
   OnboardingManualAccountsStep,
   OnboardingWelcomeStep,
   type ManualAccount,
+  type BankingProviderSaveParams,
 } from '@/components/onboarding'
 
 export const Route = createFileRoute('/_app/onboarding')({
   component: OnboardingPage,
 })
 
-type OnboardingStep = 'welcome' | 'fints_config' | 'accounts' | 'connect_bank' | 'manual_accounts' | 'complete'
+type OnboardingStep = 'welcome' | 'banking_provider' | 'accounts' | 'connect_bank' | 'manual_accounts' | 'complete'
 
 function OnboardingPage() {
   const navigate = useNavigate()
@@ -109,37 +110,47 @@ function OnboardingPage() {
     navigate({ to: '/dashboard' })
   }
 
-  // FinTS config mutation (admin only)
-  const [fintsError, setFintsError] = useState<string | null>(null)
-  const fintsConfigMutation = useMutation({
-    mutationFn: ({ productId, file }: { productId: string; file: File }) =>
-      saveInitialFinTSConfig(productId, file),
-    onSuccess: (data) => {
-      toast.success({
-        title: 'FinTS configured',
-        description: `${data.institute_count} institutes loaded`,
-      })
-      setFintsError(null)
+  // Banking provider mutation (admin only)
+  const [bankingProviderError, setBankingProviderError] = useState<string | null>(null)
+  // Track whether the banking_provider step was shown this session so the step
+  // indicator and back-navigation remain stable after the provider is saved.
+  const [providerStepWasShown, setProviderStepWasShown] = useState(false)
+  const bankingProviderMutation = useMutation({
+    mutationFn: async (params: BankingProviderSaveParams) => {
+      if (params.mode === 'api') {
+        await saveGeldstromApiConfig(params.apiKey, params.endpointUrl)
+      } else {
+        await saveLocalFinTSConfig(params.productId, params.file)
+      }
+      await activateProvider(params.mode)
+    },
+    onSuccess: () => {
+      toast.success({ description: 'Banking provider configured' })
+      setBankingProviderError(null)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'fints-provider'] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'fints-config'] })
       setCurrentStep('accounts')
     },
     onError: (err) => {
-      setFintsError(err instanceof Error ? err.message : 'Failed to save FinTS configuration')
+      setBankingProviderError(err instanceof Error ? err.message : 'Failed to save banking provider configuration')
     },
   })
 
-  // Check if FinTS is already configured (admin only)
-  const { data: fintsStatus } = useQuery({
-    queryKey: ['admin', 'fints-config', 'status'],
-    queryFn: getFinTSConfigStatus,
+  // Check if a banking provider is already active (admin only)
+  const { data: providerStatus } = useQuery({
+    queryKey: ['admin', 'fints-provider', 'status'],
+    queryFn: getBankingProviderStatus,
     enabled: isAdmin,
   })
-  const showFinTSStep = isAdmin && !fintsStatus?.is_configured
+  // Show the provider step when no provider is active yet, OR when we already
+  // navigated to it this session (so it stays stable after save).
+  const showBankingProviderStep = isAdmin && (!providerStatus?.active_provider || providerStepWasShown)
 
-  // Navigate from welcome: admins who need FinTS go to fints_config, others go to accounts
+  // Navigate from welcome: admins who need provider setup go to banking_provider, others go to accounts
   const handleWelcomeNext = () => {
-    if (showFinTSStep) {
-      setCurrentStep('fints_config')
+    if (showBankingProviderStep) {
+      setProviderStepWasShown(true)
+      setCurrentStep('banking_provider')
     } else {
       setCurrentStep('accounts')
     }
@@ -147,7 +158,7 @@ function OnboardingPage() {
 
   const ONBOARDING_STEPS = [
     { id: 'welcome', label: 'Welcome' },
-    ...(showFinTSStep ? [{ id: 'fints_config', label: 'FinTS' }] : []),
+    ...(showBankingProviderStep ? [{ id: 'banking_provider', label: 'Provider' }] : []),
     { id: 'accounts', label: 'Accounts' },
     { id: 'connect_bank', label: 'Banks' },
     { id: 'manual_accounts', label: 'Manual' },
@@ -165,19 +176,19 @@ function OnboardingPage() {
           <OnboardingWelcomeStep onNext={handleWelcomeNext} />
         )}
 
-        {currentStep === 'fints_config' && (
-          <OnboardingFinTSConfigStep
+        {currentStep === 'banking_provider' && (
+          <OnboardingBankingProviderStep
             onSkip={() => setCurrentStep('accounts')}
-            onSave={(productId, file) => fintsConfigMutation.mutate({ productId, file })}
-            isSaving={fintsConfigMutation.isPending}
-            saveError={fintsError}
+            onSave={(params) => bankingProviderMutation.mutate(params)}
+            isSaving={bankingProviderMutation.isPending}
+            saveError={bankingProviderError}
           />
         )}
 
         {currentStep === 'accounts' && (
           <OnboardingAccountsSetupStep
             isLoading={initChartMutation.isPending}
-            onBack={() => setCurrentStep(showFinTSStep ? 'fints_config' : 'welcome')}
+            onBack={() => setCurrentStep(showBankingProviderStep ? 'banking_provider' : 'welcome')}
             onCreateAccounts={() => initChartMutation.mutate()}
             onSkipToNext={() => setCurrentStep('connect_bank')}
           />

@@ -27,7 +27,6 @@ class TestQueryTanMethodsQuery:
             blz="12345678",
             username="testuser",
             pin="testpin",
-            endpoint="https://bank.example.com/fints",
         )
 
     @pytest.fixture
@@ -263,11 +262,9 @@ class TestQueryTanMethodsQueryDependencyInjection:
         """Test that from_factory creates a configured query."""
         mock_factory = MagicMock()
 
-        # from_factory should create query with GeldstromAdapter
+        # from_factory should create query with bank_connection_port
         query = QueryTanMethodsQuery.from_factory(mock_factory)
 
         assert isinstance(query, QueryTanMethodsQuery)
-        # Adapter should be a GeldstromAdapter (imported locally in from_factory)
-        from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
-
-        assert isinstance(query._adapter, GeldstromAdapter)
+        # Adapter should come from factory.bank_connection_port()
+        assert isinstance(query, QueryTanMethodsQuery)

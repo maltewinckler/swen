@@ -6,6 +6,9 @@ from swen.domain.banking.repositories.bank_account_repository import (
 from swen.domain.banking.repositories.bank_credential_repository import (
     BankCredentialRepository,
 )
+from swen.domain.banking.repositories.bank_info_repository import (
+    BankInfoRepository,
+)
 from swen.domain.banking.repositories.bank_transaction_repository import (
     BankTransactionRepository,
     StoredBankTransaction,
@@ -14,6 +17,7 @@ from swen.domain.banking.repositories.bank_transaction_repository import (
 __all__ = [
     "BankAccountRepository",
     "BankCredentialRepository",
+    "BankInfoRepository",
     "BankTransactionRepository",
     "StoredBankTransaction",
 ]

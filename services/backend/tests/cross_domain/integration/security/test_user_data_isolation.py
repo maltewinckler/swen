@@ -110,14 +110,12 @@ class TestCredentialIsolation:
             blz="50031000",
             username="alice_bank_user",
             pin="alice_secret_pin",
-            endpoint="https://banking.example.com",
         )
 
         bob_creds = BankCredentials.from_plain(
             blz="50031000",  # Same bank
             username="bob_bank_user",
             pin="bob_secret_pin",
-            endpoint="https://banking.example.com",
         )
 
         await alice_credential_repo.save(alice_creds, label="Alice's Bank")
@@ -169,14 +167,12 @@ class TestCredentialIsolation:
             blz="50031000",
             username="alice_user",
             pin="alice_pin",
-            endpoint="https://banking.example.com",
         )
 
         bob_creds = BankCredentials.from_plain(
             blz="12345678",
             username="bob_user",
             pin="bob_pin",
-            endpoint="https://banking.example.com",
         )
 
         await alice_credential_repo.save(alice_creds, label="Alice's Bank")
@@ -226,14 +222,12 @@ class TestCredentialIsolation:
             blz="50031000",
             username="alice_user",
             pin="alice_pin",
-            endpoint="https://banking.example.com",
         )
 
         bob_creds = BankCredentials.from_plain(
             blz="50031000",
             username="bob_user",
             pin="bob_pin",
-            endpoint="https://banking.example.com",
         )
 
         await alice_credential_repo.save(alice_creds)

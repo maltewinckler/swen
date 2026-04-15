@@ -7,21 +7,18 @@ Tests verify:
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
 
-from swen.application.commands.system import (
-    UpdateFinTSProductIDCommand,
-    UploadFinTSInstituteCSVCommand,
-)
+from swen.application.commands.system import UpdateLocalFinTSConfigCommand
 from swen.application.queries.system import (
     GetFinTSConfigurationQuery,
     GetFinTSConfigurationStatusQuery,
 )
-from swen.infrastructure.banking.fints_config import FinTSConfig
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.banking.local_fints.models.config import FinTSConfig
+from swen.infrastructure.banking.local_fints.services.configuration_service import (
     FinTSConfigurationService,
 )
 
@@ -123,53 +120,86 @@ class TestGetFinTSConfigurationStatusQuery:
         assert "configured" in result.message
 
 
-class TestUpdateFinTSProductIDCommand:
-    """Tests for UpdateFinTSProductIDCommand."""
+class TestUpdateLocalFinTSConfigCommand:
+    """Tests for UpdateLocalFinTSConfigCommand."""
 
-    @pytest.mark.asyncio
-    async def test_execute_calls_service(self):
+    def _make_command(self) -> UpdateLocalFinTSConfigCommand:
         repo = _make_mock_repo()
-        service = FinTSConfigurationService(repository=repo)
-        command = UpdateFinTSProductIDCommand(
+        repo.exists.return_value = True
+        service = FinTSConfigurationService(config_repository=repo)
+        return UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
         )
 
-        await command.execute("NEW_PRODUCT_ID")
+    @pytest.mark.asyncio
+    async def test_execute_raises_when_no_args(self):
+        command = self._make_command()
 
-        repo.update_product_id.assert_called_once_with(
-            product_id="NEW_PRODUCT_ID",
-            admin_user_id=TEST_ADMIN_ID,
-        )
+        with pytest.raises(ValueError, match="At least one"):
+            await command.execute()
 
     @pytest.mark.asyncio
-    async def test_execute_validates_empty_id(self):
+    async def test_execute_product_id_only_does_not_populate_tables(self):
         repo = _make_mock_repo()
-        service = FinTSConfigurationService(repository=repo)
-        command = UpdateFinTSProductIDCommand(
+        repo.exists.return_value = True
+        service = FinTSConfigurationService(config_repository=repo)
+        command = UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
         )
 
-        with pytest.raises(ValueError, match="Invalid Product ID"):
-            await command.execute("")
+        with patch.object(
+            service, "populate_bank_tables", new_callable=AsyncMock
+        ) as mock_populate:
+            await command.execute(product_id="VALID_PRODUCT_ID")
 
-        repo.update_product_id.assert_not_called()
-
-
-class TestUploadFinTSInstituteCSVCommand:
-    """Tests for UploadFinTSInstituteCSVCommand."""
+        mock_populate.assert_not_called()
+        repo.update_product_id.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_validates_empty_csv(self):
+    async def test_execute_csv_only_calls_populate_bank_tables(self):
         repo = _make_mock_repo()
-        service = FinTSConfigurationService(repository=repo)
-        command = UploadFinTSInstituteCSVCommand(
+        repo.exists.return_value = True
+        service = FinTSConfigurationService(config_repository=repo)
+        command = UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
         )
 
-        with pytest.raises(ValueError, match="Invalid CSV"):
-            await command.execute(b"")
+        with (
+            patch.object(
+                service, "populate_bank_tables", new_callable=AsyncMock
+            ) as mock_populate,
+            patch.object(service, "validate_csv") as mock_validate,
+        ):
+            mock_validate.return_value = MagicMock(
+                is_valid=True, institute_count=5, file_size_bytes=100
+            )
+            await command.execute(csv_content=b"some csv bytes")
 
-        repo.update_csv.assert_not_called()
+        mock_populate.assert_called_once_with(b"some csv bytes")
+
+    @pytest.mark.asyncio
+    async def test_execute_both_args_calls_populate_bank_tables(self):
+        repo = _make_mock_repo()
+        repo.exists.return_value = True
+        service = FinTSConfigurationService(config_repository=repo)
+        command = UpdateLocalFinTSConfigCommand(
+            config_service=service,
+            admin_user_id=TEST_ADMIN_ID,
+        )
+
+        with (
+            patch.object(
+                service, "populate_bank_tables", new_callable=AsyncMock
+            ) as mock_populate,
+            patch.object(service, "validate_csv") as mock_validate,
+        ):
+            mock_validate.return_value = MagicMock(
+                is_valid=True, institute_count=5, file_size_bytes=100
+            )
+            await command.execute(product_id="PID", csv_content=b"some csv bytes")
+
+        mock_populate.assert_called_once_with(b"some csv bytes")
+        repo.update_product_id.assert_called_once()

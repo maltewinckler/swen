@@ -1,4 +1,4 @@
-"""Integration tests for admin FinTS configuration endpoints."""
+"""Integration tests for admin local FinTS configuration endpoints."""
 
 import io
 
@@ -130,9 +130,9 @@ def _setup_initial_config(
     api_v1_prefix: str,
     admin_token: str,
 ) -> None:
-    """Create initial FinTS config via the /initial endpoint."""
+    """Create initial local FinTS config via POST /local_fints_configuration."""
     response = test_client.post(
-        f"{api_v1_prefix}/admin/fints_config/initial",
+        f"{api_v1_prefix}/admin/local_fints_configuration",
         headers={"Authorization": f"Bearer {admin_token}"},
         data={"product_id": VALID_PRODUCT_ID},
         files=_make_csv_upload(),
@@ -141,12 +141,12 @@ def _setup_initial_config(
 
 
 # =============================================================================
-# GET /admin/fints_config/configuration
+# GET /admin/local_fints_configuration
 # =============================================================================
 
 
 class TestGetFinTSConfiguration:
-    """Tests for GET /api/v1/admin/fints_config/configuration."""
+    """Tests for GET /api/v1/admin/local_fints_configuration."""
 
     def test_returns_404_when_not_configured(
         self,
@@ -157,7 +157,7 @@ class TestGetFinTSConfiguration:
         admin_token = _register_admin(test_client, api_v1_prefix)
 
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/configuration",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -172,12 +172,10 @@ class TestGetFinTSConfiguration:
         admin_token = _register_admin(test_client, api_v1_prefix)
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        # Set up via /initial endpoint
         _setup_initial_config(test_client, api_v1_prefix, admin_token)
 
-        # Now get configuration
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/configuration",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers=headers,
         )
 
@@ -199,7 +197,7 @@ class TestGetFinTSConfiguration:
         user_token = _create_regular_user(test_client, api_v1_prefix, admin_token)
 
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/configuration",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers={"Authorization": f"Bearer {user_token}"},
         )
 
@@ -212,184 +210,19 @@ class TestGetFinTSConfiguration:
     ):
         """Unauthenticated requests should get 401."""
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/configuration",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
         )
 
         assert response.status_code == 401
 
 
 # =============================================================================
-# PUT /admin/fints_config/product-id
-# =============================================================================
-
-
-class TestUpdateProductId:
-    """Tests for PUT /api/v1/admin/fints_config/product-id."""
-
-    def test_update_product_id(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Admin can update the FinTS Product ID after initial setup."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        # Must have initial config first
-        _setup_initial_config(test_client, api_v1_prefix, admin_token)
-
-        response = test_client.put(
-            f"{api_v1_prefix}/admin/fints_config/product-id",
-            headers=headers,
-            json={"product_id": "NewProductID999"},
-        )
-
-        assert response.status_code == 200
-        assert "message" in response.json()
-
-    def test_update_fails_without_initial_config(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Updating Product ID fails if no initial config exists."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-
-        response = test_client.put(
-            f"{api_v1_prefix}/admin/fints_config/product-id",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"product_id": VALID_PRODUCT_ID},
-        )
-
-        assert response.status_code == 400
-
-    def test_empty_product_id_rejected(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Empty Product ID should be rejected (validation)."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-
-        response = test_client.put(
-            f"{api_v1_prefix}/admin/fints_config/product-id",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"product_id": ""},
-        )
-
-        assert response.status_code == 422  # Pydantic validation
-
-    def test_non_admin_cannot_update(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Non-admin users should get 403."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-        user_token = _create_regular_user(test_client, api_v1_prefix, admin_token)
-
-        response = test_client.put(
-            f"{api_v1_prefix}/admin/fints_config/product-id",
-            headers={"Authorization": f"Bearer {user_token}"},
-            json={"product_id": VALID_PRODUCT_ID},
-        )
-
-        assert response.status_code == 403
-
-
-# =============================================================================
-# POST /admin/fints_config/csv
-# =============================================================================
-
-
-class TestUploadCSV:
-    """Tests for POST /api/v1/admin/fints_config/csv."""
-
-    def test_upload_valid_csv(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Admin can upload a valid FinTS institute CSV after initial setup."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        # Must have initial config first
-        _setup_initial_config(test_client, api_v1_prefix, admin_token)
-
-        response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/csv",
-            headers=headers,
-            files=_make_csv_upload(),
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["institute_count"] == 2
-        assert data["file_size_kb"] >= 0
-        assert "message" in data
-
-    def test_upload_invalid_csv_rejected(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Invalid CSV content should be rejected."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        # Need initial config first
-        _setup_initial_config(test_client, api_v1_prefix, admin_token)
-
-        response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/csv",
-            headers=headers,
-            files=_make_csv_upload("not;a;valid;csv\n1;2;3;4\n"),
-        )
-
-        assert response.status_code == 400
-
-    def test_upload_fails_without_initial_config(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Uploading CSV fails if no initial config exists."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-
-        response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/csv",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            files=_make_csv_upload(),
-        )
-
-        assert response.status_code == 400
-
-    def test_non_admin_cannot_upload(
-        self,
-        test_client: TestClient,
-        api_v1_prefix: str,
-    ):
-        """Non-admin users should get 403."""
-        admin_token = _register_admin(test_client, api_v1_prefix)
-        user_token = _create_regular_user(test_client, api_v1_prefix, admin_token)
-
-        response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/csv",
-            headers={"Authorization": f"Bearer {user_token}"},
-            files=_make_csv_upload(),
-        )
-
-        assert response.status_code == 403
-
-
-# =============================================================================
-# GET /admin/fints_config/status
+# GET /admin/local_fints_configuration/status
 # =============================================================================
 
 
 class TestGetConfigurationStatus:
-    """Tests for GET /api/v1/admin/fints_config/status."""
+    """Tests for GET /api/v1/admin/local_fints_configuration/status."""
 
     def test_not_configured_initially(
         self,
@@ -400,7 +233,7 @@ class TestGetConfigurationStatus:
         admin_token = _register_admin(test_client, api_v1_prefix)
 
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/status",
+            f"{api_v1_prefix}/admin/local_fints_configuration/status",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -420,7 +253,7 @@ class TestGetConfigurationStatus:
         _setup_initial_config(test_client, api_v1_prefix, admin_token)
 
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/status",
+            f"{api_v1_prefix}/admin/local_fints_configuration/status",
             headers=headers,
         )
 
@@ -438,7 +271,7 @@ class TestGetConfigurationStatus:
         user_token = _create_regular_user(test_client, api_v1_prefix, admin_token)
 
         response = test_client.get(
-            f"{api_v1_prefix}/admin/fints_config/status",
+            f"{api_v1_prefix}/admin/local_fints_configuration/status",
             headers={"Authorization": f"Bearer {user_token}"},
         )
 
@@ -446,23 +279,23 @@ class TestGetConfigurationStatus:
 
 
 # =============================================================================
-# POST /admin/fints_config/initial
+# POST /admin/local_fints_configuration
 # =============================================================================
 
 
-class TestSaveInitialConfiguration:
-    """Tests for POST /api/v1/admin/fints_config/initial."""
+class TestUpsertLocalFinTSConfiguration:
+    """Tests for POST /api/v1/admin/local_fints_configuration."""
 
-    def test_save_initial_configuration(
+    def test_first_time_setup_both_fields(
         self,
         test_client: TestClient,
         api_v1_prefix: str,
     ):
-        """Admin can save initial configuration (Product ID + CSV together)."""
+        """Admin can create initial configuration with product_id + CSV."""
         admin_token = _register_admin(test_client, api_v1_prefix)
 
         response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/initial",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers={"Authorization": f"Bearer {admin_token}"},
             data={"product_id": VALID_PRODUCT_ID},
             files=_make_csv_upload(),
@@ -474,38 +307,109 @@ class TestSaveInitialConfiguration:
         assert data["file_size_kb"] >= 0
         assert "message" in data
 
-    def test_initial_config_rejects_when_already_configured(
+    def test_idempotent_upsert_both_fields(
         self,
         test_client: TestClient,
         api_v1_prefix: str,
     ):
-        """Should return 409 when configuration already exists."""
+        """Posting again with both fields is accepted (upsert, not 409)."""
         admin_token = _register_admin(test_client, api_v1_prefix)
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        # First setup via initial endpoint
         _setup_initial_config(test_client, api_v1_prefix, admin_token)
 
-        # Second attempt should be rejected
         response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/initial",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers=headers,
             data={"product_id": "AnotherProductID1"},
             files=_make_csv_upload(),
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 200
 
-    def test_initial_config_validates_csv(
+    def test_partial_update_product_id_only(
         self,
         test_client: TestClient,
         api_v1_prefix: str,
     ):
-        """Invalid CSV in initial config should be rejected."""
+        """Admin can update only the product_id when config already exists."""
+        admin_token = _register_admin(test_client, api_v1_prefix)
+        headers = {"Authorization": f"Bearer {admin_token}"}
+
+        _setup_initial_config(test_client, api_v1_prefix, admin_token)
+
+        response = test_client.post(
+            f"{api_v1_prefix}/admin/local_fints_configuration",
+            headers=headers,
+            data={"product_id": "NewProductID999"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["institute_count"] is None
+
+    def test_partial_update_csv_only(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Admin can update only the CSV when config already exists."""
+        admin_token = _register_admin(test_client, api_v1_prefix)
+        headers = {"Authorization": f"Bearer {admin_token}"}
+
+        _setup_initial_config(test_client, api_v1_prefix, admin_token)
+
+        response = test_client.post(
+            f"{api_v1_prefix}/admin/local_fints_configuration",
+            headers=headers,
+            files=_make_csv_upload(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["institute_count"] == 2
+
+    def test_no_fields_provided_rejected(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Posting with neither product_id nor file should return 400."""
         admin_token = _register_admin(test_client, api_v1_prefix)
 
         response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/initial",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert response.status_code == 400
+
+    def test_first_time_product_id_only_rejected(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """First-time setup requires both fields — product_id alone is rejected."""
+        admin_token = _register_admin(test_client, api_v1_prefix)
+
+        response = test_client.post(
+            f"{api_v1_prefix}/admin/local_fints_configuration",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={"product_id": VALID_PRODUCT_ID},
+        )
+
+        assert response.status_code == 400
+
+    def test_invalid_csv_rejected(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Invalid CSV content should be rejected."""
+        admin_token = _register_admin(test_client, api_v1_prefix)
+
+        response = test_client.post(
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers={"Authorization": f"Bearer {admin_token}"},
             data={"product_id": VALID_PRODUCT_ID},
             files=_make_csv_upload("garbage data"),
@@ -513,7 +417,7 @@ class TestSaveInitialConfiguration:
 
         assert response.status_code == 400
 
-    def test_non_admin_cannot_save_initial(
+    def test_non_admin_cannot_upsert(
         self,
         test_client: TestClient,
         api_v1_prefix: str,
@@ -523,7 +427,7 @@ class TestSaveInitialConfiguration:
         user_token = _create_regular_user(test_client, api_v1_prefix, admin_token)
 
         response = test_client.post(
-            f"{api_v1_prefix}/admin/fints_config/initial",
+            f"{api_v1_prefix}/admin/local_fints_configuration",
             headers={"Authorization": f"Bearer {user_token}"},
             data={"product_id": VALID_PRODUCT_ID},
             files=_make_csv_upload(),
@@ -548,7 +452,7 @@ class TestFinTSConfigWorkflow:
         """Test the complete workflow: status → initial setup → verify → update."""
         admin_token = _register_admin(test_client, api_v1_prefix)
         headers = {"Authorization": f"Bearer {admin_token}"}
-        base = f"{api_v1_prefix}/admin/fints_config"
+        base = f"{api_v1_prefix}/admin/local_fints_configuration"
 
         # Step 1: Check status — not configured
         status_resp = test_client.get(f"{base}/status", headers=headers)
@@ -556,7 +460,7 @@ class TestFinTSConfigWorkflow:
 
         # Step 2: Save initial configuration (Product ID + CSV)
         initial_resp = test_client.post(
-            f"{base}/initial",
+            base,
             headers=headers,
             data={"product_id": VALID_PRODUCT_ID},
             files=_make_csv_upload(),
@@ -569,7 +473,7 @@ class TestFinTSConfigWorkflow:
         assert status_resp.json()["is_configured"] is True
 
         # Step 4: Get full configuration
-        config_resp = test_client.get(f"{base}/configuration", headers=headers)
+        config_resp = test_client.get(base, headers=headers)
         assert config_resp.status_code == 200
         config = config_resp.json()
         assert config["csv_institute_count"] == 2
@@ -583,21 +487,21 @@ class TestFinTSConfigWorkflow:
         """Admin can update Product ID after initial configuration."""
         admin_token = _register_admin(test_client, api_v1_prefix)
         headers = {"Authorization": f"Bearer {admin_token}"}
-        base = f"{api_v1_prefix}/admin/fints_config"
+        base = f"{api_v1_prefix}/admin/local_fints_configuration"
 
         # Initial setup
         _setup_initial_config(test_client, api_v1_prefix, admin_token)
 
-        # Update Product ID
-        update_resp = test_client.put(
-            f"{base}/product-id",
+        # Update Product ID only
+        update_resp = test_client.post(
+            base,
             headers=headers,
-            json={"product_id": "NewProductID999"},
+            data={"product_id": "NewProductID999"},
         )
         assert update_resp.status_code == 200
 
-        # Verify the configuration reflects the update
-        config_resp = test_client.get(f"{base}/configuration", headers=headers)
+        # Verify the configuration details still show the product
+        config_resp = test_client.get(base, headers=headers)
         assert config_resp.status_code == 200
         assert config_resp.json()["product_id_masked"] is not None
 
@@ -609,14 +513,14 @@ class TestFinTSConfigWorkflow:
         """Admin can re-upload CSV after initial configuration."""
         admin_token = _register_admin(test_client, api_v1_prefix)
         headers = {"Authorization": f"Bearer {admin_token}"}
-        base = f"{api_v1_prefix}/admin/fints_config"
+        base = f"{api_v1_prefix}/admin/local_fints_configuration"
 
         # Initial setup with 2 institutes
         _setup_initial_config(test_client, api_v1_prefix, admin_token)
 
-        # Re-upload with same CSV
+        # Re-upload with same CSV (CSV only)
         csv_resp = test_client.post(
-            f"{base}/csv",
+            base,
             headers=headers,
             files=_make_csv_upload(),
         )

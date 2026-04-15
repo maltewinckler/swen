@@ -1,26 +1,32 @@
 """Banking infrastructure adapters."""
 
-from swen.infrastructure.banking.fints_config import (
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
+from swen.infrastructure.banking.geldstrom_api import (
+    GeldstromApiAdapter,
+    GeldstromApiConfig,
+    GeldstromApiConfigRepository,
+    GeldstromApiConfigStatus,
+)
+from swen.infrastructure.banking.local_fints import (
     CSVValidationResult,
     FinTSConfig,
-    FinTSConfigStatus,
-    UploadResult,
-    ValidationResult,
-)
-from swen.infrastructure.banking.fints_config_repository import (
     FinTSConfigRepository,
-)
-from swen.infrastructure.banking.fints_institute_directory import (
+    FinTSConfigStatus,
     FinTSInstituteDirectory,
     FinTSInstituteDirectoryError,
     FinTSInstituteInfo,
+    GeldstromAdapter,
+    UpdateConfigResult,
+    ValidationResult,
     get_fints_institute_directory,
     get_fints_institute_directory_async,
     invalidate_fints_directory_cache,
 )
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
 
 __all__ = [
+    "BankConnectionDispatcher",
     "CSVValidationResult",
     "FinTSConfig",
     "FinTSConfigRepository",
@@ -29,7 +35,11 @@ __all__ = [
     "FinTSInstituteDirectoryError",
     "FinTSInstituteInfo",
     "GeldstromAdapter",
-    "UploadResult",
+    "GeldstromApiAdapter",
+    "GeldstromApiConfig",
+    "GeldstromApiConfigRepository",
+    "GeldstromApiConfigStatus",
+    "UpdateConfigResult",
     "ValidationResult",
     "get_fints_institute_directory",
     "get_fints_institute_directory_async",
