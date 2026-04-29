@@ -94,6 +94,23 @@ Creates `demo@example.com` / `demo` with ~200 sample transactions.
 
 ## Running Tests
 
+### ⚠️ Podman Users: Required Configuration
+
+If you use **Podman** instead of Docker, you must set the `DOCKER_HOST` environment variable before running tests. The testcontainers library uses this to locate the Podman socket.
+
+```bash
+# Set this before running tests (add to your .bashrc or .zshrc for persistence)
+export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
+```
+
+Without this, you will see errors like:
+```
+docker.errors.DockerException: Error while fetching server API version:
+('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+```
+
+### Test Commands
+
 ```bash
 # All tests
 make test
@@ -108,12 +125,11 @@ make test-ml
 make test-cov
 ```
 
-## Podman Instead of Docker
+### Additional Podman Configuration
 
-If you use Podman, export these variables before running integration tests:
+For running the development database container with Podman:
 
 ```bash
-export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
 export TESTCONTAINERS_RYUK_DISABLED=true
 ```
 
