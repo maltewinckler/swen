@@ -72,6 +72,17 @@ Open `http://localhost:3000`. The first user to register automatically becomes a
 - **RAM**: 4 GB+ recommended (ML model loading)
 - A **FinTS Product ID** from [Deutsche Kreditwirtschaft](https://www.fints.org/de/hersteller/produktregistrierung) for bank sync (free registration, a few days turnaround)
 
+### Running Tests with Podman
+
+If you use **Podman** instead of Docker, set the `DOCKER_HOST` environment variable before running tests:
+
+```bash
+export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
+make test
+```
+
+See [Testing documentation](docs/dev/testing.md) for details.
+
 ## Notes
 
 - **Bank support**: FinTS is supported by most German banks. Check [subsembly.com](https://subsembly.com/banken.html) for a (possibly outdated) list. Currently only the **decoupled push-TAN** method is tested (SecureGo, ING App, DKB App, Sparkasse App).
