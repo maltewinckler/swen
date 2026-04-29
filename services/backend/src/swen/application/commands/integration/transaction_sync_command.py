@@ -47,7 +47,9 @@ from swen.domain.integration.repositories import (
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.iban import extract_blz_from_iban
 from swen.domain.shared.time import today_utc, utc_now
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -130,9 +132,7 @@ class TransactionSyncCommand:
             )
 
         return cls(
-            bank_adapter=GeldstromAdapter(
-                config_repository=factory.fints_config_repository(),
-            ),
+            bank_adapter=BankConnectionDispatcher.from_factory(factory),
             import_service=TransactionImportService.from_factory(factory),
             mapping_repo=factory.account_mapping_repository(),
             import_repo=factory.import_repository(),

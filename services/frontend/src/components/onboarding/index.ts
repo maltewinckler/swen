@@ -1,5 +1,6 @@
 export { OnboardingWelcomeStep } from './OnboardingWelcomeStep'
-export { OnboardingFinTSConfigStep } from './OnboardingFinTSConfigStep'
+export { OnboardingBankingProviderStep } from './OnboardingBankingProviderStep'
+export type { BankingProviderSaveParams } from './OnboardingBankingProviderStep'
 export { OnboardingAccountsSetupStep } from './OnboardingAccountsSetupStep'
 export { OnboardingConnectBankStep } from './OnboardingConnectBankStep'
 export { OnboardingManualAccountsStep } from './OnboardingManualAccountsStep'

@@ -19,7 +19,11 @@ from dotenv import load_dotenv
 
 from swen.domain.banking.value_objects.bank_credentials import BankCredentials
 from swen.domain.shared.time import today_utc
-from swen.infrastructure.banking.geldstrom_adapter import GeldstromAdapter
+from swen.infrastructure.banking.local_fints.adapter import GeldstromAdapter
+from tests.external.conftest import (
+    InMemoryFinTSConfigRepository,
+    InMemoryFinTSEndpointRepository,
+)
 
 warnings.filterwarnings(
     "ignore",
@@ -28,7 +32,7 @@ warnings.filterwarnings(
 )
 
 # Load environment variables from repository root so we share credentials
-root_dir = Path(__file__).parent.parent.parent.parent
+root_dir = Path(__file__).parent.parent.parent.parent.parent.parent
 env_path = root_dir / ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -83,29 +87,53 @@ def credentials():
         blz=blz,
         username=username,
         pin=pin,
-        endpoint=endpoint,
     )
+
+
+@pytest.fixture(scope="module")
+def fints_endpoint_repo():
+    """Provide an in-memory endpoint repo seeded from FINTS_ENDPOINT env var."""
+    blz = os.getenv("FINTS_BLZ", "")
+    endpoint = os.getenv("FINTS_ENDPOINT", "")
+    return InMemoryFinTSEndpointRepository({blz: endpoint})
+
+
+@pytest.fixture(scope="module")
+def fints_config_repo():
+    """Provide an in-memory config repo seeded from FINTS_PRODUCT_ID env var."""
+    product_id = os.getenv("FINTS_PRODUCT_ID")
+    if not product_id:
+        pytest.skip(
+            "Missing FINTS_PRODUCT_ID in .env. "
+            "Required for adapter to connect to the bank.",
+        )
+    return InMemoryFinTSConfigRepository(product_id=product_id)
 
 
 @pytest.fixture(scope="module")
 def tan_settings():
     """Load TAN settings from environment variables."""
     tan_method = os.getenv("FINTS_TAN_METHOD")
-    tan_medium = os.getenv("FINTS_TAN_MEDIUM")
+    tan_medium = os.getenv("FINTS_TAN_MEDIUM")  # optional — only some banks need it
 
-    if not tan_method or not tan_medium:
+    if not tan_method:
         pytest.skip(
-            "Missing TAN settings in .env: FINTS_TAN_METHOD, FINTS_TAN_MEDIUM. "
-            "These are required by some banks to signal TAN capability.",
+            "Missing FINTS_TAN_METHOD in .env. "
+            "Required to signal TAN capability to the bank.",
         )
 
     return {"tan_method": tan_method, "tan_medium": tan_medium}
 
 
 @pytest.fixture(scope="module")
-async def connected_adapter(credentials, tan_settings):
+async def connected_adapter(
+    credentials, tan_settings, fints_endpoint_repo, fints_config_repo
+):
     """Create and connect Geldstrom adapter (reused across tests in module)."""
-    adapter = GeldstromAdapter()
+    adapter = GeldstromAdapter(
+        config_repository=fints_config_repo,
+        fints_endpoint_repo=fints_endpoint_repo,
+    )
 
     # Set TAN method/medium before connecting (required by some banks)
     adapter.set_tan_method(tan_settings["tan_method"])
@@ -130,9 +158,14 @@ class TestRealBankConnection:
     """
 
     @pytest.mark.asyncio
-    async def test_connect_to_bank(self, credentials, tan_settings):
+    async def test_connect_to_bank(
+        self, credentials, tan_settings, fints_endpoint_repo, fints_config_repo
+    ):
         """Verify successful connection to real bank."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -147,9 +180,14 @@ class TestRealBankConnection:
                 await adapter.disconnect()
 
     @pytest.mark.asyncio
-    async def test_disconnect(self, credentials, tan_settings):
+    async def test_disconnect(
+        self, credentials, tan_settings, fints_endpoint_repo, fints_config_repo
+    ):
         """Verify clean disconnect."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -160,9 +198,14 @@ class TestRealBankConnection:
         assert not adapter.is_connected()
 
     @pytest.mark.asyncio
-    async def test_multiple_connect_disconnect_cycles(self, credentials, tan_settings):
+    async def test_multiple_connect_disconnect_cycles(
+        self, credentials, tan_settings, fints_endpoint_repo, fints_config_repo
+    ):
         """Verify connection can be established multiple times."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
@@ -179,14 +222,18 @@ class TestRealBankConnection:
         await adapter.disconnect()
 
     @pytest.mark.asyncio
-    async def test_connection_with_invalid_credentials_fails(self):
+    async def test_connection_with_invalid_credentials_fails(
+        self, fints_endpoint_repo, fints_config_repo
+    ):
         """Verify that invalid credentials result in connection failure."""
-        adapter = GeldstromAdapter()
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
         invalid_creds = BankCredentials.from_plain(
             blz="12345678",
             username="invalid_user",
             pin="invalid_pin",
-            endpoint="https://invalid.example.com/fints",
         )
 
         try:
@@ -406,3 +453,72 @@ class TestRealTransactionFetching:
             )
             # Should succeed (may be empty)
             assert isinstance(transactions, list)
+
+
+class TestTANMethodDiscovery:
+    """Test TAN method discovery from a real bank.
+
+    Verifies that get_tan_methods() works correctly with geldstrom 0.1.x,
+    which removed the `method_type` field. The adapter now derives method_type
+    from the `is_decoupled` flag.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_tan_methods_returns_nonempty_list(
+        self, credentials, fints_endpoint_repo, fints_config_repo
+    ):
+        """get_tan_methods() should return at least one TAN method."""
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
+
+        methods = await adapter.get_tan_methods(credentials)
+
+        assert len(methods) > 0, "Bank should advertise at least one TAN method"
+
+    @pytest.mark.asyncio
+    async def test_get_tan_methods_have_valid_codes(
+        self, credentials, fints_endpoint_repo, fints_config_repo
+    ):
+        """Each TAN method should have a non-empty code and name."""
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
+
+        methods = await adapter.get_tan_methods(credentials)
+
+        for method in methods:
+            assert method.code, f"TAN method should have a code: {method}"
+            assert method.name, f"TAN method should have a name: {method}"
+
+    @pytest.mark.asyncio
+    async def test_get_tan_methods_decoupled_type_derived_correctly(
+        self, credentials, fints_endpoint_repo, fints_config_repo
+    ):
+        """Decoupled TAN methods should have method_type=DECOUPLED.
+
+        This test verifies the adapter's fix for geldstrom 0.1.x which removed
+        the `method_type` field — the adapter now derives it from `is_decoupled`.
+        """
+        from swen.domain.banking.value_objects.tan_method import TANMethodType
+
+        adapter = GeldstromAdapter(
+            config_repository=fints_config_repo,
+            fints_endpoint_repo=fints_endpoint_repo,
+        )
+
+        methods = await adapter.get_tan_methods(credentials)
+
+        for method in methods:
+            if method.is_decoupled:
+                assert method.method_type == TANMethodType.DECOUPLED, (
+                    f"Decoupled method {method.code} should have type DECOUPLED, "
+                    f"got {method.method_type}"
+                )
+            else:
+                assert method.method_type == TANMethodType.UNKNOWN, (
+                    f"Non-decoupled method {method.code} should have type UNKNOWN, "
+                    f"got {method.method_type}"
+                )

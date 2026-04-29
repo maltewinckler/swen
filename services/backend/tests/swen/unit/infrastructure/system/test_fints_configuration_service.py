@@ -11,7 +11,7 @@ from io import StringIO
 
 import pytest
 
-from swen.infrastructure.system.fints_configuration_service import (
+from swen.infrastructure.banking.local_fints.services.configuration_service import (
     MAX_CSV_SIZE_BYTES,
     FinTSConfigurationService,
 )
@@ -27,7 +27,7 @@ def _make_mock_repository():
 def _make_service(repository=None) -> FinTSConfigurationService:
     """Create a FinTSConfigurationService with mock dependencies."""
     repo = repository or _make_mock_repository()
-    return FinTSConfigurationService(repository=repo)
+    return FinTSConfigurationService(config_repository=repo)
 
 
 def _make_valid_csv_bytes(institute_count: int = 3) -> bytes:
@@ -184,7 +184,7 @@ class TestGetConfigurationStatus:
     async def test_configured(self):
         from datetime import datetime, timezone
 
-        from swen.infrastructure.banking.fints_config import FinTSConfig
+        from swen.infrastructure.banking.local_fints.models.config import FinTSConfig
 
         repo = _make_mock_repository()
         repo.get_configuration.return_value = FinTSConfig(
@@ -208,65 +208,136 @@ class TestGetConfigurationStatus:
         assert status.institute_count == 10
 
 
-class TestUpdateProductId:
-    """Tests for updating Product ID via service."""
+class TestUpdateConfiguration:
+    """Tests for the unified update_configuration method."""
 
     @pytest.mark.asyncio
-    async def test_update_valid_product_id(self):
+    async def test_neither_arg_raises(self):
+        from uuid import UUID
+
+        service = _make_service()
+        admin_id = UUID("12345678-1234-5678-1234-567812345678")
+
+        with pytest.raises(ValueError, match="At least one"):
+            await service.update_configuration(admin_user_id=admin_id)
+
+    @pytest.mark.asyncio
+    async def test_first_time_product_id_only_raises(self):
+        """First-time setup requires CSV — product_id alone must fail."""
         from uuid import UUID
 
         repo = _make_mock_repository()
+        repo.exists.return_value = False
         service = _make_service(repository=repo)
         admin_id = UUID("12345678-1234-5678-1234-567812345678")
 
-        await service.update_product_id("VALID_ID", admin_id)
+        with pytest.raises(ValueError, match="CSV is required"):
+            await service.update_configuration(admin_user_id=admin_id, product_id="PID")
 
-        repo.update_product_id.assert_called_once_with(
-            product_id="VALID_ID",
-            admin_user_id=admin_id,
-        )
+        repo.save_configuration.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_update_invalid_product_id_raises(self):
+    async def test_first_time_both_fields_saves_config(self):
+        """First-time setup with both fields calls save_configuration."""
         from uuid import UUID
 
         repo = _make_mock_repository()
-        service = _make_service(repository=repo)
-        admin_id = UUID("12345678-1234-5678-1234-567812345678")
-
-        with pytest.raises(ValueError, match="Invalid Product ID"):
-            await service.update_product_id("", admin_id)
-
-        repo.update_product_id.assert_not_called()
-
-
-class TestUploadCsv:
-    """Tests for uploading CSV via service."""
-
-    @pytest.mark.asyncio
-    async def test_upload_valid_csv(self):
-        from uuid import UUID
-
-        repo = _make_mock_repository()
+        repo.exists.return_value = False
         service = _make_service(repository=repo)
         admin_id = UUID("12345678-1234-5678-1234-567812345678")
         csv_bytes = _make_valid_csv_bytes(institute_count=3)
 
-        result = await service.upload_csv(csv_bytes, admin_id)
+        result = await service.update_configuration(
+            admin_user_id=admin_id,
+            product_id="VALID_PID",
+            csv_content=csv_bytes,
+        )
 
+        repo.save_configuration.assert_called_once()
         assert result.institute_count == 3
-        assert result.file_size_bytes > 0
-        repo.update_csv.assert_called_once()
+        assert result.file_size_bytes is not None
 
     @pytest.mark.asyncio
-    async def test_upload_invalid_csv_raises(self):
+    async def test_existing_product_id_only_patches_product_id(self):
+        """When config exists, product_id-only update calls update_product_id only."""
         from uuid import UUID
 
         repo = _make_mock_repository()
+        repo.exists.return_value = True
         service = _make_service(repository=repo)
         admin_id = UUID("12345678-1234-5678-1234-567812345678")
 
-        with pytest.raises(ValueError, match="Invalid CSV"):
-            await service.upload_csv(b"", admin_id)
+        result = await service.update_configuration(
+            admin_user_id=admin_id,
+            product_id="VALID_PID",
+        )
 
+        repo.update_product_id.assert_called_once_with(
+            product_id="VALID_PID",
+            admin_user_id=admin_id,
+        )
         repo.update_csv.assert_not_called()
+        assert result.institute_count is None
+
+    @pytest.mark.asyncio
+    async def test_existing_csv_only_patches_csv(self):
+        """When config exists, csv-only update calls update_csv only."""
+        from uuid import UUID
+
+        repo = _make_mock_repository()
+        repo.exists.return_value = True
+        service = _make_service(repository=repo)
+        admin_id = UUID("12345678-1234-5678-1234-567812345678")
+        csv_bytes = _make_valid_csv_bytes(institute_count=5)
+
+        result = await service.update_configuration(
+            admin_user_id=admin_id,
+            csv_content=csv_bytes,
+        )
+
+        repo.update_csv.assert_called_once()
+        repo.update_product_id.assert_not_called()
+        assert result.institute_count == 5
+
+    @pytest.mark.asyncio
+    async def test_existing_both_fields_patches_both(self):
+        """When config exists and both fields provided, both repo methods are called."""
+        from uuid import UUID
+
+        repo = _make_mock_repository()
+        repo.exists.return_value = True
+        service = _make_service(repository=repo)
+        admin_id = UUID("12345678-1234-5678-1234-567812345678")
+        csv_bytes = _make_valid_csv_bytes(institute_count=2)
+
+        await service.update_configuration(
+            admin_user_id=admin_id,
+            product_id="PID",
+            csv_content=csv_bytes,
+        )
+
+        repo.update_product_id.assert_called_once()
+        repo.update_csv.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_invalid_product_id_raises(self):
+        from uuid import UUID
+
+        service = _make_service()
+        admin_id = UUID("12345678-1234-5678-1234-567812345678")
+
+        with pytest.raises(ValueError, match="Invalid Product ID"):
+            await service.update_configuration(admin_user_id=admin_id, product_id="")
+
+    @pytest.mark.asyncio
+    async def test_invalid_csv_raises(self):
+        from uuid import UUID
+
+        service = _make_service()
+        admin_id = UUID("12345678-1234-5678-1234-567812345678")
+
+        with pytest.raises(ValueError, match="Invalid CSV"):
+            await service.update_configuration(
+                admin_user_id=admin_id,
+                csv_content=b"",
+            )

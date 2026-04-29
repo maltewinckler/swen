@@ -36,7 +36,6 @@ class TestStoreCredentialsCommand:
             blz="50031000",
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.triodos.de/fints",
         )
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-123"
@@ -69,7 +68,6 @@ class TestStoreCredentialsCommand:
             blz="50031000",
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.triodos.de/fints",
         )
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-456"
@@ -98,7 +96,6 @@ class TestStoreCredentialsCommand:
             blz="50031000",
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.triodos.de/fints",
         )
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-789"
@@ -132,14 +129,12 @@ class TestStoreCredentialsCommand:
             blz="50031000",
             username="testuser",
             pin="testpin",
-            endpoint="https://banking.triodos.de/fints",
         )
         # Existing credentials found (repository is user-scoped)
         existing_creds = BankCredentials.from_plain(
             blz="50031000",
             username="olduser",
             pin="oldpin",
-            endpoint="https://banking.triodos.de/fints",
         )
         mock_credential_repo.find_by_blz.return_value = existing_creds
 
@@ -162,13 +157,11 @@ class TestStoreCredentialsCommand:
             blz="50031000",
             username="triodos_user",
             pin="triodos_pin",
-            endpoint="https://banking.triodos.de/fints",
         )
         dkb_creds = BankCredentials.from_plain(
             blz="12030000",
             username="dkb_user",
             pin="dkb_pin",
-            endpoint="https://banking.dkb.de/fints",
         )
 
         mock_credential_repo.find_by_blz.return_value = None

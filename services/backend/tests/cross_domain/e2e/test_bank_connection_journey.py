@@ -22,16 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
-@dataclass
-class MockInstituteInfo:
-    """Mock FinTS institute info for tests."""
-
-    blz: str
-    name: str
-    bic: str
-    city: str
-    endpoint_url: str
+from swen.domain.banking.value_objects.bank_info import BankInfo
 
 
 @dataclass
@@ -65,12 +56,12 @@ class MockBankTransaction:
 
 
 # Test data
-MOCK_INSTITUTE = MockInstituteInfo(
+MOCK_BANK_INFO = BankInfo(
     blz="12345678",
     name="Test Bank AG",
     bic="TESTDE00XXX",
-    city="Berlin",
-    endpoint_url="https://banking.testbank.de/fints",
+    organization=None,
+    is_fints_capable=True,
 )
 
 MOCK_ACCOUNTS = [
@@ -141,14 +132,13 @@ def generate_mock_transactions(
 
 @pytest.fixture
 def mock_fints_directory():
-    """Mock the FinTS institute directory."""
+    """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
-        new_callable=AsyncMock,
+        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
-        mock_dir = MagicMock()
-        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE
-        mock.return_value = mock_dir
+        mock_query = AsyncMock()
+        mock_query.execute.return_value = MOCK_BANK_INFO
+        mock.return_value = mock_query
         yield mock
 
 
@@ -165,14 +155,14 @@ def mock_bank_adapter():
 
     with (
         patch(
-            "swen.presentation.api.routers.credentials.GeldstromAdapter"
+            "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_adapter_class_router,
         patch(
-            "swen.application.commands.banking.bank_connection_command.GeldstromAdapter"
+            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
         ) as mock_adapter_class_command,
     ):
-        mock_adapter_class_router.return_value = adapter_instance
-        mock_adapter_class_command.return_value = adapter_instance
+        mock_adapter_class_router.from_factory.return_value = adapter_instance
+        mock_adapter_class_command.from_factory.return_value = adapter_instance
         yield adapter_instance
 
 
@@ -180,7 +170,7 @@ def mock_bank_adapter():
 def mock_sync_adapter():
     """Mock the adapter for sync operations."""
     with patch(
-        "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+        "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
     ) as mock_adapter_class:
         adapter_instance = AsyncMock()
         adapter_instance.is_connected.return_value = False
@@ -204,7 +194,7 @@ def mock_sync_adapter():
         )
         adapter_instance.set_tan_method = MagicMock()
         adapter_instance.set_tan_medium = MagicMock()
-        mock_adapter_class.return_value = adapter_instance
+        mock_adapter_class.from_factory.return_value = adapter_instance
         yield adapter_instance
 
 

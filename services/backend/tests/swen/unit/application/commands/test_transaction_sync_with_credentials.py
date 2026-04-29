@@ -30,7 +30,6 @@ def _make_credentials() -> BankCredentials:
         blz=BLZ,
         username=SecureString("user"),
         pin=SecureString("123456"),
-        endpoint="https://fints.example.com/fints",
     )
 
 

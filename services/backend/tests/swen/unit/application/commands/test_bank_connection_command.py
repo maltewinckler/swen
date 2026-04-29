@@ -29,7 +29,6 @@ class TestBankConnectionCommand:
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
-            endpoint="https://fints.example.com/fints",
         )
 
         bank_acct = BankAccount(
@@ -97,7 +96,6 @@ class TestBankConnectionCommand:
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
-            endpoint="https://fints.example.com/fints",
         )
 
         # Act - user_id is now obtained from user-scoped repositories
@@ -128,7 +126,6 @@ class TestBankConnectionCommand:
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
-            endpoint="https://fints.example.com/fints",
         )
 
         # Act - user_id is now obtained from user-scoped repositories
@@ -185,7 +182,6 @@ class TestBankConnectionCommand:
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
-            endpoint="https://fints.example.com/fints",
         )
 
         # Act - user_id is now obtained from user-scoped repositories

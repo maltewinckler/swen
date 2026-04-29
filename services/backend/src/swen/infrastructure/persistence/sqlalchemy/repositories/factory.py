@@ -16,8 +16,11 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankAccountRepositorySQLAlchemy,
     BankCredentialRepositorySQLAlchemy,
+    BankInfoRepositorySQLAlchemy,
     BankTransactionRepositorySQLAlchemy,
     FinTSConfigRepositorySQLAlchemy,
+    FinTSEndpointRepositorySQLAlchemy,
+    GeldstromApiConfigRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
@@ -66,6 +69,11 @@ class SQLAlchemyRepositoryFactory:
         self._analytics_read_adapter: SqlAlchemyAnalyticsReadAdapter | None = None
         self._settings_repo: UserSettingsRepositorySQLAlchemy | None = None
         self._fints_config_repo: FinTSConfigRepositorySQLAlchemy | None = None
+        self._geldstrom_api_config_repo: (
+            GeldstromApiConfigRepositorySQLAlchemy | None
+        ) = None
+        self._bank_info_repo: BankInfoRepositorySQLAlchemy | None = None
+        self._fints_endpoint_repo: FinTSEndpointRepositorySQLAlchemy | None = None
 
     @property
     def current_user(self) -> CurrentUser:
@@ -178,3 +186,31 @@ class SQLAlchemyRepositoryFactory:
                 encryption_service,
             )
         return self._fints_config_repo
+
+    def geldstrom_api_config_repository(
+        self,
+    ) -> GeldstromApiConfigRepositorySQLAlchemy:
+        """Get Geldstrom API configuration repository (system-wide)."""
+        if self._geldstrom_api_config_repo is None:
+            encryption_service = FernetEncryptionService(
+                encryption_key=self._encryption_key,
+            )
+            self._geldstrom_api_config_repo = GeldstromApiConfigRepositorySQLAlchemy(
+                self._session,
+                encryption_service,
+            )
+        return self._geldstrom_api_config_repo
+
+    def bank_info_repository(self) -> BankInfoRepositorySQLAlchemy:
+        """Get bank information repository (system-wide)."""
+        if self._bank_info_repo is None:
+            self._bank_info_repo = BankInfoRepositorySQLAlchemy(self._session)
+        return self._bank_info_repo
+
+    def fints_endpoint_repository(self) -> FinTSEndpointRepositorySQLAlchemy:
+        """Get FinTS endpoint repository (system-wide, infrastructure-only)."""
+        if self._fints_endpoint_repo is None:
+            self._fints_endpoint_repo = FinTSEndpointRepositorySQLAlchemy(
+                self._session,
+            )
+        return self._fints_endpoint_repo

@@ -1,13 +1,14 @@
 """Stored bank credentials entity."""
 
-from dataclasses import dataclass
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass
-class StoredBankCredentials:
+
+class StoredBankCredentials(BaseModel):
     """
     Entity representing encrypted banking credentials in storage.
 
@@ -24,25 +25,25 @@ class StoredBankCredentials:
 
     Non-Sensitive Fields:
     - blz: Public bank code (needed for queries)
-    - endpoint: Public URL (needed for queries)
     """
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     user_id: UUID
 
     blz: str
-    endpoint: str
     username_encrypted: bytes
     pin_encrypted: bytes
     encryption_version: int
-    label: Optional[str]
+    label: str | None
     is_active: bool
-    tan_method: Optional[str]  # ID code for TAN method
-    tan_medium: Optional[str]  # name for the TAN medium (SecureGo)
+    tan_method: str | None
+    tan_medium: str | None
 
     created_at: datetime
     updated_at: datetime
-    last_used_at: Optional[datetime]
+    last_used_at: datetime | None
 
     def __repr__(self) -> str:
         return (

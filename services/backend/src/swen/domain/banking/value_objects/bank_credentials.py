@@ -13,7 +13,6 @@ class BankCredentials(BaseModel):
     - BLZ (Bankleitzahl) - German bank code
     - Username/Login ID (secured)
     - PIN (secured)
-    - Endpoint URL (optional, can be derived from BLZ)
 
     Security:
     - Username and PIN are SecureStrings to prevent accidental logging
@@ -27,7 +26,6 @@ class BankCredentials(BaseModel):
     )
     username: SecureString = Field(..., description="Login ID")
     pin: SecureString = Field(..., description="PIN for authentication")
-    endpoint: str = Field(..., min_length=1, description="FinTS endpoint URL")
 
     model_config = ConfigDict(frozen=True)
 
@@ -40,13 +38,10 @@ class BankCredentials(BaseModel):
         return v
 
     def __repr__(self) -> str:
-        return (
-            f"BankCredentials(blz={self.blz}, username=*****, "
-            f"pin=*****, endpoint={self.endpoint})"
-        )
+        return f"BankCredentials(blz={self.blz}, username=*****, pin=*****)"
 
     def __str__(self) -> str:
-        return f"BankCredentials(blz={self.blz}, endpoint={self.endpoint})"
+        return f"BankCredentials(blz={self.blz})"
 
     @classmethod
     def from_plain(
@@ -54,22 +49,19 @@ class BankCredentials(BaseModel):
         blz: str,
         username: str,
         pin: str,
-        endpoint: str,
     ) -> "BankCredentials":
         """Create BankCredentials from plain strings."""
         return cls(
             blz=blz,
             username=SecureString(username),
             pin=SecureString(pin),
-            endpoint=endpoint,
         )
 
     @classmethod
-    def from_env(cls, blz: str, endpoint: str) -> "BankCredentials":
-        """Create BankCredentials from environment variables (testing..)."""
+    def from_env(cls, blz: str) -> "BankCredentials":
+        """Create BankCredentials from environment variables (testing)."""
         return cls(
             blz=blz,
             username=SecureString.from_env("FINTS_USERNAME"),
             pin=SecureString.from_env("FINTS_PIN"),
-            endpoint=endpoint,
         )

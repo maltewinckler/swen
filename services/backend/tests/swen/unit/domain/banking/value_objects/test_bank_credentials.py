@@ -19,13 +19,11 @@ class TestBankCredentialsCreation:
             blz="12345678",
             username=SecureString("user123"),
             pin=SecureString("1234"),
-            endpoint="https://bank.example.com",
         )
 
         assert creds.blz == "12345678"
         assert creds.username.get_value() == "user123"
         assert creds.pin.get_value() == "1234"
-        assert creds.endpoint == "https://bank.example.com"
 
     def test_from_plain_factory(self):
         """from_plain() should wrap strings in SecureString."""
@@ -33,7 +31,6 @@ class TestBankCredentialsCreation:
             blz="12345678",
             username="user123",
             pin="1234",
-            endpoint="https://bank.example.com",
         )
 
         assert isinstance(creds.username, SecureString)
@@ -55,7 +52,6 @@ class TestBankCredentialsValidation:
                 blz="123",  # Too short
                 username="user",
                 pin="1234",
-                endpoint="https://bank.example.com",
             )
 
     def test_reject_long_blz(self):
@@ -68,7 +64,6 @@ class TestBankCredentialsValidation:
                 blz="123456789",  # Too long
                 username="user",
                 pin="1234",
-                endpoint="https://bank.example.com",
             )
 
     def test_reject_non_numeric_blz(self):
@@ -78,20 +73,6 @@ class TestBankCredentialsValidation:
                 blz="1234567X",  # Contains letter
                 username="user",
                 pin="1234",
-                endpoint="https://bank.example.com",
-            )
-
-    def test_reject_empty_endpoint(self):
-        """Endpoint is required."""
-        with pytest.raises(
-            ValueError,
-            match=r"(at least 1 character|required)",
-        ):
-            BankCredentials.from_plain(
-                blz="12345678",
-                username="user",
-                pin="1234",
-                endpoint="",  # Empty
             )
 
     def test_reject_non_securestring_username(self):
@@ -101,7 +82,6 @@ class TestBankCredentialsValidation:
             blz="12345678",
             username="plain_string",  # type: ignore[arg-type]  # Automatically converted
             pin=SecureString("1234"),
-            endpoint="https://bank.example.com",
         )
 
         # Verify it was converted to SecureString
@@ -115,7 +95,6 @@ class TestBankCredentialsValidation:
             blz="12345678",
             username=SecureString("user"),
             pin="plain_string",  # type: ignore[arg-type]  # Automatically converted
-            endpoint="https://bank.example.com",
         )
 
         # Verify it was converted to SecureString
@@ -129,7 +108,6 @@ class TestBankCredentialsValidation:
                 blz="12345678",
                 username="",  # type: ignore[arg-type]  # Empty string
                 pin=SecureString("1234"),
-                endpoint="https://bank.example.com",
             )
 
     def test_reject_empty_pin(self):
@@ -139,7 +117,6 @@ class TestBankCredentialsValidation:
                 blz="12345678",
                 username=SecureString("user"),
                 pin="",  # type: ignore[arg-type]  # Empty string
-                endpoint="https://bank.example.com",
             )
 
 
@@ -152,7 +129,6 @@ class TestBankCredentialsSecurity:
             blz="12345678",
             username="secret_user",
             pin="secret_pin",
-            endpoint="https://bank.example.com",
         )
 
         str_output = str(creds)
@@ -160,7 +136,6 @@ class TestBankCredentialsSecurity:
         assert "secret_user" not in str_output
         assert "secret_pin" not in str_output
         assert "12345678" in str_output  # BLZ is not secret
-        assert "https://bank.example.com" in str_output  # Endpoint is not secret
 
     def test_repr_masks_credentials(self):
         """__repr__ should mask username and PIN."""
@@ -168,7 +143,6 @@ class TestBankCredentialsSecurity:
             blz="12345678",
             username="secret_user",
             pin="secret_pin",
-            endpoint="https://bank.example.com",
         )
 
         repr_output = repr(creds)
@@ -184,7 +158,6 @@ class TestBankCredentialsSecurity:
             blz="12345678",
             username="secret_user",
             pin="secret_pin",
-            endpoint="https://bank.example.com",
         )
 
         formatted = f"Credentials: {creds}"
@@ -202,7 +175,6 @@ class TestBankCredentialsImmutability:
             blz="12345678",
             username="user",
             pin="1234",
-            endpoint="https://bank.example.com",
         )
 
         with pytest.raises(Exception):  # FrozenInstanceError  # noqa: PT011, B017
@@ -214,7 +186,6 @@ class TestBankCredentialsImmutability:
             blz="12345678",
             username="user",
             pin="1234",
-            endpoint="https://bank.example.com",
         )
 
         # Values should remain unchanged
@@ -236,7 +207,6 @@ class TestBankCredentialsFromEnv:
         with patch.dict(os.environ, env_vars):
             creds = BankCredentials.from_env(
                 blz="12345678",
-                endpoint="https://bank.example.com",
             )
 
             assert creds.username.get_value() == "test_user"
@@ -253,7 +223,6 @@ class TestBankCredentialsFromEnv:
         ):
             BankCredentials.from_env(
                 blz="12345678",
-                endpoint="https://bank.example.com",
             )
 
     def test_from_env_with_missing_pin(self):
@@ -267,7 +236,6 @@ class TestBankCredentialsFromEnv:
         ):
             BankCredentials.from_env(
                 blz="12345678",
-                endpoint="https://bank.example.com",
             )
 
 
@@ -280,20 +248,6 @@ class TestBankCredentialsRealWorld:
             blz="50031000",  # Triodos Bank
             username="test_user",
             pin="test_pin",
-            endpoint="https://banking.triodos.de/fints",
         )
 
         assert creds.blz == "50031000"
-        assert creds.endpoint == "https://banking.triodos.de/fints"
-
-    def test_long_endpoint_url(self):
-        """Should handle long endpoint URLs."""
-        long_url = "https://banking.example.com/fints/fints-server/v1/PinTanServlet"
-        creds = BankCredentials.from_plain(
-            blz="12345678",
-            username="user",
-            pin="1234",
-            endpoint=long_url,
-        )
-
-        assert creds.endpoint == long_url

@@ -23,6 +23,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects import BankAccount
+from swen.domain.banking.value_objects.bank_info import BankInfo
 
 
 @dataclass
@@ -41,39 +42,12 @@ class MockBankTransaction:
     end_to_end_id: str | None = None
 
 
-@dataclass
-class MockInstituteInfo:
-    """Mock FinTS institute info."""
-
-    blz: str
-    name: str
-    bic: str
-    city: str
-    endpoint_url: str
-
-
-@dataclass
-class MockBankAccount:
-    """Mock bank account."""
-
-    iban: str
-    account_number: str
-    account_holder: str
-    account_type: str
-    blz: str
-    bic: str
-    bank_name: str
-    currency: str
-    balance: Decimal | None = None
-    balance_date: datetime | None = None
-
-
-MOCK_INSTITUTE = MockInstituteInfo(
+MOCK_BANK_INFO = BankInfo(
     blz="12345678",
     name="Test Bank AG",
     bic="TESTDE00XXX",
-    city="Berlin",
-    endpoint_url="https://banking.test.de/fints",
+    organization=None,
+    is_fints_capable=True,
 )
 
 # Use real domain BankAccount instead of mock
@@ -120,14 +94,13 @@ def create_mock_transaction(
 
 @pytest.fixture
 def mock_fints_directory():
-    """Mock the FinTS institute directory."""
+    """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.presentation.api.routers.credentials.get_fints_institute_directory_async",
-        new_callable=AsyncMock,
+        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
-        mock_dir = MagicMock()
-        mock_dir.find_by_blz.return_value = MOCK_INSTITUTE
-        mock.return_value = mock_dir
+        mock_query = AsyncMock()
+        mock_query.execute.return_value = MOCK_BANK_INFO
+        mock.return_value = mock_query
         yield mock
 
 
@@ -140,10 +113,10 @@ def mock_bank_adapter():
     """
     with (
         patch(
-            "swen.presentation.api.routers.credentials.GeldstromAdapter"
+            "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_router_adapter,
         patch(
-            "swen.application.commands.banking.bank_connection_command.GeldstromAdapter"
+            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
         ) as mock_command_adapter,
     ):
         adapter_instance = AsyncMock()
@@ -154,9 +127,9 @@ def mock_bank_adapter():
         adapter_instance.set_tan_method = MagicMock()
         adapter_instance.set_tan_medium = MagicMock()
 
-        # Both patches return the same mock instance
-        mock_router_adapter.return_value = adapter_instance
-        mock_command_adapter.return_value = adapter_instance
+        # Both patches return the same mock instance via from_factory
+        mock_router_adapter.from_factory.return_value = adapter_instance
+        mock_command_adapter.from_factory.return_value = adapter_instance
         yield adapter_instance
 
 
@@ -308,7 +281,7 @@ class TestAdaptiveSyncBehavior:
 
         # Mock sync adapter for this test
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -328,7 +301,7 @@ class TestAdaptiveSyncBehavior:
                 for i in range(5)
             ]
             adapter.fetch_transactions = AsyncMock(return_value=transactions)
-            mock_adapter_class.return_value = adapter
+            mock_adapter_class.from_factory.return_value = adapter
 
             response = test_client.post(
                 f"{api_v1_prefix}/sync/run",
@@ -352,7 +325,7 @@ class TestAdaptiveSyncBehavior:
 
         # Perform a sync first
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -361,7 +334,7 @@ class TestAdaptiveSyncBehavior:
             adapter.set_tan_method = MagicMock()
             adapter.set_tan_medium = MagicMock()
             adapter.fetch_transactions = AsyncMock(return_value=[])
-            mock_adapter_class.return_value = adapter
+            mock_adapter_class.from_factory.return_value = adapter
 
             test_client.post(
                 f"{api_v1_prefix}/sync/run",
@@ -396,7 +369,7 @@ class TestDeduplication:
 
         # First sync with one transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -413,7 +386,7 @@ class TestDeduplication:
                 txn_id=txn_id,
             )
             adapter.fetch_transactions = AsyncMock(return_value=[transaction])
-            mock_adapter_class.return_value = adapter
+            mock_adapter_class.from_factory.return_value = adapter
 
             first_sync = test_client.post(
                 f"{api_v1_prefix}/sync/run",
@@ -427,7 +400,7 @@ class TestDeduplication:
 
         # Second sync with same transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.GeldstromAdapter"
+            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -445,7 +418,7 @@ class TestDeduplication:
                 txn_id=txn_id,
             )
             adapter.fetch_transactions = AsyncMock(return_value=[transaction])
-            mock_adapter_class.return_value = adapter
+            mock_adapter_class.from_factory.return_value = adapter
 
             second_sync = test_client.post(
                 f"{api_v1_prefix}/sync/run",

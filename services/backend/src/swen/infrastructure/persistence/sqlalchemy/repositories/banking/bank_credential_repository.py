@@ -57,7 +57,6 @@ class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
             id=str(uuid4()),
             user_id=self._user_id,
             blz=credentials.blz,
-            endpoint=credentials.endpoint,
             username_encrypted=username_encrypted,
             pin_encrypted=pin_encrypted,
             encryption_version=1,
@@ -92,7 +91,6 @@ class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
             blz=stored.blz,
             username=username_plain,
             pin=pin_plain,
-            endpoint=stored.endpoint,
         )
 
     async def find_all(self) -> list[tuple[str, str, str]]:

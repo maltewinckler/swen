@@ -12,6 +12,7 @@ from swen.domain.accounting.repositories import (
 from swen.domain.banking.repositories import (
     BankAccountRepository,
     BankCredentialRepository,
+    BankInfoRepository,
     BankTransactionRepository,
 )
 from swen.domain.integration.repositories import (
@@ -20,8 +21,14 @@ from swen.domain.integration.repositories import (
     TransactionImportRepository,
 )
 from swen.domain.settings import UserSettingsRepository
-from swen.infrastructure.banking.fints_config_repository import (
+from swen.infrastructure.banking.geldstrom_api.config_repository import (
+    GeldstromApiConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.config_repository import (
     FinTSConfigRepository,
+)
+from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (
+    FinTSEndpointRepository,
 )
 from swen_identity.domain.user.repositories import UserRepository
 
@@ -93,4 +100,16 @@ class RepositoryFactory(Protocol):
 
     def fints_config_repository(self) -> FinTSConfigRepository:
         """Get FinTS configuration repository (system-wide)."""
+        ...
+
+    def geldstrom_api_config_repository(self) -> GeldstromApiConfigRepository:
+        """Get Geldstrom API configuration repository (system-wide)."""
+        ...
+
+    def bank_info_repository(self) -> BankInfoRepository:
+        """Get bank information repository (system-wide)."""
+        ...
+
+    def fints_endpoint_repository(self) -> FinTSEndpointRepository:
+        """Get FinTS endpoint repository (system-wide)."""
         ...
