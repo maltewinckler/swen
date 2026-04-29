@@ -34,14 +34,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Type aliases for query parameters using Annotated (modern FastAPI pattern)
-# Note: Don't set default in Query() when using Annotated - set it with = instead
-DaysFilter = Annotated[
+PageFilter = Annotated[
     int,
-    Query(ge=1, le=365, description="Days to look back"),
-]
-LimitFilter = Annotated[
-    int,
-    Query(ge=1, le=500, description="Max transactions"),
+    Query(ge=1, description="Page number (1-based)"),
 ]
 StatusFilter = Annotated[
     str | None,
@@ -123,51 +118,55 @@ def _list_item_to_response(dto) -> TransactionListItemResponse:
         200: {"description": "List of transactions"},
     },
 )
-async def list_transactions(  # NOQA: PLR0913
+async def list_transactions(
     factory: RepoFactory,
-    days: DaysFilter = 30,
-    limit: LimitFilter = 50,
+    page: PageFilter = 1,
     status_filter: StatusFilter = None,
     account_number: AccountNumberFilter = None,
     exclude_transfers: ExcludeTransfersFilter = None,
 ) -> TransactionListResponse:
     """
-    List transactions for the current user.
+    List transactions for the current user with pagination.
 
-    Supports filtering by:
-    - Date range (days back from today)
+    Returns 50 transactions per page. Supports filtering by:
     - Status (posted/draft)
     - Account number
     - Internal transfers (excluded by default when not filtering by account)
     """
+    PAGE_SIZE = 50
+
     query = ListTransactionsQuery(
         transaction_repository=factory.transaction_repository(),
         account_repository=factory.account_repository(),
     )
 
-    # Use query's execute method for counts
     result = await query.execute(
-        days=days,
-        limit=limit,
+        page=page,
+        page_size=PAGE_SIZE,
         status_filter=status_filter,
         iban_filter=account_number,
         exclude_transfers=exclude_transfers,
     )
 
-    # Use query's DTO method for formatted list items
     dto_result = await query.get_transaction_list(
-        days=days,
-        limit=limit,
+        page=page,
+        page_size=PAGE_SIZE,
         status_filter=status_filter,
         iban_filter=account_number,
         exclude_transfers=exclude_transfers,
     )
+
+    total_pages = (result.filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
 
     return TransactionListResponse(
         transactions=[_list_item_to_response(dto) for dto in dto_result.transactions],
         total=result.total_count,
+        filtered_count=result.filtered_count,
         draft_count=result.draft_count,
         posted_count=result.posted_count,
+        page=page,
+        page_size=PAGE_SIZE,
+        total_pages=total_pages,
     )
 
 

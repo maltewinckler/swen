@@ -1,9 +1,8 @@
-"""List transactions with optional filters."""
+"""List transactions with optional filters and pagination."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -14,7 +13,8 @@ from swen.application.dtos.accounting import (
 )
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.repositories import AccountRepository, TransactionRepository
-from swen.domain.shared.time import utc_now
+from swen.domain.accounting.value_objects import TransactionFilters
+from swen.domain.shared.value_objects import Pagination
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -26,6 +26,7 @@ class TransactionListResult:
 
     transactions: list[Transaction]
     total_count: int
+    filtered_count: int
     draft_count: int
     posted_count: int
 
@@ -50,16 +51,13 @@ class ListTransactionsQuery:
 
     async def execute(  # NOQA: PLR0913
         self,
-        days: int = 30,
-        limit: int = 50,
+        page: int = 1,
+        page_size: int = 50,
         status_filter: Optional[str] = None,
         iban_filter: Optional[str] = None,
         show_drafts: bool = True,
         exclude_transfers: Optional[bool] = None,
     ) -> TransactionListResult:
-        now = utc_now()
-        start_date = (now - timedelta(days=days)).isoformat()
-
         status = status_filter
         if status is None and not show_drafts:
             status = "posted"
@@ -74,6 +72,7 @@ class ListTransactionsQuery:
                 return TransactionListResult(
                     transactions=[],
                     total_count=counts["total"],
+                    filtered_count=0,
                     draft_count=counts["draft"],
                     posted_count=counts["posted"],
                 )
@@ -82,19 +81,24 @@ class ListTransactionsQuery:
         if should_exclude_transfers is None:
             should_exclude_transfers = iban_filter is None
 
-        filtered = await self._transaction_repo.find_with_filters(
-            start_date=start_date,
+        filters = TransactionFilters(
             status=status,
             account_id=account_id,
             exclude_internal_transfers=should_exclude_transfers,
-            limit=limit,
         )
+        pagination = Pagination(page=page, page_size=page_size)
 
+        filtered = await self._transaction_repo.find_with_filters(
+            filters=filters,
+            pagination=pagination,
+        )
+        filtered_count = await self._transaction_repo.count_with_filters(filters)
         counts = await self._transaction_repo.count_by_status()
 
         return TransactionListResult(
             transactions=filtered,
             total_count=counts["total"],
+            filtered_count=filtered_count,
             draft_count=counts["draft"],
             posted_count=counts["posted"],
         )
@@ -129,29 +133,26 @@ class ListTransactionsQuery:
 
     async def get_transaction_list(  # NOQA: PLR0913
         self,
-        days: int = 30,
-        limit: int = 50,
+        page: int = 1,
+        page_size: int = 50,
         status_filter: Optional[str] = None,
         iban_filter: Optional[str] = None,
         show_drafts: bool = True,
         exclude_transfers: Optional[bool] = None,
     ) -> TransactionListResultDTO:
-        result = await self.execute(
-            days=days,
-            limit=limit,
+        res = await self.execute(
+            page=page,
+            page_size=page_size,
             status_filter=status_filter,
             iban_filter=iban_filter,
             show_drafts=show_drafts,
             exclude_transfers=exclude_transfers,
         )
 
-        items = [
-            TransactionListItemDTO.from_transaction(txn) for txn in result.transactions
-        ]
-
+        items = [TransactionListItemDTO.from_transaction(t) for t in res.transactions]
         return TransactionListResultDTO(
             transactions=items,
-            total_count=result.total_count,
+            total_count=res.total_count,
         )
 
     async def get_transaction_detail(

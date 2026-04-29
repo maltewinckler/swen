@@ -166,8 +166,12 @@ export interface TransactionListItem {
 export interface TransactionListResponse {
   transactions: TransactionListItem[]
   total: number
+  filtered_count: number
   draft_count: number
   posted_count: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 // Dashboard types

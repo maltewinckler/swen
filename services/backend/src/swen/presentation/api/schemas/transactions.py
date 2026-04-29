@@ -140,12 +140,16 @@ class TransactionListItemResponse(BaseModel):
 
 
 class TransactionListResponse(BaseModel):
-    """Response schema for transaction listing with summary counts."""
+    """Response schema for transaction listing with pagination and summary counts."""
 
     transactions: list[TransactionListItemResponse]
     total: int
+    filtered_count: int
     draft_count: int
     posted_count: int
+    page: int
+    page_size: int
+    total_pages: int
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -176,9 +180,13 @@ class TransactionListResponse(BaseModel):
                         "is_posted": True,
                     },
                 ],
-                "total": 2,
-                "draft_count": 0,
-                "posted_count": 2,
+                "total": 120,
+                "filtered_count": 95,
+                "draft_count": 5,
+                "posted_count": 115,
+                "page": 1,
+                "page_size": 50,
+                "total_pages": 2,
             },
         },
     )

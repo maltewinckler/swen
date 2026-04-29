@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING, Optional
 
+from swen.domain.accounting.value_objects import TransactionFilters
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
@@ -55,9 +56,10 @@ class OpeningBalanceQuery:
             return False
 
         # Query adjustment transactions
-        transactions = await self._repo.find_with_filters(
+        filters = TransactionFilters(
             source_filter="opening_balance_adjustment",
         )
+        transactions = await self._repo.find_with_filters(filters)
 
         for txn in transactions:
             txn_iban = normalize_iban(txn.get_metadata_raw("opening_balance_iban"))

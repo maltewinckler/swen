@@ -21,8 +21,14 @@ from swen.domain.accounting.repositories import (
     AccountRepository,
     TransactionRepository,
 )
-from swen.domain.accounting.value_objects import Currency, Money, TransactionSource
+from swen.domain.accounting.value_objects import (
+    Currency,
+    Money,
+    TransactionFilters,
+    TransactionSource,
+)
 from swen.domain.shared.iban import normalize_iban
+from swen.domain.shared.value_objects import Pagination
 from swen.infrastructure.persistence.sqlalchemy.models import (
     JournalEntryModel,
     TransactionModel,
@@ -181,32 +187,48 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         stmt = self._apply_account_filter(stmt, account_id)
         return await self._execute_and_map(stmt)
 
-    async def find_with_filters(  # NOQA: PLR0913
+    async def find_with_filters(
         self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        status: Optional[str] = None,
-        account_id: Optional[UUID] = None,
-        exclude_internal_transfers: bool = False,
-        source_filter: Optional[str] = None,
-        limit: Optional[int] = None,
+        filters: TransactionFilters,
+        pagination: Optional[Pagination] = None,
     ) -> List[Transaction]:
-        # Build base query scoped to user
-        stmt = self._base_user_query()
-
-        # Apply filters
-        stmt = self._apply_date_filters(stmt, start_date, end_date)
-        stmt = self._apply_status_filter(stmt, status)
-        stmt = self._apply_account_filter(stmt, account_id)
-        stmt = self._apply_transfer_filter(stmt, exclude_internal_transfers)
-        stmt = self._apply_source_filter(stmt, source_filter)
-
-        # Finalize query with ordering and limit
+        stmt = self._build_filtered_query(filters)
         stmt = stmt.order_by(TransactionModel.date.desc())
-        if limit:
-            stmt = stmt.limit(limit)
+
+        if pagination:
+            stmt = stmt.offset(pagination.offset).limit(pagination.limit)
 
         return await self._execute_and_map(stmt)
+
+    async def count_with_filters(
+        self,
+        filters: TransactionFilters,
+    ) -> int:
+        stmt = self._build_filtered_count_query(filters)
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    def _build_filtered_query(self, filters: TransactionFilters):
+        stmt = self._base_user_query()
+        stmt = self._apply_date_filters(stmt, filters.start_date, filters.end_date)
+        stmt = self._apply_status_filter(stmt, filters.status)
+        stmt = self._apply_account_filter(stmt, filters.account_id)
+        stmt = self._apply_transfer_filter(stmt, filters.exclude_internal_transfers)
+        stmt = self._apply_source_filter(stmt, filters.source_filter)
+        return stmt
+
+    def _build_filtered_count_query(self, filters: TransactionFilters):
+        stmt = (
+            select(func.count())
+            .select_from(TransactionModel)
+            .where(TransactionModel.user_id == self._user_id)
+        )
+        stmt = self._apply_date_filters(stmt, filters.start_date, filters.end_date)
+        stmt = self._apply_status_filter(stmt, filters.status)
+        stmt = self._apply_account_filter(stmt, filters.account_id)
+        stmt = self._apply_transfer_filter(stmt, filters.exclude_internal_transfers)
+        stmt = self._apply_source_filter(stmt, filters.source_filter)
+        return stmt
 
     def _base_user_query(self):
         return select(TransactionModel).where(

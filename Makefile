@@ -57,7 +57,11 @@ help:
 # Setup
 # =============================================================================
 
-install: install-backend install-frontend install-ml
+install:
+	@echo "Installing all Python dependencies (workspace)..."
+	uv sync
+	@echo "Installing npm dependencies..."
+	cd services/frontend && npm install
 	@echo "All dependencies installed"
 
 install-backend:
