@@ -196,7 +196,7 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         stmt = stmt.order_by(TransactionModel.date.desc())
 
         if pagination:
-            stmt = stmt.offset(pagination.offset).limit(pagination.limit)
+            stmt = stmt.offset(pagination.offset).limit(pagination.page_size)
 
         return await self._execute_and_map(stmt)
 
@@ -214,8 +214,7 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         stmt = self._apply_status_filter(stmt, filters.status)
         stmt = self._apply_account_filter(stmt, filters.account_id)
         stmt = self._apply_transfer_filter(stmt, filters.exclude_internal_transfers)
-        stmt = self._apply_source_filter(stmt, filters.source_filter)
-        return stmt
+        return self._apply_source_filter(stmt, filters.source_filter)
 
     def _build_filtered_count_query(self, filters: TransactionFilters):
         stmt = (
@@ -227,8 +226,7 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         stmt = self._apply_status_filter(stmt, filters.status)
         stmt = self._apply_account_filter(stmt, filters.account_id)
         stmt = self._apply_transfer_filter(stmt, filters.exclude_internal_transfers)
-        stmt = self._apply_source_filter(stmt, filters.source_filter)
-        return stmt
+        return self._apply_source_filter(stmt, filters.source_filter)
 
     def _base_user_query(self):
         return select(TransactionModel).where(

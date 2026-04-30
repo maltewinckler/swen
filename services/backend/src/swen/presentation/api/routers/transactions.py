@@ -55,6 +55,8 @@ ForceDeleteFilter = Annotated[
     Query(description="Force deletion even if posted (will unpost first)"),
 ]
 
+_PAGE_SIZE = 50  # Transactions per page
+
 
 def _transaction_to_response(txn: Transaction) -> TransactionResponse:
     """Convert domain Transaction to response schema."""
@@ -133,8 +135,6 @@ async def list_transactions(
     - Account number
     - Internal transfers (excluded by default when not filtering by account)
     """
-    PAGE_SIZE = 50
-
     query = ListTransactionsQuery(
         transaction_repository=factory.transaction_repository(),
         account_repository=factory.account_repository(),
@@ -142,7 +142,7 @@ async def list_transactions(
 
     result = await query.execute(
         page=page,
-        page_size=PAGE_SIZE,
+        page_size=_PAGE_SIZE,
         status_filter=status_filter,
         iban_filter=account_number,
         exclude_transfers=exclude_transfers,
@@ -150,13 +150,13 @@ async def list_transactions(
 
     dto_result = await query.get_transaction_list(
         page=page,
-        page_size=PAGE_SIZE,
+        page_size=_PAGE_SIZE,
         status_filter=status_filter,
         iban_filter=account_number,
         exclude_transfers=exclude_transfers,
     )
 
-    total_pages = (result.filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
+    total_pages = (result.filtered_count + _PAGE_SIZE - 1) // _PAGE_SIZE
 
     return TransactionListResponse(
         transactions=[_list_item_to_response(dto) for dto in dto_result.transactions],
@@ -165,7 +165,7 @@ async def list_transactions(
         draft_count=result.draft_count,
         posted_count=result.posted_count,
         page=page,
-        page_size=PAGE_SIZE,
+        page_size=_PAGE_SIZE,
         total_pages=total_pages,
     )
 

@@ -6,15 +6,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Pagination(BaseModel):
-    """Page-based pagination parameters.
-
-    Attributes
-    ----------
-    page
-        1-based page number.
-    page_size
-        Number of items per page.
-    """
+    """Page-based pagination parameters."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -41,8 +33,3 @@ class Pagination(BaseModel):
     def offset(self) -> int:
         """SQL offset derived from page and page_size."""
         return (self.page - 1) * self.page_size
-
-    @property
-    def limit(self) -> int:
-        """SQL limit (alias for page_size)."""
-        return self.page_size
