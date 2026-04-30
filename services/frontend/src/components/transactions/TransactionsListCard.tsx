@@ -1,5 +1,5 @@
-import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Calendar, ChevronRight } from 'lucide-react'
-import { Amount, Badge, Card, CardContent, CardHeader, CardTitle, Spinner } from '@/components/ui'
+import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Amount, Badge, Button, Card, CardContent, CardHeader, CardTitle, Spinner } from '@/components/ui'
 import { formatDate, truncate } from '@/lib/utils'
 import type { TransactionListItem } from '@/types/api'
 
@@ -14,6 +14,9 @@ interface TransactionsListCardProps {
   hasError: boolean
   isReviewMode: boolean
   onSelectTransaction: (transactionId: string) => void
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
 }
 
 export function TransactionsListCard({
@@ -23,13 +26,16 @@ export function TransactionsListCard({
   hasError,
   isReviewMode,
   onSelectTransaction,
+  page,
+  totalPages,
+  onPageChange,
 }: TransactionsListCardProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          Recent Transactions
-          {transactions.length > 0 && <span className="text-text-muted font-normal ml-2">({transactions.length})</span>}
+          Transactions
+          {transactions.length > 0 && <span className="text-text-muted font-normal ml-2">({total ?? transactions.length})</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -129,6 +135,59 @@ export function TransactionsListCard({
           </div>
         )}
       </CardContent>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => onPageChange(1)}
+              className="flex items-center gap-1"
+              title="First page"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+          </div>
+          <span className="text-sm text-text-muted">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+              className="flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(totalPages)}
+              className="flex items-center gap-1"
+              title="Last page"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   )
 }

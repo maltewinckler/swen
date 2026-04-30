@@ -3,12 +3,10 @@ import { api } from './client'
 import { buildQueryString } from '@/lib/utils'
 
 interface ListTransactionsParams {
-  days?: number
-  limit?: number
+  page?: number
   status_filter?: 'posted' | 'draft'  // Backend parameter name
   account_number?: string  // Backend uses account_number, not account_id
   exclude_transfers?: boolean
-  search?: string
 }
 
 /**

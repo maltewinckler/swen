@@ -21,7 +21,7 @@ export const Route = createFileRoute('/_app/transactions')({
 function TransactionsPage() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
-  const [days, setDays] = useState(30)
+  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<'all' | 'posted' | 'draft'>('all')
   const [showTransfers, setShowTransfers] = useState(false)
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
@@ -42,15 +42,15 @@ function TransactionsPage() {
     if (!isReviewMode) {
       // Entering Review Mode: switch to drafts only
       setStatusFilter('draft')
+      setPage(1)
     }
     setIsReviewMode(!isReviewMode)
   }
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['transactions', { days, statusFilter, showTransfers }],
+    queryKey: ['transactions', { page, statusFilter, showTransfers }],
     queryFn: () => listTransactions({
-      days,
-      limit: 100,
+      page,
       status_filter: statusFilter === 'all' ? undefined : statusFilter,
       exclude_transfers: !showTransfers,
     }),
@@ -103,21 +103,22 @@ function TransactionsPage() {
       <TransactionsFiltersCard
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
-        days={days}
-        onDaysChange={(d) => setDays(d)}
         statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
+        onStatusFilterChange={(s) => { setStatusFilter(s); setPage(1) }}
         showTransfers={showTransfers}
-        onToggleShowTransfers={() => setShowTransfers(!showTransfers)}
+        onToggleShowTransfers={() => { setShowTransfers(!showTransfers); setPage(1) }}
       />
 
       <TransactionsListCard
         transactions={filteredTransactions}
-        total={data?.total}
+        total={data?.filtered_count}
         isLoading={isLoading}
         hasError={!!error}
         isReviewMode={isReviewMode}
         onSelectTransaction={setSelectedTransactionId}
+        page={data?.page ?? 1}
+        totalPages={data?.total_pages ?? 1}
+        onPageChange={setPage}
       />
 
       {/* Transaction Detail Modal */}

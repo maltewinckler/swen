@@ -5,9 +5,6 @@ interface TransactionsFiltersCardProps {
   searchQuery: string
   onSearchQueryChange: (value: string) => void
 
-  days: number
-  onDaysChange: (days: 7 | 30 | 90) => void
-
   statusFilter: 'all' | 'posted' | 'draft'
   onStatusFilterChange: (value: 'all' | 'posted' | 'draft') => void
 
@@ -18,8 +15,6 @@ interface TransactionsFiltersCardProps {
 export function TransactionsFiltersCard({
   searchQuery,
   onSearchQueryChange,
-  days,
-  onDaysChange,
   statusFilter,
   onStatusFilterChange,
   showTransfers,
@@ -38,20 +33,6 @@ export function TransactionsFiltersCard({
             />
           </div>
           <div className="flex gap-2">
-            <Button variant={days === 7 ? 'primary' : 'secondary'} size="sm" onClick={() => onDaysChange(7)}>
-              7 days
-            </Button>
-            <Button variant={days === 30 ? 'primary' : 'secondary'} size="sm" onClick={() => onDaysChange(30)}>
-              30 days
-            </Button>
-            <Button variant={days === 90 ? 'primary' : 'secondary'} size="sm" onClick={() => onDaysChange(90)}>
-              90 days
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 mt-3">
-          <div className="flex gap-2">
             <Button variant={statusFilter === 'all' ? 'primary' : 'ghost'} size="sm" onClick={() => onStatusFilterChange('all')}>
               All
             </Button>
@@ -62,7 +43,9 @@ export function TransactionsFiltersCard({
               Draft
             </Button>
           </div>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-4 mt-3">
           <div className="flex items-center gap-2 ml-auto">
             <Button
               variant={showTransfers ? 'secondary' : 'ghost'}

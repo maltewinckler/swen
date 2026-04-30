@@ -114,7 +114,7 @@ class ImportStatisticsResponse(BaseModel):
 
 DaysFilter = Annotated[
     int,
-    Query(ge=1, le=365, description="Days to look back"),
+    Query(ge=1, le=730, description="Days to look back"),
 ]
 LimitFilter = Annotated[
     int,

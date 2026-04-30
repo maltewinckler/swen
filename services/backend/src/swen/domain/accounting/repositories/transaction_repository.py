@@ -10,6 +10,8 @@ from typing import Any, List, Optional
 from uuid import UUID
 
 from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.value_objects import TransactionFilters
+from swen.domain.shared.value_objects import Pagination
 
 
 class TransactionRepository(ABC):
@@ -85,41 +87,35 @@ class TransactionRepository(ABC):
         """Find transactions involving a specific account and counterparty."""
 
     @abstractmethod
-    async def find_with_filters(  # NOQA: PLR0913
+    async def find_with_filters(
         self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        status: Optional[str] = None,
-        account_id: Optional[UUID] = None,
-        exclude_internal_transfers: bool = False,
-        source_filter: Optional[str] = None,
-        limit: Optional[int] = None,
+        filters: TransactionFilters,
+        pagination: Optional[Pagination] = None,
     ) -> List[Transaction]:
         """
-        Find transactions with multiple filters applied at SQL level.
-
-        This is more efficient than loading all transactions and filtering in Python.
+        Find transactions with filters and optional pagination.
 
         Parameters
         ----------
-        start_date
-            Filter transactions on or after this date (ISO format)
-        end_date
-            Filter transactions on or before this date (ISO format)
-        status
-            Filter by status: 'posted', 'draft', or None for all
-        account_id
-            Filter to transactions involving this account
-        exclude_internal_transfers
-            If True, exclude internal transfers between own accounts
-        source_filter
-            Filter by source: 'bank_import', 'manual', etc.
-        limit
-            Maximum number of transactions to return
+        filters
+            Filtering criteria (date range, status, account, etc.)
+        pagination
+            Page-based pagination. If None, returns all matching results.
 
         Returns
         -------
-        List of transactions matching the filters, sorted by date descending
+        List of transactions matching the filters, sorted by date descending.
+        """
+
+    @abstractmethod
+    async def count_with_filters(
+        self,
+        filters: TransactionFilters,
+    ) -> int:
+        """
+        Count transactions matching the given filters.
+
+        Useful for computing total pages in paginated responses.
         """
 
     @abstractmethod

@@ -597,8 +597,7 @@ class TestListTransactions:
             f"{api_v1_prefix}/transactions",
             headers=auth_headers,
             params={
-                "days": 30,
-                "limit": 10,
+                "page": 1,
                 "status": "posted",
             },
         )

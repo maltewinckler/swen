@@ -16,6 +16,7 @@ from swen.application.dtos.export_dto import (
     TransactionExportDTO,
 )
 from swen.domain.accounting.repositories import AccountRepository, TransactionRepository
+from swen.domain.accounting.value_objects import TransactionFilters
 from swen.domain.integration.repositories import AccountMappingRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.time import utc_now
@@ -111,9 +112,11 @@ class ExportDataQuery:
                 return []
 
         all_transactions = await self._transaction_repo.find_with_filters(
-            start_date=start_date,
-            status=effective_status,
-            account_id=account_id,
+            TransactionFilters(
+                start_date=start_date,
+                status=effective_status,
+                account_id=account_id,
+            )
         )
 
         return [TransactionExportDTO.from_transaction(t) for t in all_transactions]
