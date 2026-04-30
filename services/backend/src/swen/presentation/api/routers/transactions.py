@@ -225,7 +225,7 @@ async def create_transaction(
 
     if total_debit != total_credit:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"Entries don't balance: debits={total_debit}, credits={total_credit}"
             ),
@@ -233,7 +233,7 @@ async def create_transaction(
 
     if total_debit == Decimal("0"):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Transaction must have non-zero amounts",
         )
 
