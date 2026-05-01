@@ -21,6 +21,7 @@ class ExampleRepository:
         embedding: NDArray[np.float32],
         account_id: str,
         account_number: str,
+        account_type: str,
         text: str,
     ):
         """Add a new training example."""
@@ -29,6 +30,7 @@ class ExampleRepository:
             embedding=embedding.astype(np.float32).tobytes(),
             account_id=account_id,
             account_number=account_number,
+            account_type=account_type,
             text=text,
         )
         self._session.add(example)
@@ -44,6 +46,7 @@ class ExampleRepository:
             Example(
                 account_id=row.account_id,
                 account_number=row.account_number,
+                account_type=row.account_type,
                 text=row.text,
                 embedding=np.frombuffer(row.embedding, dtype=np.float32),
             )
@@ -52,23 +55,24 @@ class ExampleRepository:
 
     async def get_embeddings_matrix(
         self,
-    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str]]:
+    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str], list[str]]:
         """Get all examples as a numpy matrix for efficient similarity computation.
 
         Returns:
-            Tuple of (embeddings_matrix, account_ids, account_numbers, texts)
+            Tuple of (embeddings_matrix, account_ids, account_numbers, texts, account_types)
         """
         examples = await self.get_all()
 
         if not examples:
-            return np.empty((0, 0), dtype=np.float32), [], [], []
+            return np.empty((0, 0), dtype=np.float32), [], [], [], []
 
         embeddings = np.vstack([e.embedding for e in examples])
         account_ids = [e.account_id for e in examples]
         account_numbers = [e.account_number for e in examples]
         texts = [e.text for e in examples]
+        account_types = [e.account_type for e in examples]
 
-        return embeddings, account_ids, account_numbers, texts
+        return embeddings, account_ids, account_numbers, texts, account_types
 
     async def count(self) -> int:
         """Count examples for the user."""

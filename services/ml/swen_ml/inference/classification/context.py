@@ -31,6 +31,7 @@ class EmbeddingStore:
     account_ids: list[str]
     account_numbers: list[str]
     labels: list[str]
+    account_types: list[str]
 
     def __len__(self) -> int:
         return len(self.account_ids)
@@ -42,6 +43,7 @@ class EmbeddingStore:
             account_ids=[],
             account_numbers=[],
             labels=[],
+            account_types=[],
         )
 
     @classmethod
@@ -52,12 +54,46 @@ class EmbeddingStore:
             account_ids,
             account_numbers,
             labels,
+            account_types,
         ) = await repo.get_embeddings_matrix()
         return cls(
             embeddings=embeddings,
             account_ids=account_ids,
             account_numbers=account_numbers,
             labels=labels,
+            account_types=account_types,
+        )
+
+    def filter_for_direction(self, is_debit: bool) -> EmbeddingStore:
+        """Return a new store with only candidates valid for this direction.
+
+        Double-entry direction policy (matches the backend safety guard):
+
+        - Money OUT (debit, amount < 0):  counter-account must NOT be income
+          → keep expense, equity, liability.
+        - Money IN  (credit, amount >= 0): counter-account must NOT be expense
+          → keep income, equity, liability.
+
+        If no rows survive the filter, an empty store is returned and the
+        caller should treat the batch as unresolved (the backend will then
+        apply its own fallback).
+        """
+        if len(self) == 0:
+            return EmbeddingStore.empty()
+
+        excluded = "income" if is_debit else "expense"
+        mask = np.array([t != excluded for t in self.account_types], dtype=bool)
+        if not mask.any():
+            return EmbeddingStore.empty()
+        if mask.all():
+            return self
+
+        return EmbeddingStore(
+            embeddings=self.embeddings[mask],
+            account_ids=[i for i, m in zip(self.account_ids, mask) if m],
+            account_numbers=[n for n, m in zip(self.account_numbers, mask) if m],
+            labels=[lbl for lbl, m in zip(self.labels, mask) if m],
+            account_types=[t for t, m in zip(self.account_types, mask) if m],
         )
 
 

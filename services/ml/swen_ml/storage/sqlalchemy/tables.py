@@ -23,9 +23,12 @@ class AnchorTable(Base):
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     account_number: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    # Account type ("expense", "income", "equity")
+    # candidates by transaction direction during classification so that, e.g.,
+    # an income account is never proposed as the counter-account for a
+    # money-out (debit) transaction.
+    account_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -41,10 +44,9 @@ class ExampleTable(Base):
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     account_id: Mapped[str] = mapped_column(String(100), nullable=False)
     account_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    account_type: Mapped[str] = mapped_column(String(20), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class NoiseTable(Base):
@@ -69,9 +71,7 @@ class EnrichmentCacheTable(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False)
     enrichment_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_urls: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     hit_count: Mapped[int] = mapped_column(Integer, default=0)
 

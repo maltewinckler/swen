@@ -27,6 +27,9 @@ class StoreExampleRequest(BaseModel):
     amount: Decimal
     account_id: UUID
     account_number: str
+    # Required so the example can be filtered by transaction direction
+    # at classification time.
+    account_type: str = Field(..., pattern="^(expense|income|equity)$")
 
 
 class StoreExampleResponse(BaseModel):

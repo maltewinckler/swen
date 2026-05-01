@@ -7,16 +7,18 @@ import numpy as np
 
 if TYPE_CHECKING:
     from swen_ml.inference.classification.context import (
+        EmbeddingStore,
         PipelineContext,
         TransactionContext,
     )
 
+from swen_ml.inference.classification.classifiers.base import BaseClassifier
 from swen_ml.inference.classification.context import ClassificationMatch
 
 logger = logging.getLogger(__name__)
 
 
-class ExampleClassifier:
+class ExampleClassifier(BaseClassifier):
     """Classifier that matches transactions against user's historical examples."""
 
     name = "example"
@@ -33,8 +35,12 @@ class ExampleClassifier:
         self.accept_threshold = accept_threshold
         self.margin_threshold = margin_threshold
 
+    @property
+    def _embedding_store(self) -> EmbeddingStore:
+        return self.pipeline_ctx.example_store
+
     def _build_text(self, ctx: TransactionContext) -> str:
-        # different from anchor's _build_text: no enrichment here
+        # no enrichment here — match the raw text stored as a training example
         parts = []
         if ctx.cleaned_counterparty:
             parts.append(ctx.cleaned_counterparty)
@@ -42,30 +48,32 @@ class ExampleClassifier:
             parts.append(ctx.cleaned_purpose)
         return " ".join(parts)
 
-    async def classify_batch(
+    def _on_empty_direction_store(
         self,
-        contexts: list[TransactionContext],
-    ):
-        examples = self.pipeline_ctx.example_store
+        group: list[TransactionContext],
+        is_debit: bool,
+    ) -> None:
+        # Pre-compute and cache embeddings so the anchor tier can reuse them.
+        texts = [self._build_text(ctx) for ctx in group]
+        embeddings = self.pipeline_ctx.encoder.encode(texts)
+        for ctx, emb in zip(group, embeddings):
+            ctx.embedding = emb
 
-        if len(examples) == 0:
-            logger.debug("Example classifier: no examples available")
-            return
-
-        unresolved = [ctx for ctx in contexts if not ctx.resolved]
-        if not unresolved:
-            return
-
+    def _classify_group(
+        self,
+        group: list[TransactionContext],
+        store: EmbeddingStore,
+    ) -> int:
         # Build texts and compute embeddings
-        texts = [self._build_text(ctx) for ctx in unresolved]
+        texts = [self._build_text(ctx) for ctx in group]
         embeddings = self.pipeline_ctx.encoder.encode(texts)
 
         # Compute similarities: (N, dim) @ (M, dim).T = (N, M)
-        similarities = embeddings @ examples.embeddings.T
+        similarities = embeddings @ store.embeddings.T
 
         # Get top-2 for margin computation
         top2_idx = np.argsort(-similarities, axis=1)[:, :2]
-        rows = np.arange(len(unresolved))
+        rows = np.arange(len(group))
         top1_scores = similarities[rows, top2_idx[:, 0]]
 
         if similarities.shape[1] > 1:
@@ -77,31 +85,24 @@ class ExampleClassifier:
 
         # Apply decision logic
         high_conf = top1_scores >= self.high_confidence
-        clear_winner = (top1_scores >= self.accept_threshold) & (
-            margins >= self.margin_threshold
-        )
+        clear_winner = (top1_scores >= self.accept_threshold) & (margins >= self.margin_threshold)
         accept = high_conf | clear_winner
 
         # Update contexts
         n_resolved = 0
-        for i, ctx in enumerate(unresolved):
+        for i, ctx in enumerate(group):
             # Store embeddings in context for later use
             ctx.embedding = embeddings[i]
 
             if accept[i]:
                 best_idx = int(top2_idx[i, 0])
                 ctx.example_match = ClassificationMatch(
-                    account_id=examples.account_ids[best_idx],
-                    account_number=examples.account_numbers[best_idx],
+                    account_id=store.account_ids[best_idx],
+                    account_number=store.account_numbers[best_idx],
                     confidence=float(top1_scores[i]),
                 )
                 ctx.resolved = True
                 ctx.resolved_by = self.name
                 n_resolved += 1
 
-        logger.debug(
-            "Example classifier: %d/%d resolved (threshold=%.2f)",
-            n_resolved,
-            len(unresolved),
-            self.accept_threshold,
-        )
+        return n_resolved

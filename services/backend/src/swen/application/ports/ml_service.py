@@ -20,6 +20,7 @@ class TransactionExample:
     user_id: UUID
     account_id: UUID
     account_number: str  # Required by ML service contract
+    account_type: str  # "expense" | "income" | "equity"
     transaction_id: UUID
     purpose: str
     amount: Decimal

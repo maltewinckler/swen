@@ -48,6 +48,7 @@ class MLExampleService:
             user_id=transaction.user_id,
             account_id=counter_account.id,
             account_number=counter_account.account_number,
+            account_type=counter_account.account_type.value.lower(),
             transaction_id=transaction.id,
             purpose=transaction.description or "",
             amount=amount,
