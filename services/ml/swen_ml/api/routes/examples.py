@@ -35,6 +35,7 @@ async def store_example(
         purpose=request.purpose,
         account_id=request.account_id,
         account_number=request.account_number,
+        account_type=request.account_type,
     )
 
     logger.info(

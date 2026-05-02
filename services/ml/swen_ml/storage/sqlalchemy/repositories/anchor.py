@@ -23,6 +23,7 @@ class AnchorRepository:
         embedding: NDArray[np.float32],
         account_number: str,
         name: str,
+        account_type: str,
     ):
         """Insert or update a single anchor embedding."""
         embedding_bytes = embedding.astype(np.float32).tobytes()
@@ -33,6 +34,7 @@ class AnchorRepository:
             embedding=embedding_bytes,
             account_number=account_number,
             name=name,
+            account_type=account_type,
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=["user_id", "account_id"],
@@ -40,6 +42,7 @@ class AnchorRepository:
                 "embedding": embedding_bytes,
                 "account_number": account_number,
                 "name": name,
+                "account_type": account_type,
             },
         )
         await self._session.execute(stmt)
@@ -73,6 +76,7 @@ class AnchorRepository:
                 account_id=row.account_id,
                 account_number=row.account_number,
                 name=row.name,
+                account_type=row.account_type,
                 embedding=np.frombuffer(row.embedding, dtype=np.float32),
             )
             for row in rows
@@ -80,20 +84,21 @@ class AnchorRepository:
 
     async def get_embeddings_matrix(
         self,
-    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str]]:
+    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str], list[str]]:
         """Get all anchors as a numpy matrix for efficient similarity computation.
 
         Returns:
-            Tuple of (embeddings_matrix, account_ids, account_numbers, names)
+            Tuple of (embeddings_matrix, account_ids, account_numbers, names, account_types)
         """
         anchors = await self.get_all()
 
         if not anchors:
-            return np.empty((0, 0), dtype=np.float32), [], [], []
+            return np.empty((0, 0), dtype=np.float32), [], [], [], []
 
         embeddings = np.vstack([a.embedding for a in anchors])
         account_ids = [str(a.account_id) for a in anchors]
         account_numbers = [a.account_number for a in anchors]
         names = [a.name for a in anchors]
+        account_types = [a.account_type for a in anchors]
 
-        return embeddings, account_ids, account_numbers, names
+        return embeddings, account_ids, account_numbers, names, account_types

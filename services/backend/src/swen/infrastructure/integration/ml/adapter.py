@@ -51,6 +51,7 @@ class MLServiceAdapter(MLServicePort):
             amount=example.amount,
             account_id=example.account_id,
             account_number=example.account_number,
+            account_type=example.account_type,
         )
 
         self._client.store_example_fire_and_forget(example.user_id, request)

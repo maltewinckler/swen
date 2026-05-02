@@ -102,6 +102,10 @@ class GeldstromApiAdapter(BankConnectionPort):
         """Fetch accounts from the API, caching the result for the session.
 
         May trigger 2FA for some banks. Subsequent calls return the cache.
+
+        Note: Balance fetching is skipped because it triggers an independent
+        2FA approval on the Geldstrom API (each endpoint = separate FinTS session).
+        Balance data should be retrieved from the stored bank accounts instead.
         """
         if not self._credentials:
             msg = "Not connected. Call connect() first."
@@ -121,14 +125,9 @@ class GeldstromApiAdapter(BankConnectionPort):
             )
 
             raw_accounts = result.get("accounts", [])
-            raw_balances = await self._fetch_balances(client, raw_accounts)
-            balance_by_iban = self._merge_balances(raw_accounts, raw_balances)
 
             self._accounts_cache = [
-                self._map_account(
-                    acc, self._credentials.blz, balance_by_iban.get(acc.get("iban", ""))
-                )
-                for acc in raw_accounts
+                self._map_account(acc, self._credentials.blz) for acc in raw_accounts
             ]
 
             logger.info(
@@ -523,7 +522,7 @@ class GeldstromApiAdapter(BankConnectionPort):
             value_date=date.fromisoformat(str(data["value_date"])),
             amount=Decimal(str(data["amount"])),
             currency=data.get("currency", "EUR"),
-            purpose=data.get("purpose", "No description"),
+            purpose=data.get("purpose") or "No description",
             applicant_name=data.get("counterpart_name"),
             applicant_iban=data.get("counterpart_iban"),
             applicant_bic=data.get("bic"),

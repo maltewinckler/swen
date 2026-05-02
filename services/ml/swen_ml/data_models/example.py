@@ -12,6 +12,7 @@ class Example(BaseModel):
 
     account_id: str
     account_number: str
+    account_type: str  # "expense", "income", "equity"
     text: str
     embedding: NDArray[np.float32]
 

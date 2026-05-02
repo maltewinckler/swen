@@ -15,6 +15,7 @@ class Anchor(BaseModel):
     account_id: UUID
     account_number: str
     name: str
+    account_type: str  # "expense", "income", "equity"
     embedding: NDArray[np.float32]
 
     @field_validator("embedding", mode="before")

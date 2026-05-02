@@ -157,9 +157,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 DBSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
-def get_jwt_service(
-    settings: Settings = Depends(get_settings),
-) -> JWTService:
+def get_jwt_service(settings: Settings = Depends(get_settings)) -> JWTService:
     """Get JWT service configured with API settings."""
     return JWTService(
         secret_key=settings.jwt_secret_key.get_secret_value(),
@@ -291,7 +289,7 @@ async def get_current_user_optional(
     Optional authentication dependency.
 
     Returns the current user if a valid token is provided, None otherwise.
-    Useful for endpoints that work differently for authenticated users.
+    Used for endpoints that work differently for authenticated users.
     """
     if credentials is None:
         return None

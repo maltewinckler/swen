@@ -34,6 +34,7 @@ class ExampleEmbeddingService:
         purpose: str,
         account_id: UUID,
         account_number: str,
+        account_type: str,
     ) -> int:
         parts = []
         if counterparty_name:
@@ -49,6 +50,7 @@ class ExampleEmbeddingService:
             embedding=embedding,
             account_id=str(account_id),
             account_number=account_number,
+            account_type=account_type,
             text=text,
         )
 

@@ -11,6 +11,6 @@ class EmbeddingRepository(Protocol):
 
     async def get_embeddings_matrix(
         self,
-    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str]]:
-        """Return (embeddings, account_ids, account_numbers, labels)."""
+    ) -> tuple[NDArray[np.float32], list[str], list[str], list[str], list[str]]:
+        """Return (embeddings, account_ids, account_numbers, labels, account_types)."""
         ...

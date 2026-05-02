@@ -50,6 +50,7 @@ class AccountEmbeddingService:
                 embedding=embedding,
                 account_number=account.account_number,
                 name=account.name,
+                account_type=account.account_type,
             )
             embedded_count += 1
 

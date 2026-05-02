@@ -319,7 +319,10 @@ class TransactionSyncCommand:
         await self._adapter.connect(credentials)
 
         try:
-            await self._update_bank_accounts()
+            # Only update bank accounts if not yet stored — avoids extra 2FA
+            # prompts on subsequent syncs (each API call triggers independent 2FA)
+            if await self._should_update_bank_accounts(iban):
+                await self._update_bank_accounts()
 
             bank_transactions = await self._adapter.fetch_transactions(
                 account_iban=iban,
@@ -430,7 +433,10 @@ class TransactionSyncCommand:
         await self._adapter.connect(credentials)
 
         try:
-            await self._update_bank_accounts()
+            # Only update bank accounts if not yet stored — avoids extra 2FA
+            # prompts on subsequent syncs (each API call triggers independent 2FA)
+            if await self._should_update_bank_accounts(iban):
+                await self._update_bank_accounts()
 
             bank_transactions = await self._adapter.fetch_transactions(
                 account_iban=iban,
@@ -698,6 +704,27 @@ class TransactionSyncCommand:
         )
         return len(existing) > 0
 
+    async def _should_update_bank_accounts(self, iban: str) -> bool:
+        """Check if bank accounts need to be fetched from the bank.
+
+        Skips the fetch on subsequent syncs to avoid triggering extra 2FA prompts.
+        The Geldstrom API treats each endpoint call as an independent FinTS session,
+        meaning /accounts and /balances each trigger their own 2FA approval.
+        On subsequent syncs we already have the account data stored.
+        """
+        if not self._bank_account_repo:
+            return False
+
+        existing = await self._bank_account_repo.find_by_iban(iban)
+        if existing is not None:
+            logger.debug(
+                "Bank account %s already stored, skipping fetch_accounts to avoid 2FA",
+                iban,
+            )
+            return False
+
+        return True
+
     async def _update_bank_accounts(self) -> None:
         if not self._bank_account_repo:
             return
@@ -712,6 +739,19 @@ class TransactionSyncCommand:
             logger.warning("Failed to update bank accounts: %s", e)
 
     async def _get_current_balance(self, iban: str) -> Decimal | None:
+        # Prefer stored balance from the database to avoid triggering
+        # an extra 2FA call to the bank API (each API call = independent 2FA).
+        if self._bank_account_repo:
+            stored = await self._bank_account_repo.find_by_iban(iban)
+            if stored is not None and stored.balance is not None:
+                logger.debug(
+                    "Using stored balance for %s: %s",
+                    iban,
+                    stored.balance,
+                )
+                return stored.balance
+
+        # Fall back to fetching from the adapter (uses cache if available)
         accounts = await self._adapter.fetch_accounts()
 
         for account in accounts:
