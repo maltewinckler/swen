@@ -302,6 +302,15 @@ async def discover_bank_accounts(
         if adapter.is_connected():
             await adapter.disconnect()
 
+        from swen.domain.banking.exceptions import (  # noqa: PLC0415
+            BankingDomainError,
+        )
+
+        # Let domain exceptions (TanTimeoutError, BankConnectionError, etc.)
+        # propagate to the global exception handler for proper status codes
+        if isinstance(e, BankingDomainError):
+            raise
+
         logger.exception("Account discovery failed for BLZ %s: %s", blz, e)
 
         raise HTTPException(

@@ -97,6 +97,16 @@ async function fetchWithAuth<T>(
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
 
+  // If caller provided a signal, abort our controller when it fires
+  const externalSignal = fetchOptions.signal as AbortSignal | undefined
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timeoutId)
+      throw new ApiRequestError(0, 'Aborted', 'The request was cancelled')
+    }
+    externalSignal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...fetchOptions,
@@ -171,6 +181,10 @@ async function fetchWithAuth<T>(
   } catch (e) {
     clearTimeout(timeoutId)
     if (e instanceof Error && e.name === 'AbortError') {
+      // Distinguish user-initiated cancellation from timeout
+      if (externalSignal?.aborted) {
+        throw new ApiRequestError(0, 'Aborted', 'The request was cancelled')
+      }
       throw new ApiRequestError(408, 'Request Timeout', 'The request timed out')
     }
     throw e

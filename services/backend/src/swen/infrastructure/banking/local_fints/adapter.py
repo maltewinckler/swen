@@ -23,6 +23,7 @@ from swen.domain.banking.exceptions import (
     BankAuthenticationError,
     BankConnectionError,
     BankTransactionFetchError,
+    TanTimeoutError,
 )
 from swen.domain.banking.ports.bank_connection_port import BankConnectionPort
 from swen.domain.banking.value_objects.bank_account import BankAccount
@@ -150,6 +151,12 @@ class GeldstromAdapter(BankConnectionPort):
             if "authentication" in error_msg.lower() or "pin" in error_msg.lower():
                 msg = f"Authentication failed: {error_msg}"
                 raise BankAuthenticationError(msg) from e
+
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                raise TanTimeoutError(
+                    message="TAN approval timed out. Please try again.",
+                    timeout_seconds=300,
+                ) from e
 
             msg = f"Connection failed: {error_msg}"
             raise BankConnectionError(msg) from e

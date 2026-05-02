@@ -324,7 +324,7 @@ describe('useBankConnection', () => {
         tan_method: '920',
         tan_medium: 'Push TAN',
       })
-      expect(api.discoverBankAccounts).toHaveBeenCalledWith('12345678')
+      expect(api.discoverBankAccounts).toHaveBeenCalledWith('12345678', expect.objectContaining({ signal: expect.any(AbortSignal) }))
       expect(result.current.discoveredAccounts).toEqual(mockAccounts.accounts)
       expect(result.current.step).toBe('review_accounts')
     })

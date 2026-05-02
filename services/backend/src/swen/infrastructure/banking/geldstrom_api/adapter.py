@@ -21,6 +21,7 @@ from swen.domain.banking.exceptions import (
     BankAuthenticationError,
     BankConnectionError,
     BankTransactionFetchError,
+    TanTimeoutError,
 )
 from swen.domain.banking.ports.bank_connection_port import BankConnectionPort
 from swen.domain.banking.value_objects.bank_account import BankAccount
@@ -407,7 +408,10 @@ class GeldstromApiAdapter(BankConnectionPort):
             f"Geldstrom API operation {operation_id} timed out "
             f"after {_MAX_POLL_DURATION_SECONDS}s"
         )
-        raise BankConnectionError(msg)
+        raise TanTimeoutError(
+            message="TAN approval timed out. Please try again.",
+            timeout_seconds=_MAX_POLL_DURATION_SECONDS,
+        )
 
     def _check_http_error(self, response: httpx.Response) -> None:
         """Translate HTTP errors to domain exceptions."""
