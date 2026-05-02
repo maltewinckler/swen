@@ -126,6 +126,45 @@ several minutes; the endpoint is synchronous). If the endpoint times
 out, poll `GET /api/v1/sync/recommendations` until
 `last_successful_sync_date` is recent for all accounts.
 
+## Step 5b — API reconciliation check
+
+After the sync completes, call the reconciliation endpoint to verify
+that the bank-reported balances match the bookkeeping totals:
+
+```
+GET /api/v1/accounts/reconciliation
+```
+
+Expected response shape:
+```json
+{
+  "all_reconciled": true,
+  "reconciled_count": <N>,
+  "discrepancy_count": 0,
+  "accounts": [
+    {
+      "iban": "DE...",
+      "account_name": "...",
+      "bank_balance": "1234.56",
+      "bank_balance_date": "...",
+      "bookkeeping_balance": "1234.56",
+      "discrepancy": "0.00",
+      "is_reconciled": true
+    }
+  ]
+}
+```
+
+Requirements:
+- `all_reconciled` must be `true`.
+- Every account entry must have `is_reconciled: true` and `discrepancy` within
+  `±0.01`.
+- `bank_balance` must be non-null (a null value means the bank-reported balance
+  was never stored — the bug this check guards against).
+
+If any account fails reconciliation, record the full response and treat it as
+a **critical failure**.
+
 ## Step 6 — Database health checks
 
 Connect to the `swen` database:
@@ -318,6 +357,7 @@ Produce a table with one row per check:
 |---|---|---|---|
 | Services healthy | GET /health | … | ✅/❌ |
 | Import completeness | SQL 6a | X ok, Y failed | ✅/❌ |
+| API reconciliation | GET /accounts/reconciliation | all_reconciled, no null bank_balance | ✅/❌ |
 | Direction violations | SQL 6b | 0 / 0 | ✅/❌ |
 | Balance reconciliation | SQL 6c | delta = 0 for all | ✅/❌ |
 | Classification quality | SQL 6d | subjective assessment | ✅/⚠️/❌ |
