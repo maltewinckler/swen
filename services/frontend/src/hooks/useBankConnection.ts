@@ -1,9 +1,10 @@
-import { useReducer, useCallback } from 'react'
+import { useReducer, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSyncProgress } from './useSyncProgress'
 import {
   lookupBank,
   storeCredentials,
+  deleteCredentials,
   discoverBankAccounts,
   setupBankAccounts,
   queryTANMethods,
@@ -318,9 +319,11 @@ export interface UseBankConnectionReturn {
     handleBankLookup: () => Promise<void>
     handleDiscoverTanMethods: () => Promise<void>
     handleDiscoverAccounts: () => Promise<void>
+    cancelDiscovery: () => Promise<void>
     handleConnect: () => Promise<void>
     handleInitialSync: () => Promise<void>
     handleSkipSync: () => void
+    cancelSync: () => void
     reset: () => void
   }
 
@@ -350,9 +353,11 @@ export interface UseBankConnectionReturn {
   handleBankLookup: () => Promise<void>
   handleDiscoverTanMethods: () => Promise<void>
   handleDiscoverAccounts: () => Promise<void>
+  cancelDiscovery: () => Promise<void>
   handleConnect: () => Promise<void>
   handleInitialSync: () => Promise<void>
   handleSkipSync: () => void
+  cancelSync: () => void
   reset: () => void
 }
 
@@ -372,6 +377,7 @@ export function useBankConnection(
     result: syncResult,
     error: syncError,
     startSync,
+    reset: resetSync,
   } = useSyncProgress({
     onSuccess: () => {
       dispatch({ type: 'SET_STEP', payload: 'success' })
@@ -484,21 +490,48 @@ export function useBankConnection(
     }
   }, [state.bankForm.blz, state.bankForm.username, state.bankForm.pin])
 
+  // Abort controller for account discovery (TAN polling can block for 5 min)
+  const discoveryAbortRef = useRef<AbortController | null>(null)
+
   const handleDiscoverAccounts = useCallback(async () => {
+    // Cancel any previous discovery
+    discoveryAbortRef.current?.abort()
+    const controller = new AbortController()
+    discoveryAbortRef.current = controller
+
     dispatch({ type: 'ACCOUNT_DISCOVERY_START' })
 
     try {
-      // Store credentials first
-      await storeCredentials({
-        blz: state.bankForm.blz,
-        username: state.bankForm.username,
-        pin: state.bankForm.pin,
-        tan_method: state.bankForm.tan_method,
-        tan_medium: state.bankForm.tan_medium || null,
-      })
+      // Store credentials first — if they already exist (e.g. retry after
+      // timeout), delete them first so we can re-store with potentially
+      // updated TAN settings.
+      try {
+        await storeCredentials({
+          blz: state.bankForm.blz,
+          username: state.bankForm.username,
+          pin: state.bankForm.pin,
+          tan_method: state.bankForm.tan_method,
+          tan_medium: state.bankForm.tan_medium || null,
+        })
+      } catch (storeErr) {
+        if (storeErr instanceof ApiRequestError && storeErr.status === 409) {
+          await deleteCredentials(state.bankForm.blz)
+          await storeCredentials({
+            blz: state.bankForm.blz,
+            username: state.bankForm.username,
+            pin: state.bankForm.pin,
+            tan_method: state.bankForm.tan_method,
+            tan_medium: state.bankForm.tan_medium || null,
+          })
+        } else {
+          throw storeErr
+        }
+      }
 
-      // Discover accounts
-      const result = await discoverBankAccounts(state.bankForm.blz)
+      // Discover accounts (blocks during TAN approval — cancellable)
+      const result = await discoverBankAccounts(state.bankForm.blz, {
+        signal: controller.signal,
+      })
 
       // Initialize editable names with defaults
       const names: Record<string, string> = {}
@@ -512,9 +545,31 @@ export function useBankConnection(
       })
       queryClient.invalidateQueries({ queryKey: ['credentials'] })
     } catch (err) {
+      // Silently ignore user-initiated cancellation (cancelDiscovery handles state)
+      if (err instanceof ApiRequestError && err.status === 0) return
+      if (err instanceof Error && err.name === 'AbortError') return
+
       dispatch({ type: 'ACCOUNT_DISCOVERY_ERROR', payload: err instanceof Error ? err.message : 'Failed to discover accounts' })
+    } finally {
+      discoveryAbortRef.current = null
     }
   }, [state.bankForm, queryClient])
+
+  const cancelDiscovery = useCallback(async () => {
+    discoveryAbortRef.current?.abort()
+    discoveryAbortRef.current = null
+
+    // Clean up stored credentials so the user can retry
+    try {
+      await deleteCredentials(state.bankForm.blz)
+      queryClient.invalidateQueries({ queryKey: ['credentials'] })
+    } catch {
+      // Credentials may not exist yet if abort happened early — ignore
+    }
+
+    dispatch({ type: 'ACCOUNT_DISCOVERY_ERROR', payload: '' })
+    dispatch({ type: 'SET_STEP', payload: 'tan_discovery' })
+  }, [state.bankForm.blz, queryClient])
 
   const handleConnect = useCallback(async () => {
     dispatch({ type: 'CONNECT_START' })
@@ -546,6 +601,11 @@ export function useBankConnection(
     dispatch({ type: 'SET_STEP', payload: 'success' })
     options.onSuccess?.()
   }, [options])
+
+  const cancelSync = useCallback(() => {
+    resetSync()
+    dispatch({ type: 'SET_STEP', payload: 'initial_sync' })
+  }, [resetSync])
 
   // -------------------------------------------------------------------------
   // Return (Grouped + Legacy Flat)
@@ -591,9 +651,11 @@ export function useBankConnection(
       handleBankLookup,
       handleDiscoverTanMethods,
       handleDiscoverAccounts,
+      cancelDiscovery,
       handleConnect,
       handleInitialSync,
       handleSkipSync,
+      cancelSync,
       reset,
     },
 
@@ -623,9 +685,11 @@ export function useBankConnection(
     handleBankLookup,
     handleDiscoverTanMethods,
     handleDiscoverAccounts,
+    cancelDiscovery,
     handleConnect,
     handleInitialSync,
     handleSkipSync,
+    cancelSync,
     reset,
   }
 }

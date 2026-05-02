@@ -167,8 +167,8 @@ export async function deleteCredentials(blz: string): Promise<void> {
  * Returns accounts with default names for user review before import
  * Note: This can take up to 5 minutes if TAN approval is required
  */
-export async function discoverBankAccounts(blz: string): Promise<DiscoverAccountsResponse> {
-  return api.post<DiscoverAccountsResponse>(`/credentials/${blz}/discover-accounts`, undefined, { timeout: LONG_TIMEOUT })
+export async function discoverBankAccounts(blz: string, options?: { signal?: AbortSignal }): Promise<DiscoverAccountsResponse> {
+  return api.post<DiscoverAccountsResponse>(`/credentials/${blz}/discover-accounts`, undefined, { timeout: LONG_TIMEOUT, signal: options?.signal })
 }
 
 /**

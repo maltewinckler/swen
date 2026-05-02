@@ -103,9 +103,11 @@ export function BankConnectionWizard({
     handleBankLookup,
     handleDiscoverTanMethods,
     handleDiscoverAccounts,
+    cancelDiscovery,
     handleConnect,
     handleInitialSync,
     handleSkipSync,
+    cancelSync,
     reset,
   } = connection
 
@@ -261,6 +263,15 @@ export function BankConnectionWizard({
           <Loader2 className="h-12 w-12 text-accent-primary animate-spin mx-auto mb-4" />
           <p className="text-text-primary font-medium mb-2">Connecting to {bankLookup?.name}...</p>
           <TANApprovalNotice showTimingNote className="text-left" />
+          <div className="pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={cancelDiscovery}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 
@@ -375,7 +386,18 @@ export function BankConnectionWizard({
 
       {/* Syncing State */}
       {step === 'syncing' && (
-        <SyncProgressDisplay progress={syncProgress} className="py-6" />
+        <div className="space-y-4">
+          <SyncProgressDisplay progress={syncProgress} className="py-6" />
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={cancelSync}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Success State */}
