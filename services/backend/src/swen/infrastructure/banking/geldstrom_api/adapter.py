@@ -100,13 +100,11 @@ class GeldstromApiAdapter(BankConnectionPort):
             raise BankConnectionError(msg) from e
 
     async def fetch_accounts(self) -> list[BankAccount]:
-        """Fetch accounts from the API, caching the result for the session.
+        """Fetch accounts and their balances from the API, caching for the session.
 
         May trigger 2FA for some banks. Subsequent calls return the cache.
-
-        Note: Balance fetching is skipped because it triggers an independent
-        2FA approval on the Geldstrom API (each endpoint = separate FinTS session).
-        Balance data should be retrieved from the stored bank accounts instead.
+        Balances are fetched via a separate /balances call so that
+        ReconciliationQuery and opening-balance calculation have accurate data.
         """
         if not self._credentials:
             msg = "Not connected. Call connect() first."
@@ -127,8 +125,16 @@ class GeldstromApiAdapter(BankConnectionPort):
 
             raw_accounts = result.get("accounts", [])
 
+            raw_balances = await self._fetch_balances(client, raw_accounts)
+            balance_by_iban = self._merge_balances(raw_accounts, raw_balances)
+
             self._accounts_cache = [
-                self._map_account(acc, self._credentials.blz) for acc in raw_accounts
+                self._map_account(
+                    acc,
+                    self._credentials.blz,
+                    balance_by_iban.get(acc.get("iban", "")),
+                )
+                for acc in raw_accounts
             ]
 
             logger.info(
