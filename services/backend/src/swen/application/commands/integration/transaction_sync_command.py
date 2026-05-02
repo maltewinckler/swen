@@ -707,23 +707,30 @@ class TransactionSyncCommand:
     async def _should_update_bank_accounts(self, iban: str) -> bool:
         """Check if bank accounts need to be fetched from the bank.
 
-        Skips the fetch on subsequent syncs to avoid triggering extra 2FA prompts.
-        The Geldstrom API treats each endpoint call as an independent FinTS session,
-        meaning /accounts and /balances each trigger their own 2FA approval.
-        On subsequent syncs we already have the account data stored.
+        Fetches when the account is not yet stored, or when the stored account
+        is missing balance data (e.g. migrated from an older version that did not
+        persist balances). Skips when a balance is already recorded to avoid
+        unnecessary extra 2FA prompts on the Geldstrom API.
         """
         if not self._bank_account_repo:
             return False
 
         existing = await self._bank_account_repo.find_by_iban(iban)
-        if existing is not None:
+        if existing is None:
+            return True
+
+        if existing.balance is None:
             logger.debug(
-                "Bank account %s already stored, skipping fetch_accounts to avoid 2FA",
+                "Bank account %s missing balance, will re-fetch to populate it",
                 iban,
             )
-            return False
+            return True
 
-        return True
+        logger.debug(
+            "Bank account %s already stored with balance, skipping fetch_accounts",
+            iban,
+        )
+        return False
 
     async def _update_bank_accounts(self) -> None:
         if not self._bank_account_repo:
