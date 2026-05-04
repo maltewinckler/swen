@@ -59,7 +59,8 @@ function TransactionsPage() {
     mutationFn: () => bulkPostTransactions({ post_all_drafts: true }),
     onSuccess: (data) => {
       toast.success({
-        title: `${data.posted_count} transaction${data.posted_count !== 1 ? 's' : ''} posted`,
+        title: 'Posting complete',
+        description: `${data.posted_count} transaction${data.posted_count !== 1 ? 's have' : ' has'} been posted.`,
       })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
