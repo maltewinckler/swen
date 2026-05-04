@@ -1,26 +1,36 @@
 """Transactions router for transaction management endpoints."""
 
+import json
 import logging
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from swen.application.commands.accounting import (
+    BulkPostTransactionsCommand,
     CreateSimpleTransactionCommand,
     CreateTransactionCommand,
     DeleteTransactionCommand,
     EditTransactionCommand,
     PostTransactionCommand,
+    ReclassifyDraftsCommand,
     UnpostTransactionCommand,
 )
+from swen.application.dtos.accounting import ReclassifyResultDTO
+from swen.application.dtos.integration import SyncProgressEvent
 from swen.application.queries import ListTransactionsQuery
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.value_objects import JournalEntryInput
-from swen.presentation.api.dependencies import MLPort, RepoFactory
+from swen.domain.shared.exceptions import DomainException, ErrorCode
+from swen.presentation.api.dependencies import MLClient, MLPort, RepoFactory
 from swen.presentation.api.schemas.transactions import (
+    BulkPostRequest,
+    BulkPostResponse,
     JournalEntryResponse,
+    ReclassifyDraftsRequest,
     TransactionCreateRequest,
     TransactionCreateSimpleRequest,
     TransactionListItemResponse,
@@ -543,3 +553,178 @@ async def delete_transaction(
         raise
 
     logger.info("Transaction deleted: %s", transaction_id)
+
+
+# ═══════════════════════════════════════════════════════════════
+#           Reclassify / Bulk-Post endpoints
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/reclassify-drafts/stream",
+    summary="Reclassify draft transactions via ML (SSE stream)",
+    responses={
+        200: {
+            "description": "SSE stream of reclassification progress events",
+            "content": {"text/event-stream": {}},
+        },
+        503: {"description": "ML service unavailable"},
+    },
+)
+async def reclassify_drafts_streaming(
+    factory: RepoFactory,
+    ml_client: MLClient,
+    request: Optional[ReclassifyDraftsRequest] = None,
+) -> StreamingResponse:
+    """
+    Re-run ML classification on draft bank-import transactions.
+
+    Returns a Server-Sent Events (SSE) stream with progress events.
+    The ML model uses examples from previously posted transactions,
+    so posting a representative sample first will improve results.
+
+    ## Event Types
+
+    - **reclassify_started**: Reclassification beginning (includes total)
+    - **reclassify_progress**: ML classification chunk completed (current/total)
+    - **reclassify_transaction**: Single transaction reclassified (old→new account)
+    - **reclassify_completed**: All drafts processed (summary counts)
+    - **reclassify_failed**: Reclassification failed
+
+    ## Cancellation
+
+    Close the connection (AbortController) to cancel. Progress saved so far
+    is preserved — re-running is safe and idempotent.
+
+    ## Options
+
+    - `reclassify_all`: Process all draft bank-import transactions
+    - `only_fallback`: Only process drafts on fallback accounts (Sonstiges)
+    - `transaction_ids`: Process specific transactions only
+    """
+    reclassify_all = request.reclassify_all if request else False
+    only_fallback = request.only_fallback if request else False
+    transaction_ids = request.transaction_ids if request else None
+
+    if not reclassify_all and not transaction_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide transaction_ids or set reclassify_all=true",
+        )
+
+    async def event_generator():
+        try:
+            command = ReclassifyDraftsCommand.from_factory(factory, ml_client)
+        except Exception as e:
+            logger.exception("Failed to create reclassify command: %s", e)
+            yield _format_sse_event(
+                "reclassify_failed",
+                {"message": "Failed to initialize reclassification"},
+            )
+            return
+
+        result = None
+        try:
+            async for event in command.execute_streaming(
+                transaction_ids=transaction_ids,
+                reclassify_all=reclassify_all,
+                only_fallback=only_fallback,
+            ):
+                if isinstance(event, SyncProgressEvent):
+                    yield _format_sse_event(event.event_type.value, event.to_dict())
+                elif isinstance(event, ReclassifyResultDTO):
+                    result = event
+
+            await factory.session.commit()
+
+            if result:
+                yield _format_sse_event(
+                    "result",
+                    {
+                        "total_drafts": result.total_drafts,
+                        "reclassified_count": result.reclassified_count,
+                        "unchanged_count": result.unchanged_count,
+                        "failed_count": result.failed_count,
+                    },
+                )
+
+        except DomainException as e:
+            await factory.session.rollback()
+            logger.warning("Reclassification failed (domain): %s", e)
+            yield _format_sse_event(
+                "reclassify_failed",
+                {"message": e.message, "code": e.code.value},
+            )
+        except Exception as e:
+            await factory.session.rollback()
+            logger.exception("Reclassification failed (unexpected): %s", e)
+            yield _format_sse_event(
+                "reclassify_failed",
+                {
+                    "message": "Reclassification failed unexpectedly",
+                    "code": ErrorCode.INTERNAL_ERROR.value,
+                },
+            )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post(
+    "/bulk-post",
+    summary="Post multiple draft transactions",
+    responses={
+        200: {"description": "Transactions posted"},
+        400: {"description": "No transactions specified"},
+    },
+)
+async def bulk_post_transactions(
+    factory: RepoFactory,
+    ml_port: MLPort,
+    request: BulkPostRequest,
+) -> BulkPostResponse:
+    """
+    Post multiple draft transactions at once.
+
+    Each posted transaction is submitted as a training example to the ML
+    service, improving future classifications.
+
+    Specify either `transaction_ids` for specific transactions or
+    `post_all_drafts=true` to post all remaining drafts.
+    """
+    if not request.transaction_ids and not request.post_all_drafts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide transaction_ids or set post_all_drafts=true",
+        )
+
+    command = BulkPostTransactionsCommand.from_factory(factory, ml_port=ml_port)
+
+    try:
+        posted = await command.execute(
+            transaction_ids=request.transaction_ids,
+            post_all_drafts=request.post_all_drafts,
+        )
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        raise
+
+    logger.info("Bulk posted %d transactions", len(posted))
+    return BulkPostResponse(
+        posted_count=len(posted),
+        transaction_ids=[txn.id for txn in posted],
+    )
+
+
+def _format_sse_event(event_type: str, data: dict) -> str:
+    """Format data as an SSE event string."""
+    json_data = json.dumps(data)
+    return f"event: {event_type}\ndata: {json_data}\n\n"

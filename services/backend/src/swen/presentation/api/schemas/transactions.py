@@ -378,6 +378,79 @@ class TransactionFilterParams(BaseModel):
     exclude_transfers: Optional[bool] = None
     source: Optional[str] = None
 
+
+# ═══════════════════════════════════════════════════════════════
+#           Reclassify / Bulk-Post schemas
+# ═══════════════════════════════════════════════════════════════
+
+
+class ReclassifyDraftsRequest(BaseModel):
+    """Request schema for reclassifying draft transactions via ML."""
+
+    transaction_ids: Optional[list[UUID]] = Field(
+        None,
+        description="Specific draft transaction IDs to reclassify",
+    )
+    reclassify_all: bool = Field(
+        default=False,
+        description="Reclassify all draft bank-import transactions",
+    )
+    only_fallback: bool = Field(
+        default=False,
+        description="Only reclassify drafts on fallback accounts (Sonstiges / "
+        "Sonstige Einnahmen)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "summary": "Reclassify all uncategorised drafts",
+                    "value": {
+                        "reclassify_all": True,
+                        "only_fallback": True,
+                    },
+                },
+                {
+                    "summary": "Reclassify specific transactions",
+                    "value": {
+                        "transaction_ids": [
+                            "550e8400-e29b-41d4-a716-446655440000",
+                        ],
+                    },
+                },
+            ],
+        },
+    )
+
+
+class BulkPostRequest(BaseModel):
+    """Request schema for posting multiple draft transactions."""
+
+    transaction_ids: Optional[list[UUID]] = Field(
+        None,
+        description="Specific draft transaction IDs to post",
+    )
+    post_all_drafts: bool = Field(
+        default=False,
+        description="Post all remaining draft transactions",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "post_all_drafts": True,
+            },
+        },
+    )
+
+
+class BulkPostResponse(BaseModel):
+    """Response schema for bulk-posting transactions."""
+
+    posted_count: int
+    transaction_ids: list[UUID]
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

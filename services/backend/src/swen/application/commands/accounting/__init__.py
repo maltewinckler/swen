@@ -24,6 +24,9 @@ from swen.application.commands.accounting.post_transaction_command import (
     PostTransactionCommand,
     UnpostTransactionCommand,
 )
+from swen.application.commands.accounting.reclassify_drafts_command import (
+    ReclassifyDraftsCommand,
+)
 from swen.application.commands.accounting.update_account_command import (
     DeactivateAccountCommand,
     DeleteAccountCommand,
@@ -41,6 +44,7 @@ __all__ = [
     "DeleteTransactionCommand",
     "EditTransactionCommand",
     "PostTransactionCommand",
+    "ReclassifyDraftsCommand",
     "UnpostTransactionCommand",
     # Account commands
     "ChartTemplate",

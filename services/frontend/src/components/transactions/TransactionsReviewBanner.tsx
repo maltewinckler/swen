@@ -1,12 +1,23 @@
-import { ClipboardCheck } from 'lucide-react'
+import { ClipboardCheck, CheckCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui'
 
 interface TransactionsReviewBannerProps {
   isReviewMode: boolean
   onExit: () => void
+  onPostAll?: () => void
+  onReclassify?: () => void
+  isPostingAll?: boolean
+  isReclassifying?: boolean
 }
 
-export function TransactionsReviewBanner({ isReviewMode, onExit }: TransactionsReviewBannerProps) {
+export function TransactionsReviewBanner({
+  isReviewMode,
+  onExit,
+  onPostAll,
+  onReclassify,
+  isPostingAll = false,
+  isReclassifying = false,
+}: TransactionsReviewBannerProps) {
   if (!isReviewMode) return null
 
   return (
@@ -21,6 +32,18 @@ export function TransactionsReviewBanner({ isReviewMode, onExit }: TransactionsR
       <Button variant="ghost" size="sm" onClick={onExit}>
         Exit
       </Button>
+      {onReclassify && (
+        <Button variant="ghost" size="sm" onClick={onReclassify} disabled={isReclassifying}>
+          <Sparkles className="h-4 w-4" />
+          Reclassify
+        </Button>
+      )}
+      {onPostAll && (
+        <Button variant="ghost" size="sm" onClick={onPostAll} disabled={isPostingAll}>
+          <CheckCheck className="h-4 w-4" />
+          Post All
+        </Button>
+      )}
     </div>
   )
 }

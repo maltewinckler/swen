@@ -6,6 +6,9 @@ from swen.domain.accounting.services.account_balance_service import (
 from swen.domain.accounting.services.account_hierarchy_service import (
     AccountHierarchyService,
 )
+from swen.domain.accounting.services.classification_rules import (
+    ClassificationRules,
+)
 from swen.domain.accounting.services.opening_balance_service import (
     # Deprecated: Use MetadataKeys instead
     OPENING_BALANCE_IBAN_KEY,
@@ -25,6 +28,7 @@ __all__ = [
     "AccountBalanceService",
     "AccountHierarchyService",
     "CATEGORY_ACCOUNT_TYPES",
+    "ClassificationRules",
     "EntrySpec",
     "MetadataKeys",
     "OpeningBalanceService",
