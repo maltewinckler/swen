@@ -117,13 +117,15 @@ Expected response: `accounts_created > 0`, `skipped = false`. If
 ## Step 5 — Import 365 days of transactions from all banks
 
 ```
-POST /api/v1/sync/run
+POST /api/v1/sync/run/stream
 {"days": 365}
 ```
 
-This syncs every linked bank account. Wait for the response (may take
-several minutes; the endpoint is synchronous). If the endpoint times
-out, poll `GET /api/v1/sync/recommendations` until
+This syncs every linked bank account. Consume the SSE stream until the
+final `result` event arrives; it should report `success = true`. The
+stream may run for several minutes while TAN approval and transaction
+processing complete. If the stream fails or disconnects unexpectedly,
+poll `GET /api/v1/sync/recommendation` until
 `last_successful_sync_date` is recent for all accounts.
 
 ## Step 5b — API reconciliation check
