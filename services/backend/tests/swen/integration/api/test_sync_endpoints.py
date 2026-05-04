@@ -2,82 +2,96 @@
 
 from fastapi.testclient import TestClient
 
+from tests.shared.sse import get_sse_event, read_sse_events
 
-class TestRunSync:
-    """Tests for POST /api/v1/sync/run."""
 
-    def test_run_sync_no_accounts(
+class TestRunSyncStreaming:
+    """Tests for POST /api/v1/sync/run/stream."""
+
+    def test_run_sync_stream_no_accounts(
         self,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Run sync with no mapped accounts returns empty result."""
-        response = test_client.post(
-            f"{api_v1_prefix}/sync/run",
+        """Run streaming sync with no mapped accounts returns summary events."""
+        with test_client.stream(
+            "POST",
+            f"{api_v1_prefix}/sync/run/stream",
             headers=auth_headers,
-        )
+        ) as response:
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/event-stream")
+            events = read_sse_events(response)
 
-        assert response.status_code == 200
-        data = response.json()
+        assert [event_type for event_type, _ in events] == [
+            "sync_started",
+            "sync_completed",
+            "result",
+        ]
 
-        # Should return successful but empty result
-        assert data["success"] is True
-        assert data["total_fetched"] == 0
-        assert data["total_imported"] == 0
-        assert data["accounts_synced"] == 0
-        assert data["account_stats"] == []
+        started_event = events[0][1]
+        completed_event = events[1][1]
+        result_event = get_sse_event(events, "result")
 
-    def test_run_sync_with_params(
+        assert started_event["total_accounts"] == 0
+        assert completed_event["accounts_synced"] == 0
+        assert completed_event["total_imported"] == 0
+        assert result_event == {
+            "success": True,
+            "total_imported": 0,
+            "total_skipped": 0,
+            "total_failed": 0,
+            "accounts_synced": 0,
+        }
+
+    def test_run_sync_stream_with_params(
         self,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Run sync with custom parameters."""
-        response = test_client.post(
-            f"{api_v1_prefix}/sync/run",
+        """Streaming sync accepts explicit request parameters."""
+        with test_client.stream(
+            "POST",
+            f"{api_v1_prefix}/sync/run/stream",
             headers=auth_headers,
-            json={
-                "days": 30,
-                "auto_post": False,
-            },
-        )
+            json={"days": 30, "auto_post": False},
+        ) as response:
+            assert response.status_code == 200
+            events = read_sse_events(response)
 
-        assert response.status_code == 200
-        data = response.json()
+        result_event = get_sse_event(events, "result")
+        assert result_event["success"] is True
+        assert result_event["accounts_synced"] == 0
 
-        assert data["auto_post"] is False
-        assert "synced_at" in data
-        assert "start_date" in data
-        assert "end_date" in data
-
-    def test_run_sync_with_iban_filter(
+    def test_run_sync_stream_with_iban_filter(
         self,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Run sync with IBAN filter (no matching account)."""
-        response = test_client.post(
-            f"{api_v1_prefix}/sync/run",
+        """Streaming sync respects an IBAN filter with no matches."""
+        with test_client.stream(
+            "POST",
+            f"{api_v1_prefix}/sync/run/stream",
             headers=auth_headers,
-            json={
-                "days": 30,
-                "iban": "DE89370400440532013000",
-            },
-        )
+            json={"days": 30, "iban": "DE89370400440532013000"},
+        ) as response:
+            assert response.status_code == 200
+            events = read_sse_events(response)
 
-        assert response.status_code == 200
-        data = response.json()
+        result_event = get_sse_event(events, "result")
+        assert result_event["accounts_synced"] == 0
 
-        # Should return empty since no accounts match
-        assert data["accounts_synced"] == 0
-
-    def test_run_sync_unauthorized(self, test_client: TestClient, api_v1_prefix: str):
-        """Cannot run sync without auth."""
-        response = test_client.post(f"{api_v1_prefix}/sync/run")
-        assert response.status_code == 401
+    def test_run_sync_stream_unauthorized(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Cannot run streaming sync without auth."""
+        with test_client.stream("POST", f"{api_v1_prefix}/sync/run/stream") as response:
+            assert response.status_code == 401
 
 
 class TestSyncStatus:

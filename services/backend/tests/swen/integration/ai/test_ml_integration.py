@@ -17,6 +17,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.shared.sse import get_sse_event, read_sse_events
+
 
 def unique_account_number(prefix: str = "") -> str:
     """Generate a unique account number."""
@@ -380,17 +382,23 @@ class TestClassificationDuringSyncMocked:
             adapter.fetch_transactions = AsyncMock(return_value=[])
             mock_adapter_class.from_factory.return_value = adapter
 
-            with patch(
-                "swen.presentation.api.dependencies.get_ml_client",
-                return_value=ml_client_spy,
-            ):
-                response = test_client.post(
-                    f"{api_v1_prefix}/sync/run",
+            with (
+                patch(
+                    "swen.presentation.api.dependencies.get_ml_client",
+                    return_value=ml_client_spy,
+                ),
+                test_client.stream(
+                    "POST",
+                    f"{api_v1_prefix}/sync/run/stream",
                     headers=headers,
                     json={"days": 7},
-                )
+                ) as response,
+            ):
+                assert response.status_code == 200
+                events = read_sse_events(response)
 
-        assert response.status_code == 200
+        result_event = get_sse_event(events, "result")
+        assert result_event["success"] is True
         # With transactions, classify_batch should be called
         # (no transactions in this test, so it may not be called)
 

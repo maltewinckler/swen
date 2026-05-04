@@ -66,17 +66,6 @@ TanCallback = Callable[[TANChallenge], str | Awaitable[str]]
 
 
 @dataclass
-class SyncRequest:
-    """Request parameters for transaction sync operation."""
-
-    iban: str
-    credentials: Optional[BankCredentials] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    tan_callback: Optional[TanCallback] = None
-
-
-@dataclass
 class _SyncContext:
     """Internal context for building sync result."""
 
@@ -145,94 +134,6 @@ class TransactionSyncCommand:
             ml_classification_service=ml_classification_service,
         )
 
-    async def execute(  # noqa: PLR0913
-        self,
-        iban: str,
-        credentials: Optional[BankCredentials] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        tan_callback: Optional[TanCallback] = None,
-        auto_post: bool = False,
-    ) -> SyncResult:
-        synced_at = utc_now()
-
-        try:
-            credentials, credential_tracking = await self._resolve_credentials(
-                credentials,
-                iban,
-            )
-
-            mapping_check = await self._verify_account_mapping(iban)
-            if not mapping_check["valid"]:
-                return self._create_error_result(
-                    synced_at,
-                    iban,
-                    start_date,
-                    end_date,
-                    mapping_check["error"],
-                )
-
-            start_date, end_date = await self._determine_sync_period(
-                iban,
-                start_date,
-                end_date,
-            )
-
-            if (
-                self._credential_repo
-                and credential_tracking["loaded"]
-                and credential_tracking["blz"]
-            ):
-                tan_method, tan_medium = await self._credential_repo.get_tan_settings(
-                    credential_tracking["blz"],
-                )
-                if tan_method:
-                    self._adapter.set_tan_method(tan_method)
-                if tan_medium:
-                    self._adapter.set_tan_medium(tan_medium)
-
-            (
-                bank_transactions,
-                import_results,
-                ob_created,
-                ob_amount,
-            ) = await self._perform_sync(
-                credentials,
-                iban,
-                start_date,
-                end_date,
-                tan_callback,
-                auto_post=auto_post,
-            )
-
-            await self._update_credential_usage(credential_tracking)
-
-            context = _SyncContext(
-                synced_at=synced_at,
-                iban=iban,
-                start_date=start_date,
-                end_date=end_date,
-                opening_balance_created=ob_created,
-                opening_balance_amount=ob_amount,
-            )
-            return self._build_sync_result(
-                context,
-                bank_transactions,
-                import_results,
-            )
-
-        except Exception as e:
-            # Note: Disconnection is handled by _perform_sync's finally block
-            # if the exception occurs during sync. For exceptions before sync
-            # (e.g., credential loading), no connection has been established yet.
-            return self._create_error_result(
-                synced_at,
-                iban,
-                start_date,
-                end_date,
-                str(e),
-            )
-
     async def _resolve_credentials(
         self,
         credentials: Optional[BankCredentials],
@@ -281,128 +182,6 @@ class TransactionSyncCommand:
         start_date = min(start_date, end_date)
 
         return start_date, end_date
-
-    async def _perform_sync(  # NOQA: PLR0913
-        self,
-        credentials: BankCredentials,
-        iban: str,
-        start_date: date,
-        end_date: date,
-        tan_callback: Optional[TanCallback],
-        auto_post: bool = False,
-    ) -> tuple[list, list, bool, Decimal | None]:
-        """Perform the actual sync: connect, fetch, import, disconnect.
-
-        Two-phase sync flow:
-        1. Fetch transactions from bank
-        2. Save to bank_transactions table (with hash+sequence deduplication)
-        3. Create opening balance if first sync
-        4. Import only NEW (un-imported) transactions to accounting
-
-        This properly handles identical transactions (e.g., two refunds of €3.10
-        on the same day with the same purpose) by using sequence numbers.
-
-        Returns
-        -------
-        Tuple of (
-            bank_transactions,
-            import_results,
-            opening_balance_created,
-            opening_balance_amount,
-        )
-        """
-        if tan_callback:
-            await self._adapter.set_tan_callback(
-                self._wrap_tan_callback(tan_callback),
-            )
-
-        await self._adapter.connect(credentials)
-
-        try:
-            # Only update bank accounts if not yet stored — avoids extra 2FA
-            # prompts on subsequent syncs (each API call triggers independent 2FA)
-            if await self._should_update_bank_accounts(iban):
-                await self._update_bank_accounts()
-
-            bank_transactions = await self._adapter.fetch_transactions(
-                account_iban=iban,
-                start_date=start_date,
-                end_date=end_date,
-            )
-
-            ob_created, ob_amount = await self._try_create_opening_balance(
-                iban=iban,
-                bank_transactions=bank_transactions,
-            )
-
-            # Phase 1: Save to bank_transactions table with deduplication
-            # This handles identical transactions via hash + sequence
-            if not self._bank_transaction_repo:
-                msg = "bank_transaction_repo is required for sync"
-                raise RuntimeError(msg)
-
-            stored_results = (
-                await self._bank_transaction_repo.save_batch_with_deduplication(
-                    bank_transactions,
-                    iban,
-                )
-            )
-
-            # Filter for transactions that need importing:
-            # - New transactions (just stored)
-            # - Existing transactions that were never imported (previous sync failed)
-            to_import = [r for r in stored_results if r.is_new or not r.is_imported]
-
-            if not to_import:
-                logger.info(
-                    "All %d transactions already imported, nothing new to do",
-                    len(bank_transactions),
-                )
-                return bank_transactions, [], ob_created, ob_amount
-
-            new_count = sum(1 for r in to_import if r.is_new)
-            retry_count = len(to_import) - new_count
-            logger.info(
-                "Will import %d transactions (%d new, %d retry)",
-                len(to_import),
-                new_count,
-                retry_count,
-            )
-
-            # Phase 2: ML Batch Classification (if available)
-            preclassified = {}
-            if self._ml_classification_service:
-                ml_svc = self._ml_classification_service
-                async for event in ml_svc.classify_batch_streaming(
-                    stored_transactions=to_import,
-                    iban=iban,
-                ):
-                    if isinstance(event, dict):
-                        preclassified = event
-                    # Ignore progress events in non-streaming mode
-
-            # Phase 3: Import transactions to accounting
-            if preclassified:
-                import_results = await self._import_service.import_with_preclassified(
-                    stored_transactions=to_import,
-                    source_iban=iban,
-                    preclassified=preclassified,
-                    auto_post=auto_post,
-                )
-            else:
-                import_results = (
-                    await self._import_service.import_from_stored_transactions(
-                        stored_transactions=to_import,
-                        source_iban=iban,
-                        auto_post=auto_post,
-                    )
-                )
-
-            return bank_transactions, import_results, ob_created, ob_amount
-
-        finally:
-            # Always disconnect
-            await self._adapter.disconnect()
 
     async def _perform_sync_streaming(  # noqa: PLR0913, PLR0912, C901
         self,
@@ -456,14 +235,12 @@ class TransactionSyncCommand:
 
             stored_results = (
                 await self._bank_transaction_repo.save_batch_with_deduplication(
-                    bank_transactions,
-                    iban,
+                    transactions=bank_transactions,
+                    account_iban=iban,
                 )
             )
 
-            # Filter for transactions that need importing:
-            # - New transactions (just stored)
-            # - Existing transactions that were never imported (previous sync failed)
+            # New and previously failed trx
             to_import = [r for r in stored_results if r.is_new or not r.is_imported]
 
             # Yield fetched event

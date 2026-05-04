@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from swen.application.commands import BatchSyncCommand
@@ -14,11 +14,8 @@ from swen.domain.shared.exceptions import DomainException, ErrorCode
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.sync import (
     AccountSyncRecommendationResponse,
-    AccountSyncStatsResponse,
-    OpeningBalanceResponse,
     SyncRecommendationResponse,
     SyncRunRequest,
-    SyncRunResponse,
     SyncStatusResponse,
 )
 
@@ -52,9 +49,9 @@ async def get_sync_recommendation(
     1. Call `GET /sync/recommendation`
     2. If `has_first_sync_accounts` is true:
        - Show a dialog asking user how many days to load
-       - Call `POST /sync/run` with `days` parameter
+         - Call `POST /sync/run/stream` with `days` parameter
     3. Otherwise:
-       - Call `POST /sync/run` without `days` (adaptive mode)
+         - Call `POST /sync/run/stream` without `days` (adaptive mode)
     """
     query = SyncRecommendationQuery.from_factory(factory)
     result = await query.execute()
@@ -72,124 +69,6 @@ async def get_sync_recommendation(
         ],
         has_first_sync_accounts=result.has_first_sync_accounts,
         total_accounts=result.total_accounts,
-    )
-
-
-@router.post(
-    "/run",
-    summary="Run transaction sync",
-    responses={
-        200: {"description": "Sync completed successfully"},
-        400: {"description": "Invalid parameters"},
-        503: {"description": "Sync failed due to bank connection issues"},
-        504: {"description": "TAN approval timeout (5 minutes)"},
-    },
-)
-async def run_sync(
-    factory: RepoFactory,
-    ml_client: MLClient,
-    request: Optional[SyncRunRequest] = None,
-) -> SyncRunResponse:
-    """
-    Trigger bank transaction synchronization.
-
-    Fetches recent transactions from all connected bank accounts and imports them
-    into the accounting system. Automatically detects internal transfers between
-    your own accounts and creates proper double-entry bookings.
-
-    ## Adaptive Sync Mode
-
-    When `days` is omitted or null, **adaptive sync** is used:
-    - **First sync** (no history): Uses 90 days as default
-    - **Subsequent syncs**: Syncs from last successful import date + 1 day
-
-    For first-time syncs where you want to specify the number of days, use
-    `GET /sync/recommendation` first to check which accounts need initial setup.
-
-    ## TAN Handling
-
-    For banks using **decoupled TAN** (e.g., SecureGo plus, pushTAN), the API will
-    **block and wait** for you to approve the transaction in your banking app:
-
-    - The request polls the bank every 5 seconds
-    - Maximum wait time: **5 minutes** (then timeout)
-    - You just need to open your banking app and approve when prompted
-
-    **Important:** Set your HTTP client timeout to at least 6 minutes when using
-    this endpoint with TAN-requiring operations (typically 180+ days of history).
-
-    For banks requiring **interactive TAN** (photoTAN, chipTAN, SMS-TAN), use the
-    CLI instead as user input is required.
-
-    Request body is optional - adaptive sync will be used if not provided.
-    """
-    # Use adaptive mode (None) if no request body or no days specified
-    days = request.days if request else None
-    iban = request.iban if request else None
-    blz = request.blz if request else None
-    auto_post = request.auto_post if request else None
-
-    # Create batch sync command (async factory due to account existence check)
-    try:
-        command = await BatchSyncCommand.from_factory(factory, ml_client=ml_client)
-    except Exception as e:
-        logger.exception("Failed to create sync command: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initialize sync command",
-        ) from e
-
-    try:
-        result = await command.execute(
-            days=days,
-            iban=iban,
-            blz=blz,
-            auto_post=auto_post,
-        )
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
-
-    logger.info(
-        "Sync completed: %d imported, %d skipped, %d failed",
-        result.total_imported,
-        result.total_skipped,
-        result.total_failed,
-    )
-
-    # Convert DTO to response
-    return SyncRunResponse(
-        success=result.success,
-        synced_at=result.synced_at,
-        start_date=result.start_date,
-        end_date=result.end_date,
-        auto_post=result.auto_post,
-        total_fetched=result.total_fetched,
-        total_imported=result.total_imported,
-        total_skipped=result.total_skipped,
-        total_failed=result.total_failed,
-        accounts_synced=result.accounts_synced,
-        account_stats=[
-            AccountSyncStatsResponse(
-                iban=stats.iban,
-                fetched=stats.fetched,
-                imported=stats.imported,
-                skipped=stats.skipped,
-                failed=stats.failed,
-            )
-            for stats in result.account_stats
-        ],
-        opening_balances=[
-            OpeningBalanceResponse(
-                iban=ob.iban,
-                amount=ob.amount,
-            )
-            for ob in result.opening_balances
-        ],
-        errors=result.errors,
-        opening_balance_account_missing=result.opening_balance_account_missing,
     )
 
 
@@ -250,8 +129,9 @@ async def run_sync_streaming(
     });
     ```
 
-    The final event (sync_completed or sync_failed) also includes the full
-    BatchSyncResult in the `result` field.
+    The final `result` event is a reduced summary payload containing only
+    `success`, `total_imported`, `total_skipped`, `total_failed`, and
+    `accounts_synced`.
     """
     days = request.days if request else None
     iban = request.iban if request else None
@@ -305,7 +185,8 @@ async def run_sync_streaming(
                     result.total_skipped,
                     result.total_failed,
                 )
-                # Include full result in the final event
+                # Keep the SSE terminal payload intentionally small and aligned
+                # with the frontend summary UI.
                 final_data = {
                     "success": result.success,
                     "total_imported": result.total_imported,

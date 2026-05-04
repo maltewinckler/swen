@@ -22,6 +22,15 @@ from swen.domain.banking.value_objects import BankCredentials, BankTransaction
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.value_objects.secure_string import SecureString
+from tests.shared.sync_streaming import (
+    collect_sync_result as _collect_sync_result,
+)
+from tests.shared.sync_streaming import (
+    normalize_import_result,
+)
+from tests.shared.sync_streaming import (
+    wire_streaming_imports as _wire_streaming_imports,
+)
 
 IBAN = "DE89370400440532013000"
 BLZ = "37040044"
@@ -133,6 +142,7 @@ def _make_command_with_repos():
     adapter.disconnect = AsyncMock()
 
     import_service = AsyncMock()
+    _wire_streaming_imports(import_service, normalizer=normalize_import_result)
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
     account_repo = AsyncMock()
@@ -216,7 +226,8 @@ class TestOpeningBalanceCreation:
         ]
 
         # Execute
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -289,7 +300,8 @@ class TestOpeningBalanceCreation:
         ]
 
         # Execute
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -332,7 +344,8 @@ class TestOpeningBalanceCreation:
         adapter.fetch_transactions.return_value = bank_transactions
 
         # Execute - should fail because bank_transaction_repo is required
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -366,7 +379,8 @@ class TestOpeningBalanceCreation:
         import_service.import_from_stored_transactions.return_value = []
 
         # Execute
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -417,7 +431,8 @@ class TestOpeningBalanceCreation:
         ]
 
         # Execute
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -484,7 +499,8 @@ class TestOpeningBalanceCreation:
         ]
 
         # Execute
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -545,7 +561,8 @@ class TestOpeningBalanceCreation:
         ]
 
         # Execute - should succeed despite opening balance failure
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -607,7 +624,8 @@ class TestOpeningBalanceIdempotency:
             SimpleNamespace(status=ImportStatus.SUCCESS) for _ in bank_transactions
         ]
 
-        await command.execute(
+        await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -665,7 +683,8 @@ class TestOpeningBalanceIdempotency:
         # First sync - no existing opening balance
         transaction_repo.find_by_metadata.return_value = []
 
-        await command.execute(
+        await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -681,7 +700,8 @@ class TestOpeningBalanceIdempotency:
         transaction_repo.find_by_metadata.return_value = [first_call_txn]
         transaction_repo.save.reset_mock()
 
-        await command.execute(
+        await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 2, 1),

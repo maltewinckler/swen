@@ -20,7 +20,6 @@ class SyncEventType(str, Enum):
     SYNC_FAILED = "sync_failed"
 
     ACCOUNT_STARTED = "account_started"
-    ACCOUNT_FETCHING = "account_fetching"
     ACCOUNT_FETCHED = "account_fetched"
     ACCOUNT_CLASSIFYING = "account_classifying"
     ACCOUNT_COMPLETED = "account_completed"
@@ -32,8 +31,6 @@ class SyncEventType(str, Enum):
     CLASSIFICATION_COMPLETED = "classification_completed"
 
     TRANSACTION_CLASSIFIED = "transaction_classified"
-    TRANSACTION_SKIPPED = "transaction_skipped"
-    TRANSACTION_FAILED = "transaction_failed"
 
     # Reclassification events (draft re-ML)
     RECLASSIFY_STARTED = "reclassify_started"
@@ -111,25 +108,6 @@ class SyncCompletedEvent(SyncProgressEvent):
         d["total_skipped"] = self.total_skipped
         d["total_failed"] = self.total_failed
         d["accounts_synced"] = self.accounts_synced
-        return d
-
-
-@dataclass
-class SyncFailedEvent(SyncProgressEvent):
-    """Emitted when sync fails with an error."""
-
-    error: str = ""
-
-    def __init__(self, error: str, message: Optional[str] = None):
-        super().__init__(
-            event_type=SyncEventType.SYNC_FAILED,
-            message=message or f"Sync failed: {error}",
-        )
-        self.error = error
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["error"] = self.error
         return d
 
 

@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.banking.value_objects.bank_info import BankInfo
+from tests.shared.sse import get_sse_event, read_sse_events
 
 
 @dataclass
@@ -90,6 +91,24 @@ def create_mock_transaction(
         iban=iban,
         end_to_end_id=None,
     )
+
+
+def _run_sync_stream(
+    test_client: TestClient,
+    api_v1_prefix: str,
+    headers: dict,
+    payload: dict | None = None,
+) -> dict:
+    with test_client.stream(
+        "POST",
+        f"{api_v1_prefix}/sync/run/stream",
+        headers=headers,
+        json=payload,
+    ) as response:
+        assert response.status_code == 200
+        events = read_sse_events(response)
+
+    return get_sse_event(events, "result")
 
 
 @pytest.fixture
@@ -303,14 +322,13 @@ class TestAdaptiveSyncBehavior:
             adapter.fetch_transactions = AsyncMock(return_value=transactions)
             mock_adapter_class.from_factory.return_value = adapter
 
-            response = test_client.post(
-                f"{api_v1_prefix}/sync/run",
-                headers=headers,
-                json={"days": 30, "auto_post": True},
+            data = _run_sync_stream(
+                test_client,
+                api_v1_prefix,
+                headers,
+                {"days": 30, "auto_post": True},
             )
 
-        assert response.status_code == 200
-        data = response.json()
         assert data["success"] is True
 
     def test_sync_status_after_first_sync(
@@ -336,10 +354,11 @@ class TestAdaptiveSyncBehavior:
             adapter.fetch_transactions = AsyncMock(return_value=[])
             mock_adapter_class.from_factory.return_value = adapter
 
-            test_client.post(
-                f"{api_v1_prefix}/sync/run",
-                headers=headers,
-                json={"days": 30},
+            _run_sync_stream(
+                test_client,
+                api_v1_prefix,
+                headers,
+                {"days": 30},
             )
 
         # Check status
@@ -388,14 +407,12 @@ class TestDeduplication:
             adapter.fetch_transactions = AsyncMock(return_value=[transaction])
             mock_adapter_class.from_factory.return_value = adapter
 
-            first_sync = test_client.post(
-                f"{api_v1_prefix}/sync/run",
-                headers=headers,
-                json={"days": 30},
+            first_data = _run_sync_stream(
+                test_client,
+                api_v1_prefix,
+                headers,
+                {"days": 30},
             )
-
-        assert first_sync.status_code == 200
-        first_data = first_sync.json()
         first_imported = first_data["total_imported"]
 
         # Second sync with same transaction
@@ -420,14 +437,12 @@ class TestDeduplication:
             adapter.fetch_transactions = AsyncMock(return_value=[transaction])
             mock_adapter_class.from_factory.return_value = adapter
 
-            second_sync = test_client.post(
-                f"{api_v1_prefix}/sync/run",
-                headers=headers,
-                json={"days": 30},
+            second_data = _run_sync_stream(
+                test_client,
+                api_v1_prefix,
+                headers,
+                {"days": 30},
             )
-
-        assert second_sync.status_code == 200
-        second_data = second_sync.json()
 
         # Should be skipped as duplicate
         assert second_data["total_skipped"] >= 1 or second_data["total_imported"] == 0

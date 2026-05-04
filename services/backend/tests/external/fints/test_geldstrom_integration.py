@@ -45,6 +45,14 @@ def _env_flag(name: str) -> bool:
 RUN_MANUAL_TAN = _env_flag("RUN_MANUAL_TAN")
 
 
+def _skip_if_decoupled_tan_pending(exc: Exception) -> None:
+    if "Decoupled TAN challenge pending" in str(exc):
+        pytest.skip(
+            "Repeated reconnect requires decoupled TAN approval for this bank; "
+            "covered by the manual TAN suite.",
+        )
+
+
 @pytest.fixture(scope="module")
 def credentials():
     """Load real bank credentials from environment variables.
@@ -140,7 +148,11 @@ async def connected_adapter(
     adapter.set_tan_medium(tan_settings["tan_medium"])
 
     try:
-        success = await adapter.connect(credentials)
+        try:
+            success = await adapter.connect(credentials)
+        except Exception as exc:
+            _skip_if_decoupled_tan_pending(exc)
+            raise
         if not success:
             pytest.fail("Failed to connect to bank")
 
@@ -170,7 +182,11 @@ class TestRealBankConnection:
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
         try:
-            success = await adapter.connect(credentials)
+            try:
+                success = await adapter.connect(credentials)
+            except Exception as exc:
+                _skip_if_decoupled_tan_pending(exc)
+                raise
 
             assert success, "Failed to connect to bank"
             assert adapter.is_connected(), "Adapter should report connected"
@@ -191,7 +207,11 @@ class TestRealBankConnection:
         adapter.set_tan_method(tan_settings["tan_method"])
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
-        await adapter.connect(credentials)
+        try:
+            await adapter.connect(credentials)
+        except Exception as exc:
+            _skip_if_decoupled_tan_pending(exc)
+            raise
         assert adapter.is_connected()
 
         await adapter.disconnect()
@@ -210,13 +230,21 @@ class TestRealBankConnection:
         adapter.set_tan_medium(tan_settings["tan_medium"])
 
         # First cycle
-        success1 = await adapter.connect(credentials)
+        try:
+            success1 = await adapter.connect(credentials)
+        except Exception as exc:
+            _skip_if_decoupled_tan_pending(exc)
+            raise
         assert success1
         await adapter.disconnect()
         assert not adapter.is_connected()
 
         # Second cycle
-        success2 = await adapter.connect(credentials)
+        try:
+            success2 = await adapter.connect(credentials)
+        except Exception as exc:
+            _skip_if_decoupled_tan_pending(exc)
+            raise
         assert success2
         assert adapter.is_connected()
         await adapter.disconnect()

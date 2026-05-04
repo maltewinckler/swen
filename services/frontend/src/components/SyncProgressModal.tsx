@@ -20,7 +20,7 @@ import { TANApprovalNotice } from '@/components/TANApprovalNotice'
 import { SyncProgressDisplay } from '@/components/SyncProgressDisplay'
 import { cn } from '@/lib/utils'
 import type { SyncProgress, SyncStep } from '@/hooks/useSyncProgress'
-import type { SyncRunResponse } from '@/api'
+import type { SyncResultEvent } from '@/api'
 
 interface SyncProgressModalProps {
   /** Whether the modal is open */
@@ -34,7 +34,7 @@ interface SyncProgressModalProps {
   /** Progress data (null when not syncing) */
   progress: SyncProgress | null
   /** Final result (null until success) */
-  result: SyncRunResponse | null
+  result: SyncResultEvent | null
   /** Error message */
   error: string
   /** Days for first-sync */
@@ -236,7 +236,7 @@ function FirstSyncPrompt({
 }
 
 /** Success state with summary */
-function SuccessState({ result }: { result: SyncRunResponse }) {
+function SuccessState({ result }: { result: SyncResultEvent }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-center justify-center py-4 gap-3">

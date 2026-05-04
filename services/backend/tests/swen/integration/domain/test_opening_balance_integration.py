@@ -62,6 +62,7 @@ from tests.shared.fixtures.database import (
     TEST_USER_EMAIL,
     TEST_USER_ID,
 )
+from tests.shared.sync_streaming import collect_sync_result as _collect_sync_result
 
 # Create test user context
 TEST_USER_CONTEXT = CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
@@ -367,7 +368,8 @@ class TestOpeningBalanceE2E:
         )
 
         # Act - execute sync
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -505,7 +507,8 @@ class TestOpeningBalanceE2E:
         )
 
         # Act - First sync
-        result1 = await command.execute(
+        result1 = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -532,7 +535,8 @@ class TestOpeningBalanceE2E:
             ),
         ]
 
-        result2 = await command.execute(
+        result2 = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 2, 1),
@@ -659,7 +663,8 @@ class TestOpeningBalanceE2E:
         )
 
         # Act
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
@@ -784,7 +789,8 @@ class TestOpeningBalanceE2E:
         )
 
         # Act - Create opening balance
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban=IBAN,
             credentials=_make_credentials(),
             start_date=date(2025, 1, 1),
