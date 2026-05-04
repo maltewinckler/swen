@@ -1,4 +1,4 @@
-import { ClipboardCheck, Plus, RefreshCw } from 'lucide-react'
+import { ClipboardCheck, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui'
 
 interface TransactionsPageHeaderProps {
@@ -9,6 +9,8 @@ interface TransactionsPageHeaderProps {
   onAddTransaction: () => void
   onSyncBank: () => void
   isSyncing?: boolean
+  onReclassify?: () => void
+  isReclassifying?: boolean
 }
 
 export function TransactionsPageHeader({
@@ -19,6 +21,8 @@ export function TransactionsPageHeader({
   onAddTransaction,
   onSyncBank,
   isSyncing = false,
+  onReclassify,
+  isReclassifying = false,
 }: TransactionsPageHeaderProps) {
   const hasCounts = typeof postedCount === 'number' && typeof draftCount === 'number'
 
@@ -54,6 +58,17 @@ export function TransactionsPageHeader({
           </TooltipTrigger>
           <TooltipContent>Sync transactions from your bank accounts</TooltipContent>
         </Tooltip>
+        {onReclassify && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="secondary" onClick={onReclassify} disabled={isReclassifying}>
+                <Sparkles className={`h-4 w-4 ${isReclassifying ? 'animate-pulse' : ''}`} />
+                Reclassify
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Re-run ML classification on draft transactions</TooltipContent>
+          </Tooltip>
+        )}
         <Button onClick={onAddTransaction}>
           <Plus className="h-4 w-4" />
           Add Transaction

@@ -1,17 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState, useMemo, useCallback } from 'react'
 import {
   AddTransactionModal,
+  ReclassifyProgressModal,
   TransactionDetailModal,
   TransactionsFiltersCard,
   TransactionsListCard,
   TransactionsPageHeader,
   TransactionsReviewBanner,
 } from '@/components/transactions'
+import { ConfirmDialog, useToast } from '@/components/ui'
 import { SyncProgressModal } from '@/components/SyncProgressModal'
 import { useSyncProgress } from '@/hooks/useSyncProgress'
-import { listTransactions } from '@/api'
+import { useReclassifyProgress } from '@/hooks/useReclassifyProgress'
+import { listTransactions, bulkPostTransactions } from '@/api'
 import type { TransactionListItem } from '@/types/api'
 
 export const Route = createFileRoute('/_app/transactions')({
@@ -20,6 +23,7 @@ export const Route = createFileRoute('/_app/transactions')({
 
 function TransactionsPage() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<'all' | 'posted' | 'draft'>('all')
@@ -27,15 +31,58 @@ function TransactionsPage() {
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isReviewMode, setIsReviewMode] = useState(false)
+  const [showReclassifyConfirm, setShowReclassifyConfirm] = useState(false)
+  const [showPostAllConfirm, setShowPostAllConfirm] = useState(false)
+  const [showReclassifyModal, setShowReclassifyModal] = useState(false)
 
   // Sync progress hook
   const sync = useSyncProgress({
     onSuccess: () => {
-      // Invalidate queries to refresh data after sync
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
+
+  // Reclassify progress hook
+  const reclassify = useReclassifyProgress({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+    onError: (err) => {
+      toast.danger({ title: 'Reclassification failed', description: err })
+    },
+  })
+
+  // Bulk post mutation
+  const bulkPostMutation = useMutation({
+    mutationFn: () => bulkPostTransactions({ post_all_drafts: true }),
+    onSuccess: (data) => {
+      toast.success({
+        title: 'Posting complete',
+        description: `${data.posted_count} transaction${data.posted_count !== 1 ? 's have' : ' has'} been posted.`,
+      })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+    onError: (err) => {
+      toast.danger({
+        title: 'Posting failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    },
+  })
+
+  const handleReclassifyConfirm = () => {
+    setShowReclassifyConfirm(false)
+    setShowReclassifyModal(true)
+    reclassify.startReclassify({ reclassify_all: true, only_fallback: true })
+  }
+
+  const handlePostAllConfirm = () => {
+    setShowPostAllConfirm(false)
+    bulkPostMutation.mutate()
+  }
 
   // Toggle Review Mode - automatically filter to drafts
   const toggleReviewMode = () => {
@@ -96,9 +143,18 @@ function TransactionsPage() {
         onAddTransaction={() => setIsAddModalOpen(true)}
         onSyncBank={() => sync.checkAndSync()}
         isSyncing={sync.step === 'syncing'}
+        onReclassify={() => setShowReclassifyConfirm(true)}
+        isReclassifying={reclassify.isRunning}
       />
 
-      <TransactionsReviewBanner isReviewMode={isReviewMode} onExit={toggleReviewMode} />
+      <TransactionsReviewBanner
+        isReviewMode={isReviewMode}
+        onExit={toggleReviewMode}
+        onReclassify={() => setShowReclassifyConfirm(true)}
+        isReclassifying={reclassify.isRunning}
+        onPostAll={() => setShowPostAllConfirm(true)}
+        isPostingAll={bulkPostMutation.isPending}
+      />
 
       <TransactionsFiltersCard
         searchQuery={searchQuery}
@@ -148,6 +204,38 @@ function TransactionsPage() {
         onSetFirstSyncDays={sync.setFirstSyncDays}
         onConfirmFirstSync={sync.confirmFirstSync}
         onSkipSync={sync.skip}
+      />
+
+      {/* Reclassify Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showReclassifyConfirm}
+        title="Reclassify Draft Transactions"
+        description="Re-run ML classification on all uncategorised draft transactions. This will update counter-accounts based on examples from your posted transactions. Posted transactions will not be changed."
+        confirmLabel="Reclassify"
+        onConfirm={handleReclassifyConfirm}
+        onCancel={() => setShowReclassifyConfirm(false)}
+      />
+
+      {/* Reclassify Progress Modal */}
+      <ReclassifyProgressModal
+        open={showReclassifyModal}
+        onClose={() => { setShowReclassifyModal(false); reclassify.reset() }}
+        step={reclassify.step}
+        progress={reclassify.progress}
+        result={reclassify.result}
+        error={reclassify.error}
+        onRetry={handleReclassifyConfirm}
+      />
+
+      {/* Post All Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showPostAllConfirm}
+        title="Post All Draft Transactions"
+        description="This will post all remaining draft transactions. Each posted transaction will also be submitted as a training example for the ML classification model."
+        confirmLabel="Post All"
+        onConfirm={handlePostAllConfirm}
+        onCancel={() => setShowPostAllConfirm(false)}
+        isLoading={bulkPostMutation.isPending}
       />
     </div>
   )

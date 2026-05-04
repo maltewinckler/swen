@@ -8,6 +8,12 @@ from swen.application.services.ml_batch_classification_service import (
     BatchClassificationStats,
     MLBatchClassificationService,
 )
+from swen.application.services.ml_classification_application_service import (
+    ClassificationApplicationResult,
+    MLClassificationApplicationService,
+    get_counter_account,
+    has_fallback_counter_account,
+)
 from swen.application.services.opening_balance_adjustment_service import (
     OpeningBalanceAdjustmentService,
 )
@@ -24,10 +30,14 @@ __all__ = [
     "BankAccountImportService",
     "BatchClassificationResult",
     "BatchClassificationStats",
+    "ClassificationApplicationResult",
     "MLBatchClassificationService",
+    "MLClassificationApplicationService",
     "OpeningBalanceAdjustmentService",
     "TransactionImportResult",
     "TransactionImportService",
     "TransferContext",
     "TransferReconciliationService",
+    "get_counter_account",
+    "has_fallback_counter_account",
 ]

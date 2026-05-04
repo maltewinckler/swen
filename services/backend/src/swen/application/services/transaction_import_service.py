@@ -24,6 +24,9 @@ from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services.bank_account_import_service import (
     BankAccountImportService,
 )
+from swen.application.services.ml_classification_application_service import (
+    MLClassificationApplicationService,
+)
 from swen.application.services.opening_balance_adjustment_service import (
     OpeningBalanceAdjustmentService,
 )
@@ -32,7 +35,6 @@ from swen.application.services.transfer_reconciliation_service import (
     TransferReconciliationService,
 )
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.banking.repositories import StoredBankTransaction
 from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.entities import TransactionImport
@@ -429,26 +431,13 @@ class TransactionImportService:
 
         # If we have a valid ML result, try to use it
         if ml_result and ml_result.counter_account_id:
-            account = await self._account_repo.find_by_id(ml_result.counter_account_id)
-            if account is None:
-                logger.warning(
-                    "ML result has account_id=%s but account not found in repository",
-                    ml_result.counter_account_id,
-                )
-            elif self._ml_account_direction_mismatch(bank_transaction, account):
-                # Guard: reject ML results whose account type contradicts the
-                # transaction direction — assigning an income account as the
-                # counter-account for a debit (or vice-versa) violates
-                # double-entry principles and produces incorrect journal entries.
-                logger.warning(
-                    "ML direction mismatch: tx amount=%s but ML returned "
-                    "%s account %s (%s). Falling back to default account.",
-                    bank_transaction.amount,
-                    account.account_type.value,
-                    account.account_number,
-                    account.name,
-                )
-            else:
+            is_money_outflow = bank_transaction.is_debit()
+            account = await MLClassificationApplicationService.resolve_classification(
+                ml_result=ml_result,
+                is_money_outflow=is_money_outflow,
+                account_repo=self._account_repo,
+            )
+            if account is not None:
                 logger.debug(
                     "Using ML classification: account=%s (%s), tier=%s, conf=%.2f",
                     account.account_number,
@@ -478,28 +467,6 @@ class TransactionImportService:
             account_repository=self._account_repo,
         )
         return fallback, ResolutionResult(account=fallback, source="fallback")
-
-    @staticmethod
-    def _ml_account_direction_mismatch(
-        bank_transaction: BankTransaction,
-        account: "Account",
-    ) -> bool:
-        """True if the ML-suggested account type contradicts the transaction direction.
-
-        Double-entry rules for external bank transactions:
-        - Money OUT (debit, amount < 0): counter-account must be EXPENSE or
-          LIABILITY (reduces cash, recognises cost or debt repayment).
-          An INCOME counter-account would merely reduce income — wrong.
-        - Money IN  (credit, amount > 0): counter-account must be INCOME or
-          EQUITY (increases cash, recognises revenue or capital injection).
-          An EXPENSE counter-account would merely reduce an expense — wrong.
-        """
-        is_debit = bank_transaction.is_debit()
-        if is_debit and account.account_type == AccountType.INCOME:
-            return True
-        if not is_debit and account.account_type == AccountType.EXPENSE:
-            return True
-        return False
 
     async def _import_stored_transaction(
         self,

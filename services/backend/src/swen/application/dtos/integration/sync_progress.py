@@ -35,6 +35,13 @@ class SyncEventType(str, Enum):
     TRANSACTION_SKIPPED = "transaction_skipped"
     TRANSACTION_FAILED = "transaction_failed"
 
+    # Reclassification events (draft re-ML)
+    RECLASSIFY_STARTED = "reclassify_started"
+    RECLASSIFY_PROGRESS = "reclassify_progress"
+    RECLASSIFY_TRANSACTION = "reclassify_transaction"
+    RECLASSIFY_COMPLETED = "reclassify_completed"
+    RECLASSIFY_FAILED = "reclassify_failed"
+
 
 @dataclass
 class SyncProgressEvent:

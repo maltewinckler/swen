@@ -11,6 +11,15 @@ from swen.application.dtos.accounting.chart_of_accounts_dto import (
     BankAccountDTO,
     ChartOfAccountsDTO,
 )
+from swen.application.dtos.accounting.reclassify_dto import (
+    ReclassifiedTransactionDetail,
+    ReclassifyCompletedEvent,
+    ReclassifyFailedEvent,
+    ReclassifyProgressEvent,
+    ReclassifyResultDTO,
+    ReclassifyStartedEvent,
+    ReclassifyTransactionEvent,
+)
 from swen.application.dtos.accounting.transaction_detail_dto import (
     JournalEntryDTO,
     TransactionDetailDTO,
@@ -27,6 +36,13 @@ __all__ = [
     "BankAccountDTO",
     "ChartOfAccountsDTO",
     "JournalEntryDTO",
+    "ReclassifiedTransactionDetail",
+    "ReclassifyCompletedEvent",
+    "ReclassifyFailedEvent",
+    "ReclassifyProgressEvent",
+    "ReclassifyResultDTO",
+    "ReclassifyStartedEvent",
+    "ReclassifyTransactionEvent",
     "TransactionDetailDTO",
     "TransactionListItemDTO",
     "TransactionListResultDTO",
