@@ -23,6 +23,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects.bank_info import BankInfo
+from tests.shared.sse import get_sse_event, read_sse_events
 
 
 @dataclass
@@ -461,15 +462,17 @@ class TestSyncAfterBankConnection:
         )
 
         # First sync with 30 days
-        sync_response = test_client.post(
-            f"{api_v1_prefix}/sync/run",
+        with test_client.stream(
+            "POST",
+            f"{api_v1_prefix}/sync/run/stream",
             headers=headers,
             json={"days": 30, "auto_post": True},
-        )
-        assert sync_response.status_code == 200, f"Sync failed: {sync_response.text}"
-        sync_data = sync_response.json()
+        ) as sync_response:
+            assert sync_response.status_code == 200
+            events = read_sse_events(sync_response)
+
+        sync_data = get_sse_event(events, "result")
         assert sync_data["success"] is True
-        assert sync_data["total_fetched"] >= 0
 
     def test_sync_recommendation_for_first_sync(
         self,

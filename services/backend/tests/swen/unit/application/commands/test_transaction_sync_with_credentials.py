@@ -11,6 +11,12 @@ from swen.application.commands import TransactionSyncCommand
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.shared.value_objects.secure_string import SecureString
+from tests.shared.sync_streaming import (
+    collect_sync_result as _collect_sync_result,
+)
+from tests.shared.sync_streaming import (
+    wire_streaming_imports as _wire_streaming_imports,
+)
 
 IBAN = "DE89370400440532013000"
 BLZ = "37040044"  # Extracted from IBAN
@@ -62,6 +68,7 @@ def mock_import_service():
     """Mock import service."""
     service = AsyncMock()
     service.import_transactions = AsyncMock(return_value=[])
+    _wire_streaming_imports(service)
     return service
 
 
@@ -131,7 +138,7 @@ class TestTransactionSyncCommandWithCredentialLoading:
     """Test credential loading functionality.
 
     Note: The credential repository is now user-scoped, so user_id is not
-    passed to repository methods or execute() - it's implicit in the
+    passed to repository methods or the sync command entrypoint - it's implicit in the
     CurrentUser passed to the constructor.
     """
 
@@ -148,7 +155,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = stored_credentials
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban=IBAN,
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
@@ -171,7 +179,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = stored_credentials
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban=IBAN,
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
@@ -192,7 +201,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         credentials = _make_credentials()
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban=IBAN,
             credentials=credentials,
             start_date=date(2024, 1, 1),
@@ -215,7 +225,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = None
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban="DE89370400440532013000",
         )
 
@@ -247,7 +258,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         )
 
         # Act
-        result = await command.execute(
+        result = await _collect_sync_result(
+            command,
             iban="DE89370400440532013000",
         )
 
@@ -269,7 +281,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = stored_credentials
 
         # Act
-        await command_with_credential_repo.execute(
+        await _collect_sync_result(
+            command_with_credential_repo,
             iban=iban,
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
@@ -288,7 +301,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         non_german_iban = "FR1420041010050500013M02606"
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban=non_german_iban,
         )
 
@@ -309,7 +323,8 @@ class TestTransactionSyncCommandWithCredentialLoading:
         provided_credentials = _make_credentials()
 
         # Act
-        result = await command_with_credential_repo.execute(
+        result = await _collect_sync_result(
+            command_with_credential_repo,
             iban=IBAN,
             credentials=provided_credentials,
             start_date=date(2024, 1, 1),

@@ -346,20 +346,12 @@ describe('BankConnectionWizard', () => {
         step: 'success',
         bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
         syncResult: {
+          event_type: 'result',
           success: true,
-          synced_at: '2024-01-01',
-          start_date: '',
-          end_date: '',
-          auto_post: false,
-          total_fetched: 0,
           total_imported: 50,
           total_skipped: 5,
           total_failed: 0,
           accounts_synced: 2,
-          account_stats: [],
-          opening_balances: [],
-          errors: [],
-          opening_balance_account_missing: false,
         },
       })
       render(<BankConnectionWizard connection={connection} onDone={vi.fn()} />)

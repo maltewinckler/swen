@@ -33,12 +33,19 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,
 )
+from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
+    BankAccountRepositorySQLAlchemy,
+    BankTransactionRepositorySQLAlchemy,
+)
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
     CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
-from tests.external.conftest import InMemoryFinTSEndpointRepository
+from tests.external.conftest import (
+    InMemoryFinTSConfigRepository,
+    InMemoryFinTSEndpointRepository,
+)
 
 # Load .env from repository root so we share credentials with other integration tests
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
@@ -47,6 +54,14 @@ load_dotenv(dotenv_path=ENV_PATH)
 
 # Skip this module unless integration tests explicitly enabled
 pytestmark = pytest.mark.integration
+
+
+def _skip_if_decoupled_tan_pending(exc: Exception) -> None:
+    if "Decoupled TAN challenge pending" in str(exc):
+        pytest.skip(
+            "Real FinTS integration fixture requires decoupled TAN approval for "
+            "this bank; covered by the manual TAN suite.",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -130,15 +145,38 @@ def fints_endpoint_repo():
 
 
 @pytest.fixture(scope="module")
-async def connected_adapter(credentials, tan_settings, fints_endpoint_repo):
+def fints_config_repo():
+    """In-memory FinTS config repo seeded from FINTS_PRODUCT_ID env var."""
+    product_id = os.getenv("FINTS_PRODUCT_ID")
+    if not product_id:
+        pytest.skip(
+            "Missing FINTS_PRODUCT_ID in .env. Required for adapter to connect.",
+        )
+    return InMemoryFinTSConfigRepository(product_id=product_id)
+
+
+@pytest.fixture(scope="module")
+async def connected_adapter(
+    credentials,
+    tan_settings,
+    fints_endpoint_repo,
+    fints_config_repo,
+):
     """Provide a connected Geldstrom adapter for fetching real data."""
 
-    adapter = GeldstromAdapter(fints_endpoint_repo=fints_endpoint_repo)
+    adapter = GeldstromAdapter(
+        config_repository=fints_config_repo,
+        fints_endpoint_repo=fints_endpoint_repo,
+    )
     adapter.set_tan_method(tan_settings["tan_method"])
     adapter.set_tan_medium(tan_settings["tan_medium"])
 
     try:
-        connected = await adapter.connect(credentials)
+        try:
+            connected = await adapter.connect(credentials)
+        except Exception as exc:
+            _skip_if_decoupled_tan_pending(exc)
+            raise
         if not connected:
             pytest.fail("Failed to connect to bank with provided credentials")
         yield adapter
@@ -186,6 +224,11 @@ async def integration_repositories(db_session, current_user):
     """Wire repositories together and seed standard chart of accounts."""
 
     account_repo = AccountRepositorySQLAlchemy(db_session, current_user)
+    bank_account_repo = BankAccountRepositorySQLAlchemy(db_session, current_user)
+    bank_transaction_repo = BankTransactionRepositorySQLAlchemy(
+        db_session,
+        current_user,
+    )
     # Use the command instead of the deprecated domain service
     generate_accounts_cmd = GenerateDefaultAccountsCommand(
         account_repository=account_repo,
@@ -196,6 +239,8 @@ async def integration_repositories(db_session, current_user):
     yield SimpleNamespace(
         session=db_session,
         account_repo=account_repo,
+        bank_account_repo=bank_account_repo,
+        bank_transaction_repo=bank_transaction_repo,
         transaction_repo=TransactionRepositorySQLAlchemy(
             db_session,
             account_repo,
@@ -302,7 +347,8 @@ async def test_bank_account_import_service_creates_asset_account(
         sample_account,
     )
 
-    assert asset_account.account_number == sample_account.iban
+    assert asset_account.account_number == f"BA-{sample_account.iban[-8:]}"
+    assert asset_account.iban == sample_account.iban
     assert mapping.iban == sample_account.iban
 
     stored_mapping = await integration_repositories.mapping_repo.find_by_iban(
@@ -415,20 +461,33 @@ async def test_transaction_import_service_imports_real_transaction(
     )
     await integration_repositories.rule_repo.save(rule)
 
-    result = await transaction_import_service.import_transaction(
-        bank_transaction=transaction,
-        source_iban=sample_account.iban,
-    )
+    await integration_repositories.bank_account_repo.save(sample_account)
+    stored_transaction = (
+        await integration_repositories.bank_transaction_repo.save_batch_with_deduplication(
+            [transaction],
+            sample_account.iban,
+        )
+    )[0]
+
+    result = (
+        await transaction_import_service.import_from_stored_transactions(
+            stored_transactions=[stored_transaction],
+            source_iban=sample_account.iban,
+        )
+    )[0]
 
     assert result.is_success
     assert result.accounting_transaction is not None
     assert len(result.accounting_transaction.entries) == 2
 
-    # Duplicate imports should be detected
-    duplicate_result = await transaction_import_service.import_transaction(
-        bank_transaction=transaction,
-        source_iban=sample_account.iban,
-    )
+    # Duplicate imports should be detected for the same stored transaction ID
+    duplicate_result = (
+        await transaction_import_service.import_from_stored_transactions(
+            stored_transactions=[stored_transaction],
+            source_iban=sample_account.iban,
+        )
+    )[0]
+
     assert duplicate_result.is_duplicate
 
     stats = await transaction_import_service.get_import_statistics(sample_account.iban)

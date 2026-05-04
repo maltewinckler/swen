@@ -1,7 +1,6 @@
 """Sync schemas for API request/response models."""
 
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -66,140 +65,6 @@ class SyncRunRequest(BaseModel):
                     },
                 },
             ],
-        },
-    )
-
-
-class AccountSyncStatsResponse(BaseModel):
-    """Statistics for a single account's sync operation."""
-
-    iban: str = Field(..., description="Bank account IBAN that was synced")
-    fetched: int = Field(..., description="Total transactions received from bank")
-    imported: int = Field(..., description="New transactions successfully imported")
-    skipped: int = Field(
-        ..., description="Transactions skipped (already exist in system)"
-    )
-    failed: int = Field(
-        ..., description="Transactions that failed to import (see errors)"
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "iban": "DE89370400440532013000",
-                "fetched": 25,
-                "imported": 20,
-                "skipped": 5,
-                "failed": 0,
-            },
-        },
-    )
-
-
-class OpeningBalanceResponse(BaseModel):
-    """Info about an opening balance created during sync.
-
-    Opening balances are auto-created when syncing a new account
-    to set the initial balance correctly.
-    """
-
-    iban: str = Field(..., description="Bank account IBAN")
-    amount: Optional[Decimal] = Field(
-        None, description="Opening balance amount (from bank statement)"
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "iban": "DE89370400440532013000",
-                "amount": "1250.00",
-            },
-        },
-    )
-
-
-class SyncRunResponse(BaseModel):
-    """Response schema for sync run result.
-
-    Contains detailed statistics about the sync operation,
-    including per-account breakdowns and any errors encountered.
-    """
-
-    success: bool = Field(
-        ..., description="Whether sync completed without critical errors"
-    )
-    synced_at: datetime = Field(..., description="When the sync was performed")
-    start_date: date = Field(..., description="Start of the date range that was synced")
-    end_date: date = Field(..., description="End of the date range (typically today)")
-    auto_post: bool = Field(
-        ..., description="Whether imported transactions were automatically posted"
-    )
-
-    # Aggregate counts
-    total_fetched: int = Field(
-        ..., description="Total transactions received from all banks"
-    )
-    total_imported: int = Field(
-        ..., description="New transactions successfully imported"
-    )
-    total_skipped: int = Field(..., description="Transactions skipped (duplicates)")
-    total_failed: int = Field(..., description="Transactions that failed to import")
-    accounts_synced: int = Field(
-        ..., description="Number of bank accounts that were synced"
-    )
-
-    # Per-account breakdown
-    account_stats: list[AccountSyncStatsResponse] = Field(
-        ...,
-        description="Detailed statistics per bank account",
-    )
-
-    # Opening balances created
-    opening_balances: list[OpeningBalanceResponse] = Field(
-        ...,
-        description="Opening balances created for new accounts",
-    )
-
-    # Warnings and errors
-    errors: list[str] = Field(..., description="Error messages (if any)")
-    opening_balance_account_missing: bool = Field(
-        ...,
-        description="Warning: could not create opening balance (missing equity account)",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "success": True,
-                "synced_at": "2024-12-05T15:30:00Z",
-                "start_date": "2024-09-07",
-                "end_date": "2024-12-05",
-                "auto_post": False,
-                "total_fetched": 45,
-                "total_imported": 38,
-                "total_skipped": 7,
-                "total_failed": 0,
-                "accounts_synced": 2,
-                "account_stats": [
-                    {
-                        "iban": "DE89370400440532013000",
-                        "fetched": 25,
-                        "imported": 20,
-                        "skipped": 5,
-                        "failed": 0,
-                    },
-                    {
-                        "iban": "DE91100000000123456789",
-                        "fetched": 20,
-                        "imported": 18,
-                        "skipped": 2,
-                        "failed": 0,
-                    },
-                ],
-                "opening_balances": [],
-                "errors": [],
-                "opening_balance_account_missing": False,
-            },
         },
     )
 
@@ -295,7 +160,7 @@ class SyncRecommendationResponse(BaseModel):
 
     1. If `has_first_sync_accounts` is true: Show a dialog asking the user
        how many days of history to load for the new accounts.
-    2. Otherwise: Use adaptive sync (POST /sync/run with no days parameter).
+     2. Otherwise: Use adaptive sync via `POST /sync/run/stream` with no days parameter.
     """
 
     accounts: list[AccountSyncRecommendationResponse] = Field(

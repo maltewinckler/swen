@@ -16,36 +16,6 @@ export interface SyncRunRequest {
   auto_post?: boolean
 }
 
-export interface AccountSyncStats {
-  iban: string
-  fetched: number
-  imported: number
-  skipped: number
-  failed: number
-}
-
-export interface OpeningBalance {
-  iban: string
-  amount: string | null
-}
-
-export interface SyncRunResponse {
-  success: boolean
-  synced_at: string
-  start_date: string
-  end_date: string
-  auto_post: boolean
-  total_fetched: number
-  total_imported: number
-  total_skipped: number
-  total_failed: number
-  accounts_synced: number
-  account_stats: AccountSyncStats[]
-  opening_balances: OpeningBalance[]
-  errors: string[]
-  opening_balance_account_missing: boolean
-}
-
 export interface SyncStatusResponse {
   success_count: number
   failed_count: number
@@ -89,36 +59,6 @@ export interface SyncRecommendationResponse {
  */
 export async function getSyncRecommendation(): Promise<SyncRecommendationResponse> {
   return api.get<SyncRecommendationResponse>('/sync/recommendation')
-}
-
-/**
- * Run bank transaction sync.
- *
- * For adaptive sync (recommended for regular use), omit the request
- * or pass undefined for days. This will:
- * - First sync: use 90 days as default
- * - Subsequent syncs: sync from last import date + 1 day
- *
- * Note: This can take up to 5 minutes if TAN approval is required
- */
-export async function runSync(request?: SyncRunRequest): Promise<SyncRunResponse> {
-  return api.post<SyncRunResponse>('/sync/run', request ?? {}, { timeout: LONG_TIMEOUT })
-}
-
-/**
- * Run adaptive sync (no fixed date range).
- * Each account syncs from its last successful import date.
- */
-export async function runAdaptiveSync(): Promise<SyncRunResponse> {
-  return runSync({})  // No days = adaptive mode
-}
-
-/**
- * Run first-time sync with specified number of days.
- * Use this when user specifies how much history to load.
- */
-export async function runFirstSync(days: number): Promise<SyncRunResponse> {
-  return runSync({ days })
 }
 
 /**

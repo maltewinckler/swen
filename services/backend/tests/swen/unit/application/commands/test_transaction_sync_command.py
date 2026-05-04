@@ -16,6 +16,15 @@ from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.time import today_utc
 from swen.domain.shared.value_objects.secure_string import SecureString
+from tests.shared.sync_streaming import (
+    collect_sync_result as _collect_sync_result,
+)
+from tests.shared.sync_streaming import (
+    normalize_import_result,
+)
+from tests.shared.sync_streaming import (
+    wire_streaming_imports as _wire_streaming_imports,
+)
 
 IBAN = "DE89370400440532013000"
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -70,6 +79,7 @@ def _make_command():
     adapter.disconnect = AsyncMock()
 
     import_service = AsyncMock()
+    _wire_streaming_imports(import_service, normalizer=normalize_import_result)
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
     bank_transaction_repo = AsyncMock()
@@ -100,11 +110,15 @@ def _make_command():
 
 
 @pytest.mark.asyncio
-async def test_execute_fails_when_mapping_missing():
+async def test_execute_streaming_fails_when_mapping_missing():
     command, adapter, import_service, mapping_repo, _, _bank_tx_repo = _make_command()
     mapping_repo.find_by_iban.return_value = None
 
-    result = await command.execute(iban=IBAN, credentials=_make_credentials())
+    result = await _collect_sync_result(
+        command,
+        iban=IBAN,
+        credentials=_make_credentials(),
+    )
 
     assert result.success is False
     assert result.error_message is not None
@@ -114,7 +128,7 @@ async def test_execute_fails_when_mapping_missing():
 
 
 @pytest.mark.asyncio
-async def test_execute_uses_history_for_default_start_date():
+async def test_execute_streaming_uses_history_for_default_start_date():
     (
         command,
         adapter,
@@ -143,7 +157,11 @@ async def test_execute_uses_history_for_default_start_date():
     bank_tx_repo.save_batch_with_deduplication.return_value = []
 
     today = today_utc()
-    result = await command.execute(iban=IBAN, credentials=_make_credentials())
+    result = await _collect_sync_result(
+        command,
+        iban=IBAN,
+        credentials=_make_credentials(),
+    )
 
     # Start date is last import date + 1 day
     assert result.start_date == date(2024, 1, 12)
@@ -183,14 +201,18 @@ async def test_default_start_date_clamped_to_today_when_last_import_today():
     adapter.fetch_transactions.return_value = []
     bank_tx_repo.save_batch_with_deduplication.return_value = []
 
-    result = await command.execute(iban=IBAN, credentials=_make_credentials())
+    result = await _collect_sync_result(
+        command,
+        iban=IBAN,
+        credentials=_make_credentials(),
+    )
 
     assert result.start_date == today
     assert result.end_date == today
 
 
 @pytest.mark.asyncio
-async def test_execute_counts_results_and_sets_warning_on_partial_failure():
+async def test_execute_streaming_counts_results_and_sets_warning_on_partial_failure():
     (
         command,
         adapter,
@@ -216,7 +238,8 @@ async def test_execute_counts_results_and_sets_warning_on_partial_failure():
         SimpleNamespace(status="failed"),
     ]
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 1, 1),
@@ -234,7 +257,7 @@ async def test_execute_counts_results_and_sets_warning_on_partial_failure():
 
 
 @pytest.mark.asyncio
-async def test_execute_returns_error_when_all_imports_fail():
+async def test_execute_streaming_returns_error_when_all_imports_fail():
     (
         command,
         adapter,
@@ -256,7 +279,8 @@ async def test_execute_returns_error_when_all_imports_fail():
         SimpleNamespace(status=ImportStatus.FAILED),
     ]
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 2, 1),
@@ -289,7 +313,8 @@ async def test_sync_tan_callback_is_wrapped_before_connect():
     def tan_callback(_challenge: TANChallenge) -> str:
         return "123456"
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         tan_callback=tan_callback,
@@ -314,7 +339,8 @@ async def test_sync_disconnects_even_on_fetch_failure():
 
     adapter.fetch_transactions.side_effect = RuntimeError("Network error")
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 3, 1),
@@ -328,7 +354,7 @@ async def test_sync_disconnects_even_on_fetch_failure():
 
 
 @pytest.mark.asyncio
-async def test_execute_returns_success_when_all_transactions_already_imported():
+async def test_execute_streaming_returns_success_when_all_transactions_already_imported():
     """
     Test that sync succeeds without calling import when all transactions
     are already stored AND imported.
@@ -354,7 +380,8 @@ async def test_execute_returns_success_when_all_transactions_already_imported():
         _make_stored_transaction(is_new=False, is_imported=True),
     ]
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 4, 1),
@@ -370,7 +397,7 @@ async def test_execute_returns_success_when_all_transactions_already_imported():
 
 
 @pytest.mark.asyncio
-async def test_execute_retries_unimported_transactions():
+async def test_execute_streaming_retries_unimported_transactions():
     """
     Test that stored transactions that were NOT imported (from a previous failed sync)
     are retried and imported on subsequent syncs.
@@ -404,7 +431,8 @@ async def test_execute_retries_unimported_transactions():
         SimpleNamespace(status=ImportStatus.SUCCESS),
     ]
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 4, 1),
@@ -447,7 +475,8 @@ async def test_sync_result_tracks_all_statistics():
         SimpleNamespace(status=ImportStatus.SUCCESS),
     ]
 
-    result = await command.execute(
+    result = await _collect_sync_result(
+        command,
         iban=IBAN,
         credentials=_make_credentials(),
         start_date=date(2024, 5, 1),

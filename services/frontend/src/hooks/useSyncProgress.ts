@@ -27,7 +27,6 @@ import {
   getSyncRecommendation,
   runSyncStreaming,
   type SyncEvent,
-  type SyncRunResponse,
   type SyncResultEvent,
   type SyncRunRequest,
 } from '@/api'
@@ -90,7 +89,7 @@ export interface UseSyncProgressReturn {
   /** Current sync progress (null when not syncing) */
   progress: SyncProgress | null
   /** Final sync result (null until success) */
-  result: SyncRunResponse | null
+  result: SyncResultEvent | null
   /** Error message (empty when no error) */
   error: string
   /** Current step in the sync workflow */
@@ -141,7 +140,7 @@ export function useSyncProgress(
   const [isOpen, setIsOpen] = useState(false)
   const [step, setStep] = useState<SyncStep>('idle')
   const [progress, setProgress] = useState<SyncProgress | null>(null)
-  const [result, setResult] = useState<SyncRunResponse | null>(null)
+  const [result, setResult] = useState<SyncResultEvent | null>(null)
   const [error, setError] = useState('')
   const [firstSyncDays, setFirstSyncDays] = useState(90)
   const [syncBlz, setSyncBlz] = useState<string | undefined>(undefined)
@@ -376,25 +375,7 @@ export function useSyncProgress(
         signal: controller.signal,
       })
 
-      // Convert streaming result to SyncRunResponse format
-      const fullResult: SyncRunResponse = {
-        success: streamResult.success,
-        synced_at: new Date().toISOString(),
-        start_date: '',
-        end_date: '',
-        auto_post: false,
-        total_fetched: 0,
-        total_imported: streamResult.total_imported,
-        total_skipped: streamResult.total_skipped,
-        total_failed: streamResult.total_failed,
-        accounts_synced: streamResult.accounts_synced,
-        account_stats: [],
-        opening_balances: [],
-        errors: [],
-        opening_balance_account_missing: false,
-      }
-
-      setResult(fullResult)
+      setResult(streamResult)
       setStep('success')
       setProgress(null)
 

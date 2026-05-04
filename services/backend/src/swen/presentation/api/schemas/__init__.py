@@ -56,10 +56,7 @@ from swen.presentation.api.schemas.mappings import (
     MappingResponse,
 )
 from swen.presentation.api.schemas.sync import (
-    AccountSyncStatsResponse,
-    OpeningBalanceResponse,
     SyncRunRequest,
-    SyncRunResponse,
     SyncStatusResponse,
 )
 from swen.presentation.api.schemas.transactions import (
@@ -109,9 +106,6 @@ __all__ = [
     "SetupBankResponse",
     # Sync schemas
     "SyncRunRequest",
-    "SyncRunResponse",
-    "AccountSyncStatsResponse",
-    "OpeningBalanceResponse",
     "SyncStatusResponse",
     # Transaction schemas
     "JournalEntryResponse",
