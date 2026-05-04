@@ -165,6 +165,42 @@ Requirements:
 If any account fails reconciliation, record the full response and treat it as
 a **critical failure**.
 
+## Step 5c — Reclassify drafts
+
+After the initial sync, many drafts may be on fallback accounts (4900/3100).
+Test the reclassification endpoint:
+
+```bash
+curl -s -N -X POST "$API_BASE/transactions/reclassify-drafts/stream" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{"reclassify_all": true, "only_fallback": true}'
+```
+
+Expected: an SSE stream with `reclassify_started`, `reclassify_progress`,
+`reclassify_transaction` (for each changed transaction), `reclassify_completed`,
+and a final `result` event.
+
+Requirements:
+- The stream completes without `reclassify_failed` events.
+- `reclassified_count` > 0 (if there were fallback drafts).
+- After reclassification, re-query drafts and verify that fallback account usage
+  has decreased.
+
+## Step 5d — Bulk post drafts
+
+After reclassification, post all remaining drafts:
+
+```bash
+curl -s -X POST "$API_BASE/transactions/bulk-post" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"post_all_drafts": true}'
+```
+
+Expected: `{"posted_count": N, "transaction_ids": [...]}` with N > 0.
+
 ## Step 6 — Database health checks
 
 Connect to the `swen` database:
@@ -358,6 +394,8 @@ Produce a table with one row per check:
 | Services healthy | GET /health | … | ✅/❌ |
 | Import completeness | SQL 6a | X ok, Y failed | ✅/❌ |
 | API reconciliation | GET /accounts/reconciliation | all_reconciled, no null bank_balance | ✅/❌ |
+| Reclassify drafts | POST /transactions/reclassify-drafts/stream | stream completes, reclassified > 0 | ✅/❌ |
+| Bulk post drafts | POST /transactions/bulk-post | posted_count > 0 | ✅/❌ |
 | Direction violations | SQL 6b | 0 / 0 | ✅/❌ |
 | Balance reconciliation | SQL 6c | delta = 0 for all | ✅/❌ |
 | Classification quality | SQL 6d | subjective assessment | ✅/⚠️/❌ |
