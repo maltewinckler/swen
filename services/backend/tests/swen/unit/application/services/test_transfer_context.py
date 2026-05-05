@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.services.transfer_reconciliation_service import TransferContext
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
+from swen.domain.integration.services import TransferContext
 
 TEST_USER_ID = uuid4()
 

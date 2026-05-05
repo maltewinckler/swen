@@ -11,16 +11,12 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.commands.integration import TransactionSyncCommand
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.entities import Account, AccountType
-from swen.domain.accounting.services import (
-    OPENING_BALANCE_IBAN_KEY,
-    OPENING_BALANCE_METADATA_KEY,
-)
-from swen.domain.accounting.value_objects import Currency
+from swen.domain.accounting.value_objects import Currency, MetadataKeys
 from swen.domain.banking.value_objects import BankCredentials, BankTransaction
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.value_objects.secure_string import SecureString
 from tests.shared.sync_streaming import (
     collect_sync_result as _collect_sync_result,
@@ -244,8 +240,8 @@ class TestOpeningBalanceCreation:
 
         # Verify the opening balance transaction
         assert saved_txn.is_posted is True
-        assert saved_txn.has_metadata_raw(OPENING_BALANCE_METADATA_KEY)
-        assert saved_txn.get_metadata_raw(OPENING_BALANCE_IBAN_KEY) == IBAN
+        assert saved_txn.has_metadata_raw(MetadataKeys.IS_OPENING_BALANCE)
+        assert saved_txn.get_metadata_raw(MetadataKeys.OPENING_BALANCE_IBAN) == IBAN
 
         # Verify opening balance amount calculation:
         # current_balance = 1000
@@ -635,7 +631,7 @@ class TestOpeningBalanceIdempotency:
 
         # Verify find_by_metadata was called with correct parameters
         transaction_repo.find_by_metadata.assert_called_once_with(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
 

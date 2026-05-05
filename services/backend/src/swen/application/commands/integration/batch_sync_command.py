@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
 
@@ -15,34 +16,44 @@ from swen.application.dtos.integration import (
     BatchSyncResult,
     SyncCompletedEvent,
     SyncProgressEvent,
+    SyncResult,
     SyncStartedEvent,
 )
-from swen.application.queries import ListAccountMappingsQuery
 from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.banking.repositories import BankCredentialRepository
+from swen.domain.banking.services import BankBalanceService
+from swen.domain.integration.repositories import AccountMappingRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.iban import extract_blz_from_iban
 from swen.domain.shared.time import today_utc, utc_now
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.domain.integration.entities import AccountMapping
     from swen.infrastructure.integration.ml.client import MLServiceClient
+
+logger = logging.getLogger(__name__)
 
 
 class BatchSyncCommand:
     """Orchestrate multi-account syncs and aggregate results."""
 
-    def __init__(
+    def __init__(  # NOQA: PLR0913
         self,
         sync_command: TransactionSyncCommand,
+        bank_balance_service: BankBalanceService,
+        mapping_repo: AccountMappingRepository,
         settings_repo: UserSettingsRepository,
-        mapping_query: ListAccountMappingsQuery,
         credential_repo: BankCredentialRepository,
         opening_balance_account_exists: bool,
     ):
         self._sync_command = sync_command
+        self._bank_balance_service = bank_balance_service
+        self._mapping_repo = mapping_repo
         self._settings_repo = settings_repo
-        self._mapping_query = mapping_query
         self._credential_repo = credential_repo
         self._opening_balance_account_exists = opening_balance_account_exists
 
@@ -57,13 +68,16 @@ class BatchSyncCommand:
             WellKnownAccounts.OPENING_BALANCE_EQUITY,
         )
 
+        bank_adapter = BankConnectionDispatcher.from_factory(factory)
         return cls(
-            sync_command=TransactionSyncCommand.from_factory(
-                factory,
-                ml_client=ml_client,
+            sync_command=TransactionSyncCommand.from_factory(factory, ml_client),
+            bank_balance_service=BankBalanceService(
+                bank_adapter=bank_adapter,
+                bank_account_repo=factory.bank_account_repository(),
+                credential_repo=factory.credential_repository(),
             ),
+            mapping_repo=factory.account_mapping_repository(),
             settings_repo=factory.user_settings_repository(),
-            mapping_query=ListAccountMappingsQuery.from_factory(factory),
             credential_repo=factory.credential_repository(),
             opening_balance_account_exists=opening_balance_account is not None,
         )
@@ -74,14 +88,7 @@ class BatchSyncCommand:
         iban: Optional[str] = None,
         blz: Optional[str] = None,
         auto_post: Optional[bool] = None,
-    ) -> AsyncGenerator[
-        SyncProgressEvent
-        | AccountStartedEvent
-        | AccountCompletedEvent
-        | AccountFailedEvent
-        | BatchSyncResult,
-        None,
-    ]:
+    ) -> AsyncGenerator[SyncProgressEvent | BatchSyncResult, None]:
         result, auto_post, start_date, end_date = await self._prepare_sync(
             days,
             auto_post,
@@ -97,6 +104,8 @@ class BatchSyncCommand:
 
         yield SyncStartedEvent(total_accounts=len(mappings))
 
+        blzs_needing_refresh: set[str] = set()
+
         for account_index, mapping in enumerate(mappings, 1):
             async for event in self._sync_single_account_streaming(
                 mapping=mapping,
@@ -108,7 +117,17 @@ class BatchSyncCommand:
                 auto_post=auto_post,
                 result=result,
             ):
+                # If at least one trx was imported we have to refresh balance
+                # for reconciliation checks in our bookkeeping system
+                if isinstance(event, AccountCompletedEvent) and event.imported > 0:
+                    blz = extract_blz_from_iban(mapping.iban)
+                    if blz:
+                        blzs_needing_refresh.add(blz)
                 yield event
+
+        for blz in blzs_needing_refresh:
+            if self._bank_balance_service:
+                await self._bank_balance_service.refresh_for_blz(blz)
 
         yield SyncCompletedEvent(
             total_imported=result.total_imported,
@@ -143,7 +162,9 @@ class BatchSyncCommand:
         )
         return result, auto_post, start_date, end_date
 
-    async def _yield_empty_sync_events(self, result: BatchSyncResult):
+    async def _yield_empty_sync_events(
+        self, result: BatchSyncResult
+    ) -> AsyncGenerator[SyncProgressEvent | BatchSyncResult, None]:
         yield SyncStartedEvent(total_accounts=0)
         yield SyncCompletedEvent(
             total_imported=0,
@@ -155,7 +176,7 @@ class BatchSyncCommand:
 
     async def _sync_single_account_streaming(  # noqa: PLR0913
         self,
-        mapping,
+        mapping: AccountMapping,
         account_index: int,
         total_accounts: int,
         adaptive_mode: bool,
@@ -163,7 +184,7 @@ class BatchSyncCommand:
         end_date: date,
         auto_post: bool,
         result: BatchSyncResult,
-    ) -> AsyncGenerator:
+    ) -> AsyncGenerator[SyncProgressEvent, None]:
         yield AccountStartedEvent(
             iban=mapping.iban,
             account_name=mapping.account_name,
@@ -172,7 +193,7 @@ class BatchSyncCommand:
         )
 
         try:
-            sync_result = None
+            sync_result: Optional[SyncResult] = None
             async for event in self._get_sync_stream(
                 mapping.iban,
                 adaptive_mode,
@@ -182,8 +203,10 @@ class BatchSyncCommand:
             ):
                 if isinstance(event, SyncProgressEvent):
                     yield event
-                else:
+                elif isinstance(event, SyncResult):
                     sync_result = event
+                else:
+                    logger.warning("Unexpected event from sync stream: %s", type(event))
 
             if sync_result:
                 result.add_result(sync_result)
@@ -202,11 +225,11 @@ class BatchSyncCommand:
     def _get_sync_stream(
         self,
         iban: str,
-        adaptive_mode: bool,
+        adaptive_mode: bool,  # when start and end date are autocomputed
         start_date: date,
         end_date: date,
         auto_post: bool,
-    ):
+    ) -> AsyncGenerator[SyncProgressEvent | SyncResult, None]:
         if adaptive_mode:
             return self._sync_command.execute_streaming(iban=iban, auto_post=auto_post)
         return self._sync_command.execute_streaming(
@@ -219,7 +242,7 @@ class BatchSyncCommand:
     def _update_date_range_if_adaptive(
         self,
         result: BatchSyncResult,
-        sync_result,
+        sync_result: SyncResult,
         adaptive_mode: bool,
     ) -> None:
         if adaptive_mode and sync_result.start_date and sync_result.end_date:
@@ -230,9 +253,8 @@ class BatchSyncCommand:
         self,
         iban: Optional[str] = None,
         blz: Optional[str] = None,
-    ) -> list:
-        mapping_result = await self._mapping_query.execute()
-        mappings = mapping_result.mappings
+    ) -> list[AccountMapping]:
+        mappings = await self._mapping_repo.find_all()
 
         if iban:
             mappings = [m for m in mappings if m.iban == iban]

@@ -19,30 +19,27 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from swen.application.commands.integration import TransactionSyncCommand
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.ports.identity import CurrentUser
-from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services import (
-    BankAccountImportService,
-    OpeningBalanceAdjustmentService,
     TransactionImportService,
-)
-from swen.application.services.transfer_reconciliation_service import (
-    TransferReconciliationService,
 )
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services import (
-    OPENING_BALANCE_IBAN_KEY,
-    OPENING_BALANCE_METADATA_KEY,
+    OpeningBalanceService,
 )
-from swen.domain.accounting.value_objects import Currency
+from swen.domain.accounting.value_objects import Currency, MetadataKeys
 from swen.domain.banking.value_objects import (
     BankAccount,
     BankCredentials,
     BankTransaction,
 )
 from swen.domain.integration.entities import AccountMapping
-from swen.domain.integration.services import CounterAccountResolutionService
+from swen.domain.integration.services import (
+    BankAccountImportService,
+    CounterAccountResolutionService,
+    TransferReconciliationService,
+)
 from swen.domain.integration.value_objects import ResolutionResult
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.value_objects.secure_string import SecureString
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
@@ -77,29 +74,25 @@ def _create_import_service(
     import_repo,
 ):
     """Helper to create TransactionImportService with new constructor."""
-    ob_query = OpeningBalanceQuery(
+    ob_service = OpeningBalanceService(
+        account_repository=account_repo,
         transaction_repository=transaction_repo,
+        user_id=TEST_USER_ID,
     )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
         mapping_repository=mapping_repo,
         account_repository=account_repo,
-        opening_balance_query=ob_query,
+        opening_balance_query=ob_service,
     )
     transaction_factory = BankImportTransactionFactory(
-        current_user=TEST_USER_CONTEXT,
-    )
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=account_repo,
-        transaction_repository=transaction_repo,
-        opening_balance_query=ob_query,
         current_user=TEST_USER_CONTEXT,
     )
     return TransactionImportService(
         bank_account_import_service=bank_account_import_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,
@@ -384,16 +377,17 @@ class TestOpeningBalanceE2E:
 
         # Assert - opening balance was created and persisted
         opening_balance_txns = await transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
         assert len(opening_balance_txns) == 1
 
         opening_balance_txn = opening_balance_txns[0]
         assert opening_balance_txn.is_posted is True
-        assert opening_balance_txn.has_metadata_raw(OPENING_BALANCE_METADATA_KEY)
+        assert opening_balance_txn.has_metadata_raw(MetadataKeys.IS_OPENING_BALANCE)
         assert (
-            opening_balance_txn.get_metadata_raw(OPENING_BALANCE_METADATA_KEY) is True
+            opening_balance_txn.get_metadata_raw(MetadataKeys.IS_OPENING_BALANCE)
+            is True
         )
 
         # Verify the opening balance amount:
@@ -519,7 +513,7 @@ class TestOpeningBalanceE2E:
         # Verify first sync created opening balance
         assert result1.success is True
         opening_balance_after_first = await transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
         assert len(opening_balance_after_first) == 1
@@ -548,7 +542,7 @@ class TestOpeningBalanceE2E:
         assert result2.success is True
 
         opening_balance_after_second = await transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
         # Should still be exactly 1 (no duplicate)
@@ -676,7 +670,7 @@ class TestOpeningBalanceE2E:
         assert result.success is True
 
         opening_balance_txns = await transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
         assert len(opening_balance_txns) == 1
@@ -801,7 +795,7 @@ class TestOpeningBalanceE2E:
 
         # Get the opening balance ID
         opening_balance_txns = await transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=IBAN,
         )
         opening_balance_id = opening_balance_txns[0].id
@@ -827,5 +821,5 @@ class TestOpeningBalanceE2E:
             # Assert - should be able to retrieve in new session
             retrieved = await new_transaction_repo.find_by_id(opening_balance_id)
             assert retrieved is not None
-            assert retrieved.has_metadata_raw(OPENING_BALANCE_METADATA_KEY)
-            assert retrieved.get_metadata_raw(OPENING_BALANCE_IBAN_KEY) == IBAN
+            assert retrieved.has_metadata_raw(MetadataKeys.IS_OPENING_BALANCE)
+            assert retrieved.get_metadata_raw(MetadataKeys.OPENING_BALANCE_IBAN) == IBAN

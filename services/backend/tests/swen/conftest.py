@@ -7,7 +7,7 @@ This conftest provides fixtures specific to the swen domain
 
 import pytest
 
-from swen.application.ports.identity import CurrentUser
+from swen.domain.shared.current_user import CurrentUser
 from tests.shared.fixtures.factories import TestUserFactory
 
 

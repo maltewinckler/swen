@@ -28,13 +28,13 @@ from swen.application.commands.accounting import (
     GenerateDefaultAccountsCommand,
     PostTransactionCommand,
 )
-from swen.application.ports.identity.current_user import CurrentUser
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import (
     Currency,
     JournalEntryInput,
     TransactionSource,
 )
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.time import utc_now
 from swen.infrastructure.persistence.sqlalchemy.init_db import create_tables
 from swen.infrastructure.persistence.sqlalchemy.repositories import (

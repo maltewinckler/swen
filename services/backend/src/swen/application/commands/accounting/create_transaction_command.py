@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import AccountNotFoundError
@@ -20,6 +19,7 @@ from swen.domain.accounting.value_objects import (
     TransactionMetadata,
     TransactionSource,
 )
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:

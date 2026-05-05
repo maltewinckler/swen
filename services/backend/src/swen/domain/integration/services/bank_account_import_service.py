@@ -4,16 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.dtos.accounting import BankAccountDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import AccountRepository
     from swen.domain.integration.repositories import AccountMappingRepository
 
@@ -30,14 +28,6 @@ class BankAccountImportService:
         self._account_repo = account_repository
         self._mapping_repo = mapping_repository
         self._user_id = current_user.user_id
-
-    @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> BankAccountImportService:
-        return cls(
-            account_repository=factory.account_repository(),
-            mapping_repository=factory.account_mapping_repository(),
-            current_user=factory.current_user,
-        )
 
     async def import_bank_account(
         self,
@@ -162,7 +152,7 @@ class BankAccountImportService:
         self,
         iban: str,
         new_name: str,
-    ) -> BankAccountDTO:
+    ) -> tuple[Account, AccountMapping]:
         mapping = await self._mapping_repo.find_by_iban(iban)
         if mapping is None:
             msg = f"No account mapping found for IBAN: {iban}"
@@ -181,7 +171,7 @@ class BankAccountImportService:
         await self._account_repo.save(account)
         await self._mapping_repo.save(mapping)
 
-        return BankAccountDTO.from_entities(account, mapping)
+        return account, mapping
 
     def _generate_account_name(self, bank_account: BankAccount) -> str:
         if bank_account.bank_name:

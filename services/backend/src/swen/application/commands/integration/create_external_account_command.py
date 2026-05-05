@@ -5,25 +5,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from swen.application.services.transfer_reconciliation_service import (
-    TransferReconciliationService,
-)
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.exceptions import InvalidIbanError
+from swen.domain.integration.services import (
+    TransferReconciliationService,
+)
 from swen.domain.shared.exceptions import ValidationError
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,
     )
     from swen.domain.integration.repositories import AccountMappingRepository
+    from swen.domain.shared.current_user import CurrentUser
 
 
 @dataclass

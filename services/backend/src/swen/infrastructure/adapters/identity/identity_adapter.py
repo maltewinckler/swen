@@ -4,7 +4,7 @@ This is the ONLY place in swen's infrastructure that imports from swen_identity
 (except for the presentation layer which wires everything together).
 """
 
-from swen.application.ports.identity import CurrentUser
+from swen.domain.shared.current_user import CurrentUser
 
 # This adapter is the anti-corruption layer boundary
 from swen_identity import UserContext

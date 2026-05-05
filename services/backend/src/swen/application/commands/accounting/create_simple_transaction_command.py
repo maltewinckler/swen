@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Optional
 from swen.application.commands.accounting.create_transaction_command import (
     CreateTransactionCommand,
 )
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.entities.account_type import AccountType
@@ -28,6 +27,7 @@ from swen.domain.accounting.value_objects import (
     Money,
     TransactionSource,
 )
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:

@@ -5,12 +5,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.ports.identity import CurrentUser
-from swen.application.services import BankAccountImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import BankAccountImportService
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.exceptions import ValidationError
 
 # Test user ID for all tests in this module
@@ -463,9 +463,10 @@ class TestBankAccountRenameService:
             new_name="My Primary Account",
         )
 
-        # Assert - returns BankAccountDTO
-        assert result.name == "My Primary Account"
-        assert result.iban == "DE89370400440532013000"
+        # Assert - returns (Account, AccountMapping)
+        account, mapping = result
+        assert account.name == "My Primary Account"
+        assert mapping.iban == "DE89370400440532013000"
 
         # Verify both domain entities were saved
         self.mock_account_repo.save.assert_called_once()

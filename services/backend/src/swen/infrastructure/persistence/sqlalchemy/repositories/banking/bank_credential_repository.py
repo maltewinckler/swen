@@ -13,7 +13,7 @@ from swen.domain.security.repositories import StoredBankCredentialsRepository
 from swen.domain.security.services import EncryptionService
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):

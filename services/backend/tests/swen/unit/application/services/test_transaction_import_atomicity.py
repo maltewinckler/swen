@@ -10,19 +10,16 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.ports.identity import CurrentUser
-from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services import TransactionImportService
-from swen.application.services.opening_balance_adjustment_service import (
-    OpeningBalanceAdjustmentService,
-)
-from swen.application.services.transfer_reconciliation_service import (
-    TransferReconciliationService,
-)
 from swen.domain.accounting.entities import Account, AccountType
+from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankTransaction
+from swen.domain.integration.services import (
+    TransferReconciliationService,
+)
 from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transaction_repository import (
     StoredBankTransaction,
 )
@@ -107,26 +104,24 @@ async def test_import_persists_success_atomically_when_session_provided():
     resolution_result.has_ai_result = False
     counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
 
-    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
+    ob_service = OpeningBalanceService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        user_id=TEST_USER_ID,
+    )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
         mapping_repository=mapping_repo,
         account_repository=account_repo,
-        opening_balance_query=ob_query,
+        opening_balance_query=ob_service,
     )
     transaction_factory = BankImportTransactionFactory(current_user=current_user)
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=account_repo,
-        transaction_repository=transaction_repo,
-        opening_balance_query=ob_query,
-        current_user=current_user,
-    )
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,
@@ -193,26 +188,24 @@ async def test_import_does_not_start_nested_transaction_when_already_in_transact
     resolution_result.has_ai_result = False
     counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
 
-    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
+    ob_service = OpeningBalanceService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        user_id=TEST_USER_ID,
+    )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
         mapping_repository=mapping_repo,
         account_repository=account_repo,
-        opening_balance_query=ob_query,
+        opening_balance_query=ob_service,
     )
     transaction_factory = BankImportTransactionFactory(current_user=current_user)
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=account_repo,
-        transaction_repository=transaction_repo,
-        opening_balance_query=ob_query,
-        current_user=current_user,
-    )
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,

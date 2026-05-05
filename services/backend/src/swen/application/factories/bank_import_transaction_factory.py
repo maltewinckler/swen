@@ -28,7 +28,7 @@ from swen.domain.integration.value_objects import ResolutionResult
 from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 logger = logging.getLogger(__name__)
 

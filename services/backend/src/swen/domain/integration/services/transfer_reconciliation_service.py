@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Optional
 
-from swen.application.queries.integration import OpeningBalanceQuery
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType, JournalEntry
 from swen.domain.accounting.services import (
     CATEGORY_ACCOUNT_TYPES,
+    OpeningBalanceService,
     TransactionEntryService,
 )
 from swen.domain.accounting.value_objects import MetadataKeys
@@ -59,8 +59,7 @@ class TransferContext:
         return self.is_asset_transfer and self.counterparty_iban is not None
 
     def is_pre_opening_balance(self, transaction_date: date) -> bool:
-        """
-        Check if a transaction date predates the counterparty's opening balance.
+        """Check if a transaction date predates the counterparty's opening balance.
 
         This is used to determine if an internal transfer requires an opening
         balance adjustment on the counterparty account.
@@ -86,7 +85,7 @@ class TransferReconciliationService:
         transaction_repository: TransactionRepository,
         mapping_repository: AccountMappingRepository,
         account_repository: AccountRepository,
-        opening_balance_query: OpeningBalanceQuery | None = None,
+        opening_balance_query: OpeningBalanceService | None = None,
     ):
         self._transaction_repo: TransactionRepository = transaction_repository
         self._mapping_repo: AccountMappingRepository = mapping_repository

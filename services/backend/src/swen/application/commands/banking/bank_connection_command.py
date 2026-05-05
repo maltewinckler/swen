@@ -7,7 +7,6 @@ from functools import wraps
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from swen.application.dtos.banking import AccountInfo, ConnectionResult
-from swen.application.services import BankAccountImportService
 from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.repositories import (
     BankAccountRepository,
@@ -18,6 +17,7 @@ from swen.domain.banking.value_objects import (
     BankCredentials,
     TANChallenge,
 )
+from swen.domain.integration.services import BankAccountImportService
 from swen.domain.shared.time import utc_now
 from swen.infrastructure.banking.bank_connection_dispatcher import (
     BankConnectionDispatcher,
@@ -48,7 +48,11 @@ class BankConnectionCommand:
     def from_factory(cls, factory: RepositoryFactory) -> BankConnectionCommand:
         return cls(
             bank_adapter=BankConnectionDispatcher.from_factory(factory),
-            import_service=BankAccountImportService.from_factory(factory),
+            import_service=BankAccountImportService(
+                account_repository=factory.account_repository(),
+                mapping_repository=factory.account_mapping_repository(),
+                current_user=factory.current_user,
+            ),
             credential_repo=factory.credential_repository(),
             bank_account_repo=factory.bank_account_repository(),
         )

@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 
 from swen.application.commands.accounting import CreateTransactionCommand
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import (
@@ -15,6 +14,7 @@ from swen.domain.accounting.value_objects import (
     JournalEntryInput,
     TransactionSource,
 )
+from swen.domain.shared.current_user import CurrentUser
 
 
 @pytest.fixture

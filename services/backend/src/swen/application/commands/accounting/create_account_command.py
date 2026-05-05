@@ -22,7 +22,7 @@ from swen.domain.accounting.value_objects.currency import SUPPORTED_CURRENCIES
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)

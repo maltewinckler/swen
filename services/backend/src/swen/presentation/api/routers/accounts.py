@@ -17,12 +17,12 @@ from swen.application.commands.accounting import (
     ReactivateAccountCommand,
     UpdateAccountCommand,
 )
+from swen.application.commands.integration import RenameBankAccountCommand
 from swen.application.queries import (
     AccountStatsQuery,
     ListAccountsQuery,
     ReconciliationQuery,
 )
-from swen.application.services import BankAccountImportService
 from swen.domain.shared.time import utc_now
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.accounts import (
@@ -347,13 +347,13 @@ async def rename_bank_account(
 
     Updates both the accounting account name and the account mapping.
     """
-    import_service = BankAccountImportService.from_factory(factory)
+    import_service = RenameBankAccountCommand.from_factory(factory)
 
     # Normalize IBAN (presentation concern - input sanitization)
     normalized_iban = iban.replace(" ", "").upper()
 
     try:
-        dto = await import_service.rename_bank_account(
+        dto = await import_service.execute(
             iban=normalized_iban,
             new_name=request.name,
         )

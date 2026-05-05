@@ -13,15 +13,16 @@ from dotenv import load_dotenv
 
 from swen.application.commands.accounting import GenerateDefaultAccountsCommand
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.queries.integration import OpeningBalanceQuery
 from swen.application.services import (
-    BankAccountImportService,
-    OpeningBalanceAdjustmentService,
     TransactionImportService,
+)
+from swen.domain.accounting.services import OpeningBalanceService
+from swen.domain.banking.value_objects.bank_credentials import BankCredentials
+from swen.domain.integration.services import (
+    BankAccountImportService,
+    CounterAccountResolutionService,
     TransferReconciliationService,
 )
-from swen.domain.banking.value_objects.bank_credentials import BankCredentials
-from swen.domain.integration.services import CounterAccountResolutionService
 from swen.domain.integration.value_objects import (
     CounterAccountRule,
     PatternType,
@@ -281,25 +282,20 @@ def transaction_import_service(
     counter_account_resolution_service,
 ):
     """Full transaction import orchestration service."""
-    ob_query = OpeningBalanceQuery(
+    ob_service = OpeningBalanceService(
+        account_repository=integration_repositories.account_repo,
         transaction_repository=integration_repositories.transaction_repo,
+        user_id=integration_repositories.current_user.user_id,
     )
 
     transfer_reconciliation_service = TransferReconciliationService(
         transaction_repository=integration_repositories.transaction_repo,
         mapping_repository=integration_repositories.mapping_repo,
         account_repository=integration_repositories.account_repo,
-        opening_balance_query=ob_query,
+        opening_balance_query=ob_service,
     )
 
     transaction_factory = BankImportTransactionFactory(
-        current_user=integration_repositories.current_user,
-    )
-
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=integration_repositories.account_repo,
-        transaction_repository=integration_repositories.transaction_repo,
-        opening_balance_query=ob_query,
         current_user=integration_repositories.current_user,
     )
 
@@ -307,7 +303,7 @@ def transaction_import_service(
         bank_account_import_service=bank_account_service,
         counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_reconciliation_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=integration_repositories.account_repo,
         transaction_repository=integration_repositories.transaction_repo,

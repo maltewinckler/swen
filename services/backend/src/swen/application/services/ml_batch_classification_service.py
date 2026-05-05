@@ -23,7 +23,7 @@ from swen.application.dtos.integration import (
 from swen.domain.banking.repositories import StoredBankTransaction
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)

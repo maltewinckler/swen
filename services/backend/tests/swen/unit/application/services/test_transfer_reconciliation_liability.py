@@ -6,16 +6,16 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.services.transfer_reconciliation_service import (
-    TransferContext,
-    TransferReconciliationService,
-)
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import (
     Currency,
     Money,
     TransactionSource,
+)
+from swen.domain.integration.services import (
+    TransferContext,
+    TransferReconciliationService,
 )
 from swen.domain.shared.time import today_utc
 

@@ -13,9 +13,6 @@ from swen.application.queries.integration.list_imports_query import (
     ImportStatistics,
     ListImportsQuery,
 )
-from swen.application.queries.integration.opening_balance_query import (
-    OpeningBalanceQuery,
-)
 from swen.application.queries.integration.reconciliation_query import (
     ReconciliationQuery,
 )
@@ -35,7 +32,6 @@ __all__ = [
     "ListAccountMappingsQuery",
     "ListImportsQuery",
     "MappingWithAccount",
-    "OpeningBalanceQuery",
     "ReconciliationQuery",
     "SyncRecommendationQuery",
     "SyncStatusQuery",

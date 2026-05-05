@@ -20,25 +20,20 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from uuid import UUID
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.queries.integration import OpeningBalanceQuery
-from swen.application.services.bank_account_import_service import (
-    BankAccountImportService,
-)
 from swen.application.services.ml_classification_application_service import (
     MLClassificationApplicationService,
 )
-from swen.application.services.opening_balance_adjustment_service import (
-    OpeningBalanceAdjustmentService,
-)
-from swen.application.services.transfer_reconciliation_service import (
-    TransferContext,
-    TransferReconciliationService,
-)
 from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.banking.repositories import StoredBankTransaction
 from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.entities import TransactionImport
-from swen.domain.integration.services import CounterAccountResolutionService
+from swen.domain.integration.services import (
+    BankAccountImportService,
+    CounterAccountResolutionService,
+    TransferContext,
+    TransferReconciliationService,
+)
 from swen.domain.integration.value_objects import (
     AICounterAccountResult,
     ImportStatus,
@@ -51,7 +46,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
     from swen.application.services.ml_batch_classification_service import (
         BatchClassificationResult,
     )
@@ -61,6 +55,7 @@ if TYPE_CHECKING:
         TransactionRepository,
     )
     from swen.domain.integration.repositories import TransactionImportRepository
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class TransactionImportResult:
@@ -105,7 +100,7 @@ class TransactionImportService:
         bank_account_import_service: BankAccountImportService,
         counter_account_resolution_service: CounterAccountResolutionService,
         transfer_reconciliation_service: TransferReconciliationService,
-        opening_balance_adjustment_service: OpeningBalanceAdjustmentService,
+        opening_balance_service: OpeningBalanceService,
         transaction_factory: BankImportTransactionFactory,
         account_repository: AccountRepository,
         transaction_repository: TransactionRepository,
@@ -116,7 +111,7 @@ class TransactionImportService:
         self._bank_account_service = bank_account_import_service
         self._counter_account_service = counter_account_resolution_service
         self._transfer_service = transfer_reconciliation_service
-        self._ob_adjustment_service = opening_balance_adjustment_service
+        self._ob_adjustment_service = opening_balance_service
         self._factory = transaction_factory
         self._account_repo = account_repository
         self._transaction_repo = transaction_repository
@@ -134,31 +129,32 @@ class TransactionImportService:
             user_id=factory.current_user.user_id,
         )
 
-        ob_query = OpeningBalanceQuery.from_factory(factory)
+        ob_service = OpeningBalanceService(
+            account_repository=factory.account_repository(),
+            transaction_repository=factory.transaction_repository(),
+            user_id=factory.current_user.user_id,
+        )
 
         transfer_service = TransferReconciliationService(
             transaction_repository=factory.transaction_repository(),
             mapping_repository=factory.account_mapping_repository(),
             account_repository=factory.account_repository(),
-            opening_balance_query=ob_query,
+            opening_balance_query=ob_service,
         )
 
         transaction_factory = BankImportTransactionFactory(
             current_user=factory.current_user,
         )
 
-        ob_adjustment_service = OpeningBalanceAdjustmentService(
-            account_repository=factory.account_repository(),
-            transaction_repository=factory.transaction_repository(),
-            opening_balance_query=ob_query,
-            current_user=factory.current_user,
-        )
-
         return cls(
-            bank_account_import_service=BankAccountImportService.from_factory(factory),
+            bank_account_import_service=BankAccountImportService(
+                account_repository=factory.account_repository(),
+                mapping_repository=factory.account_mapping_repository(),
+                current_user=factory.current_user,
+            ),
             counter_account_resolution_service=counter_account_service,
             transfer_reconciliation_service=transfer_service,
-            opening_balance_adjustment_service=ob_adjustment_service,
+            opening_balance_service=ob_service,
             transaction_factory=transaction_factory,
             account_repository=factory.account_repository(),
             transaction_repository=factory.transaction_repository(),

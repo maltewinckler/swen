@@ -76,32 +76,43 @@ def _make_command(opening_balance_account_exists: bool = True):
     settings_repo.get_or_create.return_value = SimpleNamespace(
         sync=SimpleNamespace(auto_post_transactions=True),
     )
-    mapping_query = AsyncMock()
+    mapping_repo = AsyncMock()
     credential_repo = AsyncMock()
     credential_repo.find_by_blz.return_value = object()
+    bank_balance_service = AsyncMock()
 
     command = BatchSyncCommand(
         sync_command=sync_command,
         settings_repo=settings_repo,
-        mapping_query=mapping_query,
+        mapping_repo=mapping_repo,
         credential_repo=credential_repo,
         opening_balance_account_exists=opening_balance_account_exists,
+        bank_balance_service=bank_balance_service,
     )
 
-    return command, sync_command, settings_repo, mapping_query, credential_repo
+    return (
+        command,
+        sync_command,
+        settings_repo,
+        mapping_repo,
+        credential_repo,
+        bank_balance_service,
+    )
 
 
 @pytest.mark.asyncio
 async def test_execute_streaming_aggregates_account_results_and_updates_dates():
-    command, sync_command, settings_repo, mapping_query, credential_repo = (
+    command, sync_command, settings_repo, mapping_repo, credential_repo, _ = (
         _make_command()
     )
     mappings = [
         _make_mapping(IBAN_1, "Main Account"),
         _make_mapping(IBAN_2, "Savings Account"),
     ]
-    mapping_query.execute.return_value = SimpleNamespace(mappings=mappings)
-    credential_repo.find_by_blz.side_effect = [object(), object()]
+    mapping_repo.find_all.return_value = mappings
+    # 2 calls from _get_mappings + 2 calls from balance refresh (one per distinct BLZ)
+    creds = object()
+    credential_repo.find_by_blz.return_value = creds
 
     result_1 = _make_sync_result(
         iban=IBAN_1,
@@ -163,14 +174,12 @@ async def test_execute_streaming_aggregates_account_results_and_updates_dates():
 
 @pytest.mark.asyncio
 async def test_execute_streaming_returns_final_result_for_fixed_date_range():
-    command, sync_command, settings_repo, mapping_query, credential_repo = (
+    command, sync_command, settings_repo, mapping_repo, credential_repo, _ = (
         _make_command(
             opening_balance_account_exists=False,
         )
     )
-    mapping_query.execute.return_value = SimpleNamespace(
-        mappings=[_make_mapping(IBAN_1, "Main Account")],
-    )
+    mapping_repo.find_all.return_value = [_make_mapping(IBAN_1, "Main Account")]
     credential_repo.find_by_blz.return_value = object()
 
     sync_result = _make_sync_result(
@@ -200,15 +209,15 @@ async def test_execute_streaming_returns_final_result_for_fixed_date_range():
 
 @pytest.mark.asyncio
 async def test_execute_streaming_records_account_failure_and_continues():
-    command, sync_command, _settings_repo, mapping_query, credential_repo = (
+    command, sync_command, _settings_repo, mapping_repo, credential_repo, _ = (
         _make_command()
     )
     mappings = [
         _make_mapping(IBAN_1, "Main Account"),
         _make_mapping(IBAN_2, "Savings Account"),
     ]
-    mapping_query.execute.return_value = SimpleNamespace(mappings=mappings)
-    credential_repo.find_by_blz.side_effect = [object(), object()]
+    mapping_repo.find_all.return_value = mappings
+    credential_repo.find_by_blz.return_value = object()
 
     sync_result = _make_sync_result(
         iban=IBAN_2,
@@ -237,3 +246,99 @@ async def test_execute_streaming_records_account_failure_and_continues():
     assert result.accounts_synced == 1
     assert result.total_imported == 1
     assert result.errors == [f"{IBAN_1}: bank offline"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_balances_called_once_per_blz_with_imports():
+    """BankBalanceService.refresh_for_blz should be called once per distinct BLZ that imported."""
+    (
+        command,
+        sync_command,
+        _settings_repo,
+        mapping_repo,
+        credential_repo,
+        refresh_cmd,
+    ) = _make_command()
+    # Two accounts at different banks
+    mappings = [
+        _make_mapping(IBAN_1, "Main Account"),  # BLZ 37040044
+        _make_mapping(IBAN_2, "Savings Account"),  # BLZ 10000000
+    ]
+    mapping_repo.find_all.return_value = mappings
+    credential_repo.find_by_blz.return_value = object()
+
+    result_1 = _make_sync_result(
+        iban=IBAN_1, start_date=today_utc(), end_date=today_utc(), imported=3
+    )
+    result_2 = _make_sync_result(
+        iban=IBAN_2, start_date=today_utc(), end_date=today_utc(), imported=1
+    )
+    sync_command.execute_streaming.side_effect = [
+        _make_sync_stream(result_1),
+        _make_sync_stream(result_2),
+    ]
+
+    async for _ in command.execute_streaming(days=7, auto_post=False):
+        pass
+
+    assert refresh_cmd.refresh_for_blz.await_count == 2
+    called_blzs = {call.args[0] for call in refresh_cmd.refresh_for_blz.call_args_list}
+    assert called_blzs == {"37040044", "10000000"}
+
+
+@pytest.mark.asyncio
+async def test_refresh_balances_not_called_when_no_imports():
+    """BankBalanceService.refresh_for_blz must not be called when nothing was imported."""
+    (
+        command,
+        sync_command,
+        _settings_repo,
+        mapping_repo,
+        credential_repo,
+        refresh_cmd,
+    ) = _make_command()
+    mapping_repo.find_all.return_value = [_make_mapping(IBAN_1, "Main Account")]
+    credential_repo.find_by_blz.return_value = object()
+
+    sync_result = _make_sync_result(
+        iban=IBAN_1, start_date=today_utc(), end_date=today_utc(), imported=0, skipped=5
+    )
+    sync_command.execute_streaming.return_value = _make_sync_stream(sync_result)
+
+    async for _ in command.execute_streaming(days=7, auto_post=False):
+        pass
+
+    refresh_cmd.refresh_for_blz.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refresh_balances_deduplicates_same_blz():
+    """Two accounts at the same bank trigger only one BankBalanceService.refresh_for_blz call."""
+    IBAN_A = "DE89370400440532013000"  # BLZ 37040044  # NOQA: N806
+    IBAN_B = "DE89370400441234567890"  # BLZ 37040044  # NOQA: N806
+    command, sync_command, _, mapping_repo, credential_repo, refresh_cmd = (
+        _make_command()
+    )
+    mappings = [
+        _make_mapping(IBAN_A, "Account A"),
+        _make_mapping(IBAN_B, "Account B"),
+    ]
+    mapping_repo.find_all.return_value = mappings
+    credential_repo.find_by_blz.return_value = object()
+
+    result_a = _make_sync_result(
+        iban=IBAN_A, start_date=today_utc(), end_date=today_utc(), imported=2
+    )
+    result_b = _make_sync_result(
+        iban=IBAN_B, start_date=today_utc(), end_date=today_utc(), imported=1
+    )
+    sync_command.execute_streaming.side_effect = [
+        _make_sync_stream(result_a),
+        _make_sync_stream(result_b),
+    ]
+
+    async for _ in command.execute_streaming(days=7, auto_post=False):
+        pass
+
+    # Both accounts are at the same bank — only one refresh call allowed
+    assert refresh_cmd.refresh_for_blz.await_count == 1

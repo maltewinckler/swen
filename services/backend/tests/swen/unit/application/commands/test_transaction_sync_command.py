@@ -10,10 +10,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.commands.integration import TransactionSyncCommand
-from swen.application.ports.identity import CurrentUser
 from swen.domain.banking.value_objects import BankCredentials, TANChallenge
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.value_objects import ImportStatus
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.time import today_utc
 from swen.domain.shared.value_objects.secure_string import SecureString
 from tests.shared.sync_streaming import (

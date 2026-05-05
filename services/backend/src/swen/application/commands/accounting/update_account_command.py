@@ -20,7 +20,7 @@ from swen.domain.accounting.services import AccountHierarchyService
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from functools import wraps
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, Awaitable, Callable, Optional
 
 from swen.application.dtos.integration import (
     AccountClassifyingEvent,
@@ -25,9 +25,9 @@ from swen.application.services import (
     TransactionImportService,
 )
 from swen.domain.accounting.services import (
-    OPENING_BALANCE_IBAN_KEY,
-    OpeningBalanceService,
+    OpeningBalanceCalculator,
 )
+from swen.domain.accounting.value_objects import MetadataKeys
 from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.repositories import (
@@ -53,11 +53,11 @@ from swen.infrastructure.banking.bank_connection_dispatcher import (
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.identity import CurrentUser
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,
     )
+    from swen.domain.shared.current_user import CurrentUser
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
@@ -80,6 +80,7 @@ class _SyncContext:
 class TransactionSyncCommand:
     """Coordinate bank fetch, TAN handling, import, and opening balance logic."""
 
+    # This is not actually used anywhere except in BatchSyncCommand as an import!
     def __init__(  # noqa: PLR0913
         self,
         bank_adapter: BankConnectionPort,
@@ -104,7 +105,7 @@ class TransactionSyncCommand:
         self._transaction_repo = transaction_repo
         self._bank_account_repo = bank_account_repo
         self._bank_transaction_repo = bank_transaction_repo
-        self._opening_balance_service = OpeningBalanceService()
+        self._opening_balance_service = OpeningBalanceCalculator()
         self._ml_classification_service = ml_classification_service
 
     @classmethod
@@ -120,8 +121,9 @@ class TransactionSyncCommand:
                 current_user=factory.current_user,
             )
 
+        bank_adapter = BankConnectionDispatcher.from_factory(factory)
         return cls(
-            bank_adapter=BankConnectionDispatcher.from_factory(factory),
+            bank_adapter=bank_adapter,
             import_service=TransactionImportService.from_factory(factory),
             mapping_repo=factory.account_mapping_repository(),
             import_repo=factory.import_repository(),
@@ -212,11 +214,6 @@ class TransactionSyncCommand:
         await self._adapter.connect(credentials)
 
         try:
-            # Only update bank accounts if not yet stored — avoids extra 2FA
-            # prompts on subsequent syncs (each API call triggers independent 2FA)
-            if await self._should_update_bank_accounts(iban):
-                await self._update_bank_accounts()
-
             bank_transactions = await self._adapter.fetch_transactions(
                 account_iban=iban,
                 start_date=start_date,
@@ -242,8 +239,6 @@ class TransactionSyncCommand:
 
             # New and previously failed trx
             to_import = [r for r in stored_results if r.is_new or not r.is_imported]
-
-            # Yield fetched event
             yield AccountFetchedEvent(
                 iban=iban,
                 transactions_fetched=len(bank_transactions),
@@ -341,7 +336,7 @@ class TransactionSyncCommand:
         end_date: Optional[date] = None,
         tan_callback: Optional[TanCallback] = None,
         auto_post: bool = False,
-    ):
+    ) -> AsyncGenerator[SyncProgressEvent | SyncResult, None]:
         """Execute transaction sync with streaming progress events.
 
         This is an async generator that yields SyncProgressEvent objects,
@@ -476,67 +471,27 @@ class TransactionSyncCommand:
             return False
 
         existing = await self._transaction_repo.find_by_metadata(
-            metadata_key=OPENING_BALANCE_IBAN_KEY,
+            metadata_key=MetadataKeys.OPENING_BALANCE_IBAN,
             metadata_value=iban,
         )
         return len(existing) > 0
-
-    async def _should_update_bank_accounts(self, iban: str) -> bool:
-        """Check if bank accounts need to be fetched from the bank.
-
-        Fetches when the account is not yet stored, or when the stored account
-        is missing balance data (e.g. migrated from an older version that did not
-        persist balances). Skips when a balance is already recorded to avoid
-        unnecessary extra 2FA prompts on the Geldstrom API.
-        """
-        if not self._bank_account_repo:
-            return False
-
-        existing = await self._bank_account_repo.find_by_iban(iban)
-        if existing is None:
-            return True
-
-        if existing.balance is None:
-            logger.debug(
-                "Bank account %s missing balance, will re-fetch to populate it",
-                iban,
-            )
-            return True
-
-        logger.debug(
-            "Bank account %s already stored with balance, skipping fetch_accounts",
-            iban,
-        )
-        return False
-
-    async def _update_bank_accounts(self) -> None:
-        if not self._bank_account_repo:
-            return
-
-        try:
-            accounts = await self._adapter.fetch_accounts()
-            for account in accounts:
-                await self._bank_account_repo.save(account)
-            logger.debug("Updated %d bank accounts in database", len(accounts))
-        except Exception as e:
-            # Don't fail the sync if bank account update fails
-            logger.warning("Failed to update bank accounts: %s", e)
 
     async def _get_current_balance(self, iban: str) -> Decimal | None:
         # Prefer stored balance from the database to avoid triggering
         # an extra 2FA call to the bank API (each API call = independent 2FA).
         if self._bank_account_repo:
-            stored = await self._bank_account_repo.find_by_iban(iban)
-            if stored is not None and stored.balance is not None:
-                logger.debug(
-                    "Using stored balance for %s: %s",
-                    iban,
-                    stored.balance,
-                )
-                return stored.balance
+            stored = await self._bank_account_repo.find_balance(iban)
+            if stored is not None:
+                logger.debug("Using stored balance for %s: %s", iban, stored)
+                return stored
 
-        # Fall back to fetching from the adapter (uses cache if available)
+        # Fall back to fetching from the adapter (uses cache if available).
+        # Also persist the accounts so that save_batch_with_deduplication can
+        # find the BankAccount record by IBAN later in the same sync run.
         accounts = await self._adapter.fetch_accounts()
+
+        if self._bank_account_repo:
+            await self._bank_account_repo.save_accounts(accounts)
 
         for account in accounts:
             if account.iban == iban and account.balance is not None:

@@ -33,7 +33,7 @@ from swen.infrastructure.banking.local_fints.repositories.endpoint_repository im
 from swen_identity.domain.user.repositories import UserRepository
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class RepositoryFactory(Protocol):

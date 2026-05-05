@@ -21,7 +21,7 @@ from swen.infrastructure.persistence.sqlalchemy.models.integration import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):

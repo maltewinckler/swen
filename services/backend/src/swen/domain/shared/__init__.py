@@ -4,6 +4,8 @@ This module exports shared value objects, exceptions, and base classes
 used across domain boundaries.
 """
 
+from swen.domain.shared.current_user import CurrentUser
+
 # Re-export all exceptions from the exceptions module
 from swen.domain.shared.exceptions import (
     BusinessRuleViolation,
@@ -17,6 +19,8 @@ from swen.domain.shared.exceptions import (
 from swen.domain.shared.time import today_utc, utc_now
 
 __all__ = [
+    # Identity
+    "CurrentUser",
     # Error codes
     "ErrorCode",
     # Base exception

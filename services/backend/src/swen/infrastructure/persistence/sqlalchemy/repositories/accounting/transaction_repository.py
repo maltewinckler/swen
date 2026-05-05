@@ -35,7 +35,7 @@ from swen.infrastructure.persistence.sqlalchemy.models import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 logger = logging.getLogger(__name__)
 

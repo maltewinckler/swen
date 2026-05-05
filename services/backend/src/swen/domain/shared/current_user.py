@@ -1,8 +1,7 @@
-"""CurrentUser - swen's view of the authenticated user.
+"""CurrentUser — swen's representation of the authenticated user.
 
-This is a port that defines what swen needs from the identity system.
-The actual implementation is provided by an adapter that translates
-from swen_identity.
+Defined in domain/shared so that domain services can depend on it directly
+without reaching into the application layer.
 """
 
 from dataclasses import dataclass
@@ -13,7 +12,7 @@ from uuid import UUID
 class CurrentUser:
     """Immutable representation of the current authenticated user.
 
-    This is swen's own type - it has no dependency on swen_identity.
+    This is swen's own type — it has no dependency on swen_identity.
     The adapter layer translates from swen_identity.UserContext to this.
     """
 

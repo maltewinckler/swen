@@ -49,7 +49,7 @@ from swen.infrastructure.persistence.sqlalchemy.models.accounting.transaction_mo
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 def _get_month_key(year: int, month: int) -> str:

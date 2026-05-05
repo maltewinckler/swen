@@ -9,11 +9,11 @@ from swen.application.commands.integration import (
     CreateExternalAccountCommand,
     CreateExternalAccountResult,
 )
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.current_user import CurrentUser
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")

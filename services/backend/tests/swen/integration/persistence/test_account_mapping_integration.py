@@ -16,11 +16,11 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from swen.application.services import BankAccountImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import BankAccountImportService
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
 )
