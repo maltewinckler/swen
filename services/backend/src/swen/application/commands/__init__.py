@@ -31,8 +31,7 @@ from swen.application.commands.banking import (
     StoreCredentialsCommand,
 )
 from swen.application.commands.integration import (
-    BatchSyncCommand,
-    TransactionSyncCommand,
+    SyncBankAccountsCommand,
 )
 from swen.application.commands.settings import (
     ResetUserSettingsCommand,
@@ -62,8 +61,7 @@ __all__ = [
     "BankConnectionCommand",
     "StoreCredentialsCommand",
     # Integration
-    "BatchSyncCommand",
-    "TransactionSyncCommand",
+    "SyncBankAccountsCommand",
     # System
     "FixIntegrityIssuesCommand",
     "FixResult",

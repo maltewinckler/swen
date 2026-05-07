@@ -1,10 +1,14 @@
 """Repository interface for transaction imports."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
+from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.entities import Account
 from swen.domain.integration.entities import TransactionImport
 from swen.domain.integration.value_objects import ImportStatus
 
@@ -182,4 +186,53 @@ class TransactionImportRepository(ABC):
         Returns
         -------
         True if deleted, False if not found
+        """
+
+    @abstractmethod
+    async def save_complete_import(
+        self,
+        import_record: TransactionImport,
+        accounting_tx: Transaction,
+        ob_adjustment: Optional[Transaction] = None,
+    ) -> None:
+        """Atomically persist the import, accounting tx, and optional OB adjustment.
+
+        Either all three writes are durable on return, or none are.
+
+        Parameters
+        ----------
+        import_record
+            Transaction import record to persist (with state transition applied)
+        accounting_tx
+            Accounting transaction to persist
+        ob_adjustment
+            Optional opening-balance adjustment transaction
+        """
+
+    @abstractmethod
+    async def mark_reconciled_as_internal_transfer(
+        self,
+        import_record: TransactionImport,
+        existing_transaction: Transaction,
+        new_asset_account: Account,
+        source_iban: str,
+        counterparty_iban: str,
+    ) -> None:
+        """Atomically convert an existing transaction into an internal-transfer record.
+
+        Either both writes succeed or neither does.
+
+        Parameters
+        ----------
+        import_record
+            Transaction import record to update (linked to existing transaction)
+        existing_transaction
+            Existing accounting transaction to convert into an internal transfer
+        new_asset_account
+            Asset account that replaces the previous counter account on the
+            existing transaction
+        source_iban
+            IBAN of the synced bank account
+        counterparty_iban
+            IBAN of the counterparty (the other side of the transfer)
         """

@@ -1,5 +1,8 @@
 """Sync router for bank transaction synchronization endpoints."""
 
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -7,10 +10,16 @@ from typing import Optional
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from swen.application.commands import BatchSyncCommand
-from swen.application.dtos.integration import SyncProgressEvent
+from swen.application.commands.integration.sync_bank_accounts_command import (
+    SyncBankAccountsCommand,
+)
+from swen.application.dtos.integration import (
+    BatchSyncResult,
+    SyncProgressEvent,
+)
 from swen.application.queries import SyncRecommendationQuery, SyncStatusQuery
 from swen.domain.shared.exceptions import DomainException, ErrorCode
+from swen.infrastructure.event_publisher import SseSyncEventPublisher
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.sync import (
     AccountSyncRecommendationResponse,
@@ -91,26 +100,39 @@ async def run_sync_streaming(
     """
     Trigger bank transaction synchronization with real-time progress updates.
 
-    Returns a Server-Sent Events (SSE) stream with progress events:
+    Returns a Server-Sent Events (SSE) stream with progress events.
 
     ## Event Types
 
-    - **sync_started**: Sync process beginning (includes total_accounts)
-    - **account_started**: Starting to sync a specific account
-    - **account_fetched**: Transactions fetched from bank
-    - **account_classifying**: Classification progress (current/total)
-    - **transaction_classified**: Individual transaction classified
-    - **account_completed**: Account sync finished
-    - **account_failed**: Account sync failed
-    - **sync_completed**: All accounts synced (includes final totals)
-    - **sync_failed**: Sync process failed
+    - **batch_sync_started**: Sync process beginning (includes `total_accounts`)
+    - **batch_sync_completed**: All accounts synced (includes final totals)
+    - **batch_sync_failed**: Entire batch sync failed (`code`, `error_key`)
+    - **account_sync_started**: Starting to sync a specific account
+    - **account_sync_fetched**: Transactions fetched from bank
+    - **account_sync_completed**: Account sync finished
+    - **account_sync_failed**: Account sync failed (`code`, `error_key`)
+    - **classification_started**: ML batch classification beginning
+    - **classification_progress**: ML classification progress update
+    - **classification_completed**: ML batch classification finished
+    - **transaction_classified**: Individual transaction classified and imported
+
+    ## Terminal Payload
+
+    After `batch_sync_completed`, a final `result` event is emitted with a
+    reduced summary payload:
+
+    ```
+    event: result
+    data: {"success": true, "total_imported": N, "total_skipped": N,
+           "total_failed": N, "accounts_synced": N}
+    ```
 
     ## SSE Format
 
     Each event is sent as:
     ```
     event: <event_type>
-    data: {"message": "...", "iban": "...", ...}
+    data: {...}
 
     ```
 
@@ -118,20 +140,15 @@ async def run_sync_streaming(
 
     ```javascript
     const eventSource = new EventSource('/api/v1/sync/run/stream');
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log(data.event_type, data.message);
-    };
-    eventSource.addEventListener('sync_completed', (event) => {
+    eventSource.addEventListener('batch_sync_completed', (event) => {
       const data = JSON.parse(event.data);
       console.log('Done!', data.total_imported, 'imported');
+    });
+    eventSource.addEventListener('result', (event) => {
+      const data = JSON.parse(event.data);
       eventSource.close();
     });
     ```
-
-    The final `result` event is a reduced summary payload containing only
-    `success`, `total_imported`, `total_skipped`, `total_failed`, and
-    `accounts_synced`.
     """
     days = request.days if request else None
     iban = request.iban if request else None
@@ -140,80 +157,67 @@ async def run_sync_streaming(
 
     async def event_generator():
         """Generate SSE events from sync progress."""
+        publisher = SseSyncEventPublisher()
+
         try:
-            command = await BatchSyncCommand.from_factory(factory, ml_client=ml_client)
+            command = await SyncBankAccountsCommand.from_factory(
+                factory, ml_client=ml_client, publisher=publisher
+            )
         except DomainException as e:
             logger.exception("Failed to create sync command: %s", e)
             yield _format_sse_event(
-                "sync_failed",
-                {"message": e.message, "code": e.code.value},
+                "batch_sync_failed",
+                {"code": e.code.value, "error_key": "internal_error"},
             )
             return
         except Exception as e:
             logger.exception("Failed to create sync command: %s", e)
             yield _format_sse_event(
-                "sync_failed",
-                {
-                    "message": "Failed to initialize sync",
-                    "code": ErrorCode.INTERNAL_ERROR.value,
-                },
+                "batch_sync_failed",
+                {"code": ErrorCode.INTERNAL_ERROR.value, "error_key": "internal_error"},
             )
             return
 
-        result = None
+        task = asyncio.create_task(
+            command.execute(days=days, iban=iban, blz=blz, auto_post=auto_post)
+        )
+
         try:
-            async for event in command.execute_streaming(
-                days=days,
-                iban=iban,
-                blz=blz,
-                auto_post=auto_post,
-            ):
-                if isinstance(event, SyncProgressEvent):
-                    yield _format_sse_event(event.event_type.value, event.to_dict())
-                else:
-                    # This is the final result
-                    result = event
+            async for item in publisher.events():
+                if isinstance(item, SyncProgressEvent):
+                    yield _format_sse_event(item.event_type.value, item.to_dict())
+                elif isinstance(item, BatchSyncResult):
+                    # Terminal result payload from publish_terminal
+                    final_data = {
+                        "success": item.success,
+                        "total_imported": item.total_imported,
+                        "total_skipped": item.total_skipped,
+                        "total_failed": item.total_failed,
+                        "accounts_synced": item.accounts_synced,
+                    }
+                    yield _format_sse_event("result", final_data)
 
-            # Commit the transaction
-            await factory.session.commit()
-
-            # Send final result with the completed event data
-            if result:
-                logger.info(
-                    "Streaming sync completed: %d imported, %d skipped, %d failed",
-                    result.total_imported,
-                    result.total_skipped,
-                    result.total_failed,
-                )
-                # Keep the SSE terminal payload intentionally small and aligned
-                # with the frontend summary UI.
-                final_data = {
-                    "success": result.success,
-                    "total_imported": result.total_imported,
-                    "total_skipped": result.total_skipped,
-                    "total_failed": result.total_failed,
-                    "accounts_synced": result.accounts_synced,
-                }
-                yield _format_sse_event("result", final_data)
+            # Surface any exception raised by the orchestration task
+            await task
 
         except DomainException as e:
-            await factory.session.rollback()
+            task.cancel()
             logger.warning("Streaming sync failed (domain): %s", e)
             yield _format_sse_event(
-                "sync_failed",
-                {"message": e.message, "code": e.code.value},
+                "batch_sync_failed",
+                {"code": e.code.value, "error_key": "internal_error"},
             )
         except Exception as e:
-            await factory.session.rollback()
+            task.cancel()
             logger.exception("Streaming sync failed (unexpected): %s", e)
-            # Don't leak internal exception details to client
             yield _format_sse_event(
-                "sync_failed",
-                {
-                    "message": "Sync failed unexpectedly",
-                    "code": ErrorCode.INTERNAL_ERROR.value,
-                },
+                "batch_sync_failed",
+                {"code": ErrorCode.INTERNAL_ERROR.value, "error_key": "internal_error"},
             )
+        finally:
+            await publisher.close()
+            if not task.done():
+                task.cancel()
 
     return StreamingResponse(
         event_generator(),

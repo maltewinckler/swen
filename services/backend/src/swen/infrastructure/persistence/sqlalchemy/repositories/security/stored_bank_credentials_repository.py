@@ -43,6 +43,7 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
 
         self._session.add(model)
         await self._session.flush()
+        await self._session.commit()
 
     async def find_by_blz(self, blz: str) -> Optional[StoredBankCredentials]:
         model = await self._find_model_by_blz(blz)
@@ -92,6 +93,7 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
         model.is_active = False
         model.updated_at = datetime.now(timezone.utc)
         await self._session.flush()
+        await self._session.commit()
 
         return True
 
@@ -105,6 +107,7 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
         model.last_used_at = datetime.now(timezone.utc)
         model.updated_at = datetime.now(timezone.utc)
         await self._session.flush()
+        await self._session.commit()
 
     # Private helpers
 

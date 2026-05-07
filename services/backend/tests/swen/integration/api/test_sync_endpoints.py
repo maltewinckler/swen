@@ -25,8 +25,8 @@ class TestRunSyncStreaming:
             events = read_sse_events(response)
 
         assert [event_type for event_type, _ in events] == [
-            "sync_started",
-            "sync_completed",
+            "batch_sync_started",
+            "batch_sync_completed",
             "result",
         ]
 

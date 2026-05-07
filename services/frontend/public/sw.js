@@ -1,7 +1,7 @@
 // Service Worker for SWEN PWA
 // Provides offline caching and fast loads
 
-const CACHE_NAME = 'swen-cache-v1'
+const CACHE_NAME = 'swen-cache-v2'
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',

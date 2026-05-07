@@ -23,15 +23,13 @@ from swen.application.services import TransactionImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.accounting.value_objects import Currency
+from swen.domain.banking.repositories import StoredBankTransaction
 from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.services import (
     TransferReconciliationService,
 )
 from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
 from swen.domain.shared.current_user import CurrentUser
-from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transaction_repository import (
-    StoredBankTransaction,
-)
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
@@ -171,21 +169,21 @@ class TestIdenticalTransactionHandling:
         stored2 = create_stored_transaction(transaction, hash_sequence=2)
 
         # Import both
-        results = await svc.import_from_stored_transactions(
+        results = []
+        async for _, _, result in svc.import_streaming(
             stored_transactions=[stored1, stored2],
             source_iban="DE89370400440532013000",
+            preclassified={},
             auto_post=False,
-        )
+        ):
+            results.append(result)
 
         # Both should be successful
         assert len(results) == 2
         assert all(r.status == ImportStatus.SUCCESS for r in results)
 
-        # Both should have created accounting transactions
-        assert deps["transaction_repo"].save.await_count == 2
-
-        # Both should have created import records
-        assert deps["import_repo"].save.await_count == 2
+        # Both should have created accounting transactions via save_complete_import
+        assert deps["import_repo"].save_complete_import.await_count == 2
 
     @pytest.mark.asyncio
     async def test_import_uses_bank_transaction_id_for_deduplication(
@@ -198,11 +196,13 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        await svc.import_from_stored_transactions(
+        async for _ in svc.import_streaming(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            preclassified={},
             auto_post=False,
-        )
+        ):
+            pass
 
         # Should check by bank_transaction_id, not by identity hash
         deps["import_repo"].find_by_bank_transaction_id.assert_awaited_once_with(
@@ -227,11 +227,14 @@ class TestIdenticalTransactionHandling:
         existing_import.status = ImportStatus.SUCCESS
         deps["import_repo"].find_by_bank_transaction_id.return_value = existing_import
 
-        results = await svc.import_from_stored_transactions(
+        results = []
+        async for _, _, result in svc.import_streaming(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            preclassified={},
             auto_post=False,
-        )
+        ):
+            results.append(result)
 
         assert len(results) == 1
         assert results[0].status == ImportStatus.DUPLICATE
@@ -251,14 +254,18 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        await svc.import_from_stored_transactions(
+        async for _ in svc.import_streaming(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            preclassified={},
             auto_post=False,
-        )
+        ):
+            pass
 
-        # Check the saved import record
-        saved_import = deps["import_repo"].save.await_args.args[0]
+        # Check the saved import record via save_complete_import
+        saved_import = deps["import_repo"].save_complete_import.await_args.kwargs[
+            "import_record"
+        ]
         assert saved_import.bank_transaction_id == stored.id
 
 
@@ -322,11 +329,14 @@ class TestAutoPostBehavior:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        results = await svc.import_from_stored_transactions(
+        results = []
+        async for _, _, result in svc.import_streaming(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            preclassified={},
             auto_post=True,
-        )
+        ):
+            results.append(result)
 
         assert results[0].status == ImportStatus.SUCCESS
         # The accounting transaction should be posted

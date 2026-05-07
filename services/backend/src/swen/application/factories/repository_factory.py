@@ -9,6 +9,7 @@ from swen.domain.accounting.repositories import (
     AccountRepository,
     TransactionRepository,
 )
+from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.repositories import (
     BankAccountRepository,
     BankCredentialRepository,
@@ -112,4 +113,8 @@ class RepositoryFactory(Protocol):
 
     def fints_endpoint_repository(self) -> FinTSEndpointRepository:
         """Get FinTS endpoint repository (system-wide)."""
+        ...
+
+    def bank_connection_port(self) -> BankConnectionPort:
+        """Get the bank connection port (dispatcher) for outbound bank I/O."""
         ...

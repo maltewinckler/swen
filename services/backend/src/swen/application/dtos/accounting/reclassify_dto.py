@@ -21,10 +21,9 @@ class ReclassifyStartedEvent(SyncProgressEvent):
 
     total: int = 0
 
-    def __init__(self, total: int, message: str | None = None):
+    def __init__(self, total: int, message: str | None = None):  # noqa: ARG002
         super().__init__(
             event_type=SyncEventType.RECLASSIFY_STARTED,
-            message=message or f"Reclassifying {total} draft transaction(s)",
         )
         self.total = total
 
@@ -45,11 +44,10 @@ class ReclassifyProgressEvent(SyncProgressEvent):
         self,
         current: int,
         total: int,
-        message: str | None = None,
+        message: str | None = None,  # noqa: ARG002
     ):
         super().__init__(
             event_type=SyncEventType.RECLASSIFY_PROGRESS,
-            message=message or f"Classified {current}/{total}",
         )
         self.current = current
         self.total = total
@@ -82,11 +80,10 @@ class ReclassifyTransactionEvent(SyncProgressEvent):
         confidence: float,
         current: int,
         total: int,
-        message: str | None = None,
+        message: str | None = None,  # noqa: ARG002
     ):
         super().__init__(
             event_type=SyncEventType.RECLASSIFY_TRANSACTION,
-            message=message or f"Reclassified: {description[:60]} → {new_account}",
         )
         self.transaction_id = transaction_id
         self.description = description
@@ -123,13 +120,10 @@ class ReclassifyCompletedEvent(SyncProgressEvent):
         reclassified: int,
         unchanged: int,
         failed: int,
-        message: str | None = None,
+        message: str | None = None,  # noqa: ARG002
     ):
         super().__init__(
             event_type=SyncEventType.RECLASSIFY_COMPLETED,
-            message=message
-            or f"Reclassification complete: {reclassified} updated, "
-            f"{unchanged} unchanged",
         )
         self.total = total
         self.reclassified = reclassified
@@ -151,10 +145,9 @@ class ReclassifyFailedEvent(SyncProgressEvent):
 
     error: str = ""
 
-    def __init__(self, error: str, message: str | None = None):
+    def __init__(self, error: str, message: str | None = None):  # noqa: ARG002
         super().__init__(
             event_type=SyncEventType.RECLASSIFY_FAILED,
-            message=message or f"Reclassification failed: {error}",
         )
         self.error = error
 

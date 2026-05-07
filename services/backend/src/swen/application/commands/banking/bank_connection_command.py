@@ -139,7 +139,7 @@ class BankConnectionCommand:
 
             if tan_callback:
                 await self._adapter.set_tan_callback(
-                    self._wrap_tan_callback(tan_callback),
+                    self._wrap_tan_callback(tan_callback)
                 )
 
             await self._adapter.connect(credentials)

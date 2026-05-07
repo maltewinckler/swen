@@ -7,25 +7,30 @@ from swen.application.dtos.integration.bank_connection_details_dto import (
 from swen.application.dtos.integration.batch_sync_result import (
     AccountSyncStats,
     BatchSyncResult,
+    BatchSyncResultBuilder,
     OpeningBalanceInfo,
 )
 from swen.application.dtos.integration.reconciliation_dto import (
     AccountReconciliationDTO,
     ReconciliationResultDTO,
 )
+from swen.application.dtos.integration.sync_period import (
+    SyncPeriod,
+)
 from swen.application.dtos.integration.sync_progress import (
-    AccountClassifyingEvent,
-    AccountCompletedEvent,
-    AccountFailedEvent,
-    AccountFetchedEvent,
-    AccountStartedEvent,
+    AccountSyncCompletedEvent,
+    AccountSyncFailedEvent,
+    AccountSyncFetchedEvent,
+    AccountSyncStartedEvent,
+    BatchSyncCompletedEvent,
+    BatchSyncFailedEvent,
+    BatchSyncStartedEvent,
     ClassificationCompletedEvent,
     ClassificationProgressEvent,
     ClassificationStartedEvent,
-    SyncCompletedEvent,
+    ErrorCode,
     SyncEventType,
     SyncProgressEvent,
-    SyncStartedEvent,
     TransactionClassifiedEvent,
 )
 from swen.application.dtos.integration.sync_recommendation_dto import (
@@ -37,27 +42,30 @@ from swen.application.dtos.integration.sync_result import (
 )
 
 __all__ = [
-    "AccountClassifyingEvent",
-    "AccountCompletedEvent",
-    "AccountFailedEvent",
-    "AccountFetchedEvent",
     "AccountReconciliationDTO",
-    "AccountStartedEvent",
+    "AccountSyncCompletedEvent",
+    "AccountSyncFailedEvent",
+    "AccountSyncFetchedEvent",
+    "AccountSyncStartedEvent",
     "AccountSyncRecommendationDTO",
     "AccountSyncStats",
     "BankAccountDetailDTO",
     "BankConnectionDetailsDTO",
+    "BatchSyncCompletedEvent",
+    "BatchSyncFailedEvent",
     "BatchSyncResult",
+    "BatchSyncResultBuilder",
+    "BatchSyncStartedEvent",
     "ClassificationCompletedEvent",
     "ClassificationProgressEvent",
     "ClassificationStartedEvent",
+    "ErrorCode",
     "OpeningBalanceInfo",
     "ReconciliationResultDTO",
-    "SyncCompletedEvent",
     "SyncEventType",
+    "SyncPeriod",
     "SyncProgressEvent",
     "SyncRecommendationResultDTO",
     "SyncResult",
-    "SyncStartedEvent",
     "TransactionClassifiedEvent",
 ]

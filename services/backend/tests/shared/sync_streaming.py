@@ -19,31 +19,27 @@ def normalize_import_result(result: object) -> object:
     return SimpleNamespace(**data)
 
 
-def wire_streaming_imports(
+def patch_streaming_import(
     service: AsyncMock,
     *,
     normalizer: ImportResultNormalizer | None = None,
 ) -> None:
-    result_normalizer = normalizer or _identity
-    service.import_from_stored_transactions = AsyncMock(return_value=[])
-    service.import_with_preclassified = AsyncMock(return_value=[])
+    """Patch ``service.import_streaming`` to yield ``(idx, total, result)`` tuples.
 
-    async def import_from_stored_transactions_streaming(*args, **kwargs):
-        results = await service.import_from_stored_transactions(*args, **kwargs)
+    Configure the results to yield by setting ``service.import_streaming.return_value``
+    to a list of results before calling the patched method.  For example::
+
+        patch_streaming_import(import_service)
+        import_service.import_streaming.return_value = [result1, result2]
+    """
+
+    async def import_streaming(*args: object, **kwargs: object):  # noqa: ANN202
+        results = service.import_streaming.return_value or []
         total = len(results)
-        for index, result in enumerate(results, start=1):
-            yield index, total, result_normalizer(result)
+        for idx, r in enumerate(results, start=1):
+            yield idx, total, normalizer(r) if normalizer else r
 
-    async def import_with_preclassified_streaming(*args, **kwargs):
-        results = await service.import_with_preclassified(*args, **kwargs)
-        total = len(results)
-        for index, result in enumerate(results, start=1):
-            yield index, total, result_normalizer(result)
-
-    service.import_from_stored_transactions_streaming = (
-        import_from_stored_transactions_streaming
-    )
-    service.import_with_preclassified_streaming = import_with_preclassified_streaming
+    service.import_streaming = import_streaming
 
 
 async def collect_sync_result(command: Any, **kwargs: Any) -> SyncResult:

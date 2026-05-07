@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
 from swen.infrastructure.persistence.sqlalchemy.adapters.analytics import (
     SqlAlchemyAnalyticsReadAdapter,
 )
@@ -74,6 +77,7 @@ class SQLAlchemyRepositoryFactory:
         ) = None
         self._bank_info_repo: BankInfoRepositorySQLAlchemy | None = None
         self._fints_endpoint_repo: FinTSEndpointRepositorySQLAlchemy | None = None
+        self._bank_connection_port: BankConnectionDispatcher | None = None
 
     @property
     def current_user(self) -> CurrentUser:
@@ -214,3 +218,9 @@ class SQLAlchemyRepositoryFactory:
                 self._session,
             )
         return self._fints_endpoint_repo
+
+    def bank_connection_port(self) -> BankConnectionDispatcher:
+        """Get the bank connection dispatcher (BankConnectionPort impl)."""
+        if self._bank_connection_port is None:
+            self._bank_connection_port = BankConnectionDispatcher.from_factory(self)
+        return self._bank_connection_port

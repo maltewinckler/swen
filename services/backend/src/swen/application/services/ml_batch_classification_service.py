@@ -131,7 +131,7 @@ class MLBatchClassificationService:
             return
 
         start_time = time.monotonic()
-        yield ClassificationStartedEvent(iban=iban, total=total)
+        yield ClassificationStartedEvent(iban=iban)
 
         ml_transactions = self._build_ml_inputs(stored_transactions)
         state = _ChunkProcessingState.initial()

@@ -9,6 +9,7 @@ lives in the domain layer. Replaces:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
@@ -27,8 +28,20 @@ if TYPE_CHECKING:
         AccountRepository,
         TransactionRepository,
     )
+    from swen.domain.banking.value_objects import BankTransaction
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class OpeningBalanceOutcome:
+    """Outcome of an attempt to create an opening balance for an IBAN.
+
+    Returned from :meth:`OpeningBalanceService.try_create_for_first_sync`.
+    """
+
+    created: bool
+    amount: Optional[Decimal] = None
 
 
 class OpeningBalanceService:
@@ -38,9 +51,6 @@ class OpeningBalanceService:
     - Querying whether an opening balance already exists for an IBAN
     - Querying whether an adjustment has been created for a given transfer
     - Creating adjustment transactions when internal transfers predate an OB
-
-    Layer: Domain — depends only on domain repositories (interfaces), not
-    on infrastructure or application concerns.
     """
 
     def __init__(
@@ -178,3 +188,93 @@ class OpeningBalanceService:
         )
 
         return True
+
+    # ------------------------------------------------------------------
+    # First-sync provisioning
+    # ------------------------------------------------------------------
+
+    async def has_for_iban(self, iban: str) -> bool:
+        """Return ``True`` iff an opening balance already exists for *iban*."""
+        return await self.get_date_for_iban(iban) is not None
+
+    async def try_create_for_first_sync(  # noqa: PLR0911
+        self,
+        iban: str,
+        current_balance: Decimal,
+        bank_transactions: list[BankTransaction],
+    ) -> OpeningBalanceOutcome:
+        """Create an opening balance for *iban* if one does not yet exist.
+
+        Uses :class:`OpeningBalanceCalculator` to back-calculate the opening
+        balance amount from *current_balance* and the fetched
+        *bank_transactions*. Persists the resulting transaction via the
+        injected ``transaction_repository``.
+
+        Returns an :class:`OpeningBalanceOutcome` describing whether an
+        opening balance was created and, if so, with what amount.
+        """
+        if await self.has_for_iban(iban):
+            logger.debug("Opening balance already exists for IBAN %s", iban)
+            return OpeningBalanceOutcome(created=False)
+
+        if not bank_transactions:
+            logger.debug(
+                "Skip opening balance: no transactions to derive a date for %s",
+                iban,
+            )
+            return OpeningBalanceOutcome(created=False)
+
+        asset_account = await self._account_repo.find_by_iban(iban)
+        if asset_account is None:
+            logger.warning(
+                "Cannot create opening balance: no asset account found for %s",
+                iban,
+            )
+            return OpeningBalanceOutcome(created=False)
+
+        equity_account = await self._account_repo.find_by_account_number(
+            WellKnownAccounts.OPENING_BALANCE_EQUITY,
+        )
+        if equity_account is None:
+            logger.warning(
+                "Cannot create opening balance: equity account %s not found",
+                WellKnownAccounts.OPENING_BALANCE_EQUITY,
+            )
+            return OpeningBalanceOutcome(created=False)
+
+        opening_balance = self._calculator.calculate_opening_balance(
+            current_balance=current_balance,
+            bank_transactions=bank_transactions,
+        )
+        balance_date = self._calculator.get_earliest_transaction_date(
+            bank_transactions,
+        )
+        if balance_date is None:
+            logger.warning("Cannot determine date for opening balance for %s", iban)
+            return OpeningBalanceOutcome(created=False)
+
+        currency = bank_transactions[0].currency
+
+        txn = self._calculator.create_opening_balance_transaction(
+            asset_account=asset_account,
+            opening_balance_account=equity_account,
+            amount=opening_balance,
+            currency=currency,
+            balance_date=balance_date,
+            iban=iban,
+            user_id=self._user_id,
+        )
+
+        if txn is None:
+            logger.info("Opening balance is zero for %s; skipping", iban)
+            return OpeningBalanceOutcome(created=False)
+
+        await self._transaction_repo.save(txn)
+        logger.info(
+            "Created opening balance of %s %s for %s (date: %s)",
+            opening_balance,
+            currency,
+            iban,
+            balance_date.date(),
+        )
+        return OpeningBalanceOutcome(created=True, amount=opening_balance)

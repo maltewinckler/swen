@@ -465,24 +465,30 @@ async def test_transaction_import_service_imports_real_transaction(
         )
     )[0]
 
-    result = (
-        await transaction_import_service.import_from_stored_transactions(
-            stored_transactions=[stored_transaction],
-            source_iban=sample_account.iban,
-        )
-    )[0]
+    results = []
+    async for _, _, result in transaction_import_service.import_streaming(
+        stored_transactions=[stored_transaction],
+        source_iban=sample_account.iban,
+        preclassified={},
+        auto_post=False,
+    ):
+        results.append(result)
+    result = results[0]
 
     assert result.is_success
     assert result.accounting_transaction is not None
     assert len(result.accounting_transaction.entries) == 2
 
     # Duplicate imports should be detected for the same stored transaction ID
-    duplicate_result = (
-        await transaction_import_service.import_from_stored_transactions(
-            stored_transactions=[stored_transaction],
-            source_iban=sample_account.iban,
-        )
-    )[0]
+    duplicate_results = []
+    async for _, _, duplicate_result in transaction_import_service.import_streaming(
+        stored_transactions=[stored_transaction],
+        source_iban=sample_account.iban,
+        preclassified={},
+        auto_post=False,
+    ):
+        duplicate_results.append(duplicate_result)
+    duplicate_result = duplicate_results[0]
 
     assert duplicate_result.is_duplicate
 

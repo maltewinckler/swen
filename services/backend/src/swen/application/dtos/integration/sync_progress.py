@@ -1,7 +1,11 @@
 """Sync progress events for SSE streaming."""
 
+from __future__ import annotations
+
+import dataclasses
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -12,18 +16,42 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def _to_jsonable(value):
+    """Convert a value to a JSON-serializable form."""
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, Enum):
+        return value.value
+    return value
+
+
+class ErrorCode(str, Enum):
+    """Structured error codes for sync failure events."""
+
+    BANK_CONNECTION_ERROR = "bank_connection_error"
+    AUTHENTICATION_ERROR = "authentication_error"
+    TAN_ERROR = "tan_error"
+    INTERNAL_ERROR = "internal_error"
+    INACTIVE_MAPPING = "inactive_mapping"
+    CREDENTIALS_NOT_FOUND = "credentials_not_found"
+    TIMEOUT_ERROR = "timeout_error"
+
+
 class SyncEventType(str, Enum):
     """Types of sync progress events."""
 
-    SYNC_STARTED = "sync_started"
-    SYNC_COMPLETED = "sync_completed"
-    SYNC_FAILED = "sync_failed"
+    BATCH_SYNC_STARTED = "batch_sync_started"
+    BATCH_SYNC_COMPLETED = "batch_sync_completed"
+    BATCH_SYNC_FAILED = "batch_sync_failed"
 
-    ACCOUNT_STARTED = "account_started"
-    ACCOUNT_FETCHED = "account_fetched"
-    ACCOUNT_CLASSIFYING = "account_classifying"
-    ACCOUNT_COMPLETED = "account_completed"
-    ACCOUNT_FAILED = "account_failed"
+    ACCOUNT_SYNC_STARTED = "account_sync_started"
+    ACCOUNT_SYNC_FETCHED = "account_sync_fetched"
+    ACCOUNT_SYNC_COMPLETED = "account_sync_completed"
+    ACCOUNT_SYNC_FAILED = "account_sync_failed"
 
     # ML Classification events (batch)
     CLASSIFICATION_STARTED = "classification_started"
@@ -45,38 +73,27 @@ class SyncProgressEvent:
     """Base class for sync progress events."""
 
     event_type: SyncEventType
-    message: str
     timestamp: datetime = field(default_factory=_utc_now)
 
     def to_dict(self) -> dict:
-        return {
-            "event_type": self.event_type.value,
-            "message": self.message,
-            "timestamp": self.timestamp.isoformat(),
-        }
+        return {k: _to_jsonable(v) for k, v in dataclasses.asdict(self).items()}
 
 
 @dataclass
-class SyncStartedEvent(SyncProgressEvent):
+class BatchSyncStartedEvent(SyncProgressEvent):
     """Emitted when sync begins."""
 
     total_accounts: int = 0
 
-    def __init__(self, total_accounts: int, message: Optional[str] = None):
+    def __init__(self, total_accounts: int):
         super().__init__(
-            event_type=SyncEventType.SYNC_STARTED,
-            message=message or f"Starting sync for {total_accounts} account(s)",
+            event_type=SyncEventType.BATCH_SYNC_STARTED,
         )
         self.total_accounts = total_accounts
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["total_accounts"] = self.total_accounts
-        return d
-
 
 @dataclass
-class SyncCompletedEvent(SyncProgressEvent):
+class BatchSyncCompletedEvent(SyncProgressEvent):
     """Emitted when sync completes successfully."""
 
     total_imported: int = 0
@@ -90,29 +107,33 @@ class SyncCompletedEvent(SyncProgressEvent):
         total_skipped: int,
         total_failed: int,
         accounts_synced: int,
-        message: Optional[str] = None,
     ):
         super().__init__(
-            event_type=SyncEventType.SYNC_COMPLETED,
-            message=message
-            or f"Sync complete: {total_imported} imported, {total_skipped} skipped",
+            event_type=SyncEventType.BATCH_SYNC_COMPLETED,
         )
         self.total_imported = total_imported
         self.total_skipped = total_skipped
         self.total_failed = total_failed
         self.accounts_synced = accounts_synced
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["total_imported"] = self.total_imported
-        d["total_skipped"] = self.total_skipped
-        d["total_failed"] = self.total_failed
-        d["accounts_synced"] = self.accounts_synced
-        return d
+
+@dataclass
+class BatchSyncFailedEvent(SyncProgressEvent):
+    """Emitted when the entire batch sync fails."""
+
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR
+    error_key: str = ""
+
+    def __init__(self, code: ErrorCode, error_key: str):
+        super().__init__(
+            event_type=SyncEventType.BATCH_SYNC_FAILED,
+        )
+        self.code = code
+        self.error_key = error_key
 
 
 @dataclass
-class AccountStartedEvent(SyncProgressEvent):
+class AccountSyncStartedEvent(SyncProgressEvent):
     """Emitted when starting to sync a specific account."""
 
     iban: str = ""
@@ -126,29 +147,18 @@ class AccountStartedEvent(SyncProgressEvent):
         account_name: str,
         account_index: int,
         total_accounts: int,
-        message: Optional[str] = None,
     ):
         super().__init__(
-            event_type=SyncEventType.ACCOUNT_STARTED,
-            message=message
-            or f"Syncing {account_name} ({account_index}/{total_accounts})",
+            event_type=SyncEventType.ACCOUNT_SYNC_STARTED,
         )
         self.iban = iban
         self.account_name = account_name
         self.account_index = account_index
         self.total_accounts = total_accounts
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["account_name"] = self.account_name
-        d["account_index"] = self.account_index
-        d["total_accounts"] = self.total_accounts
-        return d
-
 
 @dataclass
-class AccountFetchedEvent(SyncProgressEvent):
+class AccountSyncFetchedEvent(SyncProgressEvent):
     """Emitted after fetching transactions from bank."""
 
     iban: str = ""
@@ -160,58 +170,17 @@ class AccountFetchedEvent(SyncProgressEvent):
         iban: str,
         transactions_fetched: int,
         new_transactions: int,
-        message: Optional[str] = None,
     ):
         super().__init__(
-            event_type=SyncEventType.ACCOUNT_FETCHED,
-            message=message
-            or f"Fetched {transactions_fetched} transactions ({new_transactions} new)",
+            event_type=SyncEventType.ACCOUNT_SYNC_FETCHED,
         )
         self.iban = iban
         self.transactions_fetched = transactions_fetched
         self.new_transactions = new_transactions
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["transactions_fetched"] = self.transactions_fetched
-        d["new_transactions"] = self.new_transactions
-        return d
-
 
 @dataclass
-class AccountClassifyingEvent(SyncProgressEvent):
-    """Emitted when starting to classify transactions for an account."""
-
-    iban: str = ""
-    current: int = 0
-    total: int = 0
-
-    def __init__(
-        self,
-        iban: str,
-        current: int,
-        total: int,
-        message: Optional[str] = None,
-    ):
-        super().__init__(
-            event_type=SyncEventType.ACCOUNT_CLASSIFYING,
-            message=message or f"Classifying {current}/{total}",
-        )
-        self.iban = iban
-        self.current = current
-        self.total = total
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["current"] = self.current
-        d["total"] = self.total
-        return d
-
-
-@dataclass
-class AccountCompletedEvent(SyncProgressEvent):
+class AccountSyncCompletedEvent(SyncProgressEvent):
     """Emitted when account sync completes."""
 
     iban: str = ""
@@ -225,46 +194,31 @@ class AccountCompletedEvent(SyncProgressEvent):
         imported: int,
         skipped: int,
         failed: int,
-        message: Optional[str] = None,
     ):
         super().__init__(
-            event_type=SyncEventType.ACCOUNT_COMPLETED,
-            message=message or f"Completed: {imported} imported, {skipped} skipped",
+            event_type=SyncEventType.ACCOUNT_SYNC_COMPLETED,
         )
         self.iban = iban
         self.imported = imported
         self.skipped = skipped
         self.failed = failed
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["imported"] = self.imported
-        d["skipped"] = self.skipped
-        d["failed"] = self.failed
-        return d
-
 
 @dataclass
-class AccountFailedEvent(SyncProgressEvent):
+class AccountSyncFailedEvent(SyncProgressEvent):
     """Emitted when account sync fails."""
 
     iban: str = ""
-    error: str = ""
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR
+    error_key: str = ""
 
-    def __init__(self, iban: str, error: str, message: Optional[str] = None):
+    def __init__(self, iban: str, code: ErrorCode, error_key: str):
         super().__init__(
-            event_type=SyncEventType.ACCOUNT_FAILED,
-            message=message or f"Failed: {error}",
+            event_type=SyncEventType.ACCOUNT_SYNC_FAILED,
         )
         self.iban = iban
-        self.error = error
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["error"] = self.error
-        return d
+        self.code = code
+        self.error_key = error_key
 
 
 @dataclass
@@ -286,11 +240,9 @@ class TransactionClassifiedEvent(SyncProgressEvent):
         description: str = "",
         counter_account_name: str = "",
         transaction_id: Optional[UUID] = None,
-        message: Optional[str] = None,
     ):
         super().__init__(
             event_type=SyncEventType.TRANSACTION_CLASSIFIED,
-            message=message or f"Classified {current}/{total}: {description[:30]}...",
         )
         self.iban = iban
         self.transaction_id = transaction_id
@@ -298,16 +250,6 @@ class TransactionClassifiedEvent(SyncProgressEvent):
         self.counter_account_name = counter_account_name
         self.current = current
         self.total = total
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["transaction_id"] = str(self.transaction_id) if self.transaction_id else None
-        d["description"] = self.description
-        d["counter_account_name"] = self.counter_account_name
-        d["current"] = self.current
-        d["total"] = self.total
-        return d
 
 
 # -----------------------------------------------------------------------------
@@ -320,26 +262,15 @@ class ClassificationStartedEvent(SyncProgressEvent):
     """Emitted when ML batch classification begins."""
 
     iban: str = ""
-    total: int = 0
 
     def __init__(
         self,
         iban: str,
-        total: int,
-        message: Optional[str] = None,
     ):
         super().__init__(
             event_type=SyncEventType.CLASSIFICATION_STARTED,
-            message=message or f"Classifying {total} transactions...",
         )
         self.iban = iban
-        self.total = total
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["total"] = self.total
-        return d
 
 
 @dataclass
@@ -352,33 +283,22 @@ class ClassificationProgressEvent(SyncProgressEvent):
     last_tier: Optional[str] = None
     last_merchant: Optional[str] = None
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         iban: str,
         current: int,
         total: int,
         last_tier: Optional[str] = None,
         last_merchant: Optional[str] = None,
-        message: Optional[str] = None,
     ):
         super().__init__(
             event_type=SyncEventType.CLASSIFICATION_PROGRESS,
-            message=message or f"Classifying {current}/{total}",
         )
         self.iban = iban
         self.current = current
         self.total = total
         self.last_tier = last_tier
         self.last_merchant = last_merchant
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["current"] = self.current
-        d["total"] = self.total
-        d["last_tier"] = self.last_tier
-        d["last_merchant"] = self.last_merchant
-        return d
 
 
 @dataclass
@@ -400,11 +320,9 @@ class ClassificationCompletedEvent(SyncProgressEvent):
         recurring_detected: int = 0,
         merchants_extracted: int = 0,
         processing_time_ms: int = 0,
-        message: Optional[str] = None,
     ):
         super().__init__(
             event_type=SyncEventType.CLASSIFICATION_COMPLETED,
-            message=message or f"Classified {total} transactions",
         )
         self.iban = iban
         self.total = total
@@ -412,13 +330,3 @@ class ClassificationCompletedEvent(SyncProgressEvent):
         self.recurring_detected = recurring_detected
         self.merchants_extracted = merchants_extracted
         self.processing_time_ms = processing_time_ms
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["iban"] = self.iban
-        d["total"] = self.total
-        d["by_tier"] = self.by_tier
-        d["recurring_detected"] = self.recurring_detected
-        d["merchants_extracted"] = self.merchants_extracted
-        d["processing_time_ms"] = self.processing_time_ms
-        return d
