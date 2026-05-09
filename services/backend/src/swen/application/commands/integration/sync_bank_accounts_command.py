@@ -84,20 +84,19 @@ class SyncBankAccountsCommand:
         blz: Optional[str] = None,
     ):
         """Run the batch sync across all matching account mappings."""
-        syncable = await self._get_account_mappings(blz)
+        mappings = await self._get_account_mappings(blz)
         auto_post = await self._resolve_auto_post()
-        period = self._update_period_for_adaptive_sync(days)
 
-        if not syncable:
+        if not mappings:
             await self._notifier.emit_batch_sync_started_event(0)
             await self._notifier.emit_batch_sync_completed_event()
             await self._notifier.emit_sync_result_event()
             await self._notifier.close()
             return
 
-        await self._notifier.emit_batch_sync_started_event(len(syncable))
+        await self._notifier.emit_batch_sync_started_event(len(mappings))
 
-        for mapping in syncable:
+        for mapping in mappings:
             try:
                 await self._notifier.emit_account_sync_started_event(
                     iban=mapping.iban,
@@ -106,7 +105,7 @@ class SyncBankAccountsCommand:
 
                 imported, skipped, failed = await self._sync_service.sync_account(
                     mapping=mapping,
-                    period=period,
+                    days=days,
                     auto_post=auto_post,
                 )
                 await self._notifier.emit_account_sync_completed_event(

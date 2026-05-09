@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -100,7 +100,7 @@ class TransactionImportRepository(ABC):
     @abstractmethod
     async def find_by_iban(self, iban: str) -> List[TransactionImport]:
         """
-        Find all imports for a specific bank account.
+        Find all imports for a given IBAN.
 
         Parameters
         ----------
@@ -109,7 +109,22 @@ class TransactionImportRepository(ABC):
 
         Returns
         -------
-        List of imports for this account (may be empty)
+        List of all imports (any status) for the account (may be empty)
+        """
+
+    @abstractmethod
+    async def find_latest_booking_date_by_iban(self, iban: str) -> Optional[date]:
+        """
+        Return the latest booking date among all successful imports for an IBAN.
+
+        Parameters
+        ----------
+        iban
+            Bank account IBAN
+
+        Returns
+        -------
+        Latest booking date, or None when no successful import exists
         """
 
     @abstractmethod
@@ -130,30 +145,6 @@ class TransactionImportRepository(ABC):
         Returns
         -------
         List of failed imports (may be empty)
-        """
-
-    @abstractmethod
-    async def find_imports_in_date_range(
-        self,
-        iban: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> List[TransactionImport]:
-        """
-        Find all imports for an account within a date range.
-
-        Parameters
-        ----------
-        iban
-            Bank account IBAN
-        start_date
-            Start of date range
-        end_date
-            End of date range
-
-        Returns
-        -------
-        List of imports in range (may be empty)
         """
 
     @abstractmethod

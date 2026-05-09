@@ -99,7 +99,7 @@ _MODULES_UNDER_TEST = [
     "swen/application/services/integration/bank_account_sync/bank_account_sync_service.py",
     "swen/application/services/integration/bank_account_sync/sync_period_resolver.py",
     # application/commands/integration/
-    "swen/application/commands/integration/sync_bank_accounts_command/sync_bank_accounts_command.py",
+    "swen/application/commands/integration/sync_bank_accounts_command.py",
 ]
 
 

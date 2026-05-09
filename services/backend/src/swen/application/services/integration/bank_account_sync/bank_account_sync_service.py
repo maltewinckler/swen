@@ -48,7 +48,6 @@ if TYPE_CHECKING:
         CounterAccountProposalPort,
     )
     from swen.domain.integration.repositories import TransactionImportRepository
-    from swen.domain.integration.value_objects.sync_period import SyncPeriod
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +66,8 @@ class BankAccountSyncService:
         period_resolver: SyncPeriodResolver,
         bank_balance_service: BankBalanceService,
         bank_transaction_repo: BankTransactionRepository,
-        import_repo: TransactionImportRepository,
         credential_repo: BankCredentialRepository,
+        import_repo: TransactionImportRepository,
         notifier: SyncNotificationService,
     ) -> None:
         self._bank_fetch_service = bank_fetch_service
@@ -78,8 +77,8 @@ class BankAccountSyncService:
         self._period_resolver = period_resolver
         self._bank_balance_service = bank_balance_service
         self._bank_transaction_repo = bank_transaction_repo
-        self._import_repo = import_repo
         self._credential_repo = credential_repo
+        self._import_repo = import_repo
         self._notifier = notifier
 
     @classmethod
@@ -113,15 +112,15 @@ class BankAccountSyncService:
                 credential_repo=factory.credential_repository(),
             ),
             bank_transaction_repo=factory.bank_transaction_repository(),
-            import_repo=factory.import_repository(),
             credential_repo=factory.credential_repository(),
+            import_repo=factory.import_repository(),
             notifier=notifier,
         )
 
     async def sync_account(
         self,
         mapping: AccountMapping,
-        period: SyncPeriod,
+        days: Optional[int],
         auto_post: bool,
         tan_callback: Optional[TanCallback] = None,
     ) -> tuple[int, int, int]:
@@ -140,8 +139,8 @@ class BankAccountSyncService:
 
         bank_transactions, to_import = await self._fetch_and_store(
             iban=iban,
+            days=days,
             credentials=credentials,
-            period=period,
             tan_method=tan_method,
             tan_medium=tan_medium,
             tan_callback=tan_callback,
@@ -176,15 +175,18 @@ class BankAccountSyncService:
     async def _fetch_and_store(  # NOQA: PLR0913
         self,
         iban: str,
+        days: Optional[int],
         credentials: BankCredentials,
-        period: SyncPeriod,
         tan_method: Optional[str],
         tan_medium: Optional[str],
         tan_callback: Optional[TanCallback],
     ) -> tuple[list[BankTransaction], list[StoredBankTransaction]]:
         """Resolve period, fetch from bank and store with dedup."""
-        if period.adaptive:
-            period = await self._period_resolver.resolve_adaptive_for(iban)
+        latest = await self._import_repo.find_latest_booking_date_by_iban(iban)
+        if latest is not None:
+            period = await self._period_resolver.resolve_adaptive(latest)
+        if days is not None:
+            period = self._period_resolver.resolve_fixed(days)
 
         bank_transactions = await self._bank_fetch_service.fetch_transactions(
             credentials=credentials,

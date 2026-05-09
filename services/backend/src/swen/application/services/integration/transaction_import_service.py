@@ -173,6 +173,7 @@ class TransactionImportService:
         import_record = TransactionImport(
             user_id=self._user_id,
             bank_transaction_id=stored.id,
+            booking_date=stored.transaction.booking_date,
             status=ImportStatus.PENDING,
         )
 

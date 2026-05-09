@@ -1,6 +1,6 @@
 """Transaction import entity for tracking import history."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID, uuid5
 
@@ -30,6 +30,7 @@ class TransactionImport:
         self,
         user_id: UUID,
         bank_transaction_id: UUID,
+        booking_date: date,
         status: ImportStatus = ImportStatus.PENDING,
         accounting_transaction_id: Optional[UUID] = None,
         error_message: Optional[str] = None,
@@ -41,6 +42,7 @@ class TransactionImport:
     ):
         self._user_id = user_id
         self._bank_transaction_id = bank_transaction_id
+        self._booking_date = booking_date
 
         # Use provided ID or generate deterministic UUID
         if id is not None:
@@ -93,6 +95,10 @@ class TransactionImport:
     @property
     def imported_at(self) -> Optional[datetime]:
         return self._imported_at
+
+    @property
+    def booking_date(self) -> date:
+        return self._booking_date
 
     def _validate(self) -> None:
         # If status is SUCCESS, must have accounting_transaction_id
@@ -164,6 +170,7 @@ class TransactionImport:
         id: UUID,
         user_id: UUID,
         bank_transaction_id: UUID,
+        booking_date: date,
         status: ImportStatus,
         accounting_transaction_id: Optional[UUID],
         error_message: Optional[str],
@@ -174,6 +181,7 @@ class TransactionImport:
         return cls(
             user_id=user_id,
             bank_transaction_id=bank_transaction_id,
+            booking_date=booking_date,
             status=status,
             accounting_transaction_id=accounting_transaction_id,
             error_message=error_message,

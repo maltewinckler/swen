@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-from typing import TYPE_CHECKING, Optional
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from swen.application.dtos.integration import (
     AccountSyncRecommendationDTO,
@@ -14,9 +14,7 @@ from swen.domain.integration.repositories import (
     AccountMappingRepository,
     TransactionImportRepository,
 )
-from swen.domain.integration.value_objects import ImportStatus
 from swen.domain.shared.iban import extract_blz_from_iban
-from swen.domain.shared.time import today_utc
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -83,13 +81,11 @@ class SyncRecommendationQuery:
         self,
         iban: str,
     ) -> AccountSyncRecommendationDTO:
-        imports = await self._import_repo.find_by_iban(iban)
+        last_booking_date = await self._import_repo.find_latest_booking_date_by_iban(
+            iban
+        )
 
-        successful_imports = [
-            imp for imp in imports if imp.status == ImportStatus.SUCCESS
-        ]
-
-        if not successful_imports:
+        if last_booking_date is None:
             return AccountSyncRecommendationDTO(
                 iban=iban,
                 is_first_sync=True,
@@ -98,43 +94,12 @@ class SyncRecommendationQuery:
                 successful_import_count=0,
             )
 
-        last_booking_date = self._find_last_booking_date(successful_imports)
-
-        if last_booking_date:
-            recommended_start = last_booking_date - timedelta(days=SYNC_BUFFER_DAYS)
-        else:
-            last_import_at = max(
-                (imp.imported_at for imp in successful_imports if imp.imported_at),
-                default=None,
-            )
-            if last_import_at:
-                recommended_start = last_import_at.date() - timedelta(
-                    days=SYNC_BUFFER_DAYS,
-                )
-            else:
-                recommended_start = today_utc() - timedelta(days=7)
+        recommended_start = last_booking_date - timedelta(days=SYNC_BUFFER_DAYS)
 
         return AccountSyncRecommendationDTO(
             iban=iban,
             is_first_sync=False,
             recommended_start_date=recommended_start,
             last_successful_sync_date=last_booking_date,
-            successful_import_count=len(successful_imports),
+            successful_import_count=1,
         )
-
-    @staticmethod
-    def _find_last_booking_date(imports: list) -> Optional[date]:
-        booking_dates = []
-
-        for imp in imports:
-            identity = getattr(imp, "bank_transaction_identity", "")
-            parts = identity.split("|")
-
-            if len(parts) >= 2:
-                try:
-                    booking_date = date.fromisoformat(parts[1])
-                    booking_dates.append(booking_date)
-                except ValueError:
-                    continue
-
-        return max(booking_dates) if booking_dates else None

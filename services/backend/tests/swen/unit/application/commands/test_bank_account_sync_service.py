@@ -119,6 +119,9 @@ def _make_service(
     period_resolver.resolve_adaptive_for.return_value = _make_period()
 
     credential_repo = AsyncMock()
+    credential_repo.find_by_blz.return_value = (
+        MagicMock()
+    )  # Return some mock credentials
     credential_repo.get_tan_settings.return_value = (None, None)
     credential_repo.update_last_used = AsyncMock()
 
@@ -134,7 +137,6 @@ def _make_service(
         period_resolver=period_resolver,
         bank_balance_service=bank_balance_service,
         bank_transaction_repo=bank_transaction_repo,
-        import_repo=import_repo,
         credential_repo=credential_repo,
         notifier=notifier,
     )
@@ -157,7 +159,6 @@ class TestEventOrder:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -186,7 +187,6 @@ class TestEventOrder:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -211,7 +211,6 @@ class TestInactiveMappingError:
         with pytest.raises(InactiveMappingError):
             await service.sync_account(
                 mapping=_make_mapping(is_active=False),
-                credentials=MagicMock(),
                 period=_make_period(),
                 auto_post=False,
             )
@@ -224,7 +223,6 @@ class TestInactiveMappingError:
         with pytest.raises(InactiveMappingError):
             await service.sync_account(
                 mapping=_make_mapping(is_active=False),
-                credentials=MagicMock(),
                 period=_make_period(),
                 auto_post=False,
             )
@@ -252,7 +250,6 @@ class TestEmptyImportBranch:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -274,7 +271,6 @@ class TestEmptyImportBranch:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -301,7 +297,6 @@ class TestEmptyImportBranch:
 
         result = await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -329,7 +324,6 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -353,7 +347,6 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )
@@ -379,7 +372,6 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            credentials=MagicMock(),
             period=_make_period(),
             auto_post=False,
         )

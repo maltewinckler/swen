@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -71,6 +71,7 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
             existing.error_message = transaction_import.error_message
             existing.updated_at = transaction_import.updated_at
             existing.imported_at = transaction_import.imported_at
+            existing.booking_date = transaction_import.booking_date
         else:
             # Create new import
             model = TransactionImportModel(
@@ -83,6 +84,7 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
                 created_at=transaction_import.created_at,
                 updated_at=transaction_import.updated_at,
                 imported_at=transaction_import.imported_at,
+                booking_date=transaction_import.booking_date,
             )
             self._session.add(model)
 
@@ -164,6 +166,26 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
 
         return [self._model_to_domain(model) for model in models]
 
+    async def find_latest_booking_date_by_iban(self, iban: str) -> Optional[date]:
+        stmt = (
+            select(func.max(TransactionImportModel.booking_date))
+            .join(
+                BankTransactionModel,
+                TransactionImportModel.bank_transaction_id == BankTransactionModel.id,
+            )
+            .join(
+                BankAccountModel,
+                BankTransactionModel.account_id == BankAccountModel.id,
+            )
+            .where(
+                TransactionImportModel.user_id == self._user_id,
+                BankAccountModel.iban == iban,
+                TransactionImportModel.status == ImportStatus.SUCCESS,
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def find_failed_imports(
         self,
         since: Optional[datetime] = None,
@@ -176,34 +198,6 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
         if since:
             stmt = stmt.where(TransactionImportModel.created_at >= since)
 
-        result = await self._session.execute(stmt)
-        models = result.scalars().all()
-
-        return [self._model_to_domain(model) for model in models]
-
-    async def find_imports_in_date_range(
-        self,
-        iban: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> List[TransactionImport]:
-        stmt = (
-            select(TransactionImportModel)
-            .join(
-                BankTransactionModel,
-                TransactionImportModel.bank_transaction_id == BankTransactionModel.id,
-            )
-            .join(
-                BankAccountModel,
-                BankTransactionModel.account_id == BankAccountModel.id,
-            )
-            .where(
-                TransactionImportModel.user_id == self._user_id,
-                BankAccountModel.iban == iban,
-                TransactionImportModel.created_at >= start_date,
-                TransactionImportModel.created_at <= end_date,
-            )
-        )
         result = await self._session.execute(stmt)
         models = result.scalars().all()
 
@@ -267,6 +261,7 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
             id=model.id,
             user_id=model.user_id,
             bank_transaction_id=model.bank_transaction_id,
+            booking_date=model.booking_date,
             status=model.status,
             accounting_transaction_id=model.accounting_transaction_id,
             error_message=model.error_message,

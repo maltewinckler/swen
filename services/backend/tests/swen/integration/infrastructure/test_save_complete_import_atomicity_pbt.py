@@ -118,6 +118,7 @@ def _make_import_record(bank_tx_id: object) -> TransactionImport:
     return TransactionImport(
         user_id=TEST_USER_ID,
         bank_transaction_id=bank_tx_id,  # type: ignore[arg-type]
+        booking_date=date(2024, 6, 10),
         status=ImportStatus.PENDING,
     )
 

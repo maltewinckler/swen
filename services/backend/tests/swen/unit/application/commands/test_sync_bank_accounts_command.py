@@ -69,13 +69,10 @@ def _make_command(
     credential_repo = AsyncMock()
     credential_repo.find_by_blz.return_value = credentials
 
-    bank_balance_service = AsyncMock()
-
     notifier = SyncNotificationService(publisher)
 
     return SyncBankAccountsCommand(
         sync_service=sync_service,
-        bank_balance_service=bank_balance_service,
         mapping_repo=mapping_repo,
         settings_repo=settings_repo,
         credential_repo=credential_repo,
