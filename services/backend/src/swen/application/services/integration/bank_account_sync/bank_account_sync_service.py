@@ -15,9 +15,6 @@ import logging
 import time
 from typing import TYPE_CHECKING, Optional
 
-from swen.application.services.integration.bank_account_sync.sync_period_resolver import (  # NOQA: E501
-    SyncPeriodResolver,
-)
 from swen.application.services.integration.counter_account_batch_service import (
     CounterAccountBatchService,
 )
@@ -31,6 +28,9 @@ from swen.domain.banking.ports import TanCallback
 from swen.domain.banking.services.bank_balance_service import BankBalanceService
 from swen.domain.banking.services.bank_fetch_service import BankFetchService
 from swen.domain.integration.exceptions import InactiveMappingError
+from swen.domain.integration.services.sync_period_resolver import (
+    SyncPeriodResolver,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -63,7 +63,6 @@ class BankAccountSyncService:
         opening_balance_service: OpeningBalanceService,
         batch_service: CounterAccountBatchService,
         import_service: TransactionImportService,
-        period_resolver: SyncPeriodResolver,
         bank_balance_service: BankBalanceService,
         bank_transaction_repo: BankTransactionRepository,
         credential_repo: BankCredentialRepository,
@@ -74,7 +73,6 @@ class BankAccountSyncService:
         self._opening_balance_service = opening_balance_service
         self._batch_service = batch_service
         self._import_service = import_service
-        self._period_resolver = period_resolver
         self._bank_balance_service = bank_balance_service
         self._bank_transaction_repo = bank_transaction_repo
         self._credential_repo = credential_repo
@@ -105,7 +103,6 @@ class BankAccountSyncService:
             opening_balance_service=opening_balance_service,
             batch_service=batch_service,
             import_service=TransactionImportService.from_factory(factory),
-            period_resolver=SyncPeriodResolver.from_factory(factory),
             bank_balance_service=BankBalanceService(
                 bank_fetch_service=bank_fetch_service,
                 bank_account_repo=factory.bank_account_repository(),
@@ -183,10 +180,7 @@ class BankAccountSyncService:
     ) -> tuple[list[BankTransaction], list[StoredBankTransaction]]:
         """Resolve period, fetch from bank and store with dedup."""
         latest = await self._import_repo.find_latest_booking_date_by_iban(iban)
-        if latest is not None:
-            period = await self._period_resolver.resolve_adaptive(latest)
-        if days is not None:
-            period = self._period_resolver.resolve_fixed(days)
+        period = SyncPeriodResolver.resolve_period(latest=latest, days=days)
 
         bank_transactions = await self._bank_fetch_service.fetch_transactions(
             credentials=credentials,

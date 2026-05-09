@@ -12,7 +12,6 @@ See `.kiro/specs/transaction-sync-modularization/design.md` — section
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from swen.application.events import ErrorCode
@@ -24,9 +23,7 @@ from swen.application.services.integration.sync_notification_service import (
 )
 from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.integration.repositories import AccountMappingRepository
-from swen.domain.integration.value_objects.sync_period import SyncPeriod
 from swen.domain.settings.repositories import UserSettingsRepository
-from swen.domain.shared.time import today_utc
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -126,19 +123,6 @@ class SyncBankAccountsCommand:
     async def _resolve_auto_post(self) -> bool:
         settings = await self._settings_repo.get_or_create()
         return settings.sync.auto_post_transactions
-
-    def _update_period_for_adaptive_sync(self, days: Optional[int]) -> SyncPeriod:
-        # Compute period
-        if days is not None:
-            end_date = today_utc()
-            start_date = end_date - timedelta(days=days)
-            adaptive = False
-        else:
-            # Adaptive placeholder. Per-IBAN service will resolve per account
-            end_date = today_utc()
-            start_date = today_utc()
-            adaptive = True
-        return SyncPeriod(start_date=start_date, end_date=end_date, adaptive=adaptive)
 
     async def _get_account_mappings(self, blz: Optional[str]) -> list[AccountMapping]:
         mappings = await self._mapping_repo.find_all()

@@ -13,7 +13,6 @@ the SyncNotificationService, not by BankAccountSyncService directly.
 
 from __future__ import annotations
 
-from datetime import date
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
@@ -33,14 +32,12 @@ from swen.application.services.integration.sync_notification_service import (
 )
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.integration.exceptions import InactiveMappingError
-from swen.domain.integration.value_objects.sync_period import SyncPeriod
 from tests.shared.sync_event_publisher import InMemorySyncEventPublisher
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_TODAY = date(2024, 1, 15)
 _IBAN = "DE89370400440532013000"
 _BLZ = "37040044"
 
@@ -52,10 +49,6 @@ def _make_mapping(*, is_active: bool = True) -> AccountMapping:
             iban=_IBAN, blz=_BLZ, account_name="Test Account", is_active=is_active
         ),
     )
-
-
-def _make_period() -> SyncPeriod:
-    return SyncPeriod(start_date=_TODAY, end_date=_TODAY, adaptive=False)
 
 
 def _make_stored_transaction(*, is_new: bool = True, is_imported: bool = False):
@@ -115,9 +108,6 @@ def _make_service(
     # compute_stats is a sync method — override so it returns a plain tuple, not a coroutine
     import_service.compute_stats = MagicMock(return_value=(0, 0, 0))
 
-    period_resolver = AsyncMock()
-    period_resolver.resolve_adaptive_for.return_value = _make_period()
-
     credential_repo = AsyncMock()
     credential_repo.find_by_blz.return_value = (
         MagicMock()
@@ -126,6 +116,7 @@ def _make_service(
     credential_repo.update_last_used = AsyncMock()
 
     import_repo = AsyncMock()
+    import_repo.find_latest_booking_date_by_iban.return_value = None
 
     notifier = SyncNotificationService(publisher)
 
@@ -134,10 +125,10 @@ def _make_service(
         opening_balance_service=opening_balance_service,
         batch_service=batch_service,
         import_service=import_service,
-        period_resolver=period_resolver,
         bank_balance_service=bank_balance_service,
         bank_transaction_repo=bank_transaction_repo,
         credential_repo=credential_repo,
+        import_repo=import_repo,
         notifier=notifier,
     )
     return service, notifier
@@ -159,7 +150,7 @@ class TestEventOrder:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -187,7 +178,7 @@ class TestEventOrder:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -211,7 +202,7 @@ class TestInactiveMappingError:
         with pytest.raises(InactiveMappingError):
             await service.sync_account(
                 mapping=_make_mapping(is_active=False),
-                period=_make_period(),
+                days=None,
                 auto_post=False,
             )
 
@@ -223,7 +214,7 @@ class TestInactiveMappingError:
         with pytest.raises(InactiveMappingError):
             await service.sync_account(
                 mapping=_make_mapping(is_active=False),
-                period=_make_period(),
+                days=None,
                 auto_post=False,
             )
 
@@ -250,7 +241,7 @@ class TestEmptyImportBranch:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -271,7 +262,7 @@ class TestEmptyImportBranch:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -297,7 +288,7 @@ class TestEmptyImportBranch:
 
         result = await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -324,7 +315,7 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -347,7 +338,7 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 
@@ -372,7 +363,7 @@ class TestBatchProcessing:
 
         await service.sync_account(
             mapping=_make_mapping(),
-            period=_make_period(),
+            days=None,
             auto_post=False,
         )
 

@@ -11,15 +11,10 @@ Computes :class:`SyncPeriod` windows for the sync stack. Provides two modes:
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import TYPE_CHECKING
+from typing import Optional
 
 from swen.domain.integration.value_objects.sync_period import SyncPeriod
 from swen.domain.shared.time import today_utc
-
-if TYPE_CHECKING:
-    from swen.application.factories import RepositoryFactory
-    from swen.domain.integration.repositories import TransactionImportRepository
-
 
 _ADAPTIVE_FALLBACK_DAYS = 90
 
@@ -27,20 +22,32 @@ _ADAPTIVE_FALLBACK_DAYS = 90
 class SyncPeriodResolver:
     """Resolve fixed and adaptive sync windows."""
 
-    def __init__(self, import_repo: TransactionImportRepository):
-        self._import_repo = import_repo
+    @staticmethod
+    def resolve_period(latest: Optional[date], days: Optional[int]) -> SyncPeriod:
+        """Resolve the sync period based on the situation.
 
-    @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> SyncPeriodResolver:
-        return cls(import_repo=factory.import_repository())
+        Priority:
+        1. If a latest booking date is available, return the adaptive window.
+        2. If a fixed days value is provided, return the fixed window.
+        3. Otherwise, return the fallback adaptive window.
+        """
+        if latest is not None:
+            period = SyncPeriodResolver._resolve_adaptive(latest)
+        elif days is not None:
+            period = SyncPeriodResolver._resolve_fixed(days)
+        else:
+            period = SyncPeriodResolver._resolve_fallback()
+        return period
 
-    def resolve_fixed(self, days: int) -> SyncPeriod:
+    @staticmethod
+    def _resolve_fixed(days: int) -> SyncPeriod:
         """Return a non-adaptive window ``today - days .. today``."""
         end = today_utc()
         start = end - timedelta(days=days)
         return SyncPeriod(start_date=start, end_date=end, adaptive=False)
 
-    async def resolve_adaptive(self, date_: date) -> SyncPeriod:
+    @staticmethod
+    def _resolve_adaptive(latest: date) -> SyncPeriod:
         """Return an adaptive window based on the last successful import.
 
         Queries the latest booking date among all successful imports for
@@ -49,5 +56,12 @@ class SyncPeriodResolver:
         falls back to ``today - 90 days``.
         """
         end = today_utc()
-        start = min(date_ + timedelta(days=1), end)
+        start = min(latest + timedelta(days=1), end)
+        return SyncPeriod(start_date=start, end_date=end, adaptive=True)
+
+    @staticmethod
+    def _resolve_fallback() -> SyncPeriod:
+        """Return a fallback adaptive window of ``today - 90 days .. today``."""
+        end = today_utc()
+        start = end - timedelta(days=_ADAPTIVE_FALLBACK_DAYS)
         return SyncPeriod(start_date=start, end_date=end, adaptive=True)
