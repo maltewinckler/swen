@@ -7,7 +7,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from swen.application.dtos.banking import AccountInfo, ConnectionResult
-from swen.domain.banking.ports import BankConnectionPort
+from swen.domain.banking.ports import BankConnectionPort, TanCallback
 from swen.domain.banking.repositories import (
     BankAccountRepository,
     BankCredentialRepository,
@@ -25,8 +25,6 @@ from swen.infrastructure.banking.bank_connection_dispatcher import (
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-
-TanCallback = Callable[[TANChallenge], str | Awaitable[str]]
 
 
 class BankConnectionCommand:

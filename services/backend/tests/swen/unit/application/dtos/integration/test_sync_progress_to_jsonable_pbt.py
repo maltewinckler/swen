@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from uuid import UUID
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from swen.application.dtos.integration.sync_progress import (
+from swen.application.events import (
     AccountSyncCompletedEvent,
     AccountSyncFailedEvent,
     AccountSyncFetchedEvent,
@@ -29,7 +28,6 @@ from swen.application.dtos.integration.sync_progress import (
     ClassificationProgressEvent,
     ClassificationStartedEvent,
     ErrorCode,
-    TransactionClassifiedEvent,
 )
 
 # ---------------------------------------------------------------------------
@@ -42,10 +40,6 @@ _MAX_DT = datetime(2099, 12, 31, 23, 59, 59, tzinfo=UTC)
 
 def _iban_strategy() -> st.SearchStrategy[str]:
     return st.just("DE89370400440532013000")
-
-
-def _uuid_strategy() -> st.SearchStrategy[UUID]:
-    return st.uuids()
 
 
 def _error_code_strategy() -> st.SearchStrategy[ErrorCode]:
@@ -224,34 +218,6 @@ def test_account_sync_failed_event_roundtrip(code: ErrorCode, error_key: str) ->
         iban="DE89370400440532013000",
         code=code,
         error_key=error_key,
-    )
-    _assert_json_roundtrip(event.to_dict())
-
-
-# ---------------------------------------------------------------------------
-# TransactionClassifiedEvent (contains Optional[UUID])
-# ---------------------------------------------------------------------------
-
-
-@settings(max_examples=100)
-@given(
-    transaction_id=st.one_of(st.none(), _uuid_strategy()),
-    current=_non_negative_int(max_value=1_000),
-    total=_non_negative_int(max_value=1_000),
-)
-def test_transaction_classified_event_roundtrip(
-    transaction_id: UUID | None,
-    current: int,
-    total: int,
-) -> None:
-    """TransactionClassifiedEvent.to_dict() survives a JSON round-trip."""
-    event = TransactionClassifiedEvent(
-        iban="DE89370400440532013000",
-        current=current,
-        total=total,
-        description="Test transaction",
-        counter_account_name="Test Account",
-        transaction_id=transaction_id,
     )
     _assert_json_roundtrip(event.to_dict())
 

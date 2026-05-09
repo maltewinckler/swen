@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, Callable, TypeVar
+from typing import Callable
 from unittest.mock import AsyncMock
 
-from swen.application.dtos.integration import BatchSyncResult, SyncResult
-
-ResultT = TypeVar("ResultT")
 ImportResultNormalizer = Callable[[object], object]
 
 
@@ -19,50 +16,24 @@ def normalize_import_result(result: object) -> object:
     return SimpleNamespace(**data)
 
 
-def patch_streaming_import(
+def patch_batch_import(
     service: AsyncMock,
     *,
     normalizer: ImportResultNormalizer | None = None,
 ) -> None:
-    """Patch ``service.import_streaming`` to yield ``(idx, total, result)`` tuples.
+    """Patch ``service.import_batch`` to return a list of results.
 
-    Configure the results to yield by setting ``service.import_streaming.return_value``
+    Configure the results to return by setting ``service.import_batch.return_value``
     to a list of results before calling the patched method.  For example::
 
-        patch_streaming_import(import_service)
-        import_service.import_streaming.return_value = [result1, result2]
+        patch_batch_import(import_service)
+        import_service.import_batch.return_value = [result1, result2]
     """
 
-    async def import_streaming(*args: object, **kwargs: object):  # noqa: ANN202
-        results = service.import_streaming.return_value or []
-        total = len(results)
-        for idx, r in enumerate(results, start=1):
-            yield idx, total, normalizer(r) if normalizer else r
+    async def import_batch(*args: object, **kwargs: object) -> list:
+        results = service.import_batch.return_value or []
+        if normalizer:
+            return [normalizer(r) for r in results]
+        return list(results)
 
-    service.import_streaming = import_streaming
-
-
-async def collect_sync_result(command: Any, **kwargs: Any) -> SyncResult:
-    return await _collect_streaming_result(command, SyncResult, **kwargs)
-
-
-async def collect_batch_result(command: Any, **kwargs: Any) -> BatchSyncResult:
-    return await _collect_streaming_result(command, BatchSyncResult, **kwargs)
-
-
-def _identity(result: object) -> object:
-    return result
-
-
-async def _collect_streaming_result(
-    command: Any,
-    result_type: type[ResultT],
-    **kwargs: Any,
-) -> ResultT:
-    result: ResultT | None = None
-    async for event in command.execute_streaming(**kwargs):
-        if isinstance(event, result_type):
-            result = event
-
-    assert result is not None
-    return result
+    service.import_batch = import_batch

@@ -20,7 +20,6 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 def service():
     """Create a TransactionImportService with mocked dependencies."""
     bank_account_service = AsyncMock()
-    counter_account_resolution_service = AsyncMock()
     account_repo = AsyncMock()
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
@@ -34,9 +33,6 @@ def service():
     )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
-        mapping_repository=mapping_repo,
-        account_repository=account_repo,
-        opening_balance_query=ob_service,
     )
 
     transaction_factory = BankImportTransactionFactory(
@@ -45,7 +41,6 @@ def service():
 
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
-        counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
         opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
@@ -57,7 +52,6 @@ def service():
 
     return svc, {
         "bank_account_service": bank_account_service,
-        "counter_account_resolution_service": counter_account_resolution_service,
         "account_repo": account_repo,
         "transaction_repo": transaction_repo,
         "mapping_repo": mapping_repo,

@@ -166,25 +166,6 @@ describe('SyncProgressDisplay', () => {
       expect(screen.getByText('Classifying transactions (10/50)')).toBeInTheDocument()
     })
 
-    it('shows classifying label with progress', () => {
-      const progress: SyncProgress = {
-        phase: 'classifying',
-        currentAccount: 'DE123',
-        currentAccountName: 'Girokonto',
-        accountIndex: 1,
-        totalAccounts: 1,
-        transactionsCurrent: 10,
-        transactionsTotal: 50,
-        lastMessage: 'Classifying...',
-        lastTransactionDescription: 'REWE Supermarket',
-        lastCounterAccountName: 'Groceries',
-      }
-
-      render(<SyncProgressDisplay progress={progress} />)
-
-      expect(screen.getByText('Classifying transactions (10/50)')).toBeInTheDocument()
-    })
-
     it('does not show TAN notice during classification', () => {
       const progress: SyncProgress = {
         phase: 'classifying',

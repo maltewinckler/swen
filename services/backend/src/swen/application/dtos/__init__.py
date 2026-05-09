@@ -53,11 +53,7 @@ from swen.application.dtos.export_dto import (
 # Integration DTOs
 from swen.application.dtos.integration import (
     AccountSyncRecommendationDTO,
-    AccountSyncStats,
-    BatchSyncResult,
-    OpeningBalanceInfo,
     SyncRecommendationResultDTO,
-    SyncResult,
 )
 
 __all__ = [
@@ -84,11 +80,7 @@ __all__ = [
     "ConnectionResult",
     # Integration
     "AccountSyncRecommendationDTO",
-    "AccountSyncStats",
-    "BatchSyncResult",
-    "OpeningBalanceInfo",
     "SyncRecommendationResultDTO",
-    "SyncResult",
     # Cross-domain
     "AccountExportDTO",
     "ExportResult",

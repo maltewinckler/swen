@@ -300,7 +300,7 @@ class TestAdaptiveSyncBehavior:
 
         # Mock sync adapter for this test
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -343,7 +343,7 @@ class TestAdaptiveSyncBehavior:
 
         # Perform a sync first
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -388,7 +388,7 @@ class TestDeduplication:
 
         # First sync with one transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -417,7 +417,7 @@ class TestDeduplication:
 
         # Second sync with same transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()

@@ -37,13 +37,11 @@ class TestRunSyncStreaming:
         assert started_event["total_accounts"] == 0
         assert completed_event["accounts_synced"] == 0
         assert completed_event["total_imported"] == 0
-        assert result_event == {
-            "success": True,
-            "total_imported": 0,
-            "total_skipped": 0,
-            "total_failed": 0,
-            "accounts_synced": 0,
-        }
+        assert result_event["success"] is True
+        assert result_event["total_imported"] == 0
+        assert result_event["total_skipped"] == 0
+        assert result_event["total_failed"] == 0
+        assert result_event["accounts_synced"] == 0
 
     def test_run_sync_stream_with_params(
         self,

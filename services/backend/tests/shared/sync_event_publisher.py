@@ -10,12 +10,7 @@ See `.kiro/specs/transaction-sync-modularization/design.md` — section
 
 from __future__ import annotations
 
-from typing import Optional
-
-from swen.application.dtos.integration import (
-    BatchSyncResult,
-    SyncProgressEvent,
-)
+from swen.application.events.base import SyncProgressEvent
 
 
 class InMemorySyncEventPublisher:
@@ -23,14 +18,10 @@ class InMemorySyncEventPublisher:
 
     def __init__(self) -> None:
         self.events: list[SyncProgressEvent] = []
-        self.terminal: Optional[BatchSyncResult] = None
         self.closed: bool = False
 
     async def publish(self, event: SyncProgressEvent) -> None:
         self.events.append(event)
-
-    async def publish_terminal(self, result: BatchSyncResult) -> None:
-        self.terminal = result
 
     async def close(self) -> None:
         self.closed = True

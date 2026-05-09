@@ -32,9 +32,6 @@ def service():
     )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
-        mapping_repository=mapping_repo,
-        account_repository=account_repo,
-        opening_balance_query=ob_service,
     )
 
     transaction_factory = BankImportTransactionFactory(
@@ -43,7 +40,6 @@ def service():
 
     svc = TransactionImportService(
         bank_account_import_service=AsyncMock(),
-        counter_account_resolution_service=AsyncMock(),
         transfer_reconciliation_service=transfer_service,
         opening_balance_service=ob_service,
         transaction_factory=transaction_factory,

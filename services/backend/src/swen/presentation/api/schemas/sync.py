@@ -28,17 +28,9 @@ class SyncRunRequest(BaseModel):
             "subsequent syncs use last sync date to today."
         ),
     )
-    iban: Optional[str] = Field(
-        None,
-        description="Sync only this specific account by IBAN (default: sync all accounts)",
-    )
     blz: Optional[str] = Field(
         None,
         description="Sync only accounts from this bank (by BLZ/bank code)",
-    )
-    auto_post: Optional[bool] = Field(
-        None,
-        description="Auto-post transactions after import (None = use user preference, typically False)",
     )
 
     model_config = ConfigDict(
@@ -55,14 +47,6 @@ class SyncRunRequest(BaseModel):
                 {
                     "summary": "Quick sync (last 7 days)",
                     "value": {"days": 7},
-                },
-                {
-                    "summary": "Sync specific account with auto-post",
-                    "value": {
-                        "days": 30,
-                        "iban": "DE89370400440532013000",
-                        "auto_post": True,
-                    },
                 },
             ],
         },

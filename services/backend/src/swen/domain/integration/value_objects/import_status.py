@@ -13,15 +13,10 @@ class ImportStatus(Enum):
     SKIPPED = "skipped"
 
     def is_final(self) -> bool:
-        return self in [
-            ImportStatus.SUCCESS,
-            ImportStatus.DUPLICATE,
-        ]
+        return self in [ImportStatus.SUCCESS, ImportStatus.DUPLICATE]
 
     def is_error(self) -> bool:
-        return self in [
-            ImportStatus.FAILED,
-        ]
+        return self == ImportStatus.FAILED
 
     def can_retry(self) -> bool:
         return self in [ImportStatus.FAILED, ImportStatus.SKIPPED]

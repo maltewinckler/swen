@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import UUID
 
-from swen.application.dtos.integration.sync_progress import (
+from swen.application.events.base import (
     SyncEventType,
     SyncProgressEvent,
 )
@@ -172,7 +172,6 @@ class ReclassifiedTransactionDetail:
     new_account_number: str
     new_account_name: str
     confidence: float
-    tier: str
 
 
 @dataclass(frozen=True)

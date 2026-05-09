@@ -76,6 +76,17 @@ class NoAccountMappingsError(SyncError):
         )
 
 
+class InactiveMappingError(SyncError):
+    """Raised when sync is attempted on an inactive account mapping."""
+
+    def __init__(self, iban: str) -> None:
+        super().__init__(
+            message=f"Account mapping for {iban} is inactive",
+            code=ErrorCode.BUSINESS_RULE_VIOLATION,
+            details={"iban": iban},
+        )
+
+
 class SyncFailedError(SyncError):
     """Raised when a sync operation fails."""
 

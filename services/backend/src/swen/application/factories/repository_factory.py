@@ -18,7 +18,6 @@ from swen.domain.banking.repositories import (
 )
 from swen.domain.integration.repositories import (
     AccountMappingRepository,
-    CounterAccountRuleRepository,
     TransactionImportRepository,
 )
 from swen.domain.settings import UserSettingsRepository
@@ -69,10 +68,6 @@ class RepositoryFactory(Protocol):
 
     def import_repository(self) -> TransactionImportRepository:
         """Get transaction import repository."""
-        ...
-
-    def counter_account_rule_repository(self) -> CounterAccountRuleRepository:
-        """Get counter-account rule repository."""
         ...
 
     def credential_repository(self) -> BankCredentialRepository:

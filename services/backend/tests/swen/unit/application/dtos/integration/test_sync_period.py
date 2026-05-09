@@ -5,7 +5,7 @@ from datetime import date
 
 import pytest
 
-from swen.application.dtos.integration import SyncPeriod
+from swen.domain.integration.value_objects.sync_period import SyncPeriod
 
 
 class TestSyncPeriodImmutability:

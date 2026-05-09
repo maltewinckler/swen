@@ -14,12 +14,17 @@ They are skipped automatically when RUN_INTEGRATION is not set.
 from __future__ import annotations
 
 import asyncio
+import itertools
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
+# Unique counter so that each Hypothesis example uses distinct account numbers
+# (the DB tables are not wiped between examples within one test run).
+_example_counter = itertools.count(1)
+
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -59,14 +64,14 @@ def _current_user() -> CurrentUser:
     return CurrentUser(user_id=TEST_USER_ID, email=TEST_USER_EMAIL)
 
 
-def _make_asset_account(account_number: str = "1200") -> Account:
+def _make_asset_account(account_number: str = "1200", iban: str = _IBAN) -> Account:
     return Account(
         name="DKB Girokonto",
         account_type=AccountType.ASSET,
         account_number=account_number,
         user_id=TEST_USER_ID,
         default_currency=Currency("EUR"),
-        iban=_IBAN,
+        iban=iban,
     )
 
 
@@ -117,9 +122,9 @@ def _make_import_record(bank_tx_id: object) -> TransactionImport:
     )
 
 
-def _make_bank_account() -> BankAccount:
+def _make_bank_account(iban: str = _IBAN) -> BankAccount:
     return BankAccount(
-        iban=_IBAN,
+        iban=iban,
         account_number="532013000",
         blz=_BLZ,
         account_holder="Test User",
@@ -129,7 +134,7 @@ def _make_bank_account() -> BankAccount:
     )
 
 
-def _make_bank_transaction(amount: Decimal) -> BankTransaction:
+def _make_bank_transaction(amount: Decimal, iban: str = _IBAN) -> BankTransaction:
     return BankTransaction(
         booking_date=date(2024, 6, 10),
         value_date=date(2024, 6, 10),
@@ -146,31 +151,37 @@ def _make_bank_transaction(amount: Decimal) -> BankTransaction:
 
 async def _setup_accounts(
     session: AsyncSession,
-) -> tuple[Account, Account, Account]:
-    """Persist asset, income, and equity accounts; return them."""
+    n: int = 0,
+) -> tuple[Account, Account, Account, str]:
+    """Persist asset, income, and equity accounts; return them.
+
+    ``n`` is used as a suffix so that successive Hypothesis examples do not
+    collide on the unique (user_id, account_number) or IBAN constraints.
+    """
+    iban = f"DE{89370400440532013000 + n:020d}"[:22]
     current_user = _current_user()
     account_repo = AccountRepositorySQLAlchemy(session, current_user)
 
-    asset = _make_asset_account()
-    income = _make_income_account()
-    equity = _make_equity_account()
+    asset = _make_asset_account(account_number=f"{1200 + n}", iban=iban)
+    income = _make_income_account(account_number=f"{3000 + n}")
+    equity = _make_equity_account(account_number=f"{2000 + n}")
 
     await account_repo.save(asset)
     await account_repo.save(income)
     await account_repo.save(equity)
 
-    return asset, income, equity
+    return asset, income, equity, iban
 
 
-async def _setup_bank_tx(session: AsyncSession, amount: Decimal) -> object:
+async def _setup_bank_tx(session: AsyncSession, amount: Decimal, iban: str) -> object:
     """Persist a bank account + bank transaction; return the stored tx id."""
     current_user = _current_user()
     bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
     bank_tx_repo = BankTransactionRepositorySQLAlchemy(session, current_user)
 
-    await bank_account_repo.save(_make_bank_account())
-    bank_tx = _make_bank_transaction(amount)
-    stored_ids = await bank_tx_repo.save_batch([bank_tx], _IBAN)
+    await bank_account_repo.save(_make_bank_account(iban=iban))
+    bank_tx = _make_bank_transaction(amount, iban=iban)
+    stored_ids = await bank_tx_repo.save_batch([bank_tx], iban)
     return stored_ids[0]
 
 
@@ -184,6 +195,7 @@ async def _run_atomicity_scenario(  # noqa: PLR0915
     amount: Decimal,
     ob_amount: Decimal,
     inject_fault: bool,
+    n: int = 0,
 ) -> None:
     """Execute one hypothesis example against the real DB.
 
@@ -204,8 +216,8 @@ async def _run_atomicity_scenario(  # noqa: PLR0915
 
     # ── Setup: persist accounts and a bank transaction ──────────────────────
     async with session_maker() as setup_session:
-        asset, income, equity = await _setup_accounts(setup_session)
-        bank_tx_id = await _setup_bank_tx(setup_session, amount)
+        asset, income, equity, iban = await _setup_accounts(setup_session, n=n)
+        bank_tx_id = await _setup_bank_tx(setup_session, amount, iban=iban)
         await setup_session.commit()
 
     # ── Build domain objects ─────────────────────────────────────────────────
@@ -325,7 +337,10 @@ _amounts = st.decimals(
 
 
 @pytest.mark.integration
-@settings(max_examples=50)
+@settings(
+    max_examples=50,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
 @given(
     amount=_amounts,
     ob_amount=_amounts,
@@ -360,5 +375,6 @@ def test_save_complete_import_atomicity(
             amount=amount,
             ob_amount=ob_amount,
             inject_fault=inject_fault,
+            n=next(_example_counter),
         )
     )

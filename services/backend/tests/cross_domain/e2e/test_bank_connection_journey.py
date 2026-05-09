@@ -171,7 +171,7 @@ def mock_bank_adapter():
 def mock_sync_adapter():
     """Mock the adapter for sync operations."""
     with patch(
-        "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+        "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
     ) as mock_adapter_class:
         adapter_instance = AsyncMock()
         adapter_instance.is_connected.return_value = False

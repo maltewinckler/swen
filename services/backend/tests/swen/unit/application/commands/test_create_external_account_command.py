@@ -288,7 +288,7 @@ class TestCreateExternalAccountCommand:
 
             # Act - Create USD account
             result = await command.execute(
-                iban="US12345678901234567890",  # Made-up IBAN for test
+                iban="DE12345678901234567890",  # Made-up German IBAN for test
                 name="US Stock Portfolio",
                 currency="USD",
                 reconcile=False,

@@ -7,11 +7,16 @@ from datetime import date
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 if TYPE_CHECKING:
-    from swen.domain.banking.value_objects.bank_account import BankAccount
-    from swen.domain.banking.value_objects.bank_credentials import BankCredentials
-    from swen.domain.banking.value_objects.bank_transaction import BankTransaction
-    from swen.domain.banking.value_objects.tan_challenge import TANChallenge
-    from swen.domain.banking.value_objects.tan_method import TANMethod
+    from swen.domain.banking.value_objects import (
+        BankAccount,
+        BankCredentials,
+        BankTransaction,
+        TANChallenge,
+        TANMethod,
+    )
+
+
+TanCallback = Callable[["TANChallenge"], "str | Awaitable[str]"]
 
 
 class BankConnectionPort(ABC):
@@ -103,10 +108,7 @@ class BankConnectionPort(ABC):
         """
 
     @abstractmethod
-    async def set_tan_callback(
-        self,
-        callback: Callable[[TANChallenge], Awaitable[str]],
-    ) -> None:
+    async def set_tan_callback(self, callback: TanCallback) -> None:
         """
         Set callback function for TAN (Transaction Authentication Number) input.
 

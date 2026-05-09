@@ -55,10 +55,6 @@ export interface SyncProgress {
   transactionsTotal: number
   /** Human-readable message from the last event */
   lastMessage: string
-  /** Last classified transaction description (for live feed) */
-  lastTransactionDescription?: string
-  /** Counter account name for last classified transaction */
-  lastCounterAccountName?: string
 }
 
 /**
@@ -233,9 +229,6 @@ export function useSyncProgress(
           transactionsTotal: 0,
           phase: 'connecting',
           lastMessage: '',
-          // Clear last transaction info when switching accounts
-          lastTransactionDescription: undefined,
-          lastCounterAccountName: undefined,
         }))
         break
 
@@ -277,18 +270,6 @@ export function useSyncProgress(
           transactionsTotal: event.total,
           phase: 'classifying',
           lastMessage: '',
-        }))
-        break
-
-      case 'transaction_classified':
-        setProgress(prev => ({
-          ...prev!,
-          transactionsCurrent: event.current,
-          transactionsTotal: event.total,
-          phase: 'classifying',
-          lastMessage: '',
-          lastTransactionDescription: event.description,
-          lastCounterAccountName: event.counter_account_name,
         }))
         break
 

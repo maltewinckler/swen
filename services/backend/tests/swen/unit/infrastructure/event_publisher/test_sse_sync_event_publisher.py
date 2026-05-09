@@ -3,26 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime, timezone
 
 import pytest
 
-from swen.application.dtos.integration import (
-    BatchSyncResult,
-    BatchSyncStartedEvent,
-    SyncProgressEvent,
-)
+from swen.application.events import BatchSyncStartedEvent, SyncProgressEvent
 from swen.application.ports.integration import SyncEventPublisher
-from swen.infrastructure.event_publisher import SseSyncEventPublisher
-
-
-def _make_batch_result() -> BatchSyncResult:
-    return BatchSyncResult(
-        synced_at=datetime.now(timezone.utc),
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
-        auto_post=False,
-    )
+from swen.infrastructure.integration.adapters.event_publisher import (
+    SseSyncEventPublisher,
+)
 
 
 def test_satisfies_sync_event_publisher_protocol() -> None:
@@ -34,18 +22,18 @@ def test_satisfies_sync_event_publisher_protocol() -> None:
 async def test_events_yields_published_items_in_order() -> None:
     pub = SseSyncEventPublisher()
 
-    started = BatchSyncStartedEvent(total_accounts=2)
-    terminal = _make_batch_result()
+    first = BatchSyncStartedEvent(total_accounts=2)
+    second = BatchSyncStartedEvent(total_accounts=3)
 
-    await pub.publish(started)
-    await pub.publish_terminal(terminal)
+    await pub.publish(first)
+    await pub.publish(second)
     await pub.close()
 
-    received: list[SyncProgressEvent | BatchSyncResult] = []
+    received: list[SyncProgressEvent] = []
     async for item in pub.events():
         received.append(item)
 
-    assert received == [started, terminal]
+    assert received == [first, second]
 
 
 async def test_close_terminates_iterator_without_yielding_sentinel() -> None:
@@ -65,10 +53,9 @@ async def test_concurrent_producer_and_consumer() -> None:
 
     async def produce() -> None:
         await pub.publish(started)
-        await pub.publish_terminal(_make_batch_result())
         await pub.close()
 
-    received: list[SyncProgressEvent | BatchSyncResult] = []
+    received: list[SyncProgressEvent] = []
 
     async def consume() -> None:
         async for item in pub.events():
@@ -76,9 +63,8 @@ async def test_concurrent_producer_and_consumer() -> None:
 
     await asyncio.gather(produce(), consume())
 
-    assert len(received) == 2
+    assert len(received) == 1
     assert received[0] is started
-    assert isinstance(received[1], BatchSyncResult)
 
 
 @pytest.mark.parametrize("count", [0, 1, 5])
@@ -89,7 +75,7 @@ async def test_publish_count_matches_received_count(count: int) -> None:
         await pub.publish(BatchSyncStartedEvent(total_accounts=0))
     await pub.close()
 
-    received: list[SyncProgressEvent | BatchSyncResult] = []
+    received: list[SyncProgressEvent] = []
     async for item in pub.events():
         received.append(item)
 

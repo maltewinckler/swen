@@ -187,7 +187,7 @@ class TestSaveCompleteImportHappyPath:
     """save_complete_import atomically persists all three writes."""
 
     @pytest.mark.asyncio
-    async def test_import_record_persisted(self, db_session, integration_tables):
+    async def test_import_record_persisted(self, db_session):
         """After save_complete_import, the import record is findable."""
         asset, income, _ = await _setup_accounts(db_session)
         _, bank_tx_id = await _setup_bank_account_and_transaction(db_session)
@@ -209,9 +209,7 @@ class TestSaveCompleteImportHappyPath:
         assert found.status == ImportStatus.SUCCESS
 
     @pytest.mark.asyncio
-    async def test_accounting_transaction_persisted(
-        self, db_session, integration_tables
-    ):
+    async def test_accounting_transaction_persisted(self, db_session):
         """After save_complete_import, the accounting transaction is findable."""
         from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
             AccountRepositorySQLAlchemy,
@@ -241,9 +239,7 @@ class TestSaveCompleteImportHappyPath:
         assert found_tx is not None
 
     @pytest.mark.asyncio
-    async def test_ob_adjustment_persisted_when_provided(
-        self, db_session, integration_tables
-    ):
+    async def test_ob_adjustment_persisted_when_provided(self, db_session):
         """When ob_adjustment is provided, it is also persisted."""
         from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
             AccountRepositorySQLAlchemy,
@@ -343,9 +339,7 @@ class TestMarkReconciledHappyPath:
     """mark_reconciled_as_internal_transfer atomically persists both writes."""
 
     @pytest.mark.asyncio
-    async def test_import_record_marked_as_success(
-        self, db_session, integration_tables
-    ):
+    async def test_import_record_marked_as_success(self, db_session):
         """After mark_reconciled_as_internal_transfer, import record is SUCCESS."""
         from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
             AccountRepositorySQLAlchemy,

@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from swen.application.dtos.integration.sync_period import SyncPeriod
+from swen.domain.integration.value_objects.sync_period import SyncPeriod
 
 # ---------------------------------------------------------------------------
 # Strategies

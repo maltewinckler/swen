@@ -13,13 +13,14 @@ from fastapi.responses import StreamingResponse
 from swen.application.commands.integration.sync_bank_accounts_command import (
     SyncBankAccountsCommand,
 )
-from swen.application.dtos.integration import (
-    BatchSyncResult,
-    SyncProgressEvent,
-)
 from swen.application.queries import SyncRecommendationQuery, SyncStatusQuery
 from swen.domain.shared.exceptions import DomainException, ErrorCode
-from swen.infrastructure.event_publisher import SseSyncEventPublisher
+from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
+    MLCounterAccountAdapter,
+)
+from swen.infrastructure.integration.adapters.event_publisher import (
+    SseSyncEventPublisher,
+)
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.sync import (
     AccountSyncRecommendationResponse,
@@ -151,9 +152,7 @@ async def run_sync_streaming(
     ```
     """
     days = request.days if request else None
-    iban = request.iban if request else None
     blz = request.blz if request else None
-    auto_post = request.auto_post if request else None
 
     async def event_generator():
         """Generate SSE events from sync progress."""
@@ -161,7 +160,9 @@ async def run_sync_streaming(
 
         try:
             command = await SyncBankAccountsCommand.from_factory(
-                factory, ml_client=ml_client, publisher=publisher
+                factory,
+                resolution_port=MLCounterAccountAdapter(ml_client),
+                publisher=publisher,
             )
         except DomainException as e:
             logger.exception("Failed to create sync command: %s", e)
@@ -178,26 +179,12 @@ async def run_sync_streaming(
             )
             return
 
-        task = asyncio.create_task(
-            command.execute(days=days, iban=iban, blz=blz, auto_post=auto_post)
-        )
+        task = asyncio.create_task(command.execute(days=days, blz=blz))
 
         try:
             async for item in publisher.events():
-                if isinstance(item, SyncProgressEvent):
-                    yield _format_sse_event(item.event_type.value, item.to_dict())
-                elif isinstance(item, BatchSyncResult):
-                    # Terminal result payload from publish_terminal
-                    final_data = {
-                        "success": item.success,
-                        "total_imported": item.total_imported,
-                        "total_skipped": item.total_skipped,
-                        "total_failed": item.total_failed,
-                        "accounts_synced": item.accounts_synced,
-                    }
-                    yield _format_sse_event("result", final_data)
+                yield _format_sse_event(item.event_type.value, item.to_dict())
 
-            # Surface any exception raised by the orchestration task
             await task
 
         except DomainException as e:

@@ -1,4 +1,4 @@
-"""Reclassify draft transactions using ML classification."""
+"""Reclassify draft transactions using classification service."""
 
 from __future__ import annotations
 
@@ -18,35 +18,37 @@ from swen.application.dtos.accounting import (
     ReclassifyStartedEvent,
     ReclassifyTransactionEvent,
 )
-from swen.application.dtos.integration import (
-    ClassificationProgressEvent,
-)
-from swen.application.services import MLBatchClassificationService
-from swen.application.services.ml_classification_application_service import (
-    MLClassificationApplicationService,
-    has_fallback_counter_account,
+from swen.application.services.integration.counter_account_batch_service import (
+    CounterAccountBatchService,
 )
 from swen.domain.accounting.value_objects import TransactionSource
+from swen.domain.integration.services import (
+    CounterAccountResolutionService,
+    has_fallback_counter_account,
+)
+from swen.domain.integration.services.counter_account_resolution_service import (
+    _counter_entry_is_debit,
+    _is_money_outflow,
+    get_counter_account,
+)
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.services.ml_batch_classification_service import (
-        BatchClassificationResult,
-    )
     from swen.domain.accounting.aggregates import Transaction
     from swen.domain.accounting.repositories import (
         AccountRepository,
         TransactionRepository,
     )
-    from swen.infrastructure.integration.ml.client import MLServiceClient
+    from swen.domain.integration.ports.counter_account_proposal_port import (
+        CounterAccountProposalPort,
+    )
+    from swen.domain.integration.value_objects.resolved_counter_account import (
+        ResolvedCounterAccount,
+    )
 
 logger = logging.getLogger(__name__)
 
-# MLBatchClassificationService currently requires an IBAN-like label for its
-# generic classification progress events. Reclassification operates across draft
-# transactions rather than a single bank account, so this is only a scope label.
-_RECLASSIFY_PROGRESS_SCOPE = "reclassify"
-
+# just for easier typing used below. This is only used in scope of this command.
 ReclassifyStreamingEvent = (
     ReclassifyStartedEvent
     | ReclassifyProgressEvent
@@ -66,38 +68,40 @@ class _ReclassificationSummary:
 
 
 class ReclassifyDraftsCommand:
-    """Re-run ML classification on draft bank-import transactions.
+    """Re-run classification on draft bank-import transactions.
 
-    This command loads draft transactions, sends them through the ML
-    classification service, and updates counter-accounts where the ML
+    This command loads draft transactions, sends them through the
+    classification service, and updates counter-accounts where the
     produces a different (and valid) classification.
 
     Designed as an async generator for SSE streaming — yields progress
-    events after each ML chunk and after each transaction update.
+    events after each chunk and after each transaction update.
     """
+
+    BATCH_SIZE = 5
 
     def __init__(
         self,
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
-        ml_classification_service: MLBatchClassificationService,
+        batch_service: CounterAccountBatchService,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
-        self._ml_service = ml_classification_service
+        self._batch_service = batch_service
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient,
+        resolution_port: CounterAccountProposalPort,
     ) -> ReclassifyDraftsCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
-            ml_classification_service=MLBatchClassificationService(
-                ml_client=ml_client,
-                current_user=factory.current_user,
+            batch_service=CounterAccountBatchService.from_factory(
+                factory=factory,
+                proposal_port=resolution_port,
             ),
         )
 
@@ -114,7 +118,7 @@ class ReclassifyDraftsCommand:
         ReclassifyStartedEvent
             When reclassification begins
         ReclassifyProgressEvent
-            After each ML classification chunk
+            After each classification chunk
         ReclassifyTransactionEvent
             For each transaction that was reclassified
         ReclassifyCompletedEvent
@@ -155,17 +159,26 @@ class ReclassifyDraftsCommand:
 
         yield ReclassifyStartedEvent(total=len(drafts))
 
-        classifications: dict[UUID, BatchClassificationResult] = {}
-        async for event in self._stream_classifications(drafts):
-            if isinstance(event, ReclassifyProgressEvent):
-                yield event
-                continue
-            classifications = event
+        # Classify in chunks, collecting all resolved items
+        all_resolved: dict[UUID, ResolvedCounterAccount] = {}
+        inputs = self._build_resolution_inputs(drafts)
+        total = len(inputs)
+
+        for batch_start in range(0, total, self.BATCH_SIZE):
+            batch = inputs[batch_start : batch_start + self.BATCH_SIZE]
+            resolved = await self._batch_service.resolve_batch(
+                cast(list, batch),
+            )
+            all_resolved.update(resolved)
+            yield ReclassifyProgressEvent(
+                current=min(batch_start + len(batch), total),
+                total=total,
+            )
 
         summary = None
         async for event in self._apply_classifications_streaming(
             drafts,
-            classifications,
+            all_resolved,
         ):
             if isinstance(event, ReclassifyTransactionEvent):
                 yield event
@@ -250,61 +263,36 @@ class ReclassifyDraftsCommand:
         )
         return drafts
 
-    def _build_ml_inputs(
+    def _build_resolution_inputs(
         self,
         drafts: list[Transaction],
     ) -> list[_DraftAsStoredTransaction]:
-        """Build ML-compatible inputs from draft transactions.
+        """Build compatible inputs from draft transactions.
 
-        The MLBatchClassificationService expects StoredBankTransaction objects.
+        The batch service expects StoredBankTransaction objects.
         We create lightweight wrappers that provide the same interface.
         """
         return [_DraftAsStoredTransaction(txn) for txn in drafts]
 
-    async def _stream_classifications(
-        self,
-        drafts: list[Transaction],
-    ) -> AsyncIterator[ReclassifyProgressEvent | dict[UUID, BatchClassificationResult]]:
-        """Classify drafts while yielding progress updates."""
-        classifications: dict[UUID, BatchClassificationResult] = {}
-        ml_inputs = self._build_ml_inputs(drafts)
-
-        async for event in self._ml_service.classify_batch_streaming(
-            stored_transactions=cast(list, ml_inputs),
-            iban=_RECLASSIFY_PROGRESS_SCOPE,
-            chunk_size=5,
-        ):
-            if isinstance(event, ClassificationProgressEvent):
-                yield ReclassifyProgressEvent(
-                    current=event.current,
-                    total=event.total,
-                )
-                continue
-
-            if isinstance(event, dict):
-                classifications = event
-
-        yield classifications
-
     async def _apply_classifications_streaming(
         self,
         drafts: list[Transaction],
-        classifications: dict[UUID, BatchClassificationResult],
+        resolved: dict[UUID, ResolvedCounterAccount],
     ) -> AsyncIterator[ReclassifyTransactionEvent | _ReclassificationSummary]:
-        """Apply ML classifications and yield per-transaction progress events."""
+        """Apply classifications and yield per-transaction progress events."""
         reclassified = 0
         unchanged = 0
         failed = 0
         details: list[ReclassifiedTransactionDetail] = []
 
         for index, txn in enumerate(drafts, 1):
-            ml_result = classifications.get(txn.id)
-            if ml_result is None or ml_result.counter_account_id is None:
+            resolved_item = resolved.get(txn.id)
+            if resolved_item is None:
                 unchanged += 1
                 continue
 
             try:
-                result = await self._apply_classification(txn, ml_result)
+                result = await self._apply_classification(txn, resolved_item)
                 if result is None:
                     unchanged += 1
                     continue
@@ -337,36 +325,44 @@ class ReclassifyDraftsCommand:
     async def _apply_classification(
         self,
         txn: Transaction,
-        ml_result: BatchClassificationResult,
+        resolved_item: ResolvedCounterAccount,
     ) -> ReclassifiedTransactionDetail | None:
-        """Apply ML classification to a draft, returning detail if changed."""
-        result = await MLClassificationApplicationService.apply_to_transaction(
-            txn=txn,
-            ml_result=ml_result,
-            account_repo=self._account_repo,
-        )
-        if result is None:
+        """Apply classification to a draft, returning detail if changed."""
+        new_account = resolved_item.account
+
+        if not CounterAccountResolutionService.is_valid_proposal(
+            is_money_outflow=_is_money_outflow(txn),
+            account=new_account,
+        ):
             return None
+
+        current_counter = get_counter_account(txn)
+        if current_counter and current_counter.id == new_account.id:
+            return None  # Same account — no change
+
+        old_account = current_counter
+
+        amount = txn.total_amount()
+        is_debit = _counter_entry_is_debit(txn)
+        txn.replace_unprotected_entries([(new_account, amount, is_debit)])
+        txn.set_ml_classification()
 
         await self._transaction_repo.save(txn)
 
         return ReclassifiedTransactionDetail(
             transaction_id=txn.id,
-            old_account_number=(
-                result.old_account.account_number if result.old_account else ""
-            ),
-            old_account_name=result.old_account.name if result.old_account else "",
-            new_account_number=result.account.account_number,
-            new_account_name=result.account.name,
-            confidence=result.confidence,
-            tier=result.tier,
+            old_account_number=old_account.account_number if old_account else "",
+            old_account_name=old_account.name if old_account else "",
+            new_account_number=new_account.account_number,
+            new_account_name=new_account.name,
+            confidence=resolved_item.confidence or 0.0,
         )
 
 
 class _DraftAsStoredTransaction:
     """Adapter: make a Transaction look like a StoredBankTransaction.
 
-    The MLBatchClassificationService expects StoredBankTransaction with
+    The batch service expects StoredBankTransaction with
     .id, .transaction.booking_date, .transaction.purpose, etc.
     This adapter provides that interface from draft Transaction data.
     """

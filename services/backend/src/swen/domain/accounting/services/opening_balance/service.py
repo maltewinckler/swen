@@ -9,7 +9,6 @@ lives in the domain layer. Replaces:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
@@ -23,6 +22,7 @@ from swen.domain.accounting.well_known_accounts import WellKnownAccounts
 from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
+    from swen.domain.accounting.aggregates import Transaction
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -31,17 +31,6 @@ if TYPE_CHECKING:
     from swen.domain.banking.value_objects import BankTransaction
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class OpeningBalanceOutcome:
-    """Outcome of an attempt to create an opening balance for an IBAN.
-
-    Returned from :meth:`OpeningBalanceService.try_create_for_first_sync`.
-    """
-
-    created: bool
-    amount: Optional[Decimal] = None
 
 
 class OpeningBalanceService:
@@ -63,10 +52,6 @@ class OpeningBalanceService:
         self._transaction_repo = transaction_repository
         self._user_id = user_id
         self._calculator = OpeningBalanceCalculator()
-
-    # ------------------------------------------------------------------
-    # Query helpers (previously OpeningBalanceQuery)
-    # ------------------------------------------------------------------
 
     async def get_date_for_iban(self, iban: str) -> Optional[date]:
         """Return the opening balance date for *iban*, or ``None`` if not found."""
@@ -108,9 +93,62 @@ class OpeningBalanceService:
 
         return False
 
-    # ------------------------------------------------------------------
-    # Write operations (previously OpeningBalanceAdjustmentService)
-    # ------------------------------------------------------------------
+    async def build_adjustment_transaction(
+        self,
+        counterparty_account: Account,
+        bank_transaction: BankTransaction,
+        source_iban: str,
+    ) -> Transaction | None:
+        counterparty_iban = counterparty_account.iban
+        if not counterparty_iban:
+            return None
+
+        ob_date = await self.get_date_for_iban(counterparty_iban)
+        if not ob_date or bank_transaction.booking_date >= ob_date:
+            return None
+
+        transfer_hash: str | None = None
+        if bank_transaction.applicant_iban:
+            transfer_hash = bank_transaction.compute_transfer_identity_hash(
+                source_iban,
+                bank_transaction.applicant_iban,
+            )
+
+        if transfer_hash:
+            already_exists = await self.adjustment_exists_for_transfer(
+                iban=counterparty_iban,
+                transfer_hash=transfer_hash,
+            )
+            if already_exists:
+                return None
+
+        equity_account = await self._account_repo.find_by_account_number(
+            WellKnownAccounts.OPENING_BALANCE_EQUITY,
+        )
+        if not equity_account:
+            return None
+
+        transfer_amount = abs(bank_transaction.amount)
+        is_incoming_to_counterparty = bank_transaction.is_debit()
+        adjustment_amount = (
+            transfer_amount if is_incoming_to_counterparty else -transfer_amount
+        )
+
+        adjustment_datetime = datetime.combine(
+            bank_transaction.booking_date,
+            time.min,
+            timezone.utc,
+        )
+
+        return self._calculator.create_opening_balance_adjustment(
+            asset_account=counterparty_account,
+            opening_balance_account=equity_account,
+            adjustment_amount=adjustment_amount,
+            adjustment_date=adjustment_datetime,
+            iban=counterparty_iban,
+            user_id=self._user_id,
+            related_transfer_hash=transfer_hash,
+        )
 
     async def create_adjustment_if_needed(  # NOQA: PLR0913
         self,
@@ -189,40 +227,33 @@ class OpeningBalanceService:
 
         return True
 
-    # ------------------------------------------------------------------
-    # First-sync provisioning
-    # ------------------------------------------------------------------
-
     async def has_for_iban(self, iban: str) -> bool:
         """Return ``True`` iff an opening balance already exists for *iban*."""
         return await self.get_date_for_iban(iban) is not None
 
-    async def try_create_for_first_sync(  # noqa: PLR0911
+    async def try_create_for_first_sync(
         self,
         iban: str,
         current_balance: Decimal,
         bank_transactions: list[BankTransaction],
-    ) -> OpeningBalanceOutcome:
+    ):
         """Create an opening balance for *iban* if one does not yet exist.
 
         Uses :class:`OpeningBalanceCalculator` to back-calculate the opening
         balance amount from *current_balance* and the fetched
         *bank_transactions*. Persists the resulting transaction via the
         injected ``transaction_repository``.
-
-        Returns an :class:`OpeningBalanceOutcome` describing whether an
-        opening balance was created and, if so, with what amount.
         """
         if await self.has_for_iban(iban):
             logger.debug("Opening balance already exists for IBAN %s", iban)
-            return OpeningBalanceOutcome(created=False)
+            return
 
         if not bank_transactions:
             logger.debug(
                 "Skip opening balance: no transactions to derive a date for %s",
                 iban,
             )
-            return OpeningBalanceOutcome(created=False)
+            return
 
         asset_account = await self._account_repo.find_by_iban(iban)
         if asset_account is None:
@@ -230,7 +261,7 @@ class OpeningBalanceService:
                 "Cannot create opening balance: no asset account found for %s",
                 iban,
             )
-            return OpeningBalanceOutcome(created=False)
+            return
 
         equity_account = await self._account_repo.find_by_account_number(
             WellKnownAccounts.OPENING_BALANCE_EQUITY,
@@ -240,7 +271,7 @@ class OpeningBalanceService:
                 "Cannot create opening balance: equity account %s not found",
                 WellKnownAccounts.OPENING_BALANCE_EQUITY,
             )
-            return OpeningBalanceOutcome(created=False)
+            return
 
         opening_balance = self._calculator.calculate_opening_balance(
             current_balance=current_balance,
@@ -251,7 +282,7 @@ class OpeningBalanceService:
         )
         if balance_date is None:
             logger.warning("Cannot determine date for opening balance for %s", iban)
-            return OpeningBalanceOutcome(created=False)
+            return
 
         currency = bank_transactions[0].currency
 
@@ -267,7 +298,7 @@ class OpeningBalanceService:
 
         if txn is None:
             logger.info("Opening balance is zero for %s; skipping", iban)
-            return OpeningBalanceOutcome(created=False)
+            return
 
         await self._transaction_repo.save(txn)
         logger.info(
@@ -277,4 +308,3 @@ class OpeningBalanceService:
             iban,
             balance_date.date(),
         )
-        return OpeningBalanceOutcome(created=True, amount=opening_balance)

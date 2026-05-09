@@ -12,10 +12,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from swen.application.dtos.integration import (
-    BatchSyncResult,
-    SyncProgressEvent,
-)
+from swen.application.events.base import SyncProgressEvent
 
 
 class SyncEventPublisher(Protocol):
@@ -28,10 +25,6 @@ class SyncEventPublisher(Protocol):
 
     async def publish(self, event: SyncProgressEvent) -> None:
         """Publish a progress event."""
-        ...
-
-    async def publish_terminal(self, result: BatchSyncResult) -> None:
-        """Publish the final result. After this, no more events are accepted."""
         ...
 
     async def close(self) -> None:

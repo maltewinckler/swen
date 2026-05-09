@@ -20,11 +20,14 @@ from swen.application.commands.accounting import (
     UnpostTransactionCommand,
 )
 from swen.application.dtos.accounting import ReclassifyResultDTO
-from swen.application.dtos.integration import SyncProgressEvent
+from swen.application.events.base import SyncProgressEvent
 from swen.application.queries import ListTransactionsQuery
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.value_objects import JournalEntryInput
 from swen.domain.shared.exceptions import DomainException, ErrorCode
+from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
+    MLCounterAccountAdapter,
+)
 from swen.presentation.api.dependencies import MLClient, MLPort, RepoFactory
 from swen.presentation.api.schemas.transactions import (
     BulkPostRequest,
@@ -614,7 +617,9 @@ async def reclassify_drafts_streaming(
 
     async def event_generator():
         try:
-            command = ReclassifyDraftsCommand.from_factory(factory, ml_client)
+            command = ReclassifyDraftsCommand.from_factory(
+                factory, MLCounterAccountAdapter(ml_client)
+            )
         except Exception as e:
             logger.exception("Failed to create reclassify command: %s", e)
             yield _format_sse_event(

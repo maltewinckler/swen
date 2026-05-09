@@ -1,17 +1,15 @@
 """Unit tests for SyncBankAccountsCommand.
 
 Covers:
-- Filter precedence (iban over blz)
-- Equity-account lookup (opening_balance_account_missing)
 - Per-account exception handling (AccountSyncFailedEvent, continues)
 - Empty-mappings edge case
-- Terminal payload (publisher.terminal is BatchSyncResult)
+- Terminal payload (SyncResultEvent published; publisher.closed is True)
 - BatchSyncStarted/BatchSyncCompleted ordering
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -20,17 +18,16 @@ import pytest
 from swen.application.commands.integration.sync_bank_accounts_command import (
     SyncBankAccountsCommand,
 )
-from swen.application.dtos.integration import (
+from swen.application.events import (
     AccountSyncFailedEvent,
     BatchSyncCompletedEvent,
-    BatchSyncResult,
     BatchSyncStartedEvent,
-    SyncPeriod,
-    SyncResult,
+    SyncResultEvent,
 )
-from swen.application.services.integration.sync_period_resolver import (
-    SyncPeriodResolver,
+from swen.application.services.integration.sync_notification_service import (
+    SyncNotificationService,
 )
+from swen.domain.integration.value_objects.sync_period import SyncPeriod
 from tests.shared.sync_event_publisher import InMemorySyncEventPublisher
 
 # ---------------------------------------------------------------------------
@@ -38,21 +35,11 @@ from tests.shared.sync_event_publisher import InMemorySyncEventPublisher
 # ---------------------------------------------------------------------------
 
 _TODAY = date(2024, 1, 15)
-_SYNCED_AT = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
 
 
-def _make_sync_result(iban: str = "DE89370400440532013000") -> SyncResult:
-    return SyncResult(
-        success=True,
-        synced_at=_SYNCED_AT,
-        iban=iban,
-        start_date=_TODAY,
-        end_date=_TODAY,
-        transactions_fetched=2,
-        transactions_imported=1,
-        transactions_skipped=1,
-        transactions_failed=0,
-    )
+def _make_sync_result() -> tuple[int, int, int]:
+    """Return a sync result tuple: (imported, skipped, failed)."""
+    return (1, 1, 0)
 
 
 def _make_mapping(iban: str, blz: str = "37040044") -> SimpleNamespace:
@@ -68,7 +55,6 @@ def _make_command(
     mappings: list,
     sync_service: AsyncMock,
     publisher: InMemorySyncEventPublisher,
-    equity_account=object(),  # truthy by default
     credentials=object(),
 ) -> SyncBankAccountsCommand:
     """Build a SyncBankAccountsCommand with all dependencies mocked."""
@@ -83,104 +69,23 @@ def _make_command(
     credential_repo = AsyncMock()
     credential_repo.find_by_blz.return_value = credentials
 
-    account_repo = AsyncMock()
-    account_repo.find_by_account_number.return_value = equity_account
-
-    period_resolver = MagicMock(spec=SyncPeriodResolver)
-    period_resolver.resolve_fixed.return_value = _make_period()
-
     bank_balance_service = AsyncMock()
+
+    notifier = SyncNotificationService(publisher)
 
     return SyncBankAccountsCommand(
         sync_service=sync_service,
         bank_balance_service=bank_balance_service,
-        period_resolver=period_resolver,
         mapping_repo=mapping_repo,
         settings_repo=settings_repo,
         credential_repo=credential_repo,
-        account_repo=account_repo,
-        publisher=publisher,
+        notifier=notifier,
     )
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
-
-class TestFilterPrecedence:
-    """iban filter takes precedence over blz when both are provided."""
-
-    @pytest.mark.asyncio
-    async def test_iban_filter_takes_precedence_over_blz(self):
-        publisher = InMemorySyncEventPublisher()
-        sync_service = AsyncMock()
-        sync_service.sync_account.return_value = _make_sync_result(
-            "DE89370400440532013000"
-        )
-
-        # Two mappings: one matching iban, one matching blz only
-        mapping_iban = _make_mapping("DE89370400440532013000", blz="37040044")
-        mapping_blz_only = _make_mapping("DE12345678901234567890", blz="12345678")
-
-        command = _make_command(
-            mappings=[mapping_iban, mapping_blz_only],
-            sync_service=sync_service,
-            publisher=publisher,
-        )
-
-        # Provide both iban and blz — iban should win
-        await command.execute(
-            iban="DE89370400440532013000",
-            blz="12345678",
-            days=30,
-        )
-
-        # sync_account should only be called for the iban-matching mapping
-        assert sync_service.sync_account.call_count == 1
-        call_kwargs = sync_service.sync_account.call_args
-        assert call_kwargs.kwargs["mapping"].iban == "DE89370400440532013000"
-
-
-class TestEquityAccountLookup:
-    """When OPENING_BALANCE_EQUITY account is missing, result reflects it."""
-
-    @pytest.mark.asyncio
-    async def test_opening_balance_account_missing_when_not_found(self):
-        publisher = InMemorySyncEventPublisher()
-        sync_service = AsyncMock()
-        sync_service.sync_account.return_value = _make_sync_result()
-
-        mapping = _make_mapping("DE89370400440532013000")
-        command = _make_command(
-            mappings=[mapping],
-            sync_service=sync_service,
-            publisher=publisher,
-            equity_account=None,  # simulate missing equity account
-        )
-
-        result = await command.execute(days=30)
-
-        assert isinstance(result, BatchSyncResult)
-        assert result.opening_balance_account_missing is True
-
-    @pytest.mark.asyncio
-    async def test_opening_balance_account_present_when_found(self):
-        publisher = InMemorySyncEventPublisher()
-        sync_service = AsyncMock()
-        sync_service.sync_account.return_value = _make_sync_result()
-
-        mapping = _make_mapping("DE89370400440532013000")
-        command = _make_command(
-            mappings=[mapping],
-            sync_service=sync_service,
-            publisher=publisher,
-            equity_account=object(),  # non-None → present
-        )
-
-        result = await command.execute(days=30)
-
-        assert result.opening_balance_account_missing is False
 
 
 class TestPerAccountExceptionHandling:
@@ -198,7 +103,7 @@ class TestPerAccountExceptionHandling:
         # First call raises, second succeeds
         sync_service.sync_account.side_effect = [
             RuntimeError("bank error"),
-            _make_sync_result("DE12345678901234567890"),
+            _make_sync_result(),
         ]
 
         command = _make_command(
@@ -231,10 +136,10 @@ class TestPerAccountExceptionHandling:
             publisher=publisher,
         )
 
-        await command.execute(days=30)
+        result = await command.execute(days=30)
 
-        assert publisher.terminal is not None
-        assert isinstance(publisher.terminal, BatchSyncResult)
+        assert result is None
+        assert publisher.closed is True
 
 
 class TestEmptyMappingsEdgeCase:
@@ -254,16 +159,16 @@ class TestEmptyMappingsEdgeCase:
 
         result = await command.execute(days=30)
 
-        # Events: BatchSyncStarted → BatchSyncCompleted
-        assert len(publisher.events) == 2
+        # Events: BatchSyncStarted → BatchSyncCompleted → SyncResultEvent
+        assert len(publisher.events) == 3
         assert isinstance(publisher.events[0], BatchSyncStartedEvent)
         assert publisher.events[0].total_accounts == 0
         assert isinstance(publisher.events[1], BatchSyncCompletedEvent)
+        assert isinstance(publisher.events[2], SyncResultEvent)
 
-        # Terminal payload is set
-        assert publisher.terminal is not None
-        assert isinstance(publisher.terminal, BatchSyncResult)
-        assert result is publisher.terminal
+        # execute() returns None; publisher is closed
+        assert result is None
+        assert publisher.closed is True
 
     @pytest.mark.asyncio
     async def test_empty_mappings_completed_event_has_zero_counts(self):
@@ -287,30 +192,10 @@ class TestEmptyMappingsEdgeCase:
 
 
 class TestTerminalPayload:
-    """publisher.terminal is exactly one BatchSyncResult after execute()."""
+    """SyncResultEvent is published and the publisher is closed."""
 
     @pytest.mark.asyncio
-    async def test_terminal_is_batch_sync_result(self):
-        publisher = InMemorySyncEventPublisher()
-        sync_service = AsyncMock()
-        sync_service.sync_account.return_value = _make_sync_result()
-
-        mapping = _make_mapping("DE89370400440532013000")
-        command = _make_command(
-            mappings=[mapping],
-            sync_service=sync_service,
-            publisher=publisher,
-        )
-
-        result = await command.execute(days=30)
-
-        assert publisher.terminal is not None
-        assert isinstance(publisher.terminal, BatchSyncResult)
-        # execute() return value is the same object as terminal
-        assert result is publisher.terminal
-
-    @pytest.mark.asyncio
-    async def test_terminal_set_exactly_once(self):
+    async def test_execute_publishes_sync_result_event(self):
         publisher = InMemorySyncEventPublisher()
         sync_service = AsyncMock()
         sync_service.sync_account.return_value = _make_sync_result()
@@ -324,8 +209,24 @@ class TestTerminalPayload:
 
         await command.execute(days=30)
 
-        # publish_terminal is called once — terminal is not None and is a BatchSyncResult
-        assert publisher.terminal is not None
+        assert any(isinstance(e, SyncResultEvent) for e in publisher.events)
+
+    @pytest.mark.asyncio
+    async def test_publisher_closed_after_execute(self):
+        publisher = InMemorySyncEventPublisher()
+        sync_service = AsyncMock()
+        sync_service.sync_account.return_value = _make_sync_result()
+
+        mapping = _make_mapping("DE89370400440532013000")
+        command = _make_command(
+            mappings=[mapping],
+            sync_service=sync_service,
+            publisher=publisher,
+        )
+
+        await command.execute(days=30)
+
+        assert publisher.closed is True
 
 
 class TestBatchSyncStartedCompletedOrdering:
@@ -364,13 +265,14 @@ class TestBatchSyncStartedCompletedOrdering:
 
         await command.execute(days=30)
 
-        assert isinstance(publisher.events[-1], BatchSyncCompletedEvent)
+        # SyncResultEvent is the last published event; BatchSyncCompleted is second-to-last
+        assert isinstance(publisher.events[-1], SyncResultEvent)
+        assert isinstance(publisher.events[-2], BatchSyncCompletedEvent)
 
     @pytest.mark.asyncio
     async def test_started_total_accounts_matches_syncable_count(self):
         publisher = InMemorySyncEventPublisher()
         sync_service = AsyncMock()
-        sync_service.sync_account.return_value = _make_sync_result()
 
         mappings = [
             _make_mapping("DE89370400440532013000"),
@@ -378,8 +280,8 @@ class TestBatchSyncStartedCompletedOrdering:
         ]
         # Need two different sync results
         sync_service.sync_account.side_effect = [
-            _make_sync_result("DE89370400440532013000"),
-            _make_sync_result("DE12345678901234567890"),
+            _make_sync_result(),
+            _make_sync_result(),
         ]
 
         command = _make_command(

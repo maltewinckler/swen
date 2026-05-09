@@ -5,7 +5,7 @@ AccountRepository and TransactionRepository interfaces.
 
 Covers:
 - try_create_for_first_sync happy path: creates and persists an opening balance
-- has_for_iban short-circuit: returns OpeningBalanceOutcome(created=False) immediately
+- has_for_iban short-circuit: returns None immediately (already exists)
 - persistence via transaction_repository.save
 - edge cases: no transactions, no asset account, no equity account, zero balance
 """
@@ -21,7 +21,6 @@ import pytest
 
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services.opening_balance.service import (
-    OpeningBalanceOutcome,
     OpeningBalanceService,
 )
 from swen.domain.accounting.value_objects import Currency
@@ -135,36 +134,12 @@ class TestHasForIban:
 
 
 class TestTryCreateForFirstSyncShortCircuit:
-    """When has_for_iban returns True, return OpeningBalanceOutcome(created=False)."""
-
-    @pytest.mark.asyncio
-    async def test_returns_not_created_when_ob_already_exists(self):
-        transaction_repo = AsyncMock()
-        # Simulate existing opening balance
-        txn = MagicMock()
-        txn.get_metadata_raw.side_effect = lambda key: (
-            True if key == "is_opening_balance" else TEST_IBAN
-        )
-        txn.date = MagicMock()
-        txn.date.date.return_value = date(2024, 1, 1)
-        transaction_repo.find_by_metadata.return_value = [txn]
-
-        account_repo = AsyncMock()
-        service = _make_service(
-            account_repo=account_repo, transaction_repo=transaction_repo
-        )
-
-        outcome = await service.try_create_for_first_sync(
-            iban=TEST_IBAN,
-            current_balance=Decimal("1000.00"),
-            bank_transactions=[_make_bank_transaction()],
-        )
-
-        assert outcome == OpeningBalanceOutcome(created=False)
+    """When has_for_iban returns True, skip persistence."""
 
     @pytest.mark.asyncio
     async def test_does_not_persist_when_ob_already_exists(self):
         transaction_repo = AsyncMock()
+        # Simulate existing opening balance
         txn = MagicMock()
         txn.get_metadata_raw.side_effect = lambda key: (
             True if key == "is_opening_balance" else TEST_IBAN
@@ -196,29 +171,6 @@ class TestTryCreateForFirstSyncHappyPath:
     """When no OB exists, calculate and persist the opening balance."""
 
     @pytest.mark.asyncio
-    async def test_returns_created_true_on_success(self):
-        transaction_repo = AsyncMock()
-        # No existing opening balance
-        transaction_repo.find_by_metadata.return_value = []
-
-        account_repo = AsyncMock()
-        account_repo.find_by_iban.return_value = _make_asset_account()
-        account_repo.find_by_account_number.return_value = _make_equity_account()
-
-        service = _make_service(
-            account_repo=account_repo, transaction_repo=transaction_repo
-        )
-
-        bank_txs = [_make_bank_transaction(amount=Decimal("200.00"))]
-        outcome = await service.try_create_for_first_sync(
-            iban=TEST_IBAN,
-            current_balance=Decimal("1000.00"),
-            bank_transactions=bank_txs,
-        )
-
-        assert outcome.created is True
-
-    @pytest.mark.asyncio
     async def test_persists_via_transaction_repository_save(self):
         transaction_repo = AsyncMock()
         transaction_repo.find_by_metadata.return_value = []
@@ -241,29 +193,6 @@ class TestTryCreateForFirstSyncHappyPath:
         # Persistence must go through transaction_repository.save
         transaction_repo.save.assert_awaited_once()
 
-    @pytest.mark.asyncio
-    async def test_outcome_amount_matches_calculated_opening_balance(self):
-        transaction_repo = AsyncMock()
-        transaction_repo.find_by_metadata.return_value = []
-
-        account_repo = AsyncMock()
-        account_repo.find_by_iban.return_value = _make_asset_account()
-        account_repo.find_by_account_number.return_value = _make_equity_account()
-
-        service = _make_service(
-            account_repo=account_repo, transaction_repo=transaction_repo
-        )
-
-        # current_balance=1000, net_change=+200 → opening_balance=800
-        bank_txs = [_make_bank_transaction(amount=Decimal("200.00"))]
-        outcome = await service.try_create_for_first_sync(
-            iban=TEST_IBAN,
-            current_balance=Decimal("1000.00"),
-            bank_transactions=bank_txs,
-        )
-
-        assert outcome.amount == Decimal("800.00")
-
 
 # ---------------------------------------------------------------------------
 # try_create_for_first_sync — edge cases
@@ -271,25 +200,25 @@ class TestTryCreateForFirstSyncHappyPath:
 
 
 class TestTryCreateForFirstSyncEdgeCases:
-    """Edge cases that result in OpeningBalanceOutcome(created=False)."""
+    """Edge cases that result in no persistence (None return)."""
 
     @pytest.mark.asyncio
-    async def test_returns_not_created_when_no_bank_transactions(self):
+    async def test_does_not_persist_when_no_bank_transactions(self):
         transaction_repo = AsyncMock()
         transaction_repo.find_by_metadata.return_value = []
 
         service = _make_service(transaction_repo=transaction_repo)
 
-        outcome = await service.try_create_for_first_sync(
+        await service.try_create_for_first_sync(
             iban=TEST_IBAN,
             current_balance=Decimal("1000.00"),
             bank_transactions=[],
         )
 
-        assert outcome == OpeningBalanceOutcome(created=False)
+        transaction_repo.save.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_returns_not_created_when_no_asset_account(self):
+    async def test_does_not_persist_when_no_asset_account(self):
         transaction_repo = AsyncMock()
         transaction_repo.find_by_metadata.return_value = []
 
@@ -300,16 +229,16 @@ class TestTryCreateForFirstSyncEdgeCases:
             account_repo=account_repo, transaction_repo=transaction_repo
         )
 
-        outcome = await service.try_create_for_first_sync(
+        await service.try_create_for_first_sync(
             iban=TEST_IBAN,
             current_balance=Decimal("1000.00"),
             bank_transactions=[_make_bank_transaction()],
         )
 
-        assert outcome == OpeningBalanceOutcome(created=False)
+        transaction_repo.save.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_returns_not_created_when_no_equity_account(self):
+    async def test_does_not_persist_when_no_equity_account(self):
         transaction_repo = AsyncMock()
         transaction_repo.find_by_metadata.return_value = []
 
@@ -321,16 +250,16 @@ class TestTryCreateForFirstSyncEdgeCases:
             account_repo=account_repo, transaction_repo=transaction_repo
         )
 
-        outcome = await service.try_create_for_first_sync(
+        await service.try_create_for_first_sync(
             iban=TEST_IBAN,
             current_balance=Decimal("1000.00"),
             bank_transactions=[_make_bank_transaction()],
         )
 
-        assert outcome == OpeningBalanceOutcome(created=False)
+        transaction_repo.save.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_returns_not_created_when_opening_balance_is_zero(self):
+    async def test_does_not_persist_when_opening_balance_is_zero(self):
         """Zero opening balance means no transaction is created."""
         transaction_repo = AsyncMock()
         transaction_repo.find_by_metadata.return_value = []
@@ -345,11 +274,10 @@ class TestTryCreateForFirstSyncEdgeCases:
 
         # current_balance == net_change → opening balance = 0
         bank_txs = [_make_bank_transaction(amount=Decimal("1000.00"))]
-        outcome = await service.try_create_for_first_sync(
+        await service.try_create_for_first_sync(
             iban=TEST_IBAN,
             current_balance=Decimal("1000.00"),
             bank_transactions=bank_txs,
         )
 
-        assert outcome == OpeningBalanceOutcome(created=False)
         transaction_repo.save.assert_not_called()

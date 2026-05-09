@@ -386,7 +386,7 @@ class TestAccountMappingRepositorySQLAlchemy:
         """
         # Simulate 2 bank accounts from Triodos
         triodos_account_1 = AccountMapping(
-            iban="NL12TRIO0123456789",
+            iban="DE12TRIO0123456789012",
             accounting_account_id=sample_account_id_1,
             account_name="Triodos - Betaalrekening",
             is_active=True,
@@ -394,7 +394,7 @@ class TestAccountMappingRepositorySQLAlchemy:
         )
 
         triodos_account_2 = AccountMapping(
-            iban="NL34TRIO0987654321",
+            iban="DE34TRIO0987654321012",
             accounting_account_id=sample_account_id_2,
             account_name="Triodos - Spaarrekening",
             is_active=True,

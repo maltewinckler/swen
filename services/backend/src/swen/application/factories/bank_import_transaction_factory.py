@@ -24,8 +24,6 @@ from swen.domain.accounting.value_objects import (
     TransactionSource,
 )
 from swen.domain.banking.value_objects import BankTransaction
-from swen.domain.integration.value_objects import ResolutionResult
-from swen.domain.shared.time import utc_now
 
 if TYPE_CHECKING:
     from swen.domain.shared.current_user import CurrentUser
@@ -53,10 +51,7 @@ class BankImportTransactionFactory:
         counter_account: Account,
         source_iban: str,
         is_internal_transfer: bool = False,
-        resolution_result: Optional[ResolutionResult] = None,
-        merchant: Optional[str] = None,
-        is_recurring: bool = False,
-        recurring_pattern: Optional[str] = None,
+        ai_resolution: Optional[AIResolutionMetadata] = None,
     ) -> Transaction:
         """
         Create a double-entry accounting transaction from a bank transaction.
@@ -96,9 +91,6 @@ class BankImportTransactionFactory:
             source=TransactionSource.BANK_IMPORT,
             source_iban=source_iban,
             is_internal_transfer=is_internal_transfer,
-            merchant=merchant,
-            is_recurring=is_recurring,
-            recurring_pattern=recurring_pattern,
         )
 
         self._add_journal_entries(
@@ -115,7 +107,7 @@ class BankImportTransactionFactory:
             counter_account=counter_account,
             is_internal_transfer=is_internal_transfer,
             source_iban=source_iban,
-            resolution_result=resolution_result,
+            ai_resolution=ai_resolution,
         )
         transaction.set_metadata(metadata)
 
@@ -155,7 +147,7 @@ class BankImportTransactionFactory:
         counter_account: Account,
         is_internal_transfer: bool,
         source_iban: str,
-        resolution_result: Optional[ResolutionResult] = None,
+        ai_resolution: Optional[AIResolutionMetadata] = None,
     ) -> TransactionMetadata:
         transfer_hash: Optional[str] = None
         if bank_transaction.applicant_iban:
@@ -164,13 +156,8 @@ class BankImportTransactionFactory:
                 bank_transaction.applicant_iban,
             )
 
-        ai_resolution = self._build_ai_resolution_metadata(
-            counter_account=counter_account,
-            resolution_result=resolution_result,
-        )
-
         return TransactionMetadata(
-            source=TransactionSource.BANK_IMPORT,  # Synced with Transaction.source
+            source=TransactionSource.BANK_IMPORT,
             original_purpose=bank_transaction.purpose,
             bank_reference=bank_transaction.bank_reference,
             source_account=asset_account.name if is_internal_transfer else None,
@@ -178,42 +165,6 @@ class BankImportTransactionFactory:
             transfer_identity_hash=transfer_hash,
             ai_resolution=ai_resolution,
         )
-
-    def _build_ai_resolution_metadata(
-        self,
-        counter_account: Account,
-        resolution_result: Optional[ResolutionResult],
-    ) -> Optional[AIResolutionMetadata]:
-        if not resolution_result or not resolution_result.has_ai_result:
-            return None
-
-        ai_result = resolution_result.ai_result
-        if not ai_result:
-            return None
-
-        model_name = "swen-ml-batch"
-        suggestion_accepted = resolution_result.is_from_ai
-
-        ai_metadata = AIResolutionMetadata(
-            suggested_counter_account_id=str(ai_result.counter_account_id),
-            suggested_counter_account_name=(
-                counter_account.name if suggestion_accepted else None
-            ),
-            confidence=ai_result.confidence,
-            reasoning=ai_result.reasoning,
-            model=model_name,
-            resolved_at=utc_now(),
-            suggestion_accepted=suggestion_accepted,
-            tier=ai_result.tier if hasattr(ai_result, "tier") else None,
-        )
-
-        logger.debug(
-            "AI resolved counter-account: %s (confidence: %.2f)",
-            counter_account.name,
-            ai_result.confidence,
-        )
-
-        return ai_metadata
 
     def _generate_description(
         self,

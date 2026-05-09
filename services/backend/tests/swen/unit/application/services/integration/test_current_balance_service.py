@@ -1,4 +1,4 @@
-"""Unit tests for CurrentBalanceService.
+"""Unit tests for BankBalanceService.get_for_iban.
 
 Covers three acceptance criteria:
 1. DB-first hit: when bank_account_repo.find_balance returns a value, return it
@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.services.integration.current_balance_service import (
-    CurrentBalanceService,
+from swen.domain.banking.services.bank_balance_service import (
+    BankBalanceService,
 )
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
 
@@ -49,8 +49,8 @@ def _make_service(
     *,
     db_balance: Decimal | None = None,
     fetched_accounts: list | None = None,
-) -> tuple[CurrentBalanceService, AsyncMock, AsyncMock]:
-    """Build a CurrentBalanceService with mocked dependencies.
+) -> tuple[BankBalanceService, AsyncMock, AsyncMock]:
+    """Build a BankBalanceService with mocked dependencies.
 
     Returns (service, bank_account_repo, bank_fetch_service).
     """
@@ -64,9 +64,10 @@ def _make_service(
     else:
         bank_fetch_service.fetch_accounts.return_value = []
 
-    service = CurrentBalanceService(
-        bank_account_repo=bank_account_repo,
+    service = BankBalanceService(
         bank_fetch_service=bank_fetch_service,
+        bank_account_repo=bank_account_repo,
+        credential_repo=AsyncMock(),
     )
     return service, bank_account_repo, bank_fetch_service
 
@@ -83,7 +84,7 @@ class TestDbFirstHit:
     async def test_returns_db_balance_when_found(self):
         service, _, _ = _make_service(db_balance=Decimal("1234.56"))
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result == Decimal("1234.56")
 
@@ -91,7 +92,7 @@ class TestDbFirstHit:
     async def test_does_not_call_fetch_accounts_when_db_hit(self):
         service, _, bank_fetch = _make_service(db_balance=Decimal("500.00"))
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_fetch.fetch_accounts.assert_not_called()
 
@@ -99,7 +100,7 @@ class TestDbFirstHit:
     async def test_does_not_call_save_accounts_when_db_hit(self):
         service, bank_account_repo, _ = _make_service(db_balance=Decimal("500.00"))
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_account_repo.save_accounts.assert_not_called()
 
@@ -107,7 +108,7 @@ class TestDbFirstHit:
     async def test_calls_find_balance_with_correct_iban(self):
         service, bank_account_repo, _ = _make_service(db_balance=Decimal("100.00"))
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_account_repo.find_balance.assert_awaited_once_with(TEST_IBAN)
 
@@ -125,7 +126,7 @@ class TestFallbackFetchAndPersist:
         fetched = [_make_bank_account(TEST_IBAN, Decimal("999.00"))]
         service, _, _ = _make_service(db_balance=None, fetched_accounts=fetched)
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result == Decimal("999.00")
 
@@ -136,7 +137,7 @@ class TestFallbackFetchAndPersist:
             db_balance=None, fetched_accounts=fetched
         )
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_fetch.fetch_accounts.assert_awaited_once()
 
@@ -147,7 +148,7 @@ class TestFallbackFetchAndPersist:
             db_balance=None, fetched_accounts=fetched
         )
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_account_repo.save_accounts.assert_awaited_once_with(fetched)
 
@@ -159,7 +160,7 @@ class TestFallbackFetchAndPersist:
         ]
         service, _, _ = _make_service(db_balance=None, fetched_accounts=fetched)
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result == Decimal("750.00")
 
@@ -171,7 +172,7 @@ class TestFallbackFetchAndPersist:
         )
         credentials = _make_credentials()
 
-        await service.for_iban(TEST_IBAN, credentials)
+        await service.get_for_iban(TEST_IBAN, credentials)
 
         bank_fetch.fetch_accounts.assert_awaited_once_with(credentials)
 
@@ -188,7 +189,7 @@ class TestNoneWhenNoBalance:
     async def test_returns_none_when_db_miss_and_no_fetched_accounts(self):
         service, _, _ = _make_service(db_balance=None, fetched_accounts=[])
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result is None
 
@@ -197,7 +198,7 @@ class TestNoneWhenNoBalance:
         fetched = [_make_bank_account(OTHER_IBAN, Decimal("100.00"))]
         service, _, _ = _make_service(db_balance=None, fetched_accounts=fetched)
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result is None
 
@@ -206,7 +207,7 @@ class TestNoneWhenNoBalance:
         fetched = [_make_bank_account(TEST_IBAN, None)]
         service, _, _ = _make_service(db_balance=None, fetched_accounts=fetched)
 
-        result = await service.for_iban(TEST_IBAN, _make_credentials())
+        result = await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         assert result is None
 
@@ -218,6 +219,6 @@ class TestNoneWhenNoBalance:
             db_balance=None, fetched_accounts=fetched
         )
 
-        await service.for_iban(TEST_IBAN, _make_credentials())
+        await service.get_for_iban(TEST_IBAN, _make_credentials())
 
         bank_account_repo.save_accounts.assert_awaited_once_with(fetched)

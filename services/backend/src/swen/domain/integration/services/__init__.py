@@ -5,15 +5,17 @@ from swen.domain.integration.services.bank_account_import_service import (
 )
 from swen.domain.integration.services.counter_account_resolution_service import (
     CounterAccountResolutionService,
+    get_counter_account,
+    has_fallback_counter_account,
 )
 from swen.domain.integration.services.transfer_reconciliation_service import (
-    TransferContext,
     TransferReconciliationService,
 )
 
 __all__ = [
     "BankAccountImportService",
     "CounterAccountResolutionService",
-    "TransferContext",
     "TransferReconciliationService",
+    "get_counter_account",
+    "has_fallback_counter_account",
 ]

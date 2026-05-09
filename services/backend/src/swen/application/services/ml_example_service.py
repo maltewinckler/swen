@@ -34,7 +34,7 @@ class MLExampleService:
         if counter_account is None:
             return
 
-        # Skip fallback accounts - don't train ML to use them
+        # Skip fallback accounts. Don't train ML to use them
         if counter_account.account_number in WellKnownAccounts.FALLBACK_ACCOUNTS:
             logger.debug(
                 "Skipping ML example for fallback account: %s",

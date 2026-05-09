@@ -189,8 +189,6 @@ class CreateExternalAccountCommand:
     ) -> int:
         reconciliation_service = TransferReconciliationService(
             transaction_repository=self._transaction_repo,
-            mapping_repository=self._mapping_repo,
-            account_repository=self._account_repo,
         )
 
         if account_type == AccountType.ASSET:

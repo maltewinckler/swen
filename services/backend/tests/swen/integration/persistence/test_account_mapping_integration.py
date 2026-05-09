@@ -190,7 +190,7 @@ class TestAccountMappingIntegration:
         """
         # Create mock bank accounts (like from FinTS)
         bank_account_1 = BankAccount(
-            iban="NL12TRIO0123456789",
+            iban="DE12TRIO0123456789012",
             account_number="123456789",
             blz="12345678",  # BLZ needs 8 chars
             account_holder="Test User",
@@ -201,7 +201,7 @@ class TestAccountMappingIntegration:
         )
 
         bank_account_2 = BankAccount(
-            iban="NL34TRIO0987654321",
+            iban="DE34TRIO0987654321012",
             account_number="987654321",
             blz="12345678",  # BLZ needs 8 chars
             account_holder="Test User",

@@ -15,8 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.dtos.integration.sync_period import SyncPeriod
-from swen.application.services.integration.bank_fetch_service import BankFetchService
+from swen.domain.banking.services.bank_fetch_service import BankFetchService
 from swen.domain.banking.value_objects import BankCredentials
 
 # ---------------------------------------------------------------------------
@@ -32,12 +31,8 @@ def _make_credentials() -> BankCredentials:
     )
 
 
-def _make_period() -> SyncPeriod:
-    return SyncPeriod(
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 1, 31),
-        adaptive=False,
-    )
+_START = date(2024, 1, 1)
+_END = date(2024, 1, 31)
 
 
 def _make_adapter() -> AsyncMock:
@@ -68,7 +63,7 @@ class TestFetchTransactionsLifecycle:
         credentials = _make_credentials()
 
         await service.fetch_transactions(
-            credentials, "DE89370400440532013000", _make_period()
+            credentials, "DE89370400440532013000", _START, _END
         )
 
         # connect must have been called
@@ -80,7 +75,7 @@ class TestFetchTransactionsLifecycle:
         service = BankFetchService(bank_adapter=adapter)
 
         await service.fetch_transactions(
-            _make_credentials(), "DE89370400440532013000", _make_period()
+            _make_credentials(), "DE89370400440532013000", _START, _END
         )
 
         adapter.disconnect.assert_awaited_once()
@@ -91,7 +86,7 @@ class TestFetchTransactionsLifecycle:
         service = BankFetchService(bank_adapter=adapter)
 
         await service.fetch_transactions(
-            _make_credentials(), "DE89370400440532013000", _make_period()
+            _make_credentials(), "DE89370400440532013000", _START, _END
         )
 
         assert adapter.disconnect.await_count == 1
@@ -104,7 +99,7 @@ class TestFetchTransactionsLifecycle:
 
         with pytest.raises(RuntimeError, match="bank error"):
             await service.fetch_transactions(
-                _make_credentials(), "DE89370400440532013000", _make_period()
+                _make_credentials(), "DE89370400440532013000", _START, _END
             )
 
         # disconnect must still be called exactly once
@@ -118,7 +113,7 @@ class TestFetchTransactionsLifecycle:
 
         with pytest.raises(ValueError):
             await service.fetch_transactions(
-                _make_credentials(), "DE89370400440532013000", _make_period()
+                _make_credentials(), "DE89370400440532013000", _START, _END
             )
 
         assert adapter.disconnect.await_count == 1
@@ -131,7 +126,7 @@ class TestFetchTransactionsLifecycle:
         service = BankFetchService(bank_adapter=adapter)
 
         result = await service.fetch_transactions(
-            _make_credentials(), "DE89370400440532013000", _make_period()
+            _make_credentials(), "DE89370400440532013000", _START, _END
         )
 
         assert result == [fake_tx]
@@ -140,14 +135,12 @@ class TestFetchTransactionsLifecycle:
     async def test_period_dates_passed_to_adapter(self):
         adapter = _make_adapter()
         service = BankFetchService(bank_adapter=adapter)
-        period = SyncPeriod(
-            start_date=date(2024, 3, 1),
-            end_date=date(2024, 3, 31),
-            adaptive=False,
-        )
 
         await service.fetch_transactions(
-            _make_credentials(), "DE89370400440532013000", period
+            _make_credentials(),
+            "DE89370400440532013000",
+            start_date=date(2024, 3, 1),
+            end_date=date(2024, 3, 31),
         )
 
         adapter.fetch_transactions.assert_awaited_once_with(
@@ -223,7 +216,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_method="946",
         )
 
@@ -237,7 +231,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_medium="SecureGo",
         )
 
@@ -251,7 +246,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_method=None,
         )
 
@@ -265,7 +261,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_medium=None,
         )
 
@@ -281,7 +278,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_callback=sync_callback,
         )
 
@@ -298,7 +296,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_callback=None,
         )
 
@@ -316,7 +315,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_callback=async_callback,
         )
 
@@ -349,7 +349,8 @@ class TestTanConfiguration:
         await service.fetch_transactions(
             _make_credentials(),
             "DE89370400440532013000",
-            _make_period(),
+            _START,
+            _END,
             tan_method="946",
         )
 

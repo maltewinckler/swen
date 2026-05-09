@@ -11,7 +11,6 @@ from swen.domain.accounting.services.classification_rules import (
 )
 from swen.domain.accounting.services.opening_balance import (
     OpeningBalanceCalculator,
-    OpeningBalanceOutcome,
     OpeningBalanceService,
 )
 from swen.domain.accounting.services.transaction_entry_service import (
@@ -31,7 +30,6 @@ __all__ = [
     "EntrySpec",
     "MetadataKeys",
     "OpeningBalanceCalculator",
-    "OpeningBalanceOutcome",
     "OpeningBalanceService",
     "PAYMENT_ACCOUNT_TYPES",
     "TransactionDirection",

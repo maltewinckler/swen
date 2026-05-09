@@ -28,10 +28,20 @@ from swen.domain.banking.value_objects import BankTransaction
 from swen.domain.integration.services import (
     TransferReconciliationService,
 )
-from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
+from swen.domain.integration.value_objects import ImportStatus, ResolvedCounterAccount
 from swen.domain.shared.current_user import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
+
+
+def _fallback_resolved(
+    stored_list: list[StoredBankTransaction],
+    account: Account,
+) -> dict:
+    return {
+        s.id: ResolvedCounterAccount(account=account, confidence=None)
+        for s in stored_list
+    }
 
 
 def create_hostelworld_refund() -> BankTransaction:
@@ -69,7 +79,6 @@ def create_stored_transaction(
 def service_with_mocks():
     """Create a TransactionImportService with mocked dependencies."""
     bank_account_service = AsyncMock()
-    counter_account_resolution_service = AsyncMock()
     account_repo = AsyncMock()
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
@@ -94,14 +103,6 @@ def service_with_mocks():
 
     bank_account_service.get_or_create_asset_account.return_value = asset_account
 
-    # Create a mock resolution result
-    resolution_result = MagicMock(spec=ResolutionResult)
-    resolution_result.account = income_account
-    resolution_result.is_from_ai = False
-    resolution_result.has_ai_result = False
-    resolution_result.ai_result = None
-    counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
-
     # No existing imports
     import_repo.find_by_bank_transaction_id.return_value = None
 
@@ -115,9 +116,6 @@ def service_with_mocks():
     )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
-        mapping_repository=mapping_repo,
-        account_repository=account_repo,
-        opening_balance_query=ob_service,
     )
 
     transaction_factory = BankImportTransactionFactory(
@@ -126,7 +124,6 @@ def service_with_mocks():
 
     service = TransactionImportService(
         bank_account_import_service=bank_account_service,
-        counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
         opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
@@ -138,7 +135,6 @@ def service_with_mocks():
 
     return service, {
         "bank_account_service": bank_account_service,
-        "counter_account_resolution_service": counter_account_resolution_service,
         "account_repo": account_repo,
         "transaction_repo": transaction_repo,
         "mapping_repo": mapping_repo,
@@ -169,14 +165,13 @@ class TestIdenticalTransactionHandling:
         stored2 = create_stored_transaction(transaction, hash_sequence=2)
 
         # Import both
-        results = []
-        async for _, _, result in svc.import_streaming(
-            stored_transactions=[stored1, stored2],
+        stored_list = [stored1, stored2]
+        results = await svc.import_batch(
+            stored_transactions=stored_list,
             source_iban="DE89370400440532013000",
-            preclassified={},
+            resolved=_fallback_resolved(stored_list, deps["income_account"]),
             auto_post=False,
-        ):
-            results.append(result)
+        )
 
         # Both should be successful
         assert len(results) == 2
@@ -196,13 +191,12 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        async for _ in svc.import_streaming(
+        await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
-            preclassified={},
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
-        ):
-            pass
+        )
 
         # Should check by bank_transaction_id, not by identity hash
         deps["import_repo"].find_by_bank_transaction_id.assert_awaited_once_with(
@@ -227,14 +221,12 @@ class TestIdenticalTransactionHandling:
         existing_import.status = ImportStatus.SUCCESS
         deps["import_repo"].find_by_bank_transaction_id.return_value = existing_import
 
-        results = []
-        async for _, _, result in svc.import_streaming(
+        results = await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
-            preclassified={},
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
-        ):
-            results.append(result)
+        )
 
         assert len(results) == 1
         assert results[0].status == ImportStatus.DUPLICATE
@@ -254,13 +246,12 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        async for _ in svc.import_streaming(
+        await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
-            preclassified={},
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
-        ):
-            pass
+        )
 
         # Check the saved import record via save_complete_import
         saved_import = deps["import_repo"].save_complete_import.await_args.kwargs[
@@ -324,19 +315,17 @@ class TestAutoPostBehavior:
         service_with_mocks,
     ):
         """auto_post=True should post the transactions."""
-        svc, _ = service_with_mocks
+        svc, deps = service_with_mocks
 
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        results = []
-        async for _, _, result in svc.import_streaming(
+        results = await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
-            preclassified={},
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=True,
-        ):
-            results.append(result)
+        )
 
         assert results[0].status == ImportStatus.SUCCESS
         # The accounting transaction should be posted

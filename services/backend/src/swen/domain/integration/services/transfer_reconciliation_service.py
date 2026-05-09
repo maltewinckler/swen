@@ -1,125 +1,39 @@
-"""Service for detecting and reconciling internal transfers."""
+"""Service for reconciling internal transfers.
+
+Handles finding matching transfers (by hash or fuzzy) and converting
+existing transactions to internal transfers when a new account is linked.
+"""
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from datetime import date
 from typing import TYPE_CHECKING, Optional
 
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType, JournalEntry
 from swen.domain.accounting.services import (
     CATEGORY_ACCOUNT_TYPES,
-    OpeningBalanceService,
     TransactionEntryService,
 )
 from swen.domain.accounting.value_objects import MetadataKeys
 from swen.domain.banking.value_objects import BankTransaction
-from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
-    from swen.domain.accounting.repositories import (
-        AccountRepository,
-        TransactionRepository,
-    )
-    from swen.domain.integration.repositories import AccountMappingRepository
+    from swen.domain.accounting.repositories import TransactionRepository
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class TransferContext:
-    """Context for internal transfer detection."""
-
-    counterparty_iban: str | None
-    counterparty_account: Account | None
-    counterparty_opening_balance_date: date | None = None
-
-    @property
-    def is_internal_transfer(self) -> bool:
-        return self.counterparty_account is not None
-
-    @property
-    def is_asset_transfer(self) -> bool:
-        return (
-            self.counterparty_account is not None
-            and self.counterparty_account.account_type == AccountType.ASSET
-        )
-
-    @property
-    def is_liability_transfer(self) -> bool:
-        return (
-            self.counterparty_account is not None
-            and self.counterparty_account.account_type == AccountType.LIABILITY
-        )
-
-    @property
-    def can_reconcile(self) -> bool:
-        return self.is_asset_transfer and self.counterparty_iban is not None
-
-    def is_pre_opening_balance(self, transaction_date: date) -> bool:
-        """Check if a transaction date predates the counterparty's opening balance.
-
-        This is used to determine if an internal transfer requires an opening
-        balance adjustment on the counterparty account.
-        """
-        if self.counterparty_opening_balance_date is None:
-            return False
-        return transaction_date < self.counterparty_opening_balance_date
-
-    @classmethod
-    def not_a_transfer(cls) -> TransferContext:
-        return cls(counterparty_iban=None, counterparty_account=None)
-
-    @classmethod
-    def external_counterparty(cls, iban: str) -> TransferContext:
-        return cls(counterparty_iban=iban, counterparty_account=None)
-
-
 class TransferReconciliationService:
-    """Service for detecting and reconciling internal transfers."""
+    """Service for reconciling internal transfers.
 
-    def __init__(
-        self,
-        transaction_repository: TransactionRepository,
-        mapping_repository: AccountMappingRepository,
-        account_repository: AccountRepository,
-        opening_balance_query: OpeningBalanceService | None = None,
-    ):
-        self._transaction_repo: TransactionRepository = transaction_repository
-        self._mapping_repo: AccountMappingRepository = mapping_repository
-        self._account_repo: AccountRepository = account_repository
-        self._ob_query = opening_balance_query
+    Handles finding matching transfers and converting existing transactions
+    when a new account is linked. Does NOT perform transfer detection —
+    that is handled by ``CounterAccountBatchService``.
+    """
 
-    async def detect_transfer(
-        self,
-        bank_transaction: BankTransaction,
-    ) -> TransferContext:
-        counterparty_iban = normalize_iban(bank_transaction.applicant_iban)
-        if not counterparty_iban:
-            return TransferContext.not_a_transfer()
-
-        counterparty_mapping = await self._mapping_repo.find_by_iban(counterparty_iban)
-        if not counterparty_mapping:
-            return TransferContext.external_counterparty(counterparty_iban)
-
-        counterparty_account = await self._account_repo.find_by_id(
-            counterparty_mapping.accounting_account_id,
-        )
-
-        # Fetch the counterparty's opening balance date for pre-OB transfer detection
-        counterparty_ob_date = None
-        if self._ob_query is not None:
-            counterparty_ob_date = await self._ob_query.get_date_for_iban(
-                counterparty_iban,
-            )
-
-        return TransferContext(
-            counterparty_iban=counterparty_iban,
-            counterparty_account=counterparty_account,
-            counterparty_opening_balance_date=counterparty_ob_date,
-        )
+    def __init__(self, transaction_repository: TransactionRepository):
+        self._transaction_repo = transaction_repository
 
     async def find_matching_transfer(
         self,

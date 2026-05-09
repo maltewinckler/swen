@@ -14,88 +14,11 @@ from swen.domain.accounting.value_objects import (
     TransactionSource,
 )
 from swen.domain.integration.services import (
-    TransferContext,
     TransferReconciliationService,
 )
-from swen.domain.shared.time import today_utc
 
 # Test user ID for all tests
 TEST_USER_ID = uuid4()
-
-
-class TestTransferContextAccountTypes:
-    """Test TransferContext properties for distinguishing account types."""
-
-    def test_is_asset_transfer_true_for_asset_counterparty(self):
-        """Test is_asset_transfer returns True for ASSET counterparty."""
-        asset_account = Account(
-            name="External Bank",
-            account_type=AccountType.ASSET,
-            account_number="EXT-12345",
-            user_id=TEST_USER_ID,
-        )
-        context = TransferContext(
-            counterparty_iban="DE89370400440532013000",
-            counterparty_account=asset_account,
-        )
-
-        assert context.is_asset_transfer is True
-        assert context.is_liability_transfer is False
-        assert context.is_internal_transfer is True
-        assert context.can_reconcile is True
-
-    def test_is_liability_transfer_true_for_liability_counterparty(self):
-        """Test is_liability_transfer returns True for LIABILITY counterparty."""
-        liability_account = Account(
-            name="Credit Card",
-            account_type=AccountType.LIABILITY,
-            account_number="LIA-12345",
-            user_id=TEST_USER_ID,
-        )
-        context = TransferContext(
-            counterparty_iban="DE89370400440532013000",
-            counterparty_account=liability_account,
-        )
-
-        assert context.is_liability_transfer is True
-        assert context.is_asset_transfer is False
-        assert context.is_internal_transfer is True
-        # Liability transfers cannot be reconciled (one-sided)
-        assert context.can_reconcile is False
-
-    def test_can_reconcile_false_for_liability(self):
-        """Test that liability transfers cannot be reconciled."""
-        liability_account = Account(
-            name="Student Loan",
-            account_type=AccountType.LIABILITY,
-            account_number="LIA-99999",
-            user_id=TEST_USER_ID,
-        )
-        context = TransferContext(
-            counterparty_iban="DE89370400440532013000",
-            counterparty_account=liability_account,
-        )
-
-        # Liability transfers are one-sided, can't reconcile with "other leg"
-        assert context.can_reconcile is False
-
-    def test_external_counterparty_not_a_transfer(self):
-        """Test external counterparty is not an internal/liability transfer."""
-        context = TransferContext.external_counterparty("DE89370400440532013000")
-
-        assert context.is_internal_transfer is False
-        assert context.is_asset_transfer is False
-        assert context.is_liability_transfer is False
-        assert context.can_reconcile is False
-
-    def test_not_a_transfer_has_all_flags_false(self):
-        """Test not_a_transfer factory returns context with all flags False."""
-        context = TransferContext.not_a_transfer()
-
-        assert context.is_internal_transfer is False
-        assert context.is_asset_transfer is False
-        assert context.is_liability_transfer is False
-        assert context.can_reconcile is False
 
 
 class TestLiabilityReconciliation:
@@ -104,16 +27,12 @@ class TestLiabilityReconciliation:
     def _make_service(self):
         """Create service with mocked repositories."""
         transaction_repo = AsyncMock()
-        mapping_repo = AsyncMock()
-        account_repo = AsyncMock()
 
         service = TransferReconciliationService(
             transaction_repository=transaction_repo,
-            mapping_repository=mapping_repo,
-            account_repository=account_repo,
         )
 
-        return service, transaction_repo, mapping_repo, account_repo
+        return service, transaction_repo
 
     def _make_expense_transaction(
         self,
@@ -155,7 +74,7 @@ class TestLiabilityReconciliation:
     @pytest.mark.asyncio
     async def test_reconcile_liability_for_new_account_converts_transactions(self):
         """Test that liability reconciliation converts expense transactions."""
-        service, transaction_repo, _mapping_repo, _account_repo = self._make_service()
+        service, transaction_repo = self._make_service()
 
         # Create a liability account
         liability_account = Account(
@@ -195,7 +114,7 @@ class TestLiabilityReconciliation:
     @pytest.mark.asyncio
     async def test_reconcile_liability_skips_already_reconciled(self):
         """Test that already reconciled transactions are skipped."""
-        service, transaction_repo, _mapping_repo, _account_repo = self._make_service()
+        service, transaction_repo = self._make_service()
 
         liability_account = Account(
             name="Credit Card",
@@ -227,7 +146,7 @@ class TestLiabilityReconciliation:
     @pytest.mark.asyncio
     async def test_reconcile_liability_handles_no_candidates(self):
         """Test that no error when no transactions match."""
-        service, transaction_repo, _mapping_repo, _account_repo = self._make_service()
+        service, transaction_repo = self._make_service()
 
         liability_account = Account(
             name="Credit Card",
@@ -256,7 +175,7 @@ class TestLiabilityReconciliation:
         asset entry for bank imports, but the conversion code then added another
         asset entry, resulting in unbalanced transactions.
         """
-        service, transaction_repo, _mapping_repo, _account_repo = self._make_service()
+        service, transaction_repo = self._make_service()
 
         liability_account = Account(
             name="Credit Card",
@@ -299,53 +218,3 @@ class TestLiabilityReconciliation:
         assert total_debits == total_credits, (
             f"Transaction is unbalanced: debits={total_debits}, credits={total_credits}"
         )
-
-    @pytest.mark.asyncio
-    async def test_detect_transfer_returns_liability_context(self):
-        """Test detect_transfer correctly identifies liability transfers."""
-        service, _transaction_repo, mapping_repo, account_repo = self._make_service()
-
-        # Create a liability account and mapping
-        liability_account = Account(
-            name="Credit Card",
-            account_type=AccountType.LIABILITY,
-            account_number="LIA-12345",
-            user_id=TEST_USER_ID,
-            iban="DE89370400440532013000",
-        )
-
-        from swen.domain.integration.entities import AccountMapping
-
-        mapping = AccountMapping(
-            iban="DE89370400440532013000",
-            accounting_account_id=liability_account.id,
-            account_name="Credit Card",
-            user_id=TEST_USER_ID,
-        )
-
-        mapping_repo.find_by_iban.return_value = mapping
-        account_repo.find_by_id.return_value = liability_account
-
-        # Create a bank transaction to the credit card
-
-        from swen.domain.banking.value_objects import BankTransaction
-
-        bank_tx = BankTransaction(
-            amount=Decimal("-50.00"),
-            currency="EUR",
-            booking_date=today_utc(),
-            value_date=today_utc(),
-            purpose="Credit Card Payment",
-            applicant_iban="DE89370400440532013000",
-            applicant_name="Credit Card",
-        )
-
-        # Act
-        context = await service.detect_transfer(bank_tx)
-
-        # Assert
-        assert context.is_internal_transfer is True
-        assert context.is_liability_transfer is True
-        assert context.is_asset_transfer is False
-        assert context.can_reconcile is False  # Liabilities can't be reconciled
-        assert context.counterparty_account == liability_account

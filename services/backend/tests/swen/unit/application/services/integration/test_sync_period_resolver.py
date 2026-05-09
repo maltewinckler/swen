@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.services.integration.sync_period_resolver import (
+from swen.application.services.integration.bank_account_sync.sync_period_resolver import (
     _ADAPTIVE_FALLBACK_DAYS,
     SyncPeriodResolver,
 )
@@ -91,7 +91,7 @@ class TestResolveFixed:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = resolver.resolve_fixed(days=30)
@@ -103,7 +103,7 @@ class TestResolveFixed:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = resolver.resolve_fixed(days=30)
@@ -115,7 +115,7 @@ class TestResolveFixed:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = resolver.resolve_fixed(days=7)
@@ -127,7 +127,7 @@ class TestResolveFixed:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = resolver.resolve_fixed(days=90)
@@ -139,7 +139,7 @@ class TestResolveFixed:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = resolver.resolve_fixed(days=0)
@@ -161,7 +161,7 @@ class TestResolveAdaptiveForFallback:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -176,7 +176,7 @@ class TestResolveAdaptiveForFallback:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -189,7 +189,7 @@ class TestResolveAdaptiveForFallback:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -202,7 +202,7 @@ class TestResolveAdaptiveForFallback:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -228,7 +228,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -246,7 +246,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -263,7 +263,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -280,7 +280,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -296,7 +296,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)
@@ -314,7 +314,7 @@ class TestResolveAdaptiveForNextDay:
         resolver = SyncPeriodResolver(import_repo=repo)
 
         with patch(
-            "swen.application.services.integration.sync_period_resolver.today_utc",
+            "swen.application.services.integration.bank_account_sync.sync_period_resolver.today_utc",
             return_value=_TODAY,
         ):
             period = await resolver.resolve_adaptive_for(TEST_IBAN)

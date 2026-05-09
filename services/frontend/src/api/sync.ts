@@ -9,11 +9,8 @@ export interface SyncRunRequest {
    * - Subsequent: from last sync date to today
    */
   days?: number | null
-  /** Sync only this specific account by IBAN */
-  iban?: string
   /** Sync only accounts from this bank (by BLZ/bank code) */
   blz?: string
-  auto_post?: boolean
 }
 
 export interface SyncStatusResponse {
@@ -84,7 +81,6 @@ export type SyncEventType =
   | 'classification_started'
   | 'classification_progress'
   | 'classification_completed'
-  | 'transaction_classified'
   | 'result'
 
 /**
@@ -160,7 +156,6 @@ export interface ClassificationProgressEvent extends SyncProgressEvent {
   iban: string
   current: number
   total: number
-  last_tier?: string | null
   last_merchant?: string | null
 }
 
@@ -171,21 +166,7 @@ export interface ClassificationCompletedEvent extends SyncProgressEvent {
   event_type: 'classification_completed'
   iban: string
   total: number
-  by_tier?: Record<string, number>
   processing_time_ms?: number
-}
-
-/**
- * Transaction classified event
- */
-export interface TransactionClassifiedEvent extends SyncProgressEvent {
-  event_type: 'transaction_classified'
-  iban: string
-  current: number
-  total: number
-  description: string
-  counter_account_name: string
-  transaction_id: string | null
 }
 
 /**
@@ -235,7 +216,6 @@ export type SyncEvent =
   | ClassificationCompletedEvent
   | AccountSyncCompletedEvent
   | AccountSyncFailedEvent
-  | TransactionClassifiedEvent
   | SyncResultEvent
 
 /**

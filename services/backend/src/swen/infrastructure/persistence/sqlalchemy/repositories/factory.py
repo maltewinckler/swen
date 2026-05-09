@@ -27,7 +27,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
-    CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
@@ -65,7 +64,6 @@ class SQLAlchemyRepositoryFactory:
         self._transaction_repo: TransactionRepositorySQLAlchemy | None = None
         self._mapping_repo: AccountMappingRepositorySQLAlchemy | None = None
         self._import_repo: TransactionImportRepositorySQLAlchemy | None = None
-        self._rule_repo: CounterAccountRuleRepositorySQLAlchemy | None = None
         self._credential_repo: BankCredentialRepositorySQLAlchemy | None = None
         self._bank_account_repo: BankAccountRepositorySQLAlchemy | None = None
         self._bank_transaction_repo: BankTransactionRepositorySQLAlchemy | None = None
@@ -119,14 +117,6 @@ class SQLAlchemyRepositoryFactory:
                 self._current_user,
             )
         return self._import_repo
-
-    def counter_account_rule_repository(self) -> CounterAccountRuleRepositorySQLAlchemy:
-        if self._rule_repo is None:
-            self._rule_repo = CounterAccountRuleRepositorySQLAlchemy(
-                self._session,
-                self._current_user,
-            )
-        return self._rule_repo
 
     def credential_repository(self) -> BankCredentialRepositorySQLAlchemy:
         if self._credential_repo is None:
