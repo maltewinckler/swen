@@ -24,6 +24,9 @@ from swen.domain.integration.services import BankAccountImportService
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
 )
+from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
+    BankAccountRepositorySQLAlchemy,
+)
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
 )
@@ -215,11 +218,13 @@ class TestAccountMappingIntegration:
         async for session in get_session(integration_session_maker):
             account_repo = AccountRepositorySQLAlchemy(session, current_user)
             mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
                 current_user=current_user,
+                bank_account_repository=bank_account_repo,
             )
 
             # Import both bank accounts
@@ -271,11 +276,13 @@ class TestAccountMappingIntegration:
         async for session in get_session(integration_session_maker):
             account_repo = AccountRepositorySQLAlchemy(session, current_user)
             mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
                 current_user=current_user,
+                bank_account_repository=bank_account_repo,
             )
 
             # Count before
