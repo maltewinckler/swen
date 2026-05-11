@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.shared.value_objects import SecureString
 
 
 class BankCredentialRepository(ABC):
@@ -125,4 +126,36 @@ class BankCredentialRepository(ABC):
         Returns
         -------
         Tuple of (tan_method, tan_medium)
+        """
+
+    @abstractmethod
+    async def update(
+        self,
+        blz: str,
+        *,
+        username: Optional[SecureString] = None,
+        pin: Optional[SecureString] = None,
+        tan_method: Optional[str] = None,
+        tan_medium: Optional[str] = None,
+    ) -> None:
+        """
+        Partially update stored credentials — only non-None fields are written.
+
+        Parameters
+        ----------
+        blz
+            Bankleitzahl
+        username
+            New username, or None to leave unchanged
+        pin
+            New PIN, or None to leave unchanged
+        tan_method
+            TAN method code to set, or None to leave unchanged
+        tan_medium
+            TAN medium/device name to set, or None to leave unchanged
+
+        Raises
+        ------
+        ValueError
+            If credentials not found for this user+blz
         """

@@ -3,6 +3,7 @@
 from swen.application.commands.banking.credentials import (
     DeleteCredentialsCommand,
     StoreCredentialsCommand,
+    UpdateCredentialsCommand,
 )
 from swen.application.commands.banking.discover_accounts_command import (
     DiscoverAccountsCommand,
@@ -16,4 +17,5 @@ __all__ = [
     "DiscoverAccountsCommand",
     "StoreCredentialsCommand",
     "DeleteCredentialsCommand",
+    "UpdateCredentialsCommand",
 ]

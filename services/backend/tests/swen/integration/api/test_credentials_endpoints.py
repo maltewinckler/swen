@@ -55,12 +55,32 @@ class TestStoreCredentials:
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Successfully store bank credentials returns 204."""
+        """Successfully store bank credentials without tan_method returns 204."""
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
+                "username": "testuser",
+                "pin": "testpin123",
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.content == b""
+
+    def test_store_credentials_with_tan_method(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Successfully store bank credentials including tan_method returns 204."""
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={
+                "blz": "33333333",
                 "username": "testuser",
                 "pin": "testpin123",
                 "tan_method": "946",
@@ -88,8 +108,6 @@ class TestStoreCredentials:
                 "blz": duplicate_test_blz,
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
         assert first_response.status_code == 204, (
@@ -104,8 +122,6 @@ class TestStoreCredentials:
                 "blz": duplicate_test_blz,
                 "username": "testuser2",
                 "pin": "testpin456",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
@@ -126,8 +142,6 @@ class TestStoreCredentials:
                 "blz": "123",  # Too short
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
@@ -145,8 +159,6 @@ class TestStoreCredentials:
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
         assert response.status_code == 401
@@ -170,8 +182,6 @@ class TestDeleteCredentials:
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
@@ -299,7 +309,10 @@ class TestLookupBank:
 
 
 class TestQueryTanMethods:
-    """Tests for POST /api/v1/bank-connections/tan-methods."""
+    """Tests for POST /api/v1/bank-connections/tan-methods.
+
+    Credentials must be stored first; the endpoint reads them from DB.
+    """
 
     @patch(
         "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
@@ -315,7 +328,7 @@ class TestQueryTanMethods:
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Successfully query TAN methods from bank."""
+        """Successfully query TAN methods from bank when credentials are stored."""
         from swen.domain.banking.value_objects import TANMethod, TANMethodType
 
         mock_query = AsyncMock()
@@ -349,14 +362,21 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods
 
-        response = test_client.post(
-            f"{api_v1_prefix}/bank-connections/tan-methods",
+        # Store credentials first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin",
             },
+        )
+
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            headers=auth_headers,
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 200
@@ -392,11 +412,7 @@ class TestQueryTanMethods:
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "99999999",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "99999999"},
         )
 
         assert response.status_code == 400
@@ -412,50 +428,34 @@ class TestQueryTanMethods:
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "123",  # Too short
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "123"},  # Too short
         )
 
         assert response.status_code == 422  # Pydantic validation
 
-    def test_query_tan_methods_missing_username(
+    @patch(
+        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+    )
+    def test_query_tan_methods_credentials_not_found(
         self,
+        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Query TAN methods fails without username."""
+        """Query TAN methods returns 404 when no credentials are stored for the BLZ."""
+        mock_query = AsyncMock()
+        mock_query.execute.return_value = MOCK_BANK_INFO
+        mock_lookup_factory.return_value = mock_query
+
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "pin": "testpin",
-            },
+            json={"blz": "77777777"},
         )
 
-        assert response.status_code == 422  # Pydantic validation
-
-    def test_query_tan_methods_missing_pin(
-        self,
-        test_client: TestClient,
-        auth_headers: dict,
-        api_v1_prefix: str,
-    ):
-        """Query TAN methods fails without PIN."""
-        response = test_client.post(
-            f"{api_v1_prefix}/bank-connections/tan-methods",
-            headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-            },
-        )
-
-        assert response.status_code == 422  # Pydantic validation
+        assert response.status_code == 404
+        assert "credentials" in response.json()["detail"].lower()
 
     def test_query_tan_methods_unauthorized(
         self,
@@ -465,11 +465,7 @@ class TestQueryTanMethods:
         """Cannot query TAN methods without auth."""
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 401
@@ -501,14 +497,17 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_failure
 
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 503
@@ -541,14 +540,17 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_auth_error
 
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "wrongpin"},
+        )
+
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "wrongpin",
-            },
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 401
@@ -581,14 +583,17 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_empty
 
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 200
@@ -596,3 +601,95 @@ class TestQueryTanMethods:
 
         assert data["tan_methods"] == []
         assert data["default_method"] is None
+
+
+class TestUpdateCredentialsTan:
+    """Tests for PATCH /api/v1/bank-connections/credentials/{blz}."""
+
+    def test_update_tan_settings_success(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Successfully update TAN settings for stored credentials."""
+        # Store first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": "SecureGo"},
+        )
+
+        assert response.status_code == 204
+
+    def test_update_tan_settings_not_found(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Returns 404 when no credentials exist for the BLZ."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/88888888",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 404
+
+    def test_update_tan_settings_invalid_blz(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Returns 400 for invalid BLZ format."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/123",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 400
+        assert "8 digits" in response.json()["detail"]
+
+    def test_update_tan_settings_unauthorized(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Cannot update credentials without auth."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 401
+
+    def test_update_tan_settings_null_method(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Allows setting tan_method to null (clears TAN settings)."""
+        # Store first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            headers=auth_headers,
+            json={"tan_method": None, "tan_medium": None},
+        )
+
+        assert response.status_code == 204

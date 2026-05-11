@@ -9,6 +9,18 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class BankInfoDTO(BaseModel):
+    """Basic bank info for display during discovery."""
+
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    blz: str
+    name: str
+    bic: Optional[str]
+    organization: Optional[str] = None
+    is_fints_capable: bool = True
+
+
 class DiscoveredAccountDTO(BaseModel):
     """Full bank account data from discovery."""
 

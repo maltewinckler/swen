@@ -4,9 +4,11 @@ from swen.application.dtos.banking.credentials_dto import (
     CredentialToStoreDTO,
     StoredCredentialDTO,
     StoredCredentialListDTO,
+    UpdateCredentialsDTO,
 )
 from swen.application.dtos.banking.discovered_accounts_dto import (
     BankDiscoveryResultDTO,
+    BankInfoDTO,
     DiscoveredAccountDTO,
 )
 from swen.application.dtos.banking.setup_banks_dto import (
@@ -17,6 +19,7 @@ from swen.application.dtos.banking.setup_banks_dto import (
 )
 
 __all__ = [
+    "BankInfoDTO",
     "CredentialToStoreDTO",
     "StoredCredentialDTO",
     "StoredCredentialListDTO",
@@ -26,4 +29,5 @@ __all__ = [
     "SetupBankRequestDTO",
     "SetupBankResponseDTO",
     "ImportedBankAccountDTO",
+    "UpdateCredentialsDTO",
 ]

@@ -4,6 +4,7 @@ import { useSyncProgress } from './useSyncProgress'
 import {
   lookupBank,
   storeCredentials,
+  updateCredentialsTan,
   deleteCredentials,
   discoverBankAccounts,
   setupBankAccounts,
@@ -461,11 +462,33 @@ export function useBankConnection(
     dispatch({ type: 'TAN_DISCOVERY_START' })
 
     try {
-      const result = await queryTANMethods({
-        blz: state.bankForm.blz,
-        username: state.bankForm.username,
-        pin: state.bankForm.pin,
-      })
+      // Store credentials first so the TAN query can read them from DB.
+      // Handle 409 (already stored) by deleting and re-storing in case
+      // the user went back and changed their credentials.
+      try {
+        await storeCredentials({
+          blz: state.bankForm.blz,
+          username: state.bankForm.username,
+          pin: state.bankForm.pin,
+          tan_medium: null,
+        })
+      } catch (storeErr) {
+        if (storeErr instanceof ApiRequestError && storeErr.status === 409) {
+          await deleteCredentials(state.bankForm.blz)
+          await storeCredentials({
+            blz: state.bankForm.blz,
+            username: state.bankForm.username,
+            pin: state.bankForm.pin,
+            tan_medium: null,
+          })
+        } else {
+          throw storeErr
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['credentials'] })
+
+      const result = await queryTANMethods({ blz: state.bankForm.blz })
 
       let defaultMethod = ''
       let defaultMedium = ''
@@ -484,7 +507,7 @@ export function useBankConnection(
     } catch (err) {
       dispatch({ type: 'TAN_DISCOVERY_ERROR', payload: err instanceof Error ? err.message : 'Failed to discover TAN methods' })
     }
-  }, [state.bankForm.blz, state.bankForm.username, state.bankForm.pin])
+  }, [state.bankForm.blz, state.bankForm.username, state.bankForm.pin, queryClient])
 
   // Abort controller for account discovery (TAN polling can block for 5 min)
   const discoveryAbortRef = useRef<AbortController | null>(null)
@@ -498,31 +521,11 @@ export function useBankConnection(
     dispatch({ type: 'ACCOUNT_DISCOVERY_START' })
 
     try {
-      // Store credentials first — if they already exist (e.g. retry after
-      // timeout), delete them first so we can re-store with potentially
-      // updated TAN settings.
-      try {
-        await storeCredentials({
-          blz: state.bankForm.blz,
-          username: state.bankForm.username,
-          pin: state.bankForm.pin,
-          tan_method: state.bankForm.tan_method,
-          tan_medium: state.bankForm.tan_medium || null,
-        })
-      } catch (storeErr) {
-        if (storeErr instanceof ApiRequestError && storeErr.status === 409) {
-          await deleteCredentials(state.bankForm.blz)
-          await storeCredentials({
-            blz: state.bankForm.blz,
-            username: state.bankForm.username,
-            pin: state.bankForm.pin,
-            tan_method: state.bankForm.tan_method,
-            tan_medium: state.bankForm.tan_medium || null,
-          })
-        } else {
-          throw storeErr
-        }
-      }
+      // Update the stored credentials with the chosen TAN method/medium.
+      await updateCredentialsTan(state.bankForm.blz, {
+        tan_method: state.bankForm.tan_method || null,
+        tan_medium: state.bankForm.tan_medium || null,
+      })
 
       // Discover accounts (blocks during TAN approval — cancellable)
       const result = await discoverBankAccounts(state.bankForm.blz, {
@@ -555,7 +558,7 @@ export function useBankConnection(
     discoveryAbortRef.current?.abort()
     discoveryAbortRef.current = null
 
-    // Clean up stored credentials so the user can retry
+    // Clean up stored credentials so the user can retry from scratch
     try {
       await deleteCredentials(state.bankForm.blz)
       queryClient.invalidateQueries({ queryKey: ['credentials'] })
@@ -564,7 +567,7 @@ export function useBankConnection(
     }
 
     dispatch({ type: 'ACCOUNT_DISCOVERY_ERROR', payload: '' })
-    dispatch({ type: 'SET_STEP', payload: 'tan_discovery' })
+    dispatch({ type: 'SET_STEP', payload: 'credentials' })
   }, [state.bankForm.blz, queryClient])
 
   const handleConnect = useCallback(async () => {

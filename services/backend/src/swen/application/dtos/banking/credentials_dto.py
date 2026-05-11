@@ -33,3 +33,15 @@ class StoredCredentialListDTO(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     credentials: list[StoredCredentialDTO]
+
+
+class UpdateCredentialsDTO(BaseModel):
+    """Partial update for existing stored credentials."""
+
+    model_config = ConfigDict(frozen=True)
+
+    blz: str
+    username: Optional[SecureString] = None
+    pin: Optional[SecureString] = None
+    tan_method: Optional[str] = None
+    tan_medium: Optional[str] = None

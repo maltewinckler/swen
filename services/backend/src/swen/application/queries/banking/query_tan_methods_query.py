@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from swen.domain.banking.exceptions import CredentialsNotFoundError
 from swen.domain.banking.ports import BankConnectionPort
-from swen.domain.banking.value_objects import BankCredentials, TANMethod
+from swen.domain.banking.repositories import BankCredentialRepository
+from swen.domain.banking.value_objects import TANMethod
 from swen.infrastructure.banking.bank_connection_dispatcher import (
     BankConnectionDispatcher,
 )
@@ -65,20 +67,30 @@ class TANMethodsResult:
 class QueryTanMethodsQuery:
     """Query to discover available TAN methods from a bank."""
 
-    def __init__(self, bank_adapter: BankConnectionPort):
+    def __init__(
+        self,
+        bank_adapter: BankConnectionPort,
+        credential_repo: BankCredentialRepository,
+    ):
         self._adapter = bank_adapter
+        self._credential_repo = credential_repo
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> QueryTanMethodsQuery:
         return cls(
             bank_adapter=BankConnectionDispatcher.from_factory(factory),
+            credential_repo=factory.credential_repository(),
         )
 
     async def execute(
         self,
-        credentials: BankCredentials,
+        blz: str,
         bank_name: str,
     ) -> TANMethodsResult:
+        credentials = await self._credential_repo.find_by_blz(blz)
+        if credentials is None:
+            raise CredentialsNotFoundError(blz=blz)
+
         tan_methods = await self._adapter.get_tan_methods(credentials)
         method_infos = [TANMethodInfo.from_domain(m) for m in tan_methods]
         default_method = None
@@ -90,7 +102,7 @@ class QueryTanMethodsQuery:
             default_method = method_infos[0].code
 
         return TANMethodsResult(
-            blz=credentials.blz,
+            blz=blz,
             bank_name=bank_name,
             tan_methods=method_infos,
             default_method=default_method,

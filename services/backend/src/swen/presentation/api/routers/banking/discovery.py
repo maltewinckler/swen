@@ -10,12 +10,15 @@ from swen.application.commands.banking import (
 )
 from swen.application.queries import QueryTanMethodsQuery
 from swen.application.queries.banking import LookupBankQuery
-from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.banking.exceptions import CredentialsNotFoundError
 from swen.presentation.api.dependencies import RepoFactory
-from swen.presentation.api.schemas.credentials import (
+from swen.presentation.api.schemas.banking.discovery import (
+    # DiscoveredAccount,
     BankDiscoveryResult,
-    BankLookupResponse,
-    TANMethodQueryRequest,
+    BankInfo,
+    TanMethodQueryRequest,
+)
+from swen.presentation.api.schemas.credentials import (
     TANMethodResponse,
     TANMethodsResponse,
     TANMethodTypeStr,
@@ -38,12 +41,8 @@ router = APIRouter()
 async def lookup_bank(
     blz: str,
     factory: RepoFactory,
-) -> BankLookupResponse:
-    """
-    Lookup bank information by BLZ.
-
-    Returns bank metadata for a given bank code.
-    """
+) -> BankInfo:
+    """Lookup bank information by BLZ."""
     # Validate BLZ format
     if not blz.isdigit() or len(blz) != 8:
         raise HTTPException(
@@ -60,13 +59,7 @@ async def lookup_bank(
             detail=f"Bank with BLZ {blz} not found in bank directory",
         )
 
-    return BankLookupResponse(
-        blz=info.blz,
-        name=info.name,
-        bic=info.bic,
-        organization=info.organization,
-        is_fints_capable=info.is_fints_capable,
-    )
+    return BankInfo.model_validate(info)
 
 
 @router.post(
@@ -119,7 +112,7 @@ async def discover_bank_accounts(
     try:
         command = DiscoverAccountsCommand.from_factory(factory)
         dto = await command.execute(blz)
-        return BankDiscoveryResult(**dto.model_dump())
+        return BankDiscoveryResult.model_validate(dto)
 
     except Exception as e:
         logger.exception("Account discovery failed for BLZ %s: %s", blz, e)
@@ -134,17 +127,19 @@ async def discover_bank_accounts(
     summary="Query available TAN methods",
     responses={
         200: {"description": "Available TAN methods"},
-        400: {"description": "Invalid input or bank not found"},
-        401: {"description": "Invalid credentials"},
+        400: {"description": "Invalid BLZ or bank not found"},
+        404: {"description": "Credentials not found"},
         503: {"description": "Bank connection failed"},
     },
 )
 async def query_tan_methods(
-    request: TANMethodQueryRequest,
+    request: TanMethodQueryRequest,
     factory: RepoFactory,
 ) -> TANMethodsResponse:
     """
     Query available TAN methods from the bank.
+
+    Credentials must already be stored via POST /credentials before calling this.
 
     This performs a lightweight sync dialog to discover which TAN authentication
     methods are supported for the user. This does NOT require TAN approval,
@@ -172,25 +167,16 @@ async def query_tan_methods(
             detail=f"Bank with BLZ {request.blz} not found in bank directory",
         )
 
-    # Create credentials value object
-    try:
-        credentials = BankCredentials.from_plain(
-            blz=request.blz,
-            username=request.username,
-            pin=request.pin,
-        )
-    except ValueError as e:
-        logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid credentials. Check your BLZ, username, and PIN.",
-        ) from e
-
-    # Query TAN methods using application query
+    # Query TAN methods using application query (credentials loaded from DB)
     query = QueryTanMethodsQuery.from_factory(factory)
 
     try:
-        result = await query.execute(credentials, bank_info.name)
+        result = await query.execute(request.blz, bank_info.name)
+    except CredentialsNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No credentials found for BLZ {request.blz}.",
+        ) from e
     except Exception as e:
         error_msg = str(e).lower()
         if "authentication" in error_msg or "pin" in error_msg:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import select
@@ -11,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from swen.domain.security.entities import StoredBankCredentials
 from swen.domain.security.exceptions import CredentialNotFoundError
 from swen.domain.security.repositories import StoredBankCredentialsRepository
+from swen.domain.shared.time import utc_now
 from swen.infrastructure.persistence.sqlalchemy.models import (
     StoredCredentialModel,
 )
@@ -90,7 +90,7 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
 
         # Soft delete
         model.is_active = False
-        model.updated_at = datetime.now(timezone.utc)
+        model.updated_at = utc_now()
         await self._session.flush()
         await self._session.commit()
 
@@ -103,10 +103,36 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
             msg = f"Credentials not found for user {self._user_id}, BLZ {blz}"
             raise CredentialNotFoundError(msg)
 
-        model.last_used_at = datetime.now(timezone.utc)
-        model.updated_at = datetime.now(timezone.utc)
+        model.last_used_at = utc_now()
+        model.updated_at = utc_now()
         await self._session.flush()
         await self._session.commit()
+
+    async def update(
+        self,
+        blz: str,
+        *,
+        username_encrypted: Optional[bytes] = None,
+        pin_encrypted: Optional[bytes] = None,
+        tan_method: Optional[str] = None,
+        tan_medium: Optional[str] = None,
+    ) -> None:
+        model = await self._find_model_by_blz(blz)
+
+        if not model:
+            msg = f"Credentials not found for user {self._user_id}, BLZ {blz}"
+            raise CredentialNotFoundError(msg)
+
+        if username_encrypted is not None:
+            model.username_encrypted = username_encrypted
+        if pin_encrypted is not None:
+            model.pin_encrypted = pin_encrypted
+        if tan_method is not None:
+            model.tan_method = tan_method
+        if tan_medium is not None:
+            model.tan_medium = tan_medium
+        model.updated_at = utc_now()
+        await self._session.flush()
 
     # Private helpers
 

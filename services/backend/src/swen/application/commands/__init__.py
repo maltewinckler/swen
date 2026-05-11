@@ -30,6 +30,7 @@ from swen.application.commands.banking import (
     DeleteCredentialsCommand,
     SetupBankCommand,
     StoreCredentialsCommand,
+    UpdateCredentialsCommand,
 )
 from swen.application.commands.integration import (
     SyncBankAccountsCommand,
@@ -62,6 +63,7 @@ __all__ = [
     "SetupBankCommand",
     "StoreCredentialsCommand",
     "DeleteCredentialsCommand",
+    "UpdateCredentialsCommand",
     # Integration
     "SyncBankAccountsCommand",
     # System

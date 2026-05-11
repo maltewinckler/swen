@@ -21,6 +21,13 @@ class TestQueryTanMethodsQuery:
         return AsyncMock()
 
     @pytest.fixture
+    def mock_credential_repo(self, sample_credentials):
+        """Create a mock credential repository that returns sample_credentials."""
+        repo = AsyncMock()
+        repo.find_by_blz.return_value = sample_credentials
+        return repo
+
+    @pytest.fixture
     def sample_credentials(self):
         """Create sample bank credentials for testing."""
         return BankCredentials.from_plain(
@@ -57,14 +64,15 @@ class TestQueryTanMethodsQuery:
     async def test_execute_returns_tan_methods(
         self,
         mock_bank_adapter,
+        mock_credential_repo,
         sample_credentials,
         sample_tan_methods,
     ):
         """Test that execute returns discovered TAN methods."""
         mock_bank_adapter.get_tan_methods.return_value = sample_tan_methods
 
-        query = QueryTanMethodsQuery(mock_bank_adapter)
-        result = await query.execute(sample_credentials, "Test Bank")
+        query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
+        result = await query.execute("12345678", "Test Bank")
 
         assert isinstance(result, TANMethodsResult)
         assert result.blz == "12345678"
@@ -85,13 +93,13 @@ class TestQueryTanMethodsQuery:
     async def test_execute_returns_empty_list_when_no_methods(
         self,
         mock_bank_adapter,
-        sample_credentials,
+        mock_credential_repo,
     ):
         """Test that execute handles banks with no TAN methods."""
         mock_bank_adapter.get_tan_methods.return_value = []
 
-        query = QueryTanMethodsQuery(mock_bank_adapter)
-        result = await query.execute(sample_credentials, "Test Bank")
+        query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
+        result = await query.execute("12345678", "Test Bank")
 
         assert result.tan_methods == []
         assert result.default_method is None
@@ -100,14 +108,14 @@ class TestQueryTanMethodsQuery:
     async def test_execute_selects_decoupled_as_default(
         self,
         mock_bank_adapter,
-        sample_credentials,
+        mock_credential_repo,
         sample_tan_methods,
     ):
         """Test that decoupled method is selected as default."""
         mock_bank_adapter.get_tan_methods.return_value = sample_tan_methods
 
-        query = QueryTanMethodsQuery(mock_bank_adapter)
-        result = await query.execute(sample_credentials, "Test Bank")
+        query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
+        result = await query.execute("12345678", "Test Bank")
 
         # First decoupled method (940) should be default
         assert result.default_method == "940"
@@ -116,7 +124,7 @@ class TestQueryTanMethodsQuery:
     async def test_execute_selects_first_method_if_no_decoupled(
         self,
         mock_bank_adapter,
-        sample_credentials,
+        mock_credential_repo,
     ):
         """Test fallback to first method when no decoupled available."""
         non_decoupled_methods = [
@@ -135,8 +143,8 @@ class TestQueryTanMethodsQuery:
         ]
         mock_bank_adapter.get_tan_methods.return_value = non_decoupled_methods
 
-        query = QueryTanMethodsQuery(mock_bank_adapter)
-        result = await query.execute(sample_credentials, "Test Bank")
+        query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
+        result = await query.execute("12345678", "Test Bank")
 
         # First method should be default
         assert result.default_method == "972"
@@ -145,15 +153,15 @@ class TestQueryTanMethodsQuery:
     async def test_execute_propagates_adapter_exception(
         self,
         mock_bank_adapter,
-        sample_credentials,
+        mock_credential_repo,
     ):
         """Test that adapter exceptions are propagated."""
         mock_bank_adapter.get_tan_methods.side_effect = Exception("Connection failed")
 
-        query = QueryTanMethodsQuery(mock_bank_adapter)
+        query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
 
         with pytest.raises(Exception, match="Connection failed"):
-            await query.execute(sample_credentials, "Test Bank")
+            await query.execute("12345678", "Test Bank")
 
 
 class TestTANMethodInfo:
@@ -255,7 +263,8 @@ class TestQueryTanMethodsQueryDependencyInjection:
     def test_query_accepts_bank_adapter(self):
         """Test that query accepts a bank connection adapter."""
         mock_adapter = AsyncMock()
-        query = QueryTanMethodsQuery(mock_adapter)
+        mock_credential_repo = AsyncMock()
+        query = QueryTanMethodsQuery(mock_adapter, mock_credential_repo)
         assert query._adapter is mock_adapter
 
     def test_from_factory_creates_query(self):

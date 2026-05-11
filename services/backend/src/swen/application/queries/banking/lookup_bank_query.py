@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.domain.banking.value_objects.bank_info import BankInfo
+from swen.application.dtos.banking import BankInfoDTO
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -23,10 +23,9 @@ class LookupBankQuery:
     def from_factory(cls, factory: RepositoryFactory) -> LookupBankQuery:
         return cls(bank_info_repo=factory.bank_info_repository())
 
-    async def execute(self, blz: str) -> BankInfo | None:
+    async def execute(self, blz: str) -> BankInfoDTO | None:
         """Find bank information by BLZ, or None if not found."""
-        return await self._repo.find_by_blz(blz)
-
-    async def list_all(self) -> list[BankInfo]:
-        """Return all known banks."""
-        return await self._repo.find_all()
+        bank_info = await self._repo.find_by_blz(blz)
+        if bank_info is None:
+            return None
+        return BankInfoDTO.model_validate(bank_info)

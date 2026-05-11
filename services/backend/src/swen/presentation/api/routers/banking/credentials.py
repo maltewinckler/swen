@@ -10,13 +10,19 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from swen.application.commands import DeleteCredentialsCommand, StoreCredentialsCommand
-from swen.application.dtos.banking import CredentialToStoreDTO
+from swen.application.commands import (
+    DeleteCredentialsCommand,
+    StoreCredentialsCommand,
+    UpdateCredentialsCommand,
+)
+from swen.application.dtos.banking import CredentialToStoreDTO, UpdateCredentialsDTO
 from swen.application.queries import ListCredentialsQuery
+from swen.domain.banking.exceptions import CredentialsNotFoundError
 from swen.domain.shared.value_objects import SecureString
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.schemas.banking.credentials import (
     CredentialToStore,
+    CredentialToUpdate,
     StoredCredentialList,
 )
 
@@ -83,6 +89,54 @@ async def store_credentials(
     command = StoreCredentialsCommand.from_factory(factory)
     await command.execute(credential_to_store=credentials_to_store)
     logger.info("Credentials stored for BLZ %s", request.blz)
+
+
+@router.patch(
+    "/{blz}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Update TAN settings for stored credentials",
+    responses={
+        204: {"description": "TAN settings updated"},
+        400: {"description": "Invalid BLZ format"},
+        404: {"description": "Credentials not found"},
+    },
+)
+async def update_credentials_tan(
+    blz: str,
+    request: CredentialToUpdate,
+    factory: RepoFactory,
+) -> None:
+    """
+    Update the TAN method and medium for already-stored bank credentials.
+
+    Call this after the user has selected a TAN method from the list
+    returned by the /tan-methods endpoint.
+    """
+    if not blz.isdigit() or len(blz) != 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="BLZ must be exactly 8 digits",
+        )
+    username = request.username
+    pin = request.pin
+    dto = UpdateCredentialsDTO(
+        blz=blz,
+        username=SecureString(username) if username is not None else None,
+        pin=SecureString(pin) if pin is not None else None,
+        tan_method=request.tan_method,
+        tan_medium=request.tan_medium,
+    )
+
+    try:
+        command = UpdateCredentialsCommand.from_factory(factory)
+        await command.execute(dto)
+        await factory.session.commit()
+        logger.info("TAN settings updated for BLZ %s", blz)
+    except CredentialsNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No credentials found for BLZ {blz}",
+        ) from e
 
 
 @router.delete(

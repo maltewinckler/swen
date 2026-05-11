@@ -24,7 +24,7 @@ export interface CredentialCreateRequest {
   blz: string
   username: string
   pin: string
-  tan_method: string
+  tan_method?: string | null
   tan_medium: string | null
 }
 
@@ -94,8 +94,6 @@ export interface TANMethod {
 
 export interface TANMethodQueryRequest {
   blz: string
-  username: string
-  pin: string
 }
 
 export interface TANMethodsResponse {
@@ -146,6 +144,16 @@ export async function lookupBank(blz: string): Promise<BankLookupResponse> {
  */
 export async function storeCredentials(data: CredentialCreateRequest): Promise<void> {
   await api.post<void>('/bank-connections/credentials', data)
+}
+
+/**
+ * Update TAN method and medium for already-stored credentials
+ */
+export async function updateCredentialsTan(
+  blz: string,
+  data: { tan_method: string | null; tan_medium: string | null },
+): Promise<void> {
+  await api.patch<void>(`/bank-connections/credentials/${blz}`, data)
 }
 
 /**

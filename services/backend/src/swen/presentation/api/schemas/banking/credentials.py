@@ -6,31 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 class CredentialToStore(BaseModel):
     """Request schema for storing new credentials."""
 
-    blz: str = Field(
-        ...,
-        min_length=8,
-        max_length=8,
-        pattern=r"^\d{8}$",
-        description="Bank code (BLZ) - exactly 8 digits",
-    )
-    username: str = Field(
-        ...,
-        min_length=1,
-        max_length=100,
-        description="Bank login username/ID",
-    )
-    pin: str = Field(..., min_length=1, max_length=100, description="Bank PIN")
-    tan_method: str = Field(
-        ...,
-        min_length=1,
-        max_length=10,
-        description="TAN method code (e.g., '946' for SecureGo plus)",
-    )
-    tan_medium: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="TAN medium/device name (e.g., 'SecureGo'). Optional for most TAN methods.",
-    )
+    blz: str = Field(..., min_length=8, max_length=8, pattern=r"^\d{8}$")
+    username: str = Field(..., min_length=1, max_length=100)
+    pin: str = Field(..., min_length=1, max_length=100)
+    tan_method: Optional[str] = Field(default=None, max_length=10)
+    tan_medium: Optional[str] = Field(default=None, max_length=100)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -38,8 +18,26 @@ class CredentialToStore(BaseModel):
                 "blz": "50031000",
                 "username": "my_username",
                 "pin": "my_secret_pin",
-                "tan_method": "946",
+                "tan_method": None,
                 "tan_medium": None,
+            },
+        },
+    )
+
+
+class CredentialToUpdate(BaseModel):
+    """Request schema for partially updating stored credentials."""
+
+    username: Optional[str] = Field(None, min_length=1, max_length=100)
+    pin: Optional[str] = Field(None, min_length=1, max_length=100)
+    tan_method: Optional[str] = Field(None, max_length=10)
+    tan_medium: Optional[str] = Field(None, max_length=100)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "tan_method": "946",
+                "tan_medium": "SecureGo",
             },
         },
     )
