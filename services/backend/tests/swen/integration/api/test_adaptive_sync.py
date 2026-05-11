@@ -183,7 +183,7 @@ def user_with_bank(
 
     # Store credentials
     test_client.post(
-        f"{api_v1_prefix}/credentials",
+        f"{api_v1_prefix}/bank-connections/credentials",
         headers=headers,
         json={
             "blz": blz,
@@ -195,7 +195,7 @@ def user_with_bank(
 
     # Setup accounts
     setup_response = test_client.post(
-        f"{api_v1_prefix}/credentials/{blz}/setup",
+        f"{api_v1_prefix}/integration/setup/{blz}",
         headers=headers,
     )
     assert setup_response.status_code == 200, (
@@ -235,7 +235,7 @@ class TestSyncRecommendation:
 
         # Debug: Check if credentials exist
         credentials_response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
         )
         assert credentials_response.status_code == 200
@@ -523,7 +523,7 @@ class TestReconciliation:
         headers = authenticated_user["headers"]
 
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/reconciliation",
+            f"{api_v1_prefix}/integration/reconciliation",
             headers=headers,
         )
 

@@ -202,77 +202,6 @@ class BankAccountData(BaseModel):
     balance_date: Optional[str] = Field(None, description="When balance was fetched")
 
 
-class SetupBankRequest(BaseModel):
-    """Request body for bank setup with discovered accounts and custom names."""
-
-    accounts: Optional[list[BankAccountData]] = Field(
-        None,
-        description="Bank accounts from /discover-accounts endpoint. "
-        "If provided, skips bank connection (no TAN needed). "
-        "If not provided, connects to bank to fetch accounts.",
-    )
-    account_names: Optional[dict[str, str]] = Field(
-        None,
-        description="Optional mapping of IBAN -> custom account name. "
-        "If not provided for an IBAN, a default name is generated.",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "accounts": [
-                    {
-                        "iban": "DE89370400440532013000",
-                        "account_number": "0532013000",
-                        "account_holder": "Max Mustermann",
-                        "account_type": "Girokonto",
-                        "blz": "12030000",
-                        "bank_name": "DKB",
-                        "currency": "EUR",
-                        "balance": "1250.00",
-                    },
-                ],
-                "account_names": {
-                    "DE89370400440532013000": "My Main Checking",
-                },
-            },
-        },
-    )
-
-
-class SetupBankResponse(BaseModel):
-    """Response for bank setup (connect + import accounts)."""
-
-    success: bool = Field(..., description="Whether setup completed successfully")
-    bank_code: str = Field(..., description="Bank BLZ")
-    accounts_imported: list[AccountImportInfo] = Field(
-        ...,
-        description="List of imported bank accounts",
-    )
-    message: str = Field(..., description="Status message")
-    warning: Optional[str] = Field(None, description="Warning message if any")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "success": True,
-                "bank_code": "12030000",
-                "accounts_imported": [
-                    {
-                        "iban": "DE89370400440532013000",
-                        "account_name": "DKB - Girokonto",
-                        "balance": "1250.00",
-                        "currency": "EUR",
-                        "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
-                    },
-                ],
-                "message": "Successfully imported 1 bank account(s)",
-                "warning": None,
-            },
-        },
-    )
-
-
 # inherit from DTO to reuse fields and inject json schema
 class DiscoveredAccount(DiscoveredAccountDTO):
     """Bank account data from discovery (passed back to setup to avoid re-fetching)."""
@@ -296,7 +225,7 @@ class DiscoveredAccount(DiscoveredAccountDTO):
     )
 
 
-class DiscoverAccountsCollectionResponse(BaseModel):
+class BankDiscoveryResult(BaseModel):
     """Response for account discovery (connect + list accounts without importing)."""
 
     blz: str = Field(..., description="Bank BLZ")
@@ -319,6 +248,134 @@ class DiscoverAccountsCollectionResponse(BaseModel):
                         "balance": "1250.00",
                     },
                 ],
+            },
+        },
+    )
+
+
+class BankAccountToImport(DiscoveredAccount):
+    """Bank account data for import (extends DiscoveredAccount with custom name)."""
+
+    custom_name: Optional[str] = Field(None, description="Optional custom acc name")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "iban": "DE89370400440532013000",
+                "default_name": "DKB - Girokonto",
+                "custom_name": "Hebelkonto",
+                "account_number": "0532013000",
+                "account_holder": "Max Mustermann",
+                "account_type": "Girokonto",
+                "blz": "12030000",
+                "bic": "BYLADEM1001",
+                "bank_name": "DKB",
+                "currency": "EUR",
+                "balance": "1250.00",
+                "balance_date": "2025-12-14T10:00:00",
+            },
+        },
+    )
+
+
+class ImportedBankAccount(BankAccountToImport):
+    """Bank account that was imported into the DB."""
+
+    accounting_account_id: Optional[UUID] = Field(None, description="Accounting ID")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "iban": "DE89370400440532013000",
+                "default_name": "DKB - Girokonto",
+                "custom_name": "Hebelkonto",
+                "account_number": "0532013000",
+                "account_holder": "Max Mustermann",
+                "account_type": "Girokonto",
+                "blz": "12030000",
+                "bic": "BYLADEM1001",
+                "bank_name": "DKB",
+                "currency": "EUR",
+                "balance": "1250.00",
+                "balance_date": "2025-12-14T10:00:00",
+                "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
+            },
+        },
+    )
+
+
+class SetupBankRequest(BaseModel):
+    """Request body for bank setup with discovered accounts and custom names."""
+
+    accounts: list[BankAccountToImport] = Field(
+        ...,
+        min_length=1,
+        description="Bank accounts from /discover-accounts endpoint. "
+        "If provided, skips bank connection (no TAN needed). "
+        "If not provided, connects to bank to fetch accounts.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "accounts": [
+                    {
+                        "iban": "DE89370400440532013000",
+                        "default_name": "DKB - Girokonto",
+                        "custom_name": "Hebelkonto",
+                        "account_number": "0532013000",
+                        "account_holder": "Max Mustermann",
+                        "account_type": "Girokonto",
+                        "blz": "12030000",
+                        "bank_name": "DKB",
+                        "currency": "EUR",
+                        "balance": "1250.00",
+                        "balance_date": "2025-12-14T10:00:00",
+                    },
+                ],
+            },
+        },
+    )
+
+
+class SetupBankResponse(BaseModel):
+    """Response for bank setup (connect + import accounts)."""
+
+    blz: str = Field(..., description="Bank BLZ")
+    imported_accounts: list[ImportedBankAccount] = Field(
+        ...,
+        min_length=1,
+        description="List of imported bank accounts",
+    )
+
+    success: bool = Field(..., description="Whether setup completed successfully")
+    message: str = Field(..., description="Status message")
+    warning: Optional[str] = Field(None, description="Warning message if any")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "blz": "12030000",
+                "imported_accounts": [
+                    {
+                        "iban": "DE89370400440532013000",
+                        "default_name": "DKB - Girokonto",
+                        "custom_name": "Hebelkonto",
+                        "account_number": "0532013000",
+                        "account_holder": "Max Mustermann",
+                        "account_type": "Girokonto",
+                        "blz": "12030000",
+                        "bic": "BYLADEM1001",
+                        "bank_name": "DKB",
+                        "currency": "EUR",
+                        "balance": "1250.00",
+                        "balance_date": "2025-12-14T10:00:00",
+                        "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
+                    },
+                ],
+                "message": "Successfully imported 1 bank account(s)",
+                "warning": None,
             },
         },
     )

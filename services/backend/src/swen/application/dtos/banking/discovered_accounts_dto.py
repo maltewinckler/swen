@@ -32,7 +32,7 @@ class DiscoveredAccountDTO(BaseModel):
     balance_date: Optional[str] = Field(None, description="When balance was fetched")
 
 
-class DiscoveredAccountsCollectionDTO(BaseModel):
+class BankDiscoveryResultDTO(BaseModel):
     """Collection of discovered accounts for a bank."""
 
     model_config = ConfigDict(frozen=True)

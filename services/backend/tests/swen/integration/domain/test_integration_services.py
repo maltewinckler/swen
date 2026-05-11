@@ -256,6 +256,7 @@ def bank_account_service(integration_repositories):
         account_repository=integration_repositories.account_repo,
         mapping_repository=integration_repositories.mapping_repo,
         current_user=integration_repositories.current_user,
+        bank_account_repository=integration_repositories.bank_account_repo,
     )
 
 

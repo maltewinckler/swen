@@ -1,5 +1,3 @@
-"""Accounts router for account management endpoints."""
-
 import logging
 from datetime import datetime
 from typing import Annotated
@@ -8,38 +6,25 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from swen.application.commands.accounting import (
-    ChartTemplate,
     CreateAccountCommand,
     DeactivateAccountCommand,
     DeleteAccountCommand,
-    GenerateDefaultAccountsCommand,
     ParentAction,
     ReactivateAccountCommand,
     UpdateAccountCommand,
 )
-from swen.application.commands.integration import RenameBankAccountCommand
 from swen.application.queries import (
     AccountStatsQuery,
     ListAccountsQuery,
-    ReconciliationQuery,
 )
 from swen.domain.shared.time import utc_now
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.schemas.accounts import (
     AccountCreateRequest,
     AccountListResponse,
-    AccountReconciliationResponse,
     AccountResponse,
     AccountStatsResponse,
     AccountUpdateRequest,
-    BankAccountListResponse,
-    BankAccountRenameRequest,
-    BankAccountResponse,
-    ChartTemplateEnum,
-    InitChartRequest,
-    InitChartResponse,
-    InitEssentialsResponse,
-    ReconciliationResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,6 +40,7 @@ ActiveOnlyFilter = Annotated[
     bool,
     Query(description="Only return active accounts"),
 ]
+
 StatsIncludeDrafts = Annotated[
     bool,
     Query(description="Include draft transactions in statistics"),
@@ -169,260 +155,6 @@ async def create_account(
         is_active=account.is_active,
         created_at=account.created_at,
         parent_id=account.parent_id,
-    )
-
-
-@router.post(
-    "/init-chart",
-    status_code=status.HTTP_201_CREATED,
-    summary="Initialize default chart of accounts",
-    responses={
-        201: {"description": "Default accounts created"},
-        200: {"description": "Accounts already exist (skipped)"},
-    },
-)
-async def init_chart_of_accounts(
-    factory: RepoFactory,
-    ml_client: MLClient,
-    request: InitChartRequest | None = None,
-) -> InitChartResponse:
-    """
-    Initialize the default chart of accounts for the current user.
-
-    ## Template
-
-    Creates a **minimal** chart of accounts with simple categories for
-    everyday personal finance. ~13 accounts covering essentials:
-    salary, housing, groceries, restaurants, transport, subscriptions, etc.
-
-    ## Accounts Created
-
-    - **Income accounts** (3xxx): Salary, Other Income
-    - **Expense accounts** (4xxx): Housing, Groceries, Restaurants, etc.
-    - **Equity accounts** (2xxx): Opening Balance (required for bank sync)
-
-    This is idempotent - if accounts already exist, it will return
-    `skipped: true` instead of creating duplicates.
-
-    **Note**: Asset accounts (bank accounts) are created automatically when
-    you sync from a bank connection.
-    """
-    # Use minimal template if no request body provided
-    template_enum = request.template if request else ChartTemplateEnum.MINIMAL
-
-    # Convert API enum to domain enum
-    template = ChartTemplate(template_enum.value)
-
-    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
-    result = await command.execute(template=template)
-    await factory.session.commit()
-
-    if result.get("skipped"):
-        logger.info("Chart of accounts already exists for user, skipped initialization")
-        return InitChartResponse(
-            message="Chart of accounts already exists",
-            skipped=True,
-            accounts_created=0,
-            template=None,
-            by_type=None,
-        )
-
-    logger.info(
-        "Default chart of accounts initialized: %d accounts created (template: %s)",
-        result["total"],
-        template.value,
-    )
-    return InitChartResponse(
-        message=f"Created {result['total']} default accounts",
-        skipped=False,
-        accounts_created=int(result["total"]),
-        template=template.value,
-        by_type={
-            "income": int(result["INCOME"]),
-            "expense": int(result["EXPENSE"]),
-            "equity": int(result["EQUITY"]),
-            "asset": int(result["ASSET"]),
-            "liability": int(result["LIABILITY"]),
-        },
-    )
-
-
-@router.post(
-    "/init-essentials",
-    status_code=status.HTTP_201_CREATED,
-    summary="Initialize essential accounts only",
-    responses={
-        201: {"description": "Essential accounts created"},
-        200: {"description": "Essential accounts already exist (skipped)"},
-    },
-)
-async def init_essential_accounts(
-    factory: RepoFactory,
-    ml_client: MLClient,
-) -> InitEssentialsResponse:
-    """
-    Initialize only the essential accounts required for basic operation.
-
-    Creates 3 accounts (if they don't exist):
-    - **Bargeld** (1000): Cash asset account for cash transactions
-    - **Sonstige Einnahmen** (3100): Fallback income account
-    - **Sonstiges** (4900): Fallback expense account
-
-    This is idempotent - existing accounts are skipped, not duplicated.
-    Use this when users choose manual account setup but you still need
-    the essential accounts for cash transactions and fallback categorization.
-    """
-    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
-    result = await command.execute_essentials()
-    await factory.session.commit()
-
-    if result["skipped"]:
-        logger.info("Essential accounts already exist, skipped initialization")
-        return InitEssentialsResponse(
-            message="Essential accounts already exist",
-            skipped=True,
-            accounts_created=0,
-        )
-
-    logger.info(
-        "Essential accounts initialized: %d created",
-        result["accounts_created"],
-    )
-    return InitEssentialsResponse(
-        message=f"Created {result['accounts_created']} essential accounts",
-        skipped=False,
-        accounts_created=int(result["accounts_created"]),
-    )
-
-
-@router.get(
-    "/bank",
-    summary="List bank accounts",
-    responses={
-        200: {"description": "List of bank accounts with mappings"},
-    },
-)
-async def list_bank_accounts(
-    factory: RepoFactory,
-) -> BankAccountListResponse:
-    """
-    List all imported bank accounts with their mapping information.
-
-    These are accounts that have been imported from bank connections.
-    """
-    query = ListAccountsQuery.from_factory(factory)
-    dtos = await query.list_bank_accounts()
-
-    return BankAccountListResponse(
-        accounts=[
-            BankAccountResponse(
-                id=UUID(dto.id),
-                name=dto.name,
-                account_number=dto.account_number,
-                iban=dto.iban,
-                currency=dto.currency,
-                is_active=dto.is_active,
-            )
-            for dto in dtos
-        ],
-        total=len(dtos),
-    )
-
-
-@router.patch(
-    "/bank/{iban}/rename",
-    summary="Rename bank account",
-    responses={
-        200: {"description": "Bank account renamed"},
-        404: {"description": "Bank account not found"},
-    },
-)
-async def rename_bank_account(
-    iban: str,
-    request: BankAccountRenameRequest,
-    factory: RepoFactory,
-) -> BankAccountResponse:
-    """
-    Rename an imported bank account.
-
-    Updates both the accounting account name and the account mapping.
-    """
-    import_service = RenameBankAccountCommand.from_factory(factory)
-
-    # Normalize IBAN (presentation concern - input sanitization)
-    normalized_iban = iban.replace(" ", "").upper()
-
-    try:
-        dto = await import_service.execute(
-            iban=normalized_iban,
-            new_name=request.name,
-        )
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
-
-    logger.info("Bank account renamed: %s -> %s", normalized_iban, request.name)
-
-    return BankAccountResponse(
-        id=UUID(dto.id),
-        name=dto.name,
-        account_number=dto.account_number,
-        iban=dto.iban,
-        currency=dto.currency,
-        is_active=dto.is_active,
-    )
-
-
-@router.get(
-    "/reconciliation",
-    summary="Reconcile bank balances with bookkeeping",
-    responses={
-        200: {"description": "Reconciliation results"},
-    },
-)
-async def get_reconciliation(
-    factory: RepoFactory,
-) -> ReconciliationResponse:
-    """
-    Compare bank-reported balances with bookkeeping calculated balances.
-
-    For each linked bank account, this endpoint:
-    1. Gets the balance reported by the bank (from last sync)
-    2. Calculates the balance from accounting transactions
-    3. Reports any discrepancies
-
-    Use this to verify that your bookkeeping matches your bank statements.
-    A reconciled account means the balances match (within €0.01 tolerance).
-    """
-    query = ReconciliationQuery.from_factory(factory)
-    result = await query.execute()
-
-    return ReconciliationResponse(
-        accounts=[
-            AccountReconciliationResponse(
-                iban=acc.iban,
-                account_name=acc.account_name,
-                accounting_account_id=acc.accounting_account_id,
-                currency=acc.currency,
-                bank_balance=str(acc.bank_balance),
-                bank_balance_date=(
-                    acc.bank_balance_date.isoformat() if acc.bank_balance_date else None
-                ),
-                last_sync_at=(
-                    acc.last_sync_at.isoformat() if acc.last_sync_at else None
-                ),
-                bookkeeping_balance=str(acc.bookkeeping_balance),
-                discrepancy=str(acc.discrepancy),
-                is_reconciled=acc.is_reconciled,
-            )
-            for acc in result.accounts
-        ],
-        total_accounts=result.total_accounts,
-        reconciled_count=result.reconciled_count,
-        discrepancy_count=result.discrepancy_count,
-        all_reconciled=result.all_reconciled,
     )
 
 

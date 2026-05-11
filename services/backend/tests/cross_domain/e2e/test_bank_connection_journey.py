@@ -234,7 +234,7 @@ class TestBankConnectionJourney:
 
         # Step 1: Store bank credentials
         store_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -254,7 +254,7 @@ class TestBankConnectionJourney:
 
         # Step 2: Discover bank accounts
         discover_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/discover-accounts",
+            f"{api_v1_prefix}/bank-connections/discover/{blz}",
             headers=headers,
         )
         assert discover_response.status_code == 200, (
@@ -275,7 +275,7 @@ class TestBankConnectionJourney:
         # Step 3: Setup accounts with custom names
         # User can customize names from the discover response
         setup_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+            f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
             json={
                 "accounts": discover_data["accounts"],
@@ -326,7 +326,7 @@ class TestBankConnectionJourney:
 
         # First store - should succeed
         first_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -339,7 +339,7 @@ class TestBankConnectionJourney:
 
         # Second store - should fail
         second_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -386,7 +386,7 @@ class TestBankConnectionJourney:
 
         # User 1 stores credentials
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user1_headers,
             json={
                 "blz": blz,
@@ -398,7 +398,7 @@ class TestBankConnectionJourney:
 
         # User 2 should see empty credentials list
         user2_creds = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user2_headers,
         )
         assert user2_creds.status_code == 200
@@ -406,7 +406,7 @@ class TestBankConnectionJourney:
 
         # User 2 should be able to store same BLZ (different user)
         user2_store = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user2_headers,
             json={
                 "blz": blz,
@@ -438,7 +438,7 @@ class TestSyncAfterBankConnection:
 
         # Setup: Store credentials and setup accounts
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -449,7 +449,7 @@ class TestSyncAfterBankConnection:
         )
 
         test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+            f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
         )
 
@@ -487,7 +487,7 @@ class TestSyncAfterBankConnection:
 
         # Setup bank connection
         cred_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -501,7 +501,7 @@ class TestSyncAfterBankConnection:
         )
 
         setup_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+            f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
         )
         assert setup_response.status_code == 200, f"Setup failed: {setup_response.text}"
@@ -569,7 +569,7 @@ class TestOnboardingStatusJourney:
 
         # Connect bank
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,

@@ -17,7 +17,7 @@ MOCK_BANK_INFO = BankInfo(
 
 
 class TestListCredentials:
-    """Tests for GET /api/v1/credentials."""
+    """Tests for GET /api/v1/bank-connections/credentials."""
 
     def test_list_credentials_empty(
         self,
@@ -27,7 +27,7 @@ class TestListCredentials:
     ):
         """List credentials returns empty for new user."""
         response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
         )
 
@@ -43,12 +43,12 @@ class TestListCredentials:
         api_v1_prefix: str,
     ):
         """Cannot list credentials without auth."""
-        response = test_client.get(f"{api_v1_prefix}/credentials")
+        response = test_client.get(f"{api_v1_prefix}/bank-connections/credentials")
         assert response.status_code == 401
 
 
 class TestStoreCredentials:
-    """Tests for POST /api/v1/credentials."""
+    """Tests for POST /api/v1/bank-connections/credentials."""
 
     @patch(
         "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
@@ -66,7 +66,7 @@ class TestStoreCredentials:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -101,7 +101,7 @@ class TestStoreCredentials:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "99999999",
@@ -141,7 +141,7 @@ class TestStoreCredentials:
 
         # Store first
         first_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": duplicate_test_blz,
@@ -157,7 +157,7 @@ class TestStoreCredentials:
 
         # Try to store again
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": duplicate_test_blz,
@@ -179,7 +179,7 @@ class TestStoreCredentials:
     ):
         """Cannot store credentials with invalid BLZ format."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "123",  # Too short
@@ -199,7 +199,7 @@ class TestStoreCredentials:
     ):
         """Cannot store credentials without auth."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             json={
                 "blz": "12345678",
                 "username": "testuser",
@@ -212,7 +212,7 @@ class TestStoreCredentials:
 
 
 class TestDeleteCredentials:
-    """Tests for DELETE /api/v1/credentials/{blz}."""
+    """Tests for DELETE /api/v1/bank-connections/credentials/{blz}."""
 
     @patch(
         "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
@@ -231,7 +231,7 @@ class TestDeleteCredentials:
 
         # Store first
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -244,7 +244,7 @@ class TestDeleteCredentials:
 
         # Delete
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/12345678",
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
             headers=auth_headers,
         )
 
@@ -252,7 +252,7 @@ class TestDeleteCredentials:
 
         # Verify deleted
         list_response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
         )
         assert list_response.json()["total"] == 0
@@ -265,7 +265,7 @@ class TestDeleteCredentials:
     ):
         """Cannot delete non-existent credentials."""
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/12345678",
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
             headers=auth_headers,
         )
 
@@ -279,7 +279,7 @@ class TestDeleteCredentials:
     ):
         """Cannot delete with invalid BLZ format."""
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/123",
+            f"{api_v1_prefix}/bank-connections/credentials/123",
             headers=auth_headers,
         )
 
@@ -292,12 +292,14 @@ class TestDeleteCredentials:
         api_v1_prefix: str,
     ):
         """Cannot delete credentials without auth."""
-        response = test_client.delete(f"{api_v1_prefix}/credentials/12345678")
+        response = test_client.delete(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678"
+        )
         assert response.status_code == 401
 
 
 class TestLookupBank:
-    """Tests for GET /api/v1/credentials/lookup/{blz}."""
+    """Tests for GET /api/v1/bank-connections/lookup/{blz}."""
 
     @patch(
         "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
@@ -315,7 +317,7 @@ class TestLookupBank:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/12345678",
+            f"{api_v1_prefix}/bank-connections/lookup/12345678",
             headers=auth_headers,
         )
 
@@ -342,7 +344,7 @@ class TestLookupBank:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/99999999",
+            f"{api_v1_prefix}/bank-connections/lookup/99999999",
             headers=auth_headers,
         )
 
@@ -356,7 +358,7 @@ class TestLookupBank:
     ):
         """Lookup with invalid BLZ format returns 400."""
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/123",
+            f"{api_v1_prefix}/bank-connections/lookup/123",
             headers=auth_headers,
         )
 
@@ -364,7 +366,7 @@ class TestLookupBank:
 
 
 class TestQueryTanMethods:
-    """Tests for POST /api/v1/credentials/tan-methods."""
+    """Tests for POST /api/v1/bank-connections/tan-methods."""
 
     @patch(
         "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
@@ -415,7 +417,7 @@ class TestQueryTanMethods:
         mock_adapter.get_tan_methods = mock_get_tan_methods
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -455,7 +457,7 @@ class TestQueryTanMethods:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "99999999",
@@ -475,7 +477,7 @@ class TestQueryTanMethods:
     ):
         """Query TAN methods fails with invalid BLZ format."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "123",  # Too short
@@ -494,7 +496,7 @@ class TestQueryTanMethods:
     ):
         """Query TAN methods fails without username."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -512,7 +514,7 @@ class TestQueryTanMethods:
     ):
         """Query TAN methods fails without PIN."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -529,7 +531,7 @@ class TestQueryTanMethods:
     ):
         """Cannot query TAN methods without auth."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             json={
                 "blz": "12345678",
                 "username": "testuser",
@@ -567,7 +569,7 @@ class TestQueryTanMethods:
         mock_adapter.get_tan_methods = mock_get_tan_methods_failure
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -607,7 +609,7 @@ class TestQueryTanMethods:
         mock_adapter.get_tan_methods = mock_get_tan_methods_auth_error
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",
@@ -647,7 +649,7 @@ class TestQueryTanMethods:
         mock_adapter.get_tan_methods = mock_get_tan_methods_empty
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
             json={
                 "blz": "12345678",

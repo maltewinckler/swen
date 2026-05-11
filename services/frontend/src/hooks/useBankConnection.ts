@@ -13,7 +13,9 @@ import {
 import type {
   BankLookupResponse,
   TANMethod,
-  DiscoveredAccount
+  DiscoveredAccount,
+  BankAccountToImport,
+  SetupBankResponse,
 } from '@/api/credentials'
 
 const FINTS_NOT_CONFIGURED_CODE = 'FINTS_NOT_CONFIGURED'
@@ -51,12 +53,6 @@ export interface BankForm {
   tan_medium: string
 }
 
-/** Result from successful bank connection */
-export interface ConnectionResult {
-  message: string
-  accounts_imported: Array<{ iban: string; account_name: string }>
-}
-
 /** Options for the useBankConnection hook */
 export interface UseBankConnectionOptions {
   onSuccess?: () => void
@@ -80,7 +76,7 @@ interface BankConnectionState {
   bankLookup: BankLookupResponse | null
   discoveredTanMethods: TANMethod[]
   discoveredAccounts: DiscoveredAccount[]
-  connectionResult: ConnectionResult | null
+  connectionResult: SetupBankResponse | null
 
   // Loading states
   isLookingUp: boolean
@@ -155,7 +151,7 @@ type BankConnectionAction =
 
   // Connection
   | { type: 'CONNECT_START' }
-  | { type: 'CONNECT_SUCCESS'; payload: ConnectionResult }
+  | { type: 'CONNECT_SUCCESS'; payload: SetupBankResponse }
   | { type: 'CONNECT_ERROR'; payload: string }
 
 // ============================================================================
@@ -276,7 +272,7 @@ export interface UseBankConnectionReturn {
     bankLookup: BankLookupResponse | null
     discoveredTanMethods: TANMethod[]
     discoveredAccounts: DiscoveredAccount[]
-    connectionResult: ConnectionResult | null
+    connectionResult: SetupBankResponse | null
   }
 
   /** Form data and setters */
@@ -341,7 +337,7 @@ export interface UseBankConnectionReturn {
   accountNames: Record<string, string>
   isDiscoveringAccounts: boolean
   accountDiscoveryError: string
-  connectionResult: ConnectionResult | null
+  connectionResult: SetupBankResponse | null
   syncDays: number
   syncProgress: ReturnType<typeof useSyncProgress>['progress']
   syncResult: ReturnType<typeof useSyncProgress>['result']
@@ -575,17 +571,19 @@ export function useBankConnection(
     dispatch({ type: 'CONNECT_START' })
 
     try {
-      const result = await setupBankAccounts(
-        state.bankForm.blz,
-        state.discoveredAccounts,
-        state.accountNames
-      )
+      // Embed user-edited names into each account before sending.
+      // This endpoint does NOT contact the bank — it is a pure DB import.
+      const accountsToImport: BankAccountToImport[] = state.discoveredAccounts.map(acc => ({
+        ...acc,
+        custom_name: state.accountNames[acc.iban] ?? null,
+      }))
+      const result = await setupBankAccounts(state.bankForm.blz, accountsToImport)
       dispatch({ type: 'CONNECT_SUCCESS', payload: result })
       queryClient.invalidateQueries({ queryKey: ['credentials'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       queryClient.invalidateQueries({ queryKey: ['reconciliation'] })
     } catch (err) {
-      dispatch({ type: 'CONNECT_ERROR', payload: getUserMessage(err, 'Connection failed') })
+      dispatch({ type: 'CONNECT_ERROR', payload: getUserMessage(err, 'Import failed') })
     }
   }, [state.bankForm.blz, state.discoveredAccounts, state.accountNames, queryClient])
 

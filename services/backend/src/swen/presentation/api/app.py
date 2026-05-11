@@ -25,14 +25,17 @@ from swen.presentation.api.exception_handlers import (
     setup_exception_handlers,
 )
 from swen.presentation.api.routers import (
-    accounts_router,
+    accounting_accounts_router,
+    accounting_init_router,
     admin_router,
     analytics_router,
     auth_router,
-    credentials_router,
+    bank_accounts_router,
+    bank_connections_router,
     dashboard_router,
     exports_router,
     imports_router,
+    integration_router,
     mappings_router,
     onboarding_router,
     preferences_router,
@@ -370,11 +373,26 @@ def create_v1_router() -> APIRouter:
     # Mount all routers under v1
     v1_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     v1_router.include_router(admin_router, tags=["Admin"])
-    v1_router.include_router(accounts_router, prefix="/accounts", tags=["Accounts"])
     v1_router.include_router(
-        credentials_router,
-        prefix="/credentials",
-        tags=["Credentials"],
+        accounting_accounts_router, prefix="/accounts", tags=["Accounts"]
+    )
+    v1_router.include_router(
+        accounting_init_router, prefix="/accounts", tags=["Accounts"]
+    )
+    v1_router.include_router(
+        bank_connections_router,
+        prefix="/bank-connections",
+        tags=["Banking"],
+    )
+    v1_router.include_router(
+        bank_accounts_router,
+        prefix="/bank-accounts",
+        tags=["Banking"],
+    )
+    v1_router.include_router(
+        integration_router,
+        prefix="/integration",
+        tags=["Integration"],
     )
     v1_router.include_router(
         transactions_router,

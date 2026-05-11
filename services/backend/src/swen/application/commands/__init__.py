@@ -27,7 +27,7 @@ from swen.application.commands.accounting import (
     UpdateAccountCommand,
 )
 from swen.application.commands.banking import (
-    BankConnectionCommand,
+    SetupBankCommand,
     StoreCredentialsCommand,
 )
 from swen.application.commands.integration import (
@@ -58,7 +58,7 @@ __all__ = [
     "GenerateDefaultAccountsCommand",
     "UpdateAccountCommand",
     # Banking
-    "BankConnectionCommand",
+    "SetupBankCommand",
     "StoreCredentialsCommand",
     # Integration
     "SyncBankAccountsCommand",

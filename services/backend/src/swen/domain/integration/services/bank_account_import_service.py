@@ -13,6 +13,7 @@ from swen.domain.shared.iban import normalize_iban
 
 if TYPE_CHECKING:
     from swen.domain.accounting.repositories import AccountRepository
+    from swen.domain.banking.repositories import BankAccountRepository
     from swen.domain.integration.repositories import AccountMappingRepository
 
 
@@ -24,17 +25,24 @@ class BankAccountImportService:
         account_repository: AccountRepository,
         mapping_repository: AccountMappingRepository,
         current_user: CurrentUser,
+        bank_account_repository: BankAccountRepository,
     ):
         self._account_repo = account_repository
         self._mapping_repo = mapping_repository
         self._user_id = current_user.user_id
+        self._bank_account_repo = bank_account_repository
 
     async def import_bank_account(
         self,
         bank_account: BankAccount,
         custom_name: str | None = None,
     ) -> tuple[Account, AccountMapping]:
-        existing_mapping = await self._mapping_repo.find_by_iban(bank_account.iban)
+        # Persist the bank account first — guarantees the bank_accounts row always
+        # exists before the accounting account and mapping are created.
+        await self._bank_account_repo.save(bank_account)
+
+        iban = bank_account.iban
+        existing_mapping = await self._mapping_repo.find_by_iban(iban)
 
         if existing_mapping is not None:
             existing_account = await self._account_repo.find_by_id(
@@ -42,7 +50,7 @@ class BankAccountImportService:
             )
             if existing_account is None:
                 msg = (
-                    f"Mapping exists for IBAN {bank_account.iban} but "
+                    f"Mapping exists for IBAN {iban} but "
                     f"accounting account {existing_mapping.accounting_account_id} "
                     "not found"
                 )
@@ -56,14 +64,11 @@ class BankAccountImportService:
 
             return existing_account, existing_mapping
 
-        normalized_iban = normalize_iban(bank_account.iban) or ""
-        existing_account_by_iban = await self._account_repo.find_by_iban(
-            normalized_iban,
-        )
+        existing_account_by_iban = await self._account_repo.find_by_iban(iban)
         if existing_account_by_iban is not None:
             if existing_account_by_iban.account_type != AccountType.ASSET:
                 msg = (
-                    f"Found existing account for IBAN {normalized_iban} "
+                    f"Found existing account for IBAN {iban} "
                     "but it is not an ASSET account: "
                     f"{existing_account_by_iban.account_type}"
                 )
@@ -74,7 +79,7 @@ class BankAccountImportService:
                 await self._account_repo.save(existing_account_by_iban)
 
             mapping = AccountMapping(
-                iban=normalized_iban,
+                iban=iban,
                 accounting_account_id=existing_account_by_iban.id,
                 account_name=custom_name or existing_account_by_iban.name,
                 user_id=self._user_id,
@@ -84,19 +89,19 @@ class BankAccountImportService:
             return existing_account_by_iban, mapping
 
         account_name = custom_name or self._generate_account_name(bank_account)
-        account_number = await self._generate_asset_account_number(normalized_iban)
+        account_number = await self._generate_asset_account_number(bank_account.iban)
         asset_account = Account(
             name=account_name,
             account_type=AccountType.ASSET,
             account_number=account_number,
             user_id=self._user_id,
-            iban=normalized_iban,
+            iban=iban,
             default_currency=Currency(bank_account.currency),
         )
 
         await self._account_repo.save(asset_account)
         mapping = AccountMapping(
-            iban=normalized_iban,
+            iban=iban,
             accounting_account_id=asset_account.id,
             account_name=account_name,
             user_id=self._user_id,

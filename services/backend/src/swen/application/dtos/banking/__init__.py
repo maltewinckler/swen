@@ -5,13 +5,23 @@ from swen.application.dtos.banking.connection_result import (
     ConnectionResult,
 )
 from swen.application.dtos.banking.discovered_accounts_dto import (
+    BankDiscoveryResultDTO,
     DiscoveredAccountDTO,
-    DiscoveredAccountsCollectionDTO,
+)
+from swen.application.dtos.banking.setup_banks_dto import (
+    BankAccountToImportDTO,
+    ImportedBankAccountDTO,
+    SetupBankRequestDTO,
+    SetupBankResponseDTO,
 )
 
 __all__ = [
     "AccountInfo",
     "ConnectionResult",
     "DiscoveredAccountDTO",
-    "DiscoveredAccountsCollectionDTO",
+    "BankDiscoveryResultDTO",
+    "BankAccountToImportDTO",
+    "SetupBankRequestDTO",
+    "SetupBankResponseDTO",
+    "ImportedBankAccountDTO",
 ]

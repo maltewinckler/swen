@@ -28,6 +28,7 @@ class RenameBankAccountCommand:
                 account_repository=factory.account_repository(),
                 mapping_repository=factory.account_mapping_repository(),
                 current_user=factory.current_user,
+                bank_account_repository=factory.bank_account_repository(),
             ),
         )
 

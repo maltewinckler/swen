@@ -36,14 +36,6 @@ export interface CredentialCreateResponse {
 }
 
 
-export interface AccountImportInfo {
-  iban: string
-  account_name: string
-  balance: string | null
-  currency: string
-  accounting_account_id: string | null
-}
-
 export interface DiscoveredAccount {
   // Display info
   iban: string
@@ -66,15 +58,24 @@ export interface DiscoverAccountsResponse {
   accounts: DiscoveredAccount[]
 }
 
+/** Discovered account with user-injected custom name for import */
+export interface BankAccountToImport extends DiscoveredAccount {
+  custom_name: string | null
+}
+
+/** Account that was successfully imported into the DB */
+export interface ImportedBankAccount extends BankAccountToImport {
+  accounting_account_id: string | null
+}
+
 export interface SetupBankRequest {
-  accounts?: DiscoveredAccount[]  // Pass accounts from discover to skip TAN
-  account_names?: Record<string, string>  // IBAN -> custom account name
+  accounts: BankAccountToImport[]
 }
 
 export interface SetupBankResponse {
+  blz: string
+  imported_accounts: ImportedBankAccount[]
   success: boolean
-  bank_code: string
-  accounts_imported: AccountImportInfo[]
   message: string
   warning: string | null
 }
@@ -137,28 +138,28 @@ export interface BankConnectionDetails {
  * List all stored bank credentials
  */
 export async function listCredentials(): Promise<CredentialListResponse> {
-  return api.get<CredentialListResponse>('/credentials')
+  return api.get<CredentialListResponse>('/bank-connections/credentials')
 }
 
 /**
  * Lookup bank information by BLZ
  */
 export async function lookupBank(blz: string): Promise<BankLookupResponse> {
-  return api.get<BankLookupResponse>(`/credentials/lookup/${blz}`)
+  return api.get<BankLookupResponse>(`/bank-connections/lookup/${blz}`)
 }
 
 /**
  * Store new bank credentials
  */
 export async function storeCredentials(data: CredentialCreateRequest): Promise<CredentialCreateResponse> {
-  return api.post<CredentialCreateResponse>('/credentials', data)
+  return api.post<CredentialCreateResponse>('/bank-connections/credentials', data)
 }
 
 /**
  * Delete stored credentials by BLZ
  */
 export async function deleteCredentials(blz: string): Promise<void> {
-  await api.delete(`/credentials/${blz}`)
+  await api.delete(`/bank-connections/credentials/${blz}`)
 }
 
 /**
@@ -167,31 +168,25 @@ export async function deleteCredentials(blz: string): Promise<void> {
  * Note: This can take up to 5 minutes if TAN approval is required
  */
 export async function discoverBankAccounts(blz: string, options?: { signal?: AbortSignal }): Promise<DiscoverAccountsResponse> {
-  return api.post<DiscoverAccountsResponse>(`/credentials/${blz}/discover-accounts`, undefined, { timeout: LONG_TIMEOUT, signal: options?.signal })
+  return api.post<DiscoverAccountsResponse>(`/bank-connections/discover/${blz}`, undefined, { timeout: LONG_TIMEOUT, signal: options?.signal })
 }
 
 /**
- * Setup bank connection and import accounts
+ * Import discovered bank accounts into swen.
+ *
+ * Requires accounts from discoverBankAccounts() with optional custom names
+ * embedded per account. This endpoint does NOT contact the bank — it is a
+ * pure DB write and completes quickly.
  *
  * @param blz - Bank code (BLZ)
- * @param accounts - Accounts from discoverBankAccounts() - if provided, skips TAN
- * @param accountNames - Optional IBAN -> custom name mapping
+ * @param accounts - Discovered accounts with optional custom_name per account
  */
 export async function setupBankAccounts(
   blz: string,
-  accounts?: DiscoveredAccount[],
-  accountNames?: Record<string, string>
+  accounts: BankAccountToImport[]
 ): Promise<SetupBankResponse> {
-  const body: SetupBankRequest = {}
-  if (accounts) {
-    body.accounts = accounts
-  }
-  if (accountNames) {
-    body.account_names = accountNames
-  }
-  // If accounts provided, no TAN needed - use normal timeout
-  const timeout = accounts ? undefined : LONG_TIMEOUT
-  return api.post<SetupBankResponse>(`/credentials/${blz}/setup`, Object.keys(body).length > 0 ? body : undefined, { timeout: timeout ?? LONG_TIMEOUT })
+  const body: SetupBankRequest = { accounts }
+  return api.post<SetupBankResponse>(`/integration/setup/${blz}`, body)
 }
 
 /**
@@ -207,12 +202,12 @@ export async function setupBankAccounts(
  * 3. Let user choose their preferred method
  */
 export async function queryTANMethods(data: TANMethodQueryRequest): Promise<TANMethodsResponse> {
-  return api.post<TANMethodsResponse>('/credentials/tan-methods', data)
+  return api.post<TANMethodsResponse>('/bank-connections/tan-methods', data)
 }
 
 /**
  * Get bank connection details with all accounts and reconciliation status
  */
 export async function getBankConnectionDetails(blz: string): Promise<BankConnectionDetails> {
-  return api.get<BankConnectionDetails>(`/credentials/${blz}/accounts`)
+  return api.get<BankConnectionDetails>(`/integration/reconciliation/${blz}`)
 }
