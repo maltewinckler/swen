@@ -159,7 +159,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_adapter_class_router,
         patch(
-            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
+            "swen.application.commands.banking.discover_accounts_command.BankConnectionDispatcher"
         ) as mock_adapter_class_command,
     ):
         mock_adapter_class_router.from_factory.return_value = adapter_instance
@@ -274,16 +274,15 @@ class TestBankConnectionJourney:
             f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
             json={
-                "accounts": discover_data["accounts"],
-                "account_names": {
-                    discover_data["accounts"][0]["iban"]: "Mein Girokonto",
-                    discover_data["accounts"][1]["iban"]: "Sparkonto",
-                },
+                "accounts": [
+                    {**discover_data["accounts"][0], "custom_name": "Mein Girokonto"},
+                    {**discover_data["accounts"][1], "custom_name": "Sparkonto"},
+                ],
             },
         )
         assert setup_response.status_code == 200, f"Setup failed: {setup_response.text}"
         setup_data = setup_response.json()
-        assert len(setup_data["accounts_imported"]) >= 2
+        assert len(setup_data["imported_accounts"]) >= 2
 
         # Step 4: Verify mappings were created
         mappings_response = test_client.get(
@@ -492,18 +491,33 @@ class TestSyncAfterBankConnection:
                 "tan_method": "946",
             },
         )
-        assert cred_response.status_code == 201, (
+        assert cred_response.status_code == 204, (
             f"Credentials failed: {cred_response.text}"
         )
+
+        # Discover accounts first (two-phase flow)
+        discover_response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/discover/{blz}",
+            headers=headers,
+        )
+        assert discover_response.status_code == 200, (
+            f"Discover accounts failed: {discover_response.text}"
+        )
+        discover_data = discover_response.json()
 
         setup_response = test_client.post(
             f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
+            json={
+                "accounts": [
+                    {**acc, "custom_name": None} for acc in discover_data["accounts"]
+                ]
+            },
         )
         assert setup_response.status_code == 200, f"Setup failed: {setup_response.text}"
         setup_data = setup_response.json()
         assert setup_data["success"] is True
-        assert len(setup_data["accounts_imported"]) >= 2
+        assert len(setup_data["imported_accounts"]) >= 2
 
         # Get sync recommendation
         rec_response = test_client.get(

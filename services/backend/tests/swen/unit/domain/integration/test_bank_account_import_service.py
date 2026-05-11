@@ -23,6 +23,7 @@ class TestBankAccountImportService:
         """Set up test fixtures."""
         self.mock_account_repo = Mock()
         self.mock_mapping_repo = Mock()
+        self.mock_bank_account_repo = AsyncMock()
         # AccountRepository methods are async in production
         self.mock_account_repo.find_by_account_number = AsyncMock(return_value=None)
         self.mock_account_repo.find_by_iban = AsyncMock(return_value=None)
@@ -31,6 +32,7 @@ class TestBankAccountImportService:
             account_repository=self.mock_account_repo,
             mapping_repository=self.mock_mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=self.mock_bank_account_repo,
         )
 
     @pytest.mark.asyncio

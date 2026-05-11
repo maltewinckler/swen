@@ -35,6 +35,9 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
 from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
     UserSettingsRepositorySQLAlchemy,
 )
+from swen.infrastructure.persistence.sqlalchemy.unit_of_work import (
+    UnitOfWorkSQLAlchemy,
+)
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
 )
@@ -84,6 +87,9 @@ class SQLAlchemyRepositoryFactory:
     @property
     def session(self) -> AsyncSession:
         return self._session
+
+    def unit_of_work(self) -> UnitOfWorkSQLAlchemy:
+        return UnitOfWorkSQLAlchemy(self._session)
 
     def account_repository(self) -> AccountRepositorySQLAlchemy:
         if self._account_repo is None:

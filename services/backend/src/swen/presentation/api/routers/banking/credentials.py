@@ -81,15 +81,7 @@ async def store_credentials(
     )
 
     command = StoreCredentialsCommand.from_factory(factory)
-
-    try:
-        await command.execute(credential_to_store=credentials_to_store)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
-
+    await command.execute(credential_to_store=credentials_to_store)
     logger.info("Credentials stored for BLZ %s", request.blz)
 
 
@@ -112,6 +104,13 @@ async def delete_credentials(
     This permanently removes the encrypted credentials from the database.
     """
     command = DeleteCredentialsCommand.from_factory(factory)
+
+    if not blz.isdigit() or len(blz) != 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="BLZ must be exactly 8 digits",
+        )
+
     deleted = await command.execute(blz)
 
     if not deleted:

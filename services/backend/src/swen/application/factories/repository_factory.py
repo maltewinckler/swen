@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from swen.application.ports.analytics import AnalyticsReadPort
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.repositories import (
     AccountRepository,
     TransactionRepository,
@@ -46,12 +47,11 @@ class RepositoryFactory(Protocol):
 
     @property
     def session(self) -> Any:
-        """Get the database session for transaction management.
+        """Get the database session (legacy — prefer unit_of_work())."""
+        ...
 
-        The type is intentionally `Any` to avoid coupling the
-        application layer to specific database implementations.
-        Use this for commit/rollback at the presentation layer.
-        """
+    def unit_of_work(self) -> UnitOfWork:
+        """Get a unit-of-work scoped to the current request session."""
         ...
 
     def account_repository(self) -> AccountRepository:

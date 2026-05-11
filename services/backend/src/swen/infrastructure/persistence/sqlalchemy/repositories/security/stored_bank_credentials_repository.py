@@ -43,7 +43,6 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
 
         self._session.add(model)
         await self._session.flush()
-        await self._session.commit()
 
     async def find_by_blz(self, blz: str) -> Optional[StoredBankCredentials]:
         model = await self._find_model_by_blz(blz)

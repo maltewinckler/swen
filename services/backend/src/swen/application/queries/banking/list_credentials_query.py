@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from swen.application.dtos.banking import StoredCredentialDTO, StoredCredentialListDTO
 from swen.domain.banking.repositories import BankCredentialRepository
-from swen.domain.banking.value_objects import BankCredentials
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -30,15 +29,3 @@ class ListCredentialsQuery:
                 for cred_id, blz, label in credential_tuples
             ]
         )
-
-    async def find_by_bank_code(self, bank_code: str) -> Optional[BankCredentials]:
-        return await self._credential_repo.find_by_blz(bank_code)
-
-    async def get_tan_settings(
-        self,
-        bank_code: str,
-    ) -> tuple[Optional[str], Optional[str]]:
-        return await self._credential_repo.get_tan_settings(bank_code)
-
-    async def delete(self, bank_code: str) -> bool:
-        return await self._credential_repo.delete(bank_code)

@@ -50,6 +50,7 @@ class TestRenameBankAccountCommand:
     def setup_method(self) -> None:
         self.account_repo = Mock()
         self.mapping_repo = Mock()
+        self.mock_bank_account_repo = AsyncMock()
         self.current_user = _make_current_user()
 
         from swen.domain.integration.services import BankAccountImportService
@@ -58,6 +59,7 @@ class TestRenameBankAccountCommand:
             account_repository=self.account_repo,
             mapping_repository=self.mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=self.mock_bank_account_repo,
         )
         self.command = RenameBankAccountCommand(import_service=self.import_service)
 

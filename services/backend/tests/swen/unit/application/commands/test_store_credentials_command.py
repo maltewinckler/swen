@@ -18,9 +18,21 @@ def mock_credential_repo():
 
 
 @pytest.fixture
-def command(mock_credential_repo):
-    """Create command with mocked repository."""
-    return StoreCredentialsCommand(mock_credential_repo)
+def mock_uow():
+    """No-op UnitOfWork for unit tests (no DB session needed)."""
+    uow = AsyncMock()
+    uow.__aenter__ = AsyncMock(return_value=uow)
+    uow.__aexit__ = AsyncMock(return_value=None)
+    return uow
+
+
+@pytest.fixture
+def command(mock_credential_repo, mock_uow):
+    """Create command with mocked repository and UoW."""
+    return StoreCredentialsCommand(
+        credential_repository=mock_credential_repo,
+        uow=mock_uow,
+    )
 
 
 def make_dto(
