@@ -10,7 +10,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from swen.application.commands import StoreCredentialsCommand
+from swen.application.commands import DeleteCredentialsCommand, StoreCredentialsCommand
 from swen.application.queries import ListCredentialsQuery
 from swen.application.queries.banking import LookupBankQuery
 from swen.domain.banking.value_objects import BankCredentials
@@ -34,9 +34,7 @@ router = APIRouter()
         200: {"description": "List of stored credentials"},
     },
 )
-async def list_credentials(
-    factory: RepoFactory,
-) -> CredentialListResponse:
+async def list_credentials(factory: RepoFactory) -> CredentialListResponse:
     """
     List all stored bank credentials for the current user.
 
@@ -161,8 +159,8 @@ async def delete_credentials(
             detail="BLZ must be exactly 8 digits",
         )
 
-    query = ListCredentialsQuery.from_factory(factory)
-    deleted = await query.delete(blz)
+    command = DeleteCredentialsCommand.from_factory(factory)
+    deleted = await command.execute(blz)
 
     if not deleted:
         raise HTTPException(

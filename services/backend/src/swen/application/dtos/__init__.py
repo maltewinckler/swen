@@ -36,12 +36,6 @@ from swen.application.dtos.analytics import (
     TimeSeriesResult,
 )
 
-# Banking DTOs
-from swen.application.dtos.banking import (
-    AccountInfo,
-    ConnectionResult,
-)
-
 # Cross-domain DTOs (at root level)
 from swen.application.dtos.export_dto import (
     AccountExportDTO,
@@ -75,9 +69,6 @@ __all__ = [
     "SpendingBreakdownResult",
     "TimeSeriesDataPoint",
     "TimeSeriesResult",
-    # Banking
-    "AccountInfo",
-    "ConnectionResult",
     # Integration
     "AccountSyncRecommendationDTO",
     "SyncRecommendationResultDTO",
