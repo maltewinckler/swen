@@ -11,15 +11,13 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from swen.application.commands import DeleteCredentialsCommand, StoreCredentialsCommand
+from swen.application.dtos.banking import CredentialToStoreDTO
 from swen.application.queries import ListCredentialsQuery
-from swen.application.queries.banking import LookupBankQuery
-from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.shared.value_objects import SecureString
 from swen.presentation.api.dependencies import RepoFactory
-from swen.presentation.api.schemas.credentials import (
-    CredentialCreateRequest,
-    CredentialCreateResponse,
-    CredentialListResponse,
-    CredentialResponse,
+from swen.presentation.api.schemas.banking.credentials import (
+    CredentialToStore,
+    StoredCredentialList,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +32,7 @@ router = APIRouter()
         200: {"description": "List of stored credentials"},
     },
 )
-async def list_credentials(factory: RepoFactory) -> CredentialListResponse:
+async def list_credentials(factory: RepoFactory) -> StoredCredentialList:
     """
     List all stored bank credentials for the current user.
 
@@ -44,33 +42,23 @@ async def list_credentials(factory: RepoFactory) -> CredentialListResponse:
     query = ListCredentialsQuery.from_factory(factory)
     result = await query.execute()
 
-    return CredentialListResponse(
-        credentials=[
-            CredentialResponse(
-                credential_id=cred.credential_id,
-                blz=cred.blz,
-                label=cred.label,
-            )
-            for cred in result.credentials
-        ],
-        total=result.total_count,
-    )
+    return StoredCredentialList.model_validate(result)
 
 
 @router.post(
     "",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Store bank credentials",
     responses={
-        201: {"description": "Credentials stored successfully"},
-        400: {"description": "Invalid input or bank not found"},
+        204: {"description": "Credentials stored successfully"},
+        400: {"description": "Invalid input"},
         409: {"description": "Credentials already exist for this bank"},
     },
 )
 async def store_credentials(
-    request: CredentialCreateRequest,
+    request: CredentialToStore,
     factory: RepoFactory,
-) -> CredentialCreateResponse:
+) -> None:
     """
     Store bank credentials securely for automated sync.
 
@@ -84,40 +72,18 @@ async def store_credentials(
     - 972: chipTAN optical
     - 982: photoTAN
     """
-    # Lookup bank info
-    lookup = LookupBankQuery.from_factory(factory)
-    bank_info = await lookup.execute(request.blz)
+    credentials_to_store = CredentialToStoreDTO(
+        blz=request.blz,
+        username=SecureString(request.username),
+        pin=SecureString(request.pin),
+        tan_method=request.tan_method,
+        tan_medium=request.tan_medium,
+    )
 
-    if bank_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Bank with BLZ {request.blz} not found in bank directory",
-        )
-
-    # Create credentials value object
-    try:
-        credentials = BankCredentials.from_plain(
-            blz=request.blz,
-            username=request.username,
-            pin=request.pin,
-        )
-    except ValueError as e:
-        logger.warning("Invalid credentials format for BLZ %s: %s", request.blz, e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid credentials. Check your BLZ, username, and PIN.",
-        ) from e
-
-    # Store credentials using command
     command = StoreCredentialsCommand.from_factory(factory)
 
     try:
-        credential_id = await command.execute(
-            credentials=credentials,
-            label=bank_info.name,
-            tan_method=request.tan_method,
-            tan_medium=request.tan_medium,
-        )
+        await command.execute(credential_to_store=credentials_to_store)
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()
@@ -125,13 +91,6 @@ async def store_credentials(
         raise
 
     logger.info("Credentials stored for BLZ %s", request.blz)
-
-    return CredentialCreateResponse(
-        credential_id=credential_id,
-        blz=request.blz,
-        label=bank_info.name,
-        message="Credentials stored successfully",
-    )
 
 
 @router.delete(
@@ -152,13 +111,6 @@ async def delete_credentials(
 
     This permanently removes the encrypted credentials from the database.
     """
-    # Validate BLZ format
-    if not blz.isdigit() or len(blz) != 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="BLZ must be exactly 8 digits",
-        )
-
     command = DeleteCredentialsCommand.from_factory(factory)
     deleted = await command.execute(blz)
 

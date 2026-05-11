@@ -1,11 +1,35 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
+from swen.domain.shared.value_objects import SecureString
 
-class CredentialDTO(BaseModel):
-    """Credential information for display."""
+
+class CredentialToStoreDTO(BaseModel):
+    """Credential information for storage (including creds)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    blz: str
+    username: SecureString
+    pin: SecureString
+    tan_method: Optional[str]
+    tan_medium: Optional[str]
+
+
+class StoredCredentialDTO(BaseModel):
+    """Credential information for display (just ID, no creds)."""
 
     model_config = ConfigDict(frozen=True)
 
     credential_id: str
+    label: Optional[str]
     blz: str
-    label: str
+
+
+class StoredCredentialListDTO(BaseModel):
+    """List of stored credentials for display."""
+
+    model_config = ConfigDict(frozen=True)
+
+    credentials: list[StoredCredentialDTO]

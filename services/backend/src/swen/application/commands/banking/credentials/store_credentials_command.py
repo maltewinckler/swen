@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
+from swen.application.dtos.banking import CredentialToStoreDTO
 from swen.domain.banking.exceptions import CredentialsAlreadyExistError
 from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.banking.value_objects import BankCredentials
@@ -24,18 +25,21 @@ class StoreCredentialsCommand:
 
     async def execute(
         self,
-        credentials: BankCredentials,
-        label: Optional[str] = None,
-        tan_method: Optional[str] = None,
-        tan_medium: Optional[str] = None,
+        credential_to_store: CredentialToStoreDTO,
     ) -> str:
-        existing = await self._repo.find_by_blz(credentials.blz)
+        existing = await self._repo.find_by_blz(credential_to_store.blz)
         if existing:
-            raise CredentialsAlreadyExistError(blz=credentials.blz)
+            raise CredentialsAlreadyExistError(blz=credential_to_store.blz)
+
+        credentials = BankCredentials(
+            blz=credential_to_store.blz,
+            username=credential_to_store.username,
+            pin=credential_to_store.pin,
+        )
 
         return await self._repo.save(
             credentials=credentials,
-            label=label,
-            tan_method=tan_method,
-            tan_medium=tan_medium,
+            label=credentials.blz,
+            tan_method=credential_to_store.tan_method,
+            tan_medium=credential_to_store.tan_medium,
         )

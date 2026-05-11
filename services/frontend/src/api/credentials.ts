@@ -28,13 +28,6 @@ export interface CredentialCreateRequest {
   tan_medium: string | null
 }
 
-export interface CredentialCreateResponse {
-  credential_id: string
-  blz: string
-  label: string
-  message: string
-}
-
 
 export interface DiscoveredAccount {
   // Display info
@@ -151,8 +144,8 @@ export async function lookupBank(blz: string): Promise<BankLookupResponse> {
 /**
  * Store new bank credentials
  */
-export async function storeCredentials(data: CredentialCreateRequest): Promise<CredentialCreateResponse> {
-  return api.post<CredentialCreateResponse>('/bank-connections/credentials', data)
+export async function storeCredentials(data: CredentialCreateRequest): Promise<void> {
+  await api.post<void>('/bank-connections/credentials', data)
 }
 
 /**

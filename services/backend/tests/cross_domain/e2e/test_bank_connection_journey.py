@@ -244,13 +244,9 @@ class TestBankConnectionJourney:
                 "tan_medium": "SecureGo plus",
             },
         )
-        assert store_response.status_code == 201, (
+        assert store_response.status_code == 204, (
             f"Store credentials failed: {store_response.text}"
         )
-        cred_data = store_response.json()
-        assert cred_data["blz"] == blz
-        assert cred_data["label"] == "Test Bank AG"
-        assert "credential_id" in cred_data
 
         # Step 2: Discover bank accounts
         discover_response = test_client.post(
@@ -335,7 +331,7 @@ class TestBankConnectionJourney:
                 "tan_method": "946",
             },
         )
-        assert first_response.status_code == 201
+        assert first_response.status_code == 204
 
         # Second store - should fail
         second_response = test_client.post(
@@ -415,7 +411,7 @@ class TestBankConnectionJourney:
                 "tan_method": "946",
             },
         )
-        assert user2_store.status_code == 201
+        assert user2_store.status_code == 204
 
 
 @pytest.mark.e2e

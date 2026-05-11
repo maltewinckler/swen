@@ -2,31 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from swen.application.dtos.banking import StoredCredentialDTO, StoredCredentialListDTO
 from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.banking.value_objects import BankCredentials
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-
-
-@dataclass
-class CredentialInfo:
-    """Credential information for display."""
-
-    credential_id: str
-    blz: str
-    label: str
-
-
-@dataclass
-class CredentialListResult:
-    """Result of listing credentials."""
-
-    credentials: list[CredentialInfo]
-    total_count: int
 
 
 class ListCredentialsQuery:
@@ -39,17 +22,13 @@ class ListCredentialsQuery:
     def from_factory(cls, factory: RepositoryFactory) -> ListCredentialsQuery:
         return cls(credential_repository=factory.credential_repository())
 
-    async def execute(
-        self,
-    ) -> CredentialListResult:
+    async def execute(self) -> StoredCredentialListDTO:
         credential_tuples = await self._credential_repo.find_all()
-        credentials = [
-            CredentialInfo(credential_id=cred_id, blz=blz, label=label or "")
-            for cred_id, blz, label in credential_tuples
-        ]
-        return CredentialListResult(
-            credentials=credentials,
-            total_count=len(credentials),
+        return StoredCredentialListDTO(
+            credentials=[
+                StoredCredentialDTO(credential_id=cred_id, blz=blz, label=label)
+                for cred_id, blz, label in credential_tuples
+            ]
         )
 
     async def find_by_bank_code(self, bank_code: str) -> Optional[BankCredentials]:

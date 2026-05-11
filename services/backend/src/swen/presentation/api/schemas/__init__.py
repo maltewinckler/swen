@@ -35,10 +35,6 @@ from swen.presentation.api.schemas.credentials import (
     AccountImportInfo,
     BankLookupResponse,
     ConnectionTestResponse,
-    CredentialCreateRequest,
-    CredentialCreateResponse,
-    CredentialListResponse,
-    CredentialResponse,
     SetupBankResponse,
 )
 from swen.presentation.api.schemas.dashboard import (
@@ -96,10 +92,6 @@ __all__ = [
     "BreakdownItemResponse",
     "AnalyticsSpendingBreakdownResponse",
     # Credential schemas
-    "CredentialResponse",
-    "CredentialListResponse",
-    "CredentialCreateRequest",
-    "CredentialCreateResponse",
     "BankLookupResponse",
     "ConnectionTestResponse",
     "AccountImportInfo",

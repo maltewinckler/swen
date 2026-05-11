@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects.bank_info import BankInfo
 
-# Mock bank info for tests
 MOCK_BANK_INFO = BankInfo(
     blz="12345678",
     name="Test Bank",
@@ -50,21 +49,13 @@ class TestListCredentials:
 class TestStoreCredentials:
     """Tests for POST /api/v1/bank-connections/credentials."""
 
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_store_credentials_success(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Successfully store bank credentials."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = MOCK_BANK_INFO
-        mock_lookup_factory.return_value = mock_query
-
+        """Successfully store bank credentials returns 204."""
         response = test_client.post(
             f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
@@ -77,67 +68,17 @@ class TestStoreCredentials:
             },
         )
 
-        assert response.status_code == 201
-        data = response.json()
+        assert response.status_code == 204
+        assert response.content == b""
 
-        assert data["blz"] == "12345678"
-        assert data["label"] == "Test Bank"
-        assert "credential_id" in data
-        assert data["message"] == "Credentials stored successfully"
-
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
-    def test_store_credentials_bank_not_found(
-        self,
-        mock_lookup_factory,
-        test_client: TestClient,
-        auth_headers: dict,
-        api_v1_prefix: str,
-    ):
-        """Cannot store credentials for unknown bank."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = None
-        mock_lookup_factory.return_value = mock_query
-
-        response = test_client.post(
-            f"{api_v1_prefix}/bank-connections/credentials",
-            headers=auth_headers,
-            json={
-                "blz": "99999999",
-                "username": "testuser",
-                "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
-            },
-        )
-
-        assert response.status_code == 400
-        assert "not found" in response.json()["detail"].lower()
-
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_store_credentials_duplicate(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
         """Cannot store duplicate credentials for same bank."""
-        # Use a unique BLZ to avoid conflicts with other tests
         duplicate_test_blz = "11111111"
-        duplicate_bank_info = BankInfo(
-            blz=duplicate_test_blz,
-            name="Duplicate Test Bank",
-            bic="DUPTDE00XXX",
-            organization=None,
-            is_fints_capable=True,
-        )
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = duplicate_bank_info
-        mock_lookup_factory.return_value = mock_query
 
         # Store first
         first_response = test_client.post(
@@ -151,8 +92,8 @@ class TestStoreCredentials:
                 "tan_medium": "SecureGo",
             },
         )
-        assert first_response.status_code == 201, (
-            f"First store failed: {first_response.json()}"
+        assert first_response.status_code == 204, (
+            f"First store failed: {first_response.text}"
         )
 
         # Try to store again
@@ -214,21 +155,13 @@ class TestStoreCredentials:
 class TestDeleteCredentials:
     """Tests for DELETE /api/v1/bank-connections/credentials/{blz}."""
 
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_delete_credentials_success(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
         """Successfully delete stored credentials."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = MOCK_BANK_INFO
-        mock_lookup_factory.return_value = mock_query
-
         # Store first
         test_client.post(
             f"{api_v1_prefix}/bank-connections/credentials",

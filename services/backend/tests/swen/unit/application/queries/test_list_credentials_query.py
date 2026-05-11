@@ -31,11 +31,11 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.total_count == 2
-        assert len(result.credentials) == 2
-        assert result.credentials[0].blz == "12345678"
-        assert result.credentials[0].label == "Bank A"
-        assert result.credentials[1].blz == "87654321"
+        assert len(result) == 2
+        assert result[0].credential_id == "cred-id-1"
+        assert result[0].blz == "12345678"
+        assert result[0].label == "Bank A"
+        assert result[1].blz == "87654321"
         mock_credential_repo.find_all.assert_called_once()
 
     @pytest.mark.asyncio
@@ -49,8 +49,7 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.total_count == 0
-        assert result.credentials == []
+        assert result == []
 
     @pytest.mark.asyncio
     async def test_execute_handles_none_label(self, mock_credential_repo):
@@ -62,7 +61,7 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.credentials[0].label == ""
+        assert result[0].label is None
 
     @pytest.mark.asyncio
     async def test_find_by_bank_code_returns_credentials(self, mock_credential_repo):

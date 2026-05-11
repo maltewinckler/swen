@@ -296,7 +296,7 @@ describe('useBankConnection', () => {
           { iban: 'DE123', default_name: 'Girokonto', balance: '1000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue({ message: 'ok' })
+      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {
@@ -336,7 +336,7 @@ describe('useBankConnection', () => {
           { iban: 'DE456', default_name: 'Sparkonto', balance: '5000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue({ message: 'ok' })
+      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {

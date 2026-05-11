@@ -46,8 +46,6 @@ from swen.application.queries.analytics import (
     TopExpensesResult,
 )
 from swen.application.queries.banking import (
-    CredentialInfo,
-    CredentialListResult,
     ListCredentialsQuery,
     LookupBankQuery,
     QueryTanMethodsQuery,
@@ -115,8 +113,6 @@ __all__ = [
     "TopExpensesQuery",
     "TopExpensesResult",
     # Banking
-    "CredentialInfo",
-    "CredentialListResult",
     "ListCredentialsQuery",
     "LookupBankQuery",
     "QueryTanMethodsQuery",

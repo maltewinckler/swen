@@ -5,8 +5,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from swen.application.commands import StoreCredentialsCommand
+from swen.application.dtos.banking.credentials_dto import CredentialToStoreDTO
 from swen.domain.banking.exceptions import CredentialsAlreadyExistError
 from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.shared.value_objects import SecureString
 
 
 @pytest.fixture
@@ -21,6 +23,22 @@ def command(mock_credential_repo):
     return StoreCredentialsCommand(mock_credential_repo)
 
 
+def make_dto(
+    blz: str = "50031000",
+    username: str = "testuser",
+    pin: str = "testpin",
+    tan_method: str | None = None,
+    tan_medium: str | None = None,
+) -> CredentialToStoreDTO:
+    return CredentialToStoreDTO(
+        blz=blz,
+        username=SecureString(username),
+        pin=SecureString(pin),
+        tan_method=tan_method,
+        tan_medium=tan_medium,
+    )
+
+
 class TestStoreCredentialsCommand:
     """Test StoreCredentialsCommand."""
 
@@ -31,30 +49,19 @@ class TestStoreCredentialsCommand:
         mock_credential_repo,
     ):
         """Should store credentials when none exist."""
-        # Arrange
-        credentials = BankCredentials.from_plain(
-            blz="50031000",
-            username="testuser",
-            pin="testpin",
-        )
+        dto = make_dto()
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-123"
 
-        # Act
-        result = await command.execute(
-            credentials=credentials,
-            label="Triodos Bank",
-        )
+        result = await command.execute(dto)
 
-        # Assert
         assert result == "cred-id-123"
         mock_credential_repo.find_by_blz.assert_called_once_with("50031000")
-        mock_credential_repo.save.assert_called_once_with(
-            credentials=credentials,
-            label="Triodos Bank",
-            tan_method=None,
-            tan_medium=None,
-        )
+        mock_credential_repo.save.assert_called_once()
+        call_kwargs = mock_credential_repo.save.call_args.kwargs
+        assert call_kwargs["label"] == "50031000"
+        assert call_kwargs["tan_method"] is None
+        assert call_kwargs["tan_medium"] is None
 
     @pytest.mark.asyncio
     async def test_store_credentials_without_label(
@@ -62,27 +69,16 @@ class TestStoreCredentialsCommand:
         command,
         mock_credential_repo,
     ):
-        """Should store credentials without label."""
-        # Arrange
-        credentials = BankCredentials.from_plain(
-            blz="50031000",
-            username="testuser",
-            pin="testpin",
-        )
+        """Should store credentials, using BLZ as label by default."""
+        dto = make_dto()
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-456"
 
-        # Act
-        result = await command.execute(credentials=credentials)
+        result = await command.execute(dto)
 
-        # Assert
         assert result == "cred-id-456"
-        mock_credential_repo.save.assert_called_once_with(
-            credentials=credentials,
-            label=None,
-            tan_method=None,
-            tan_medium=None,
-        )
+        call_kwargs = mock_credential_repo.save.call_args.kwargs
+        assert call_kwargs["label"] == "50031000"
 
     @pytest.mark.asyncio
     async def test_store_credentials_with_tan_settings(
@@ -91,31 +87,16 @@ class TestStoreCredentialsCommand:
         mock_credential_repo,
     ):
         """Should store credentials with TAN settings."""
-        # Arrange
-        credentials = BankCredentials.from_plain(
-            blz="50031000",
-            username="testuser",
-            pin="testpin",
-        )
+        dto = make_dto(tan_method="946", tan_medium="SecureGo")
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.return_value = "cred-id-789"
 
-        # Act
-        result = await command.execute(
-            credentials=credentials,
-            label="Triodos Bank",
-            tan_method="946",
-            tan_medium="SecureGo",
-        )
+        result = await command.execute(dto)
 
-        # Assert
         assert result == "cred-id-789"
-        mock_credential_repo.save.assert_called_once_with(
-            credentials=credentials,
-            label="Triodos Bank",
-            tan_method="946",
-            tan_medium="SecureGo",
-        )
+        call_kwargs = mock_credential_repo.save.call_args.kwargs
+        assert call_kwargs["tan_method"] == "946"
+        assert call_kwargs["tan_medium"] == "SecureGo"
 
     @pytest.mark.asyncio
     async def test_raises_error_when_credentials_exist(
@@ -124,13 +105,7 @@ class TestStoreCredentialsCommand:
         mock_credential_repo,
     ):
         """Should raise error when credentials already exist for user/BLZ."""
-        # Arrange
-        credentials = BankCredentials.from_plain(
-            blz="50031000",
-            username="testuser",
-            pin="testpin",
-        )
-        # Existing credentials found (repository is user-scoped)
+        dto = make_dto()
         existing_creds = BankCredentials.from_plain(
             blz="50031000",
             username="olduser",
@@ -138,11 +113,9 @@ class TestStoreCredentialsCommand:
         )
         mock_credential_repo.find_by_blz.return_value = existing_creds
 
-        # Act & Assert
         with pytest.raises(CredentialsAlreadyExistError):
-            await command.execute(credentials=credentials)
+            await command.execute(dto)
 
-        # Should not call save
         mock_credential_repo.save.assert_not_called()
 
     @pytest.mark.asyncio
@@ -152,26 +125,17 @@ class TestStoreCredentialsCommand:
         mock_credential_repo,
     ):
         """Should allow storing credentials for different banks."""
-        # Arrange
-        triodos_creds = BankCredentials.from_plain(
-            blz="50031000",
-            username="triodos_user",
-            pin="triodos_pin",
+        triodos_dto = make_dto(
+            blz="50031000", username="triodos_user", pin="triodos_pin"
         )
-        dkb_creds = BankCredentials.from_plain(
-            blz="12030000",
-            username="dkb_user",
-            pin="dkb_pin",
-        )
+        dkb_dto = make_dto(blz="12030000", username="dkb_user", pin="dkb_pin")
 
         mock_credential_repo.find_by_blz.return_value = None
         mock_credential_repo.save.side_effect = ["cred-id-1", "cred-id-2"]
 
-        # Act
-        result1 = await command.execute(triodos_creds, "Triodos")
-        result2 = await command.execute(dkb_creds, "DKB")
+        result1 = await command.execute(triodos_dto)
+        result2 = await command.execute(dkb_dto)
 
-        # Assert
         assert result1 == "cred-id-1"
         assert result2 == "cred-id-2"
         assert mock_credential_repo.save.call_count == 2

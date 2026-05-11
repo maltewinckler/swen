@@ -1,8 +1,6 @@
 """Banking queries."""
 
 from swen.application.queries.banking.list_credentials_query import (
-    CredentialInfo,
-    CredentialListResult,
     ListCredentialsQuery,
 )
 from swen.application.queries.banking.lookup_bank_query import LookupBankQuery
@@ -13,8 +11,6 @@ from swen.application.queries.banking.query_tan_methods_query import (
 )
 
 __all__ = [
-    "CredentialInfo",
-    "CredentialListResult",
     "ListCredentialsQuery",
     "LookupBankQuery",
     "QueryTanMethodsQuery",
