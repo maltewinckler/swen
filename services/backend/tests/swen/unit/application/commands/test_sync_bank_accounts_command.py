@@ -55,7 +55,6 @@ def _make_command(
     mappings: list,
     sync_service: AsyncMock,
     publisher: InMemorySyncEventPublisher,
-    credentials=object(),
 ) -> SyncBankAccountsCommand:
     """Build a SyncBankAccountsCommand with all dependencies mocked."""
     mapping_repo = AsyncMock()
@@ -66,16 +65,12 @@ def _make_command(
     settings.sync.auto_post_transactions = False
     settings_repo.get_or_create.return_value = settings
 
-    credential_repo = AsyncMock()
-    credential_repo.find_by_blz.return_value = credentials
-
     notifier = SyncNotificationService(publisher)
 
     return SyncBankAccountsCommand(
         sync_service=sync_service,
         mapping_repo=mapping_repo,
         settings_repo=settings_repo,
-        credential_repo=credential_repo,
         notifier=notifier,
     )
 
@@ -147,7 +142,6 @@ class TestEmptyMappingsEdgeCase:
         publisher = InMemorySyncEventPublisher()
         sync_service = AsyncMock()
 
-        # No mappings — credential_repo returns None so all are filtered out
         command = _make_command(
             mappings=[],
             sync_service=sync_service,

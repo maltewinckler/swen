@@ -7,19 +7,16 @@ fetch, then disconnect (in ``try/finally``). Wraps a
 
 from __future__ import annotations
 
-import inspect
 from datetime import date
-from functools import wraps
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
-from swen.domain.banking.ports import BankConnectionPort, TanCallback
+from swen.domain.banking.ports import BankConnectionPort
 
 if TYPE_CHECKING:
     from swen.domain.banking.value_objects import (
         BankAccount,
         BankCredentials,
         BankTransaction,
-        TANChallenge,
     )
 
 
@@ -37,15 +34,14 @@ class BankFetchService:
         end_date: date,
         tan_method: Optional[str] = None,
         tan_medium: Optional[str] = None,
-        tan_callback: Optional[TanCallback] = None,
     ) -> list[BankTransaction]:
         """Fetch transactions for ``iban`` within ``[start_date, end_date]``.
 
-        Connect-disconnect is owned here. Optional TAN settings and the TAN
-        callback are applied to the adapter before connecting. Disconnect runs
-        in a ``finally`` block so the bank session is never leaked.
+        Connect-disconnect is owned here. Optional TAN settings are applied to
+        the adapter before connecting. Disconnect runs in a ``finally`` block
+        so the bank session is never leaked.
         """
-        await self._configure_session(tan_method, tan_medium, tan_callback)
+        await self._configure_session(tan_method, tan_medium)
         await self._adapter.connect(credentials)
         try:
             return await self._adapter.fetch_transactions(
@@ -59,14 +55,15 @@ class BankFetchService:
     async def fetch_accounts(
         self,
         credentials: BankCredentials,
-        tan_callback: Optional[TanCallback] = None,
+        tan_method: Optional[str] = None,
+        tan_medium: Optional[str] = None,
     ) -> list[BankAccount]:
         """Fetch accounts accessible with ``credentials``.
 
         Connect-disconnect is owned here. Disconnect always runs in a
         ``finally`` block.
         """
-        await self._configure_session(None, None, tan_callback)
+        await self._configure_session(tan_method, tan_medium)
         await self._adapter.connect(credentials)
         try:
             return await self._adapter.fetch_accounts()
@@ -77,26 +74,8 @@ class BankFetchService:
         self,
         tan_method: Optional[str],
         tan_medium: Optional[str],
-        tan_callback: Optional[TanCallback],
     ) -> None:
         if tan_method:
             self._adapter.set_tan_method(tan_method)
         if tan_medium:
             self._adapter.set_tan_medium(tan_medium)
-        if tan_callback is not None:
-            await self._adapter.set_tan_callback(self._wrap_tan_callback(tan_callback))
-
-    @staticmethod
-    def _wrap_tan_callback(
-        callback: TanCallback,
-    ) -> Callable[[TANChallenge], Awaitable[str]]:
-        """Adapt a sync-or-async TAN callback into an awaitable callback."""
-
-        @wraps(callback)
-        async def _async_callback(challenge: TANChallenge) -> str:
-            result = callback(challenge)
-            if inspect.isawaitable(result):
-                return await result
-            return result
-
-        return _async_callback

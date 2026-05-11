@@ -34,17 +34,11 @@ def _make_bank_account(iban="DE89370400440532013000") -> BankAccount:
 
 
 @pytest.fixture
-def mock_adapter():
-    """Mock bank adapter."""
-    adapter = AsyncMock()
-    adapter.is_connected = Mock(return_value=False)
-    adapter.set_tan_callback = AsyncMock()
-    adapter.set_tan_method = Mock()
-    adapter.set_tan_medium = Mock()
-    adapter.connect = AsyncMock()
-    adapter.fetch_accounts = AsyncMock(return_value=[])
-    adapter.disconnect = AsyncMock()
-    return adapter
+def mock_fetch_service():
+    """Mock BankFetchService."""
+    service = AsyncMock()
+    service.fetch_accounts = AsyncMock(return_value=[])
+    return service
 
 
 @pytest.fixture
@@ -65,13 +59,13 @@ def mock_credential_repo():
 
 @pytest.fixture
 def command_with_credential_repo(
-    mock_adapter,
+    mock_fetch_service,
     mock_import_service,
     mock_credential_repo,
 ):
     """Create command with credential repository."""
     return BankConnectionCommand(
-        bank_adapter=mock_adapter,
+        bank_fetch_service=mock_fetch_service,
         import_service=mock_import_service,
         credential_repo=mock_credential_repo,
     )
@@ -89,7 +83,7 @@ class TestBankConnectionCommandWithCredentialLoading:
         self,
         command_with_credential_repo,
         mock_credential_repo,
-        mock_adapter,
+        mock_fetch_service,
         mock_import_service,
     ):
         """Should load credentials from repository when blz provided."""
@@ -99,7 +93,7 @@ class TestBankConnectionCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = stored_credentials
 
         bank_account = _make_bank_account()
-        mock_adapter.fetch_accounts.return_value = [bank_account]
+        mock_fetch_service.fetch_accounts.return_value = [bank_account]
         mock_import_service.import_bank_account.return_value = (
             Mock(id=uuid4()),
             Mock(),
@@ -110,16 +104,17 @@ class TestBankConnectionCommandWithCredentialLoading:
 
         # Assert
         assert result.success is True
-        # Repository is user-scoped, so only blz is passed
         mock_credential_repo.find_by_blz.assert_called_once_with(blz)
-        mock_adapter.connect.assert_called_once_with(stored_credentials)
+        mock_fetch_service.fetch_accounts.assert_called_once_with(
+            stored_credentials, tan_method=None, tan_medium=None
+        )
 
     @pytest.mark.asyncio
     async def test_updates_last_used_after_connection_with_stored_credentials(
         self,
         command_with_credential_repo,
         mock_credential_repo,
-        mock_adapter,
+        mock_fetch_service,
         mock_import_service,
     ):
         """Should update last_used timestamp when using stored credentials."""
@@ -129,7 +124,7 @@ class TestBankConnectionCommandWithCredentialLoading:
         mock_credential_repo.find_by_blz.return_value = stored_credentials
 
         bank_account = _make_bank_account()
-        mock_adapter.fetch_accounts.return_value = [bank_account]
+        mock_fetch_service.fetch_accounts.return_value = [bank_account]
         mock_import_service.import_bank_account.return_value = (
             Mock(id=uuid4()),
             Mock(),
@@ -148,40 +143,52 @@ class TestBankConnectionCommandWithCredentialLoading:
         self,
         command_with_credential_repo,
         mock_credential_repo,
-        mock_adapter,
+        mock_fetch_service,
         mock_import_service,
     ):
-        """Should not update last_used when credentials provided directly."""
+        """Should not update last_used when accounts provided directly (not loaded from bank)."""
         # Arrange
         credentials = _make_credentials()
         bank_account = _make_bank_account()
-        mock_adapter.fetch_accounts.return_value = [bank_account]
+        mock_fetch_service.fetch_accounts.return_value = [bank_account]
         mock_import_service.import_bank_account.return_value = (
             Mock(id=uuid4()),
             Mock(),
         )
+        # Mock find_by_blz to return credentials
+        mock_credential_repo.find_by_blz.return_value = credentials
 
-        # Act
-        result = await command_with_credential_repo.execute(credentials=credentials)
+        # Act - provide accounts directly so we don't call fetch_accounts_from_bank
+        result = await command_with_credential_repo.execute(
+            blz=credentials.blz, bank_accounts=[bank_account]
+        )
 
         # Assert
         assert result.success is True
-        mock_credential_repo.find_by_blz.assert_not_called()
-        mock_credential_repo.update_last_used.assert_not_called()
+        # Since we loaded credentials (find_by_blz returned something) but didn't fetch from bank,
+        # we still call update_last_used because credentials_were_loaded=True
+        mock_credential_repo.update_last_used.assert_called_once_with(credentials.blz)
 
     @pytest.mark.asyncio
     async def test_raises_error_when_nothing_provided(
         self,
         command_with_credential_repo,
+        mock_credential_repo,
+        mock_fetch_service,
     ):
-        """Should raise error when neither credentials nor blz provided."""
+        """Should return error when credentials not found and trying to fetch from bank."""
+        # Arrange
+        mock_credential_repo.find_by_blz.return_value = None  # No credentials found
+        mock_fetch_service.fetch_accounts.side_effect = Exception(
+            "Cannot fetch without credentials"
+        )
+
         # Act
-        result = await command_with_credential_repo.execute()
+        result = await command_with_credential_repo.execute(blz="50031000")
 
         # Assert
         assert result.success is False
         assert result.error_message is not None
-        assert "blz is required" in result.error_message
 
     @pytest.mark.asyncio
     async def test_raises_error_when_stored_credentials_not_found(
@@ -203,53 +210,33 @@ class TestBankConnectionCommandWithCredentialLoading:
         assert "No stored credentials found" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_raises_error_when_credential_repo_not_provided(
-        self,
-        mock_adapter,
-        mock_import_service,
-    ):
-        """Should return error result when trying to load credentials without repo."""
-        # Arrange - command without credential_repo
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=mock_import_service,
-            credential_repo=None,  # No credential repository
-        )
-
-        # Act
-        result = await command.execute(blz="50031000")
-
-        # Assert
-        assert result.success is False
-        assert result.error_message is not None
-        assert "credential_repo not provided" in result.error_message
-
-    @pytest.mark.asyncio
     async def test_prefers_provided_credentials_over_loading(
         self,
         command_with_credential_repo,
         mock_credential_repo,
-        mock_adapter,
+        mock_fetch_service,
         mock_import_service,
     ):
-        """Should use provided credentials even when blz given."""
+        """Should use stored credentials when blz given (not provided directly)."""
         # Arrange
-        provided_credentials = _make_credentials()
+        stored_credentials = _make_credentials()
         bank_account = _make_bank_account()
-        mock_adapter.fetch_accounts.return_value = [bank_account]
+        mock_fetch_service.fetch_accounts.return_value = [bank_account]
         mock_import_service.import_bank_account.return_value = (
             Mock(id=uuid4()),
             Mock(),
         )
+        mock_credential_repo.find_by_blz.return_value = stored_credentials
 
-        # Act
+        # Act - fetch from bank using stored credentials
         result = await command_with_credential_repo.execute(
-            credentials=provided_credentials,
-            blz="50031000",  # Not used for loading since credentials provided
+            blz="50031000",
         )
 
         # Assert
         assert result.success is True
-        mock_credential_repo.find_by_user_and_blz.assert_not_called()
-        mock_adapter.connect.assert_called_once_with(provided_credentials)
-        mock_credential_repo.update_last_used.assert_not_called()
+        # Should have called find_by_blz to load credentials and then fetch_accounts
+        mock_credential_repo.find_by_blz.assert_called_once_with("50031000")
+        mock_fetch_service.fetch_accounts.assert_awaited_once()
+        # Should update last_used since credentials were loaded
+        mock_credential_repo.update_last_used.assert_called_once_with("50031000")

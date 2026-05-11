@@ -133,12 +133,12 @@ class TestResolvePeriodAdaptive:
 
         assert period.adaptive is True
 
-    def test_latest_overrides_days_when_both_provided(self):
-        """When latest is known, days is ignored and the adaptive window is used."""
+    def test_days_takes_precedence_over_latest_when_both_provided(self):
+        """When days is provided, latest is ignored and the fixed window is used."""
         last_booking = date(2024, 5, 20)
 
         with _PATCH_TODAY:
             period = SyncPeriodResolver.resolve_period(latest=last_booking, days=30)
 
-        assert period.adaptive is True
-        assert period.start_date == last_booking + timedelta(days=1)
+        assert period.adaptive is False
+        assert period.start_date == date(2024, 5, 16)  # today (2024-06-15) - 30 days

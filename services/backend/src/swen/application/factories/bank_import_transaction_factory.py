@@ -34,10 +34,7 @@ logger = logging.getLogger(__name__)
 class BankImportTransactionFactory:
     """Factory for creating accounting transactions from bank imports."""
 
-    def __init__(
-        self,
-        current_user: CurrentUser,
-    ):
+    def __init__(self, current_user: CurrentUser):
         self._current_user = current_user
 
     @property

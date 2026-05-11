@@ -27,14 +27,14 @@ class SyncPeriodResolver:
         """Resolve the sync period based on the situation.
 
         Priority:
-        1. If a latest booking date is available, return the adaptive window.
-        2. If a fixed days value is provided, return the fixed window.
+        1. If a fixed days value is provided, return the fixed window.
+        2. If a latest booking date is available, return the adaptive window.
         3. Otherwise, return the fallback adaptive window.
         """
-        if latest is not None:
-            period = SyncPeriodResolver._resolve_adaptive(latest)
-        elif days is not None:
+        if days is not None:
             period = SyncPeriodResolver._resolve_fixed(days)
+        elif latest is not None:
+            period = SyncPeriodResolver._resolve_adaptive(latest)
         else:
             period = SyncPeriodResolver._resolve_fallback()
         return period

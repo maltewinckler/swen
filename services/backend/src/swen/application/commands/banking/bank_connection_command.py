@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-import inspect
-from functools import wraps
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 from swen.application.dtos.banking import AccountInfo, ConnectionResult
-from swen.domain.banking.ports import BankConnectionPort, TanCallback
 from swen.domain.banking.repositories import (
     BankAccountRepository,
     BankCredentialRepository,
 )
+from swen.domain.banking.services.bank_fetch_service import BankFetchService
 from swen.domain.banking.value_objects import (
     BankAccount,
     BankCredentials,
-    TANChallenge,
 )
 from swen.domain.integration.services import BankAccountImportService
 from swen.domain.shared.time import utc_now
@@ -28,16 +25,16 @@ if TYPE_CHECKING:
 
 
 class BankConnectionCommand:
-    """Coordinate bank connection, TAN handling, and account import."""
+    """Coordinate bank connection and account import."""
 
     def __init__(
         self,
-        bank_adapter: BankConnectionPort,
+        bank_fetch_service: BankFetchService,
         import_service: BankAccountImportService,
-        credential_repo: Optional[BankCredentialRepository] = None,
+        credential_repo: BankCredentialRepository,
         bank_account_repo: Optional[BankAccountRepository] = None,
     ):
-        self._adapter = bank_adapter
+        self._bank_fetch_service = bank_fetch_service
         self._import_service = import_service
         self._credential_repo = credential_repo
         self._bank_account_repo = bank_account_repo
@@ -45,7 +42,9 @@ class BankConnectionCommand:
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> BankConnectionCommand:
         return cls(
-            bank_adapter=BankConnectionDispatcher.from_factory(factory),
+            bank_fetch_service=BankFetchService(
+                bank_adapter=BankConnectionDispatcher.from_factory(factory)
+            ),
             import_service=BankAccountImportService(
                 account_repository=factory.account_repository(),
                 mapping_repository=factory.account_mapping_repository(),
@@ -57,27 +56,25 @@ class BankConnectionCommand:
 
     async def execute(
         self,
-        credentials: Optional[BankCredentials] = None,
-        blz: Optional[str] = None,
-        tan_callback: Optional[TanCallback] = None,
+        blz: str,
         custom_names: Optional[dict[str, str]] = None,
         bank_accounts: Optional[list[BankAccount]] = None,
     ) -> ConnectionResult:
         connected_at = utc_now()
-        bank_code = blz or (credentials.blz if credentials else "UNKNOWN")
-        credentials_were_loaded = False
-        loaded_blz: Optional[str] = None
+
+        credentials = await self._credential_repo.find_by_blz(blz)
+        credentials_were_loaded = credentials is not None
+        loaded_blz = blz if credentials_were_loaded else None
 
         # Get accounts to import (either provided or fetched from bank)
         if bank_accounts is not None:
             accounts_to_import = bank_accounts
-            bank_code = blz or (bank_accounts[0].blz if bank_accounts else bank_code)
+            bank_code = blz
         else:
             result = await self._fetch_accounts_from_bank(
                 credentials=credentials,
                 blz=blz,
-                tan_callback=tan_callback,
-                bank_code=bank_code,
+                bank_code=blz,
                 connected_at=connected_at,
             )
             if isinstance(result, ConnectionResult):
@@ -86,9 +83,13 @@ class BankConnectionCommand:
                 accounts_to_import,
                 bank_code,
                 connected_at,
-                credentials_were_loaded,
-                loaded_blz,
+                fetch_credentials_were_loaded,
+                fetch_loaded_blz,
             ) = result
+            # If _fetch_accounts_from_bank loaded credentials, track that
+            if fetch_credentials_were_loaded:
+                credentials_were_loaded = True
+                loaded_blz = fetch_loaded_blz
 
         if not accounts_to_import:
             return self._build_result(
@@ -111,7 +112,6 @@ class BankConnectionCommand:
         self,
         credentials: Optional[BankCredentials],
         blz: Optional[str],
-        tan_callback: Optional[TanCallback],
         bank_code: str,
         connected_at,
     ) -> ConnectionResult | tuple[list[BankAccount], str, object, bool, Optional[str]]:
@@ -133,18 +133,16 @@ class BankConnectionCommand:
                 loaded_blz = blz
                 bank_code = blz
 
-            await self._apply_tan_settings(credentials_were_loaded, loaded_blz)
-
-            if tan_callback:
-                await self._adapter.set_tan_callback(
-                    self._wrap_tan_callback(tan_callback)
+            tan_method, tan_medium = None, None
+            if credentials_were_loaded and self._credential_repo and loaded_blz:
+                tan_method, tan_medium = await self._credential_repo.get_tan_settings(
+                    loaded_blz
                 )
 
-            await self._adapter.connect(credentials)
             connected_at = utc_now()
-
-            accounts = await self._adapter.fetch_accounts()
-            await self._adapter.disconnect()
+            accounts = await self._bank_fetch_service.fetch_accounts(
+                credentials, tan_method=tan_method, tan_medium=tan_medium
+            )
 
             return (
                 accounts,
@@ -155,29 +153,12 @@ class BankConnectionCommand:
             )
 
         except Exception as e:
-            if self._adapter.is_connected():
-                await self._adapter.disconnect()
             return self._build_result(
                 success=False,
                 connected_at=connected_at,
                 bank_code=bank_code,
                 error_message=str(e),
             )
-
-    async def _apply_tan_settings(
-        self,
-        credentials_were_loaded: bool,
-        loaded_blz: Optional[str],
-    ) -> None:
-        if not (self._credential_repo and credentials_were_loaded and loaded_blz):
-            return
-        tan_method, tan_medium = await self._credential_repo.get_tan_settings(
-            loaded_blz,
-        )
-        if tan_method:
-            self._adapter.set_tan_method(tan_method)
-        if tan_medium:
-            self._adapter.set_tan_medium(tan_medium)
 
     async def _import_and_build_result(  # noqa: PLR0913
         self,
@@ -264,7 +245,6 @@ class BankConnectionCommand:
             )
             raise ValueError(msg)
 
-        # Load credentials (repository is user-scoped)
         credentials = await self._credential_repo.find_by_blz(blz)
 
         if not credentials:
@@ -275,16 +255,3 @@ class BankConnectionCommand:
             raise ValueError(msg)
 
         return credentials
-
-    @staticmethod
-    def _wrap_tan_callback(
-        callback: TanCallback,
-    ) -> Callable[[TANChallenge], Awaitable[str]]:
-        @wraps(callback)
-        async def _async_callback(challenge: TANChallenge) -> str:
-            result = callback(challenge)
-            if inspect.isawaitable(result):
-                return await result  # type: ignore[func-returns-value]
-            return result  # type: ignore[return-value,arg-type]
-
-        return _async_callback

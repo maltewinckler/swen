@@ -14,7 +14,6 @@ if TYPE_CHECKING:
         BankAccountRepository,
         BankCredentialRepository,
     )
-    from swen.domain.banking.value_objects import BankCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -57,26 +56,12 @@ class BankBalanceService:
         except Exception as e:
             logger.warning("Balance refresh failed for BLZ %s: %s", blz, e)
 
-    async def get_for_iban(
-        self,
-        iban: str,
-        credentials: BankCredentials,
-    ) -> Optional[Decimal]:
-        """Return the current balance for ``iban`` or ``None``.
+    async def get_for_iban(self, iban: str) -> Optional[Decimal]:
+        """Return the current balance for ``iban`` from the DB, or ``None``.
 
-        DB-first: when a stored balance is found it is returned without
-        touching the bank. On miss, fetch accounts from the bank, persist
-        them, and return the matching balance. Returns ``None`` when no
-        balance is determinable.
+        The balance is expected to be persisted by the time this is called
+        (e.g. by ``BankConnectionCommand`` on initial import or by
+        ``refresh_for_blz`` after a sync). Returns ``None`` when no stored
+        balance is found.
         """
-        stored = await self._bank_account_repo.find_balance(iban)
-        if stored is not None:
-            return stored
-
-        accounts = await self._bank_fetch_service.fetch_accounts(credentials)
-        await self._bank_account_repo.save_accounts(accounts)
-
-        for account in accounts:
-            if account.iban == iban and account.balance is not None:
-                return account.balance
-        return None
+        return await self._bank_account_repo.find_balance(iban)

@@ -9,7 +9,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from swen.application.commands import StoreCredentialsCommand
-from swen.application.commands.banking import BankConnectionCommand
+from swen.application.commands.banking import (
+    BankConnectionCommand,
+    DiscoverAccountsCommand,
+)
 from swen.application.queries import ListCredentialsQuery, QueryTanMethodsQuery
 from swen.application.queries.banking import LookupBankQuery
 from swen.application.queries.integration import BankConnectionDetailsQuery
@@ -24,8 +27,7 @@ from swen.presentation.api.schemas.credentials import (
     CredentialCreateResponse,
     CredentialListResponse,
     CredentialResponse,
-    DiscoverAccountsResponse,
-    DiscoveredAccount,
+    DiscoverAccountsCollectionResponse,
     SetupBankRequest,
     SetupBankResponse,
     TANMethodQueryRequest,
@@ -200,7 +202,7 @@ async def delete_credentials(
 async def discover_bank_accounts(
     blz: str,
     factory: RepoFactory,
-) -> DiscoverAccountsResponse:
+) -> DiscoverAccountsCollectionResponse:
     """
     Connect to bank and discover accounts without importing them.
 
@@ -233,102 +235,17 @@ async def discover_bank_accounts(
             detail="BLZ must be exactly 8 digits",
         )
 
-    # Load credentials
-    query = ListCredentialsQuery.from_factory(factory)
-    credentials = await query.find_by_bank_code(blz)
-
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No credentials found for BLZ {blz}",
-        )
-
-    # Load TAN settings
-    tan_method, tan_medium = await query.get_tan_settings(blz)
-
-    # Lookup bank name from institute directory
-    lookup = LookupBankQuery.from_factory(factory)
-    bank_info = await lookup.execute(blz)
-    bank_name = bank_info.name if bank_info else f"Bank {blz}"
-
-    # Connect and fetch accounts
-    from swen.infrastructure.banking.bank_connection_dispatcher import (  # noqa: PLC0415
-        BankConnectionDispatcher,
-    )
-
-    adapter = BankConnectionDispatcher.from_factory(factory)
-
-    if tan_method:
-        adapter.set_tan_method(tan_method)
-    if tan_medium:
-        adapter.set_tan_medium(tan_medium)
-
     try:
-        await adapter.connect(credentials)
-        bank_accounts = await adapter.fetch_accounts()
-        await adapter.disconnect()
-
-        logger.info(
-            "Discovered %d accounts for BLZ %s",
-            len(bank_accounts),
-            blz,
-        )
-
-        # Return full account data for each account
-        discovered = [
-            DiscoveredAccount(
-                iban=acc.iban,
-                default_name=_generate_default_account_name(acc),
-                account_number=acc.account_number,
-                account_holder=acc.account_holder,
-                account_type=acc.account_type,
-                blz=acc.blz,
-                bic=acc.bic,
-                bank_name=acc.bank_name,
-                currency=acc.currency,
-                balance=str(acc.balance) if acc.balance else None,
-                balance_date=acc.balance_date.isoformat() if acc.balance_date else None,
-            )
-            for acc in bank_accounts
-        ]
-
-        return DiscoverAccountsResponse(
-            blz=blz,
-            bank_name=bank_name,
-            accounts=discovered,
-        )
+        command = DiscoverAccountsCommand.from_factory(factory)
+        dto = await command.execute(blz)
+        return DiscoverAccountsCollectionResponse(**dto.model_dump())
 
     except Exception as e:
-        if adapter.is_connected():
-            await adapter.disconnect()
-
-        from swen.domain.banking.exceptions import (  # noqa: PLC0415
-            BankingDomainError,
-        )
-
-        # Let domain exceptions (TanTimeoutError, BankConnectionError, etc.)
-        # propagate to the global exception handler for proper status codes
-        if isinstance(e, BankingDomainError):
-            raise
-
         logger.exception("Account discovery failed for BLZ %s: %s", blz, e)
-
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to connect to bank. Please try again later.",
         ) from e
-
-
-def _generate_default_account_name(bank_account) -> str:
-    """
-    Generate a user-friendly default account name.
-
-    Format: "{Bank Name} - {Account Type}"
-    Fallback: "{Account Holder} - {Account Type}"
-    """
-    if bank_account.bank_name:
-        return f"{bank_account.bank_name} - {bank_account.account_type}"
-    return f"{bank_account.account_holder} - {bank_account.account_type}"
 
 
 @router.post(

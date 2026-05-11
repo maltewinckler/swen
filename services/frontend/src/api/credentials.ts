@@ -63,7 +63,6 @@ export interface DiscoveredAccount {
 
 export interface DiscoverAccountsResponse {
   blz: string
-  bank_name: string
   accounts: DiscoveredAccount[]
 }
 

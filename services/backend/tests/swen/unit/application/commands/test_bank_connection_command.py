@@ -1,6 +1,6 @@
 """Unit tests for BankConnectionCommand."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import pytest
@@ -22,7 +22,7 @@ class TestBankConnectionCommand:
     async def test_successful_connection_and_import(self):
         """Test successful bank connection and account import."""
         # Arrange
-        mock_adapter = AsyncMock()
+        mock_fetch_service = AsyncMock()
         mock_import_service = AsyncMock()
 
         bank_creds = BankCredentials(
@@ -56,19 +56,25 @@ class TestBankConnectionCommand:
             user_id=TEST_USER_ID,
         )
 
-        mock_adapter.fetch_accounts.return_value = [bank_acct]
+        mock_fetch_service.fetch_accounts.return_value = [bank_acct]
         mock_import_service.import_bank_account.return_value = (
             accounting_acct,
             mapping,
         )
 
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=mock_import_service,
+        mock_credential_repo = AsyncMock()
+        mock_credential_repo.find_by_blz.return_value = (
+            None  # No credential needed when passing credentials
         )
 
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
+        command = BankConnectionCommand(
+            bank_fetch_service=mock_fetch_service,
+            import_service=mock_import_service,
+            credential_repo=mock_credential_repo,
+        )
+
+        # Act - pass BLZ instead of credentials
+        result = await command.execute(blz="50031000", bank_accounts=[bank_acct])
 
         # Assert
         assert result.success is True
@@ -76,60 +82,61 @@ class TestBankConnectionCommand:
         assert result.accounts_count == 1
         assert result.accounts_imported[0].iban == "DE89370400440532013000"
 
-        # Verify workflow
-        mock_adapter.connect.assert_called_once_with(bank_creds)
-        mock_adapter.disconnect.assert_called_once()
+        # Verify fetch was NOT called since we provided accounts directly
+        mock_fetch_service.fetch_accounts.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_connection_with_no_accounts(self):
         """Test connection when bank returns no accounts."""
         # Arrange
-        mock_adapter = AsyncMock()
-        mock_adapter.fetch_accounts.return_value = []
+        mock_fetch_service = AsyncMock()
+        mock_fetch_service.fetch_accounts.return_value = []
 
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=AsyncMock(),
-        )
-
-        bank_creds = BankCredentials(
+        mock_credential_repo = AsyncMock()
+        mock_credential_repo.find_by_blz.return_value = BankCredentials(
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
         )
 
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
+        command = BankConnectionCommand(
+            bank_fetch_service=mock_fetch_service,
+            import_service=AsyncMock(),
+            credential_repo=mock_credential_repo,
+        )
+
+        # Act - fetch from bank but get no accounts
+        result = await command.execute(blz="50031000")
 
         # Assert
         assert result.success is True
         assert result.accounts_count == 0
         assert result.error_message is None
         assert result.warning_message == "No accounts found at bank"
-        mock_adapter.disconnect.assert_awaited_once()
+        mock_fetch_service.fetch_accounts.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_connection_failure(self):
         """Test handling of connection failure."""
         # Arrange
-        mock_adapter = AsyncMock()
-        mock_adapter.connect.side_effect = Exception("Invalid credentials")
-        # is_connected() is a sync method, not async
-        mock_adapter.is_connected = Mock(return_value=False)
+        mock_fetch_service = AsyncMock()
+        mock_fetch_service.fetch_accounts.side_effect = Exception("Invalid credentials")
 
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=AsyncMock(),
-        )
-
-        bank_creds = BankCredentials(
+        mock_credential_repo = AsyncMock()
+        mock_credential_repo.find_by_blz.return_value = BankCredentials(
             blz="50031000",
             username=SecureString("testuser"),
             pin=SecureString("1234"),
         )
 
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
+        command = BankConnectionCommand(
+            bank_fetch_service=mock_fetch_service,
+            import_service=AsyncMock(),
+            credential_repo=mock_credential_repo,
+        )
+
+        # Act - fetch from bank triggers error
+        result = await command.execute(blz="50031000")
 
         # Assert
         assert result.success is False
@@ -139,7 +146,7 @@ class TestBankConnectionCommand:
     async def test_result_to_dict_serialization(self):
         """Test that ConnectionResult can be serialized to dict."""
         # Arrange
-        mock_adapter = AsyncMock()
+        mock_fetch_service = AsyncMock()
         mock_import_service = AsyncMock()
 
         bank_acct = BankAccount(
@@ -167,25 +174,20 @@ class TestBankConnectionCommand:
             user_id=TEST_USER_ID,
         )
 
-        mock_adapter.fetch_accounts.return_value = [bank_acct]
+        mock_fetch_service.fetch_accounts.return_value = [bank_acct]
         mock_import_service.import_bank_account.return_value = (
             accounting_acct,
             mapping,
         )
 
         command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
+            bank_fetch_service=mock_fetch_service,
             import_service=mock_import_service,
+            credential_repo=AsyncMock(),
         )
 
-        bank_creds = BankCredentials(
-            blz="50031000",
-            username=SecureString("testuser"),
-            pin=SecureString("1234"),
-        )
-
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
+        # Act - pass bank_accounts directly to skip credential lookup
+        result = await command.execute(blz="50031000", bank_accounts=[bank_acct])
         result_dict = result.to_dict()
 
         # Assert

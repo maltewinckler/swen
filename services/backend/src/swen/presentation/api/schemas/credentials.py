@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from swen.application.dtos.banking import DiscoveredAccountDTO
+
 
 class CredentialResponse(BaseModel):
     """Response schema for credential metadata (no sensitive data)."""
@@ -271,26 +273,9 @@ class SetupBankResponse(BaseModel):
     )
 
 
-class DiscoveredAccount(BaseModel):
-    """Full bank account data from discovery (passed back to setup to avoid re-fetching)."""
-
-    # Display info
-    iban: str = Field(..., description="Bank account IBAN")
-    default_name: str = Field(
-        ...,
-        description="Default name generated for the account (e.g., 'DKB - Girokonto')",
-    )
-
-    # Full bank account data (needed for import)
-    account_number: str = Field(..., description="Local account number")
-    account_holder: str = Field(..., description="Name of account holder")
-    account_type: str = Field(..., description="Type of account (e.g., 'Girokonto')")
-    blz: str = Field(..., description="Bank code (BLZ)")
-    bic: Optional[str] = Field(None, description="Bank BIC code")
-    bank_name: Optional[str] = Field(None, description="Name of the bank")
-    currency: str = Field(default="EUR", description="Account currency")
-    balance: Optional[str] = Field(None, description="Current balance")
-    balance_date: Optional[str] = Field(None, description="When balance was fetched")
+# inherit from DTO to reuse fields and inject json schema
+class DiscoveredAccount(DiscoveredAccountDTO):
+    """Bank account data from discovery (passed back to setup to avoid re-fetching)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -311,21 +296,16 @@ class DiscoveredAccount(BaseModel):
     )
 
 
-class DiscoverAccountsResponse(BaseModel):
+class DiscoverAccountsCollectionResponse(BaseModel):
     """Response for account discovery (connect + list accounts without importing)."""
 
     blz: str = Field(..., description="Bank BLZ")
-    bank_name: str = Field(..., description="Bank name")
-    accounts: list[DiscoveredAccount] = Field(
-        ...,
-        description="List of discovered bank accounts (pass back to /setup to import)",
-    )
+    accounts: list[DiscoveredAccount] = Field(..., description="Discovered accounts")
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "blz": "12030000",
-                "bank_name": "Deutsche Kreditbank Berlin (DKB) AG",
                 "accounts": [
                     {
                         "iban": "DE89370400440532013000",

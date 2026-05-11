@@ -21,7 +21,6 @@ from swen.application.services.integration.bank_account_sync import (
 from swen.application.services.integration.sync_notification_service import (
     SyncNotificationService,
 )
-from swen.domain.banking.repositories import BankCredentialRepository
 from swen.domain.integration.repositories import AccountMappingRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 
@@ -46,13 +45,11 @@ class SyncBankAccountsCommand:
         sync_service: BankAccountSyncService,
         mapping_repo: AccountMappingRepository,
         settings_repo: UserSettingsRepository,
-        credential_repo: BankCredentialRepository,
         notifier: SyncNotificationService,
     ) -> None:
         self._sync_service = sync_service
         self._mapping_repo = mapping_repo
         self._settings_repo = settings_repo
-        self._credential_repo = credential_repo
         self._notifier = notifier
 
     @classmethod
@@ -63,15 +60,15 @@ class SyncBankAccountsCommand:
         publisher: SyncEventPublisher,
     ) -> SyncBankAccountsCommand:
         notifier = SyncNotificationService(publisher)
-
         sync_service = BankAccountSyncService.from_factory(
-            factory, resolution_port, notifier
+            factory=factory,
+            resolution_port=resolution_port,
+            notifier=notifier,
         )
         return cls(
             sync_service=sync_service,
             mapping_repo=factory.account_mapping_repository(),
             settings_repo=factory.user_settings_repository(),
-            credential_repo=factory.credential_repository(),
             notifier=notifier,
         )
 

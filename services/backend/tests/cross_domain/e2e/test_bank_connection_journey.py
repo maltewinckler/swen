@@ -262,7 +262,6 @@ class TestBankConnectionJourney:
         )
         discover_data = discover_response.json()
         assert discover_data["blz"] == blz
-        assert discover_data["bank_name"] == "Test Bank AG"
         assert len(discover_data["accounts"]) == 2
 
         # Verify discovered account details

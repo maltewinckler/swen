@@ -24,7 +24,6 @@ from swen.application.services.integration.transaction_import_service import (
 from swen.domain.accounting.services.opening_balance.service import (
     OpeningBalanceService,
 )
-from swen.domain.banking.ports import TanCallback
 from swen.domain.banking.services.bank_balance_service import BankBalanceService
 from swen.domain.banking.services.bank_fetch_service import BankFetchService
 from swen.domain.integration.exceptions import InactiveMappingError
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
         BankTransactionRepository,
         StoredBankTransaction,
     )
-    from swen.domain.banking.value_objects import BankCredentials, BankTransaction
+    from swen.domain.banking.value_objects import BankCredentials
     from swen.domain.integration.entities import AccountMapping
     from swen.domain.integration.ports.counter_account_proposal_port import (
         CounterAccountProposalPort,
@@ -117,9 +116,8 @@ class BankAccountSyncService:
     async def sync_account(
         self,
         mapping: AccountMapping,
-        days: Optional[int],
-        auto_post: bool,
-        tan_callback: Optional[TanCallback] = None,
+        days: Optional[int],  # when given overrides adaptive logic (not yet productive)
+        auto_post: bool,  # injected from upstream command, based on user setting
     ) -> tuple[int, int, int]:
         """Orchestrate sync for a single IBAN."""
         iban = mapping.iban
@@ -134,30 +132,18 @@ class BankAccountSyncService:
             logger.warning("Credentials missing for BLZ %s (account %s)", blz, iban)
             return 0, 0, 0
 
-        bank_transactions, to_import = await self._fetch_and_store(
+        to_import = await self._fetch_and_store(
             iban=iban,
             days=days,
             credentials=credentials,
             tan_method=tan_method,
             tan_medium=tan_medium,
-            tan_callback=tan_callback,
         )
         await self._compute_opening_balance(
-            iban=iban,
-            credentials=credentials,
-            bank_transactions=bank_transactions,
-        )
-
-        await self._notifier.emit_account_sync_fetched_event(
-            transactions_fetched=len(bank_transactions),
-            new_transactions=len(to_import),
+            iban=iban, stored_bank_transactions=to_import
         )
 
         await self._credential_repo.update_last_used(blz)
-        if not to_import:
-            d = len(bank_transactions)
-            logger.info("All %d transactions already imported for %s", d, iban)
-            return 0, 0, 0
 
         imported, skipped, failed = await self._process_batch_loop(
             to_import=to_import,
@@ -169,15 +155,14 @@ class BankAccountSyncService:
             await self._bank_balance_service.refresh_for_blz(blz)
         return imported, skipped, failed
 
-    async def _fetch_and_store(  # NOQA: PLR0913
+    async def _fetch_and_store(
         self,
         iban: str,
         days: Optional[int],
         credentials: BankCredentials,
         tan_method: Optional[str],
         tan_medium: Optional[str],
-        tan_callback: Optional[TanCallback],
-    ) -> tuple[list[BankTransaction], list[StoredBankTransaction]]:
+    ) -> list[StoredBankTransaction]:
         """Resolve period, fetch from bank and store with dedup."""
         latest = await self._import_repo.find_latest_booking_date_by_iban(iban)
         period = SyncPeriodResolver.resolve_period(latest=latest, days=days)
@@ -189,7 +174,6 @@ class BankAccountSyncService:
             end_date=period.end_date,
             tan_method=tan_method,
             tan_medium=tan_medium,
-            tan_callback=tan_callback,
         )
         stored_transactions = (
             await self._bank_transaction_repo.save_batch_with_deduplication(
@@ -198,23 +182,28 @@ class BankAccountSyncService:
             )
         )
         to_import = [s for s in stored_transactions if s.is_new or not s.is_imported]
-        return bank_transactions, to_import
+
+        await self._notifier.emit_account_sync_fetched_event(
+            transactions_fetched=len(bank_transactions),
+            new_transactions=len(to_import),
+        )
+        if not to_import:
+            d = len(bank_transactions)
+            logger.info("All %d transactions already imported for %s", d, iban)
+        return to_import
 
     async def _compute_opening_balance(
         self,
         iban: str,
-        credentials: BankCredentials,
-        bank_transactions: list[BankTransaction],
+        stored_bank_transactions: list[StoredBankTransaction],
     ):
         """Get current balance and attempt opening-balance creation for a first sync."""
-        current_balance = await self._bank_balance_service.get_for_iban(
-            iban, credentials
-        )
+        current_balance = await self._bank_balance_service.get_for_iban(iban)
         if current_balance is not None:
             await self._opening_balance_service.try_create_for_first_sync(
                 iban=iban,
                 current_balance=current_balance,
-                bank_transactions=bank_transactions,
+                bank_transactions=[s.transaction for s in stored_bank_transactions],
             )
 
     async def _process_batch_loop(
@@ -225,6 +214,8 @@ class BankAccountSyncService:
     ) -> tuple[int, int, int]:
         """Classify and import in interleaved batches, publishing SSE events."""
         total = len(to_import)
+        if total == 0:
+            return 0, 0, 0
 
         await self._notifier.emit_classification_started_event()
 
