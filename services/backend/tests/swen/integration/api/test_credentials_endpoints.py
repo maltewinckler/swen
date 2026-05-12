@@ -245,7 +245,7 @@ class TestLookupBank:
     """Tests for GET /api/v1/bank-connections/lookup/{blz}."""
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_lookup_bank_success(
         self,
@@ -272,7 +272,7 @@ class TestLookupBank:
         assert data["is_fints_capable"] is True
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_lookup_bank_not_found(
         self,
@@ -315,10 +315,10 @@ class TestQueryTanMethods:
     """
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_success(
         self,
@@ -395,7 +395,7 @@ class TestQueryTanMethods:
         assert method1["is_decoupled"] is True
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_query_tan_methods_bank_not_found(
         self,
@@ -434,7 +434,7 @@ class TestQueryTanMethods:
         assert response.status_code == 422  # Pydantic validation
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_query_tan_methods_credentials_not_found(
         self,
@@ -471,10 +471,10 @@ class TestQueryTanMethods:
         assert response.status_code == 401
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_connection_failure(
         self,
@@ -514,10 +514,10 @@ class TestQueryTanMethods:
         assert "Failed to connect to bank" in response.json()["detail"]
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_invalid_credentials(
         self,
@@ -557,10 +557,10 @@ class TestQueryTanMethods:
         assert "Invalid credentials" in response.json()["detail"]
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_empty_result(
         self,

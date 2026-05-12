@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.services import TransactionImportService
+from swen.application.integration.services import TransactionImportService
 from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.integration.services import (
     TransferReconciliationService,

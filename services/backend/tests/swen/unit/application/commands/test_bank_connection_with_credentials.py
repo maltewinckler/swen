@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from swen.application.commands.banking import DiscoverAccountsCommand
+from swen.application.banking.commands import DiscoverAccountsCommand
 from swen.domain.banking.value_objects import BankAccount, BankCredentials
 from swen.domain.shared.value_objects.secure_string import SecureString
 

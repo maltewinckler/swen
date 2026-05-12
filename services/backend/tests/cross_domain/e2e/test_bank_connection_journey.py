@@ -135,7 +135,7 @@ def generate_mock_transactions(
 def mock_fints_directory():
     """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
         mock_query = AsyncMock()
         mock_query.execute.return_value = MOCK_BANK_INFO
@@ -159,7 +159,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_adapter_class_router,
         patch(
-            "swen.application.commands.banking.discover_accounts_command.BankConnectionDispatcher"
+            "swen.application.banking.commands.discover_accounts_command.BankConnectionDispatcher"
         ) as mock_adapter_class_command,
     ):
         mock_adapter_class_router.from_factory.return_value = adapter_instance

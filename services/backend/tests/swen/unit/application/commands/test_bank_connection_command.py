@@ -5,8 +5,8 @@ from uuid import UUID
 
 import pytest
 
-from swen.application.commands.banking import SetupBankCommand
-from swen.application.dtos.banking import BankAccountToImportDTO, SetupBankRequestDTO
+from swen.application.banking.commands import SetupBankCommand
+from swen.application.banking.dtos import BankAccountToImportDTO, SetupBankRequestDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping

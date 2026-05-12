@@ -11,9 +11,9 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 
-from swen.application.commands.accounting import GenerateDefaultAccountsCommand
+from swen.application.accounting.commands import GenerateDefaultAccountsCommand
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.services import (
+from swen.application.integration.services import (
     TransactionImportService,
 )
 from swen.domain.accounting.services import OpeningBalanceService

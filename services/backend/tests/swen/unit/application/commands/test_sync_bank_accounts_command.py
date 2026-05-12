@@ -15,16 +15,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.commands.integration.sync_bank_accounts_command import (
-    SyncBankAccountsCommand,
-)
 from swen.application.events import (
     AccountSyncFailedEvent,
     BatchSyncCompletedEvent,
     BatchSyncStartedEvent,
     SyncResultEvent,
 )
-from swen.application.services.integration.sync_notification_service import (
+from swen.application.integration.commands.sync_bank_accounts_command import (
+    SyncBankAccountsCommand,
+)
+from swen.application.integration.services.sync_notification_service import (
     SyncNotificationService,
 )
 from swen.domain.integration.value_objects.sync_period import SyncPeriod

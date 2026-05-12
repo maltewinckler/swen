@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import SpendingBreakdownResult
-from swen.application.queries.analytics import SpendingBreakdownQuery
+from swen.application.analytics.dtos import SpendingBreakdownResult
+from swen.application.analytics.queries import SpendingBreakdownQuery
 
 
 class TestSpendingBreakdownQuery:

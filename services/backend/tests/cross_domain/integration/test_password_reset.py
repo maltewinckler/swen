@@ -24,7 +24,9 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def mock_email_service():
     """Mock email service to capture sent emails."""
-    with patch("swen.presentation.api.routers.auth.EmailService") as mock_email_class:
+    with patch(
+        "swen.presentation.api.auth.routers.auth.EmailService"
+    ) as mock_email_class:
         email_instance = AsyncMock()
         email_instance.send_password_reset_email = AsyncMock()
         mock_email_class.return_value = email_instance

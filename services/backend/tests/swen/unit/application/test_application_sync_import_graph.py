@@ -93,12 +93,12 @@ def _check_module_file(rel_path: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 _MODULES_UNDER_TEST = [
-    # application/services/integration/
-    "swen/application/services/integration/transaction_import_service.py",
-    # application/services/integration/bank_account_sync/
-    "swen/application/services/integration/bank_account_sync/bank_account_sync_service.py",
-    # application/commands/integration/
-    "swen/application/commands/integration/sync_bank_accounts_command.py",
+    # application/integration/services/
+    "swen/application/integration/services/transaction_import_service.py",
+    # application/integration/services/bank_account_sync/
+    "swen/application/integration/services/bank_account_sync/bank_account_sync_service.py",
+    # application/integration/commands/
+    "swen/application/integration/commands/sync_bank_accounts_command.py",
 ]
 
 

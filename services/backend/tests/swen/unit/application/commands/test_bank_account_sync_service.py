@@ -24,10 +24,10 @@ from swen.application.events import (
     ClassificationCompletedEvent,
     ClassificationStartedEvent,
 )
-from swen.application.services.integration.bank_account_sync.bank_account_sync_service import (
+from swen.application.integration.services.bank_account_sync.bank_account_sync_service import (
     BankAccountSyncService,
 )
-from swen.application.services.integration.sync_notification_service import (
+from swen.application.integration.services.sync_notification_service import (
     SyncNotificationService,
 )
 from swen.domain.integration.entities import AccountMapping

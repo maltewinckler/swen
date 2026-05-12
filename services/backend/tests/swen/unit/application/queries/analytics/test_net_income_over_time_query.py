@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import TimeSeriesResult
-from swen.application.queries.analytics import NetIncomeOverTimeQuery
+from swen.application.analytics.dtos import TimeSeriesResult
+from swen.application.analytics.queries import NetIncomeOverTimeQuery
 
 
 class TestNetIncomeOverTimeQuery:

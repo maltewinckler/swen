@@ -24,7 +24,7 @@ from swen.application.events import (
     ErrorCode,
     SyncResultEvent,
 )
-from swen.application.services.integration.sync_notification_service import (
+from swen.application.integration.services.sync_notification_service import (
     SyncNotificationService,
 )
 from tests.shared.sync_event_publisher import InMemorySyncEventPublisher

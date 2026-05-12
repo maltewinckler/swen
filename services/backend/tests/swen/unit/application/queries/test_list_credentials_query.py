@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.queries import ListCredentialsQuery
+from swen.application.banking.queries import ListCredentialsQuery
 
 
 class TestListCredentialsQuery:

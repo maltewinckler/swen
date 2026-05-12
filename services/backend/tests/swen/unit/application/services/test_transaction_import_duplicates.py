@@ -19,7 +19,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.services import TransactionImportService
+from swen.application.integration.services import TransactionImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.accounting.value_objects import Currency

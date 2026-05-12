@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import (
+from swen.application.accounting.commands import (
     CreateAccountCommand,
     ParentAction,
     UpdateAccountCommand,

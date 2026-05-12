@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import CreateSimpleTransactionCommand
+from swen.application.accounting.commands import CreateSimpleTransactionCommand
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency

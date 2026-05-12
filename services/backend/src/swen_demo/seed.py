@@ -23,7 +23,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from swen.application.commands.accounting import (
+from swen.application.accounting.commands import (
     CreateTransactionCommand,
     GenerateDefaultAccountsCommand,
     PostTransactionCommand,

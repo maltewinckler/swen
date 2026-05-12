@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.dtos.analytics import (
+from swen.application.analytics.dtos import (
     BreakdownItem,
     CategoryTimeSeriesDataPoint,
     CategoryTimeSeriesResult,
@@ -21,7 +21,7 @@ from swen.application.dtos.analytics import (
     TimeSeriesDataPoint,
     TimeSeriesResult,
 )
-from swen.application.queries.export_report_query import ExportReportQuery
+from swen.application.analytics.queries.export_report_query import ExportReportQuery
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping

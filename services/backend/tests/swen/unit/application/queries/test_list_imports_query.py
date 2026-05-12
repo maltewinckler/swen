@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.queries import ListImportsQuery
+from swen.application.integration.queries import ListImportsQuery
 from swen.domain.integration.value_objects import ImportStatus
 
 

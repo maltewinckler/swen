@@ -115,7 +115,7 @@ def _run_sync_stream(
 def mock_fints_directory():
     """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
         mock_query = AsyncMock()
         mock_query.execute.return_value = MOCK_BANK_INFO
@@ -135,7 +135,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_router_adapter,
         patch(
-            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
+            "swen.application.banking.commands.bank_connection_command.BankConnectionDispatcher"
         ) as mock_command_adapter,
     ):
         adapter_instance = AsyncMock()

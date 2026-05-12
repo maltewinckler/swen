@@ -22,7 +22,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from swen.application.dtos.analytics import (
+from swen.application.analytics.dtos import (
     BreakdownItem,
     CategoryComparison,
     CategoryTimeSeriesDataPoint,

@@ -7,8 +7,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.commands.integration import RenameBankAccountCommand
-from swen.application.dtos.accounting import BankAccountDTO
+from swen.application.accounting.dtos import BankAccountDTO
+from swen.application.integration.commands import RenameBankAccountCommand
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping

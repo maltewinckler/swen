@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.queries import (
+from swen.application.banking.queries import (
     QueryTanMethodsQuery,
     TANMethodInfo,
     TANMethodsResult,

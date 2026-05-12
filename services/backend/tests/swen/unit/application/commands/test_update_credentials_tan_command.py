@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.commands.banking.credentials import UpdateCredentialsCommand
-from swen.application.dtos.banking import UpdateCredentialsDTO
+from swen.application.banking.commands.credentials import UpdateCredentialsCommand
+from swen.application.banking.dtos import UpdateCredentialsDTO
 from swen.domain.banking.exceptions import CredentialsNotFoundError
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.shared.value_objects import SecureString

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.commands import StoreCredentialsCommand
-from swen.application.dtos.banking.credentials_dto import CredentialToStoreDTO
+from swen.application.banking.commands import StoreCredentialsCommand
+from swen.application.banking.dtos.credentials_dto import CredentialToStoreDTO
 from swen.domain.banking.exceptions import CredentialsAlreadyExistError
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.shared.value_objects import SecureString
