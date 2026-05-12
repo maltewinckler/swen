@@ -9,10 +9,8 @@ from swen.domain.accounting.services.account_hierarchy_service import (
 from swen.domain.accounting.services.classification_rules import (
     ClassificationRules,
 )
-from swen.domain.accounting.services.opening_balance_service import (
-    # Deprecated: Use MetadataKeys instead
-    OPENING_BALANCE_IBAN_KEY,
-    OPENING_BALANCE_METADATA_KEY,
+from swen.domain.accounting.services.opening_balance import (
+    OpeningBalanceCalculator,
     OpeningBalanceService,
 )
 from swen.domain.accounting.services.transaction_entry_service import (
@@ -31,11 +29,9 @@ __all__ = [
     "ClassificationRules",
     "EntrySpec",
     "MetadataKeys",
+    "OpeningBalanceCalculator",
     "OpeningBalanceService",
     "PAYMENT_ACCOUNT_TYPES",
     "TransactionDirection",
     "TransactionEntryService",
-    # Deprecated: Use MetadataKeys instead
-    "OPENING_BALANCE_METADATA_KEY",
-    "OPENING_BALANCE_IBAN_KEY",
 ]

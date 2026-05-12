@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from swen.application.dtos.accounting import AccountSummaryDTO
+from swen.application.accounting.dtos import AccountSummaryDTO
 from swen.domain.accounting.entities import Account, AccountType
 
 

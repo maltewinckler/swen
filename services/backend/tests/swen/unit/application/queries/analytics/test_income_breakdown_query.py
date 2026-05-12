@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import IncomeBreakdownResult
-from swen.application.queries.analytics import IncomeBreakdownQuery
+from swen.application.analytics.dtos import IncomeBreakdownResult
+from swen.application.analytics.queries import IncomeBreakdownQuery
 
 
 class TestIncomeBreakdownQuery:

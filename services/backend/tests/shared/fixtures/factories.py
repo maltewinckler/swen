@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from swen.application.ports.identity import CurrentUser
+from swen.domain.shared.current_user import CurrentUser
 
 
 @dataclass(frozen=True)

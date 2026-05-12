@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from swen.application.ports.analytics import AnalyticsReadPort
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.repositories import (
     AccountRepository,
     TransactionRepository,
 )
+from swen.domain.banking.ports import BankConnectionPort
 from swen.domain.banking.repositories import (
     BankAccountRepository,
     BankCredentialRepository,
@@ -17,7 +19,6 @@ from swen.domain.banking.repositories import (
 )
 from swen.domain.integration.repositories import (
     AccountMappingRepository,
-    CounterAccountRuleRepository,
     TransactionImportRepository,
 )
 from swen.domain.settings import UserSettingsRepository
@@ -33,7 +34,7 @@ from swen.infrastructure.banking.local_fints.repositories.endpoint_repository im
 from swen_identity.domain.user.repositories import UserRepository
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class RepositoryFactory(Protocol):
@@ -46,12 +47,11 @@ class RepositoryFactory(Protocol):
 
     @property
     def session(self) -> Any:
-        """Get the database session for transaction management.
+        """Get the database session (legacy — prefer unit_of_work())."""
+        ...
 
-        The type is intentionally `Any` to avoid coupling the
-        application layer to specific database implementations.
-        Use this for commit/rollback at the presentation layer.
-        """
+    def unit_of_work(self) -> UnitOfWork:
+        """Get a unit-of-work scoped to the current request session."""
         ...
 
     def account_repository(self) -> AccountRepository:
@@ -68,10 +68,6 @@ class RepositoryFactory(Protocol):
 
     def import_repository(self) -> TransactionImportRepository:
         """Get transaction import repository."""
-        ...
-
-    def counter_account_rule_repository(self) -> CounterAccountRuleRepository:
-        """Get counter-account rule repository."""
         ...
 
     def credential_repository(self) -> BankCredentialRepository:
@@ -112,4 +108,8 @@ class RepositoryFactory(Protocol):
 
     def fints_endpoint_repository(self) -> FinTSEndpointRepository:
         """Get FinTS endpoint repository (system-wide)."""
+        ...
+
+    def bank_connection_port(self) -> BankConnectionPort:
+        """Get the bank connection port (dispatcher) for outbound bank I/O."""
         ...

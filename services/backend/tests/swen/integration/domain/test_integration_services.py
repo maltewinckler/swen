@@ -11,22 +11,18 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 
-from swen.application.commands.accounting import GenerateDefaultAccountsCommand
+from swen.application.accounting.commands import GenerateDefaultAccountsCommand
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.queries.integration import OpeningBalanceQuery
-from swen.application.services import (
-    BankAccountImportService,
-    OpeningBalanceAdjustmentService,
+from swen.application.integration.services import (
     TransactionImportService,
+)
+from swen.domain.accounting.services import OpeningBalanceService
+from swen.domain.banking.value_objects.bank_credentials import BankCredentials
+from swen.domain.integration.services import (
+    BankAccountImportService,
     TransferReconciliationService,
 )
-from swen.domain.banking.value_objects.bank_credentials import BankCredentials
-from swen.domain.integration.services import CounterAccountResolutionService
-from swen.domain.integration.value_objects import (
-    CounterAccountRule,
-    PatternType,
-    RuleSource,
-)
+from swen.domain.integration.value_objects import ResolvedCounterAccount
 from swen.domain.shared.time import today_utc
 from swen.infrastructure.banking.local_fints.adapter import GeldstromAdapter
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
@@ -39,7 +35,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
-    CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
 from tests.external.conftest import (
@@ -248,7 +243,6 @@ async def integration_repositories(db_session, current_user):
         ),
         mapping_repo=AccountMappingRepositorySQLAlchemy(db_session, current_user),
         import_repo=TransactionImportRepositorySQLAlchemy(db_session, current_user),
-        rule_repo=CounterAccountRuleRepositorySQLAlchemy(db_session, current_user),
         user_id=TEST_USER_ID,
         current_user=current_user,
     )
@@ -262,15 +256,7 @@ def bank_account_service(integration_repositories):
         account_repository=integration_repositories.account_repo,
         mapping_repository=integration_repositories.mapping_repo,
         current_user=integration_repositories.current_user,
-    )
-
-
-@pytest.fixture
-def counter_account_resolution_service(integration_repositories):
-    """Rule-based counter-account resolution service using SQLAlchemy repository."""
-
-    return CounterAccountResolutionService(
-        rule_repository=integration_repositories.rule_repo,
+        bank_account_repository=integration_repositories.bank_account_repo,
     )
 
 
@@ -278,55 +264,32 @@ def counter_account_resolution_service(integration_repositories):
 def transaction_import_service(
     integration_repositories,
     bank_account_service,
-    counter_account_resolution_service,
 ):
     """Full transaction import orchestration service."""
-    ob_query = OpeningBalanceQuery(
+    ob_service = OpeningBalanceService(
+        account_repository=integration_repositories.account_repo,
         transaction_repository=integration_repositories.transaction_repo,
+        user_id=integration_repositories.current_user.user_id,
     )
 
     transfer_reconciliation_service = TransferReconciliationService(
         transaction_repository=integration_repositories.transaction_repo,
-        mapping_repository=integration_repositories.mapping_repo,
-        account_repository=integration_repositories.account_repo,
-        opening_balance_query=ob_query,
     )
 
     transaction_factory = BankImportTransactionFactory(
         current_user=integration_repositories.current_user,
     )
 
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=integration_repositories.account_repo,
-        transaction_repository=integration_repositories.transaction_repo,
-        opening_balance_query=ob_query,
-        current_user=integration_repositories.current_user,
-    )
-
     return TransactionImportService(
         bank_account_import_service=bank_account_service,
-        counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_reconciliation_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=integration_repositories.account_repo,
         transaction_repository=integration_repositories.transaction_repo,
         import_repository=integration_repositories.import_repo,
         current_user=integration_repositories.current_user,
     )
-
-
-# ---------------------------------------------------------------------------
-# Helper utilities
-# ---------------------------------------------------------------------------
-
-
-def _extract_keyword_from_transaction_purpose(purpose: str | None) -> str:
-    """Return a short keyword from a transaction purpose for rule creation."""
-
-    if not purpose:
-        return ""
-    return purpose.strip().split()[0][:20]
 
 
 # ---------------------------------------------------------------------------
@@ -365,59 +328,6 @@ async def test_bank_account_import_service_creates_asset_account(
 
 
 @pytest.mark.asyncio
-async def test_counter_account_resolution_service_matches_saved_rule(
-    integration_repositories,
-    counter_account_resolution_service,
-    sample_transactions,
-):
-    """Counter-account rules from the repository should drive account suggestions."""
-
-    transaction = next(
-        (
-            tx
-            for tx in sample_transactions
-            if _extract_keyword_from_transaction_purpose(tx.purpose)
-        ),
-        None,
-    )
-    if not transaction:
-        pytest.skip(
-            "Need at least one transaction with a purpose for counter-account resolution test",
-        )
-
-    candidate_keyword = _extract_keyword_from_transaction_purpose(transaction.purpose)
-    if not candidate_keyword:
-        pytest.skip("Unable to derive keyword for counter-account rule")
-
-    account_repo = integration_repositories.account_repo
-    groceries_account = await account_repo.find_by_account_number("4000")
-    if not groceries_account:
-        pytest.skip("Standard groceries account (4000) missing from chart of accounts")
-
-    rule = CounterAccountRule(
-        pattern_type=PatternType.PURPOSE_TEXT,
-        pattern_value=candidate_keyword,
-        counter_account_id=groceries_account.id,
-        priority=200,
-        source=RuleSource.USER_CREATED,
-        user_id=integration_repositories.user_id,
-    )
-    await integration_repositories.rule_repo.save(rule)
-
-    counter_account = await counter_account_resolution_service.resolve_counter_account(
-        bank_transaction=transaction,
-        account_repository=integration_repositories.account_repo,
-    )
-
-    assert counter_account is not None
-    assert counter_account.id == groceries_account.id
-
-    stored_rule = await integration_repositories.rule_repo.find_by_id(rule.id)
-    assert stored_rule is not None
-    assert stored_rule.match_count == 1
-
-
-@pytest.mark.asyncio
 async def test_transaction_import_service_imports_real_transaction(
     integration_repositories,
     bank_account_service,
@@ -428,38 +338,15 @@ async def test_transaction_import_service_imports_real_transaction(
     """End-to-end import should persist accounting transaction and stats."""
 
     transaction = next(
-        (
-            tx
-            for tx in sample_transactions
-            if _extract_keyword_from_transaction_purpose(tx.purpose)
-        ),
+        (tx for tx in sample_transactions if tx.purpose),
         None,
     )
     if not transaction:
         pytest.skip("Need a transaction with a valid purpose to test import flow")
 
-    keyword = _extract_keyword_from_transaction_purpose(transaction.purpose)
-    if not keyword:
-        pytest.skip("Unable to derive rule keyword from transaction purpose")
-
     # Ensure bank account and mapping exist prior to import
     user_id = integration_repositories.user_id
-    await bank_account_service.import_bank_account(sample_account)
-
-    account_repo = integration_repositories.account_repo
-    category_account = await account_repo.find_by_account_number("4900")
-    if not category_account:
-        pytest.skip("Default 'Sonstiges' expense account (4900) missing")
-
-    rule = CounterAccountRule(
-        pattern_type=PatternType.PURPOSE_TEXT,
-        pattern_value=keyword,
-        counter_account_id=category_account.id,
-        priority=250,
-        source=RuleSource.USER_CREATED,
-        user_id=user_id,
-    )
-    await integration_repositories.rule_repo.save(rule)
+    asset_account, _ = await bank_account_service.import_bank_account(sample_account)
 
     await integration_repositories.bank_account_repo.save(sample_account)
     stored_transaction = (
@@ -469,24 +356,33 @@ async def test_transaction_import_service_imports_real_transaction(
         )
     )[0]
 
-    result = (
-        await transaction_import_service.import_from_stored_transactions(
-            stored_transactions=[stored_transaction],
-            source_iban=sample_account.iban,
-        )
-    )[0]
+    resolved = {
+        stored_transaction.id: ResolvedCounterAccount(
+            account=asset_account,
+            confidence=None,
+        ),
+    }
+
+    results = await transaction_import_service.import_batch(
+        stored_transactions=[stored_transaction],
+        source_iban=sample_account.iban,
+        resolved=resolved,
+        auto_post=False,
+    )
+    result = results[0]
 
     assert result.is_success
     assert result.accounting_transaction is not None
     assert len(result.accounting_transaction.entries) == 2
 
     # Duplicate imports should be detected for the same stored transaction ID
-    duplicate_result = (
-        await transaction_import_service.import_from_stored_transactions(
-            stored_transactions=[stored_transaction],
-            source_iban=sample_account.iban,
-        )
-    )[0]
+    duplicate_results = await transaction_import_service.import_batch(
+        stored_transactions=[stored_transaction],
+        source_iban=sample_account.iban,
+        resolved=resolved,
+        auto_post=False,
+    )
+    duplicate_result = duplicate_results[0]
 
     assert duplicate_result.is_duplicate
 

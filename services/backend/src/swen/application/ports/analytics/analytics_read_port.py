@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from swen.application.dtos.analytics import (
+from swen.application.analytics.dtos import (
     CategoryTimeSeriesResult,
     IncomeBreakdownResult,
     MonthComparisonResult,

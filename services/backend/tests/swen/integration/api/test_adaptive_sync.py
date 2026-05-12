@@ -115,7 +115,7 @@ def _run_sync_stream(
 def mock_fints_directory():
     """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
         mock_query = AsyncMock()
         mock_query.execute.return_value = MOCK_BANK_INFO
@@ -135,7 +135,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_router_adapter,
         patch(
-            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
+            "swen.application.banking.commands.bank_connection_command.BankConnectionDispatcher"
         ) as mock_command_adapter,
     ):
         adapter_instance = AsyncMock()
@@ -183,7 +183,7 @@ def user_with_bank(
 
     # Store credentials
     test_client.post(
-        f"{api_v1_prefix}/credentials",
+        f"{api_v1_prefix}/bank-connections/credentials",
         headers=headers,
         json={
             "blz": blz,
@@ -195,7 +195,7 @@ def user_with_bank(
 
     # Setup accounts
     setup_response = test_client.post(
-        f"{api_v1_prefix}/credentials/{blz}/setup",
+        f"{api_v1_prefix}/integration/setup/{blz}",
         headers=headers,
     )
     assert setup_response.status_code == 200, (
@@ -235,7 +235,7 @@ class TestSyncRecommendation:
 
         # Debug: Check if credentials exist
         credentials_response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
         )
         assert credentials_response.status_code == 200
@@ -300,7 +300,7 @@ class TestAdaptiveSyncBehavior:
 
         # Mock sync adapter for this test
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -343,7 +343,7 @@ class TestAdaptiveSyncBehavior:
 
         # Perform a sync first
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -388,7 +388,7 @@ class TestDeduplication:
 
         # First sync with one transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -417,7 +417,7 @@ class TestDeduplication:
 
         # Second sync with same transaction
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             adapter = AsyncMock()
             adapter.connect = AsyncMock()
@@ -523,7 +523,7 @@ class TestReconciliation:
         headers = authenticated_user["headers"]
 
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/reconciliation",
+            f"{api_v1_prefix}/integration/reconciliation",
             headers=headers,
         )
 

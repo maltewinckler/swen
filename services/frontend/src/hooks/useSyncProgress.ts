@@ -30,6 +30,7 @@ import {
   type SyncResultEvent,
   type SyncRunRequest,
 } from '@/api'
+import { resolveErrorKey } from '@/api/syncErrorKeys'
 
 /** Delay (ms) before transitioning to next account, so user can see completion */
 const ACCOUNT_TRANSITION_DELAY = 800
@@ -54,10 +55,6 @@ export interface SyncProgress {
   transactionsTotal: number
   /** Human-readable message from the last event */
   lastMessage: string
-  /** Last classified transaction description (for live feed) */
-  lastTransactionDescription?: string
-  /** Counter account name for last classified transaction */
-  lastCounterAccountName?: string
 }
 
 /**
@@ -206,7 +203,7 @@ export function useSyncProgress(
    */
   const processEvent = useCallback((event: SyncEvent) => {
     switch (event.event_type) {
-      case 'sync_started':
+      case 'batch_sync_started':
         currentAccountRef.current = null
         setProgress({
           currentAccount: '',
@@ -216,11 +213,11 @@ export function useSyncProgress(
           transactionsCurrent: 0,
           transactionsTotal: 0,
           phase: 'connecting',
-          lastMessage: event.message,
+          lastMessage: '',
         })
         break
 
-      case 'account_started':
+      case 'account_sync_started':
         currentAccountRef.current = event.iban
         setProgress(prev => ({
           ...prev!,
@@ -231,30 +228,26 @@ export function useSyncProgress(
           transactionsCurrent: 0,
           transactionsTotal: 0,
           phase: 'connecting',
-          lastMessage: event.message,
-          // Clear last transaction info when switching accounts
-          lastTransactionDescription: undefined,
-          lastCounterAccountName: undefined,
+          lastMessage: '',
         }))
         break
 
-      case 'account_fetched':
+      case 'account_sync_fetched':
         setProgress(prev => ({
           ...prev!,
           transactionsTotal: event.new_transactions,
           phase: event.new_transactions > 0 ? 'fetching' : 'complete',
-          lastMessage: event.message,
+          lastMessage: '',
         }))
         break
 
       case 'classification_started':
-        // ML batch classification starting
+        // ML batch classification starting — transactionsTotal already set from account_sync_fetched
         setProgress(prev => ({
           ...prev!,
           transactionsCurrent: 0,
-          transactionsTotal: event.total,
           phase: 'classifying',
-          lastMessage: event.message || `Classifying ${event.total} transactions...`,
+          lastMessage: '',
         }))
         break
 
@@ -265,7 +258,7 @@ export function useSyncProgress(
           transactionsCurrent: event.current,
           transactionsTotal: event.total,
           phase: 'classifying',
-          lastMessage: event.message || `Classifying ${event.current}/${event.total}`,
+          lastMessage: '',
         }))
         break
 
@@ -276,49 +269,27 @@ export function useSyncProgress(
           transactionsCurrent: event.total,
           transactionsTotal: event.total,
           phase: 'classifying',
-          lastMessage: event.message || `Classified ${event.total} transactions`,
+          lastMessage: '',
         }))
         break
 
-      case 'account_classifying':
-        setProgress(prev => ({
-          ...prev!,
-          transactionsCurrent: event.current,
-          transactionsTotal: event.total,
-          phase: 'classifying',
-          lastMessage: event.message,
-        }))
-        break
-
-      case 'transaction_classified':
-        setProgress(prev => ({
-          ...prev!,
-          transactionsCurrent: event.current,
-          transactionsTotal: event.total,
-          phase: 'classifying',
-          lastMessage: event.message,
-          lastTransactionDescription: event.description,
-          lastCounterAccountName: event.counter_account_name,
-        }))
-        break
-
-      case 'account_completed':
+      case 'account_sync_completed':
         setProgress(prev => ({
           ...prev!,
           phase: 'complete',
-          lastMessage: event.message,
+          lastMessage: '',
         }))
         break
 
-      case 'account_failed':
+      case 'account_sync_failed':
         setProgress(prev => ({
           ...prev!,
-          lastMessage: `Error: ${event.error}`,
+          lastMessage: resolveErrorKey(event.error_key),
         }))
         break
 
-      case 'sync_failed':
-        setError(event.error || event.message)
+      case 'batch_sync_failed':
+        setError(resolveErrorKey(event.error_key))
         break
     }
   }, [])
@@ -333,10 +304,10 @@ export function useSyncProgress(
     while (eventQueueRef.current.length > 0) {
       const event = eventQueueRef.current.shift()!
 
-      // If this is an account_started event and we already have an account,
+      // If this is an account_sync_started event and we already have an account,
       // add a delay so user can see the previous account's completion
       if (
-        event.event_type === 'account_started' &&
+        event.event_type === 'account_sync_started' &&
         currentAccountRef.current !== null &&
         currentAccountRef.current !== event.iban
       ) {

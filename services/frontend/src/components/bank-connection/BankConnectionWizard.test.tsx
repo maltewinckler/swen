@@ -272,7 +272,7 @@ describe('BankConnectionWizard', () => {
       })
       render(<BankConnectionWizard connection={connection} />)
 
-      expect(screen.getByText(/connecting to test bank/i)).toBeInTheDocument()
+      expect(screen.getByText(/importing accounts from test bank/i)).toBeInTheDocument()
     })
   })
 
@@ -282,8 +282,11 @@ describe('BankConnectionWizard', () => {
         step: 'initial_sync',
         bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
         connectionResult: {
+          blz: '12345678',
+          success: true,
           message: 'Connected',
-          accounts_imported: [{ iban: 'DE123', account_name: 'Girokonto' }],
+          imported_accounts: [{ iban: 'DE123', default_name: 'Girokonto', custom_name: null, accounting_account_id: null, account_number: null, account_holder: null, account_type: null, bic: null, bank_name: null, currency: 'EUR', balance: null, balance_date: null }],
+          warning: null,
         },
       })
       render(<BankConnectionWizard connection={connection} />)
@@ -297,8 +300,11 @@ describe('BankConnectionWizard', () => {
         step: 'initial_sync',
         bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
         connectionResult: {
+          blz: '12345678',
+          success: true,
           message: 'Connected',
-          accounts_imported: [{ iban: 'DE123', account_name: 'Girokonto' }],
+          imported_accounts: [{ iban: 'DE123', default_name: 'Girokonto', custom_name: null, accounting_account_id: null, account_number: null, account_holder: null, account_type: null, bic: null, bank_name: null, currency: 'EUR', balance: null, balance_date: null }],
+          warning: null,
         },
       })
       render(<BankConnectionWizard connection={connection} />)
@@ -314,8 +320,11 @@ describe('BankConnectionWizard', () => {
         step: 'initial_sync',
         bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
         connectionResult: {
+          blz: '12345678',
+          success: true,
           message: 'Connected',
-          accounts_imported: [],
+          imported_accounts: [],
+          warning: null,
         },
       })
       render(<BankConnectionWizard connection={connection} />)
@@ -331,8 +340,11 @@ describe('BankConnectionWizard', () => {
         step: 'success',
         bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
         connectionResult: {
+          blz: '12345678',
+          success: true,
           message: 'Connection successful',
-          accounts_imported: [{ iban: 'DE123', account_name: 'Girokonto' }],
+          imported_accounts: [{ iban: 'DE123', default_name: 'Girokonto', custom_name: null, accounting_account_id: null, account_number: null, account_holder: null, account_type: null, bic: null, bank_name: null, currency: 'EUR', balance: null, balance_date: null }],
+          warning: null,
         },
       })
       render(<BankConnectionWizard connection={connection} onDone={vi.fn()} />)

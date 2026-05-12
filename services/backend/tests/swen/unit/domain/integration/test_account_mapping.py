@@ -421,13 +421,10 @@ class TestAccountMapping:
         assert "INACTIVE" in str_repr
 
     def test_various_valid_iban_formats(self):
-        """Test various valid IBAN formats."""
+        """Test various valid German IBAN formats."""
         valid_ibans = [
             "DE89370400440532013000",  # German IBAN (22 chars)
-            "GB29NWBK60161331926819",  # UK IBAN (22 chars)
-            "FR1420041010050500013M02606",  # French IBAN (27 chars)
-            "IT60X0542811101000000123456",  # Italian IBAN (27 chars)
-            "ES9121000418450200051332",  # Spanish IBAN (24 chars)
+            "DE89370400440532013001",  # another German IBAN
         ]
 
         for iban in valid_ibans:
@@ -438,6 +435,33 @@ class TestAccountMapping:
                 user_id=TEST_USER_ID,
             )
             assert mapping.iban == iban.upper()
+
+    def test_non_german_iban_raises_error(self):
+        """Test that non-German IBANs are rejected."""
+        non_german_ibans = [
+            "GB29NWBK60161331926819",
+            "FR1420041010050500013M02606",
+            "IT60X0542811101000000123456",
+            "ES9121000418450200051332",
+        ]
+        for iban in non_german_ibans:
+            with pytest.raises(ValueError, match="Only German IBANs"):
+                AccountMapping(
+                    iban=iban,
+                    accounting_account_id=uuid4(),
+                    account_name="Test Account",
+                    user_id=TEST_USER_ID,
+                )
+
+    def test_blz_property_returns_bank_code(self):
+        """Test that blz returns the 8-digit bank code from the IBAN."""
+        mapping = AccountMapping(
+            iban="DE89370400440532013000",
+            accounting_account_id=uuid4(),
+            account_name="Test Account",
+            user_id=TEST_USER_ID,
+        )
+        assert mapping.blz == "37040044"
 
     def test_iban_case_insensitive_for_deterministic_id(self):
         """Test that IBAN case doesn't affect deterministic ID."""

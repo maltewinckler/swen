@@ -118,11 +118,21 @@ export const handlers = [
   // Setup accounts
   http.post('/api/credentials/:blz/accounts', () => {
     return HttpResponse.json({
+      blz: '37040044',
+      success: true,
       message: 'Accounts imported successfully',
-      accounts_imported: mockDiscoveredAccounts.accounts.map(a => ({
-        iban: a.iban,
-        account_name: a.default_name,
+      imported_accounts: mockDiscoveredAccounts.accounts.map(a => ({
+        ...a,
+        account_number: null,
+        account_holder: null,
+        account_type: null,
+        bic: null,
+        bank_name: null,
+        balance_date: null,
+        custom_name: null,
+        accounting_account_id: null,
       })),
+      warning: null,
     })
   }),
 

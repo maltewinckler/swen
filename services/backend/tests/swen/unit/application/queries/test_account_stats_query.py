@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.queries.accounting import AccountStatsQuery
+from swen.application.accounting.queries import AccountStatsQuery
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency, Money

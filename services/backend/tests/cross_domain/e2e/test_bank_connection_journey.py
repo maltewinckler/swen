@@ -135,7 +135,7 @@ def generate_mock_transactions(
 def mock_fints_directory():
     """Mock the LookupBankQuery for bank info resolution."""
     with patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     ) as mock:
         mock_query = AsyncMock()
         mock_query.execute.return_value = MOCK_BANK_INFO
@@ -159,7 +159,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_adapter_class_router,
         patch(
-            "swen.application.commands.banking.bank_connection_command.BankConnectionDispatcher"
+            "swen.application.banking.commands.discover_accounts_command.BankConnectionDispatcher"
         ) as mock_adapter_class_command,
     ):
         mock_adapter_class_router.from_factory.return_value = adapter_instance
@@ -171,7 +171,7 @@ def mock_bank_adapter():
 def mock_sync_adapter():
     """Mock the adapter for sync operations."""
     with patch(
-        "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+        "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
     ) as mock_adapter_class:
         adapter_instance = AsyncMock()
         adapter_instance.is_connected.return_value = False
@@ -234,7 +234,7 @@ class TestBankConnectionJourney:
 
         # Step 1: Store bank credentials
         store_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -244,17 +244,13 @@ class TestBankConnectionJourney:
                 "tan_medium": "SecureGo plus",
             },
         )
-        assert store_response.status_code == 201, (
+        assert store_response.status_code == 204, (
             f"Store credentials failed: {store_response.text}"
         )
-        cred_data = store_response.json()
-        assert cred_data["blz"] == blz
-        assert cred_data["label"] == "Test Bank AG"
-        assert "credential_id" in cred_data
 
         # Step 2: Discover bank accounts
         discover_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/discover-accounts",
+            f"{api_v1_prefix}/bank-connections/discover/{blz}",
             headers=headers,
         )
         assert discover_response.status_code == 200, (
@@ -262,7 +258,6 @@ class TestBankConnectionJourney:
         )
         discover_data = discover_response.json()
         assert discover_data["blz"] == blz
-        assert discover_data["bank_name"] == "Test Bank AG"
         assert len(discover_data["accounts"]) == 2
 
         # Verify discovered account details
@@ -276,19 +271,18 @@ class TestBankConnectionJourney:
         # Step 3: Setup accounts with custom names
         # User can customize names from the discover response
         setup_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+            f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
             json={
-                "accounts": discover_data["accounts"],
-                "account_names": {
-                    discover_data["accounts"][0]["iban"]: "Mein Girokonto",
-                    discover_data["accounts"][1]["iban"]: "Sparkonto",
-                },
+                "accounts": [
+                    {**discover_data["accounts"][0], "custom_name": "Mein Girokonto"},
+                    {**discover_data["accounts"][1], "custom_name": "Sparkonto"},
+                ],
             },
         )
         assert setup_response.status_code == 200, f"Setup failed: {setup_response.text}"
         setup_data = setup_response.json()
-        assert len(setup_data["accounts_imported"]) >= 2
+        assert len(setup_data["imported_accounts"]) >= 2
 
         # Step 4: Verify mappings were created
         mappings_response = test_client.get(
@@ -327,7 +321,7 @@ class TestBankConnectionJourney:
 
         # First store - should succeed
         first_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -336,11 +330,11 @@ class TestBankConnectionJourney:
                 "tan_method": "946",
             },
         )
-        assert first_response.status_code == 201
+        assert first_response.status_code == 204
 
         # Second store - should fail
         second_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -387,7 +381,7 @@ class TestBankConnectionJourney:
 
         # User 1 stores credentials
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user1_headers,
             json={
                 "blz": blz,
@@ -399,7 +393,7 @@ class TestBankConnectionJourney:
 
         # User 2 should see empty credentials list
         user2_creds = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user2_headers,
         )
         assert user2_creds.status_code == 200
@@ -407,7 +401,7 @@ class TestBankConnectionJourney:
 
         # User 2 should be able to store same BLZ (different user)
         user2_store = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=user2_headers,
             json={
                 "blz": blz,
@@ -416,7 +410,7 @@ class TestBankConnectionJourney:
                 "tan_method": "946",
             },
         )
-        assert user2_store.status_code == 201
+        assert user2_store.status_code == 204
 
 
 @pytest.mark.e2e
@@ -439,7 +433,7 @@ class TestSyncAfterBankConnection:
 
         # Setup: Store credentials and setup accounts
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -450,7 +444,7 @@ class TestSyncAfterBankConnection:
         )
 
         test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+            f"{api_v1_prefix}/integration/setup/{blz}",
             headers=headers,
         )
 
@@ -488,7 +482,7 @@ class TestSyncAfterBankConnection:
 
         # Setup bank connection
         cred_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,
@@ -497,18 +491,33 @@ class TestSyncAfterBankConnection:
                 "tan_method": "946",
             },
         )
-        assert cred_response.status_code == 201, (
+        assert cred_response.status_code == 204, (
             f"Credentials failed: {cred_response.text}"
         )
 
-        setup_response = test_client.post(
-            f"{api_v1_prefix}/credentials/{blz}/setup",
+        # Discover accounts first (two-phase flow)
+        discover_response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/discover/{blz}",
             headers=headers,
+        )
+        assert discover_response.status_code == 200, (
+            f"Discover accounts failed: {discover_response.text}"
+        )
+        discover_data = discover_response.json()
+
+        setup_response = test_client.post(
+            f"{api_v1_prefix}/integration/setup/{blz}",
+            headers=headers,
+            json={
+                "accounts": [
+                    {**acc, "custom_name": None} for acc in discover_data["accounts"]
+                ]
+            },
         )
         assert setup_response.status_code == 200, f"Setup failed: {setup_response.text}"
         setup_data = setup_response.json()
         assert setup_data["success"] is True
-        assert len(setup_data["accounts_imported"]) >= 2
+        assert len(setup_data["imported_accounts"]) >= 2
 
         # Get sync recommendation
         rec_response = test_client.get(
@@ -570,7 +579,7 @@ class TestOnboardingStatusJourney:
 
         # Connect bank
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=headers,
             json={
                 "blz": blz,

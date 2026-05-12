@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -96,6 +97,12 @@ class TransactionImportModel(Base, TimestampMixin):
     imported_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    booking_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
     )
 
     def __repr__(self) -> str:

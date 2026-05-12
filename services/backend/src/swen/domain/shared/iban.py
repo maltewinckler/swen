@@ -18,14 +18,12 @@ def normalize_iban(value: str | None) -> str | None:
     return normalized or None
 
 
-def extract_blz_from_iban(iban: str) -> str | None:
+def extract_blz_from_iban(iban: str) -> str:
     """Extract German BLZ (bank code) from an IBAN.
 
     German IBANs have the format: DE + 2 check digits + 8-digit BLZ + 10-digit account.
     The BLZ is at positions 4-12 (0-indexed).
 
-    Returns None if the IBAN is not a valid German IBAN.
+    Returns the BLZ as a string.
     """
-    if iban.startswith("DE") and len(iban) >= 12:
-        return iban[4:12]
-    return None
+    return iban[4:12]

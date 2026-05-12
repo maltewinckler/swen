@@ -22,12 +22,12 @@ from decimal import Decimal
 import pytest
 from cryptography.fernet import Fernet
 
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
 from swen.domain.banking.value_objects import BankCredentials
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,
@@ -260,7 +260,7 @@ class TestUserPreferencesIsolation:
     @pytest.mark.asyncio
     async def test_preferences_are_user_specific(self, db_session):
         """Each user should have independent settings."""
-        from swen.application.ports.identity import CurrentUser
+        from swen.domain.shared.current_user import CurrentUser
         from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
             UserSettingsRepositorySQLAlchemy,
         )
@@ -314,7 +314,7 @@ class TestUserPreferencesIsolation:
     @pytest.mark.asyncio
     async def test_changing_preferences_doesnt_affect_others(self, db_session):
         """Updating one user's settings should not affect other users."""
-        from swen.application.ports.identity import CurrentUser
+        from swen.domain.shared.current_user import CurrentUser
         from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
             UserSettingsRepositorySQLAlchemy,
         )

@@ -6,15 +6,12 @@ from uuid import UUID
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.ports.identity import CurrentUser
-from swen.application.queries.integration import OpeningBalanceQuery
-from swen.application.services import TransactionImportService
-from swen.application.services.opening_balance_adjustment_service import (
-    OpeningBalanceAdjustmentService,
-)
-from swen.application.services.transfer_reconciliation_service import (
+from swen.application.integration.services import TransactionImportService
+from swen.domain.accounting.services import OpeningBalanceService
+from swen.domain.integration.services import (
     TransferReconciliationService,
 )
+from swen.domain.shared.current_user import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
@@ -23,37 +20,29 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 def service():
     """Create a TransactionImportService with mocked dependencies."""
     bank_account_service = AsyncMock()
-    counter_account_resolution_service = AsyncMock()
     account_repo = AsyncMock()
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
     import_repo = AsyncMock()
     current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
-    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
+    ob_service = OpeningBalanceService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        user_id=TEST_USER_ID,
+    )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
-        mapping_repository=mapping_repo,
-        account_repository=account_repo,
-        opening_balance_query=ob_query,
     )
 
     transaction_factory = BankImportTransactionFactory(
         current_user=current_user,
     )
 
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=account_repo,
-        transaction_repository=transaction_repo,
-        opening_balance_query=ob_query,
-        current_user=current_user,
-    )
-
     svc = TransactionImportService(
         bank_account_import_service=bank_account_service,
-        counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,
@@ -63,7 +52,6 @@ def service():
 
     return svc, {
         "bank_account_service": bank_account_service,
-        "counter_account_resolution_service": counter_account_resolution_service,
         "account_repo": account_repo,
         "transaction_repo": transaction_repo,
         "mapping_repo": mapping_repo,

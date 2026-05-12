@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import TopExpensesResult
-from swen.application.queries.analytics import TopExpensesQuery
+from swen.application.analytics.dtos import TopExpensesResult
+from swen.application.analytics.queries import TopExpensesQuery
 
 
 class TestTopExpensesQuery:

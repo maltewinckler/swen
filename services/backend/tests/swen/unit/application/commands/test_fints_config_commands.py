@@ -12,8 +12,8 @@ from uuid import UUID
 
 import pytest
 
-from swen.application.commands.system import UpdateLocalFinTSConfigCommand
-from swen.application.queries.system import (
+from swen.application.system.commands import UpdateLocalFinTSConfigCommand
+from swen.application.system.queries import (
     GetFinTSConfigurationQuery,
     GetFinTSConfigurationStatusQuery,
 )

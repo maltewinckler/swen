@@ -4,7 +4,7 @@ import hashlib
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from swen.domain.shared.iban import normalize_iban
 
@@ -53,6 +53,13 @@ class BankTransaction(BaseModel):
         str_strip_whitespace=True,
         validate_assignment=True,
     )
+
+    @field_validator("applicant_iban", mode="after")
+    @classmethod
+    def validate_applicant_iban(cls, value: str | None) -> str | None:
+        if value is not None:
+            return normalize_iban(value)
+        return value
 
     @field_serializer("amount")
     def serialize_amount(self, value: Decimal) -> str:

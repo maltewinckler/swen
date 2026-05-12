@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.queries import ListCredentialsQuery
-from swen.domain.banking.value_objects import BankCredentials
+from swen.application.banking.queries import ListCredentialsQuery
 
 
 class TestListCredentialsQuery:
@@ -31,8 +30,8 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.total_count == 2
         assert len(result.credentials) == 2
+        assert result.credentials[0].credential_id == "cred-id-1"
         assert result.credentials[0].blz == "12345678"
         assert result.credentials[0].label == "Bank A"
         assert result.credentials[1].blz == "87654321"
@@ -49,7 +48,6 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.total_count == 0
         assert result.credentials == []
 
     @pytest.mark.asyncio
@@ -62,79 +60,7 @@ class TestListCredentialsQuery:
         query = ListCredentialsQuery(mock_credential_repo)
         result = await query.execute()
 
-        assert result.credentials[0].label == ""
-
-    @pytest.mark.asyncio
-    async def test_find_by_bank_code_returns_credentials(self, mock_credential_repo):
-        """Test finding credentials by bank code."""
-        mock_credentials = AsyncMock(spec=BankCredentials)
-        mock_credential_repo.find_by_blz.return_value = mock_credentials
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        result = await query.find_by_bank_code("12345678")
-
-        assert result == mock_credentials
-        mock_credential_repo.find_by_blz.assert_called_once_with("12345678")
-
-    @pytest.mark.asyncio
-    async def test_find_by_bank_code_returns_none_when_not_found(
-        self,
-        mock_credential_repo,
-    ):
-        """Test finding credentials returns None when not found."""
-        mock_credential_repo.find_by_blz.return_value = None
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        result = await query.find_by_bank_code("99999999")
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_tan_settings_returns_tuple(self, mock_credential_repo):
-        """Test getting TAN settings."""
-        mock_credential_repo.get_tan_settings.return_value = ("946", "SecureGo")
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        tan_method, tan_medium = await query.get_tan_settings("12345678")
-
-        assert tan_method == "946"
-        assert tan_medium == "SecureGo"
-        mock_credential_repo.get_tan_settings.assert_called_once_with("12345678")
-
-    @pytest.mark.asyncio
-    async def test_get_tan_settings_returns_none_when_not_set(
-        self,
-        mock_credential_repo,
-    ):
-        """Test getting TAN settings when not configured."""
-        mock_credential_repo.get_tan_settings.return_value = (None, None)
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        tan_method, tan_medium = await query.get_tan_settings("12345678")
-
-        assert tan_method is None
-        assert tan_medium is None
-
-    @pytest.mark.asyncio
-    async def test_delete_returns_true_when_deleted(self, mock_credential_repo):
-        """Test deleting credentials returns True on success."""
-        mock_credential_repo.delete.return_value = True
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        result = await query.delete("12345678")
-
-        assert result is True
-        mock_credential_repo.delete.assert_called_once_with("12345678")
-
-    @pytest.mark.asyncio
-    async def test_delete_returns_false_when_not_found(self, mock_credential_repo):
-        """Test deleting credentials returns False when not found."""
-        mock_credential_repo.delete.return_value = False
-
-        query = ListCredentialsQuery(mock_credential_repo)
-        result = await query.delete("99999999")
-
-        assert result is False
+        assert result.credentials[0].label is None
 
 
 class TestListCredentialsQueryDependencyInjection:
@@ -146,25 +72,3 @@ class TestListCredentialsQueryDependencyInjection:
         mock_repo = AsyncMock()
         query = ListCredentialsQuery(mock_repo)
         assert query._credential_repo is mock_repo
-
-    @pytest.mark.asyncio
-    async def test_query_delegates_to_repository(self):
-        """Test that query delegates all operations to the repository."""
-        mock_repo = AsyncMock()
-        mock_repo.find_all.return_value = []
-        mock_repo.find_by_blz.return_value = None
-        mock_repo.get_tan_settings.return_value = (None, None)
-        mock_repo.delete.return_value = True
-
-        query = ListCredentialsQuery(mock_repo)
-
-        # All methods should delegate to repository (no user_id since repo is user-scoped)
-        await query.execute()
-        await query.find_by_bank_code("12345678")
-        await query.get_tan_settings("12345678")
-        await query.delete("12345678")
-
-        assert mock_repo.find_all.called
-        assert mock_repo.find_by_blz.called
-        assert mock_repo.get_tan_settings.called
-        assert mock_repo.delete.called

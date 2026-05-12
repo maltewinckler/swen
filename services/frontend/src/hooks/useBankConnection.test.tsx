@@ -296,7 +296,7 @@ describe('useBankConnection', () => {
           { iban: 'DE123', default_name: 'Girokonto', balance: '1000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue({ message: 'ok' })
+      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {
@@ -336,7 +336,7 @@ describe('useBankConnection', () => {
           { iban: 'DE456', default_name: 'Sparkonto', balance: '5000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue({ message: 'ok' })
+      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {
@@ -367,8 +367,11 @@ describe('useBankConnection', () => {
   describe('handleConnect', () => {
     it('sets up accounts and transitions to initial_sync', async () => {
       const mockResult = {
+        blz: '12345678',
+        success: true,
         message: 'Accounts imported',
-        accounts_imported: [{ iban: 'DE123', account_name: 'Checking' }],
+        imported_accounts: [{ iban: 'DE123', default_name: 'Checking', custom_name: null, accounting_account_id: null, account_number: null, account_holder: null, account_type: null, bic: null, bank_name: null, currency: 'EUR', balance: null, balance_date: null }],
+        warning: null,
       }
       vi.mocked(api.setupBankAccounts).mockResolvedValue(mockResult)
 

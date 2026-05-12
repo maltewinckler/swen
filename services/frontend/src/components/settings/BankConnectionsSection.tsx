@@ -126,7 +126,7 @@ export function BankConnectionsSection({ onGoToAccounts }: BankConnectionsSectio
     if (step === 'success') {
       return syncResult
         ? `Synced ${syncResult.total_imported} transaction${syncResult.total_imported !== 1 ? 's' : ''}`
-        : `Imported ${connectionResult?.accounts_imported.length ?? 0} bank account(s)`
+        : `Imported ${connectionResult?.imported_accounts.length ?? 0} bank account(s)`
     }
     if (step === 'error') return syncError ? 'Sync failed' : 'Connection failed'
     return ''

@@ -13,7 +13,8 @@ from swen.domain.security.repositories import StoredBankCredentialsRepository
 from swen.domain.security.services import EncryptionService
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
+    from swen.domain.shared.value_objects import SecureString
 
 
 class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
@@ -114,3 +115,28 @@ class BankCredentialRepositorySQLAlchemy(BankCredentialRepository):
             return None, None
 
         return stored.tan_method, stored.tan_medium
+
+    async def update(
+        self,
+        blz: str,
+        *,
+        username: Optional[SecureString] = None,
+        pin: Optional[SecureString] = None,
+        tan_method: Optional[str] = None,
+        tan_medium: Optional[str] = None,
+    ) -> None:
+        username_encrypted = (
+            self._encryption.encrypt(username.get_value())
+            if username is not None
+            else None
+        )
+        pin_encrypted = (
+            self._encryption.encrypt(pin.get_value()) if pin is not None else None
+        )
+        await self._stored_repo.update(
+            blz,
+            username_encrypted=username_encrypted,
+            pin_encrypted=pin_encrypted,
+            tan_method=tan_method,
+            tan_medium=tan_medium,
+        )

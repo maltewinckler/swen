@@ -1,15 +1,16 @@
 """ML Service port for application layer.
 
-This abstracts the ML service operations, allowing the application layer
-to remain independent of infrastructure details like HTTP clients and
-external API contracts.
+This abstracts the ML service operations for training examples and
+account embeddings, allowing the application layer to remain independent
+of infrastructure details like HTTP clients and external API contracts.
+
+Classification is handled separately via the domain-level
+CounterAccountProposalPort.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import date
 from decimal import Decimal
-from typing import AsyncIterator
 from uuid import UUID
 
 
@@ -29,20 +30,8 @@ class TransactionExample:
 
 
 @dataclass(frozen=True)
-class TransactionForClassification:
-    """Domain representation of a transaction to be classified."""
-
-    transaction_id: UUID
-    booking_date: date
-    counterparty_name: str | None
-    counterparty_iban: str | None
-    purpose: str
-    amount: Decimal
-
-
-@dataclass(frozen=True)
 class AccountForClassification:
-    """Domain representation of an account option for classification."""
+    """Domain representation of an account option for embedding."""
 
     account_id: UUID
     account_number: str
@@ -51,52 +40,12 @@ class AccountForClassification:
     description: str | None = None
 
 
-@dataclass(frozen=True)
-class ClassificationResult:
-    """Result of ML classification for a single transaction.
-
-    account_id and account_number are None if the ML service
-    couldn't classify the transaction. Backend handles fallback.
-    """
-
-    transaction_id: UUID
-    account_id: UUID | None
-    account_number: str | None
-    confidence: float
-    tier: str  # "example" | "anchor" | "unresolved"
-    merchant: str | None = None
-    is_recurring: bool = False
-    recurring_pattern: str | None = None  # "monthly" | "weekly"
-
-
-@dataclass(frozen=True)
-class ClassificationProgress:
-    """Progress update during batch classification."""
-
-    current: int
-    total: int
-    last_tier: str | None = None
-    last_merchant: str | None = None
-
-
-@dataclass(frozen=True)
-class BatchClassificationResult:
-    """Result of batch ML classification."""
-
-    classifications: list[ClassificationResult]
-    processing_time_ms: int
-    # Statistics
-    total: int
-    by_tier: dict[str, int]
-    recurring_detected: int
-    merchants_extracted: int
-
-
 class MLServicePort(ABC):
-    """Port interface for ML service operations.
+    """Port interface for ML service operations (training + embeddings).
 
-    This abstraction allows application commands to interact with the ML
-    service without depending on infrastructure details.
+    Classification is handled by ``CounterAccountProposalPort`` in the
+    integration domain — this port covers only example submission and
+    account embedding.
     """
 
     @property
@@ -107,33 +56,6 @@ class MLServicePort(ABC):
     @abstractmethod
     def submit_example(self, example: TransactionExample) -> None:
         """Submit a transaction example for ML training (fire-and-forget)."""
-
-    @abstractmethod
-    async def classify_batch(
-        self,
-        user_id: UUID,
-        transactions: list[TransactionForClassification],
-        accounts: list[AccountForClassification],
-    ) -> BatchClassificationResult | None:
-        """Classify a batch of transactions.
-
-        Returns None if classification fails or service is unavailable.
-        """
-
-    @abstractmethod
-    async def classify_batch_streaming(
-        self,
-        user_id: UUID,
-        transactions: list[TransactionForClassification],
-        accounts: list[AccountForClassification],
-    ) -> AsyncIterator[ClassificationProgress | BatchClassificationResult]:
-        """Classify a batch with streaming progress updates.
-
-        Yields ClassificationProgress during processing,
-        then yields final BatchClassificationResult.
-        """
-        # This is an async generator - implementation uses `yield`
-        ...
 
     @abstractmethod
     async def embed_accounts(

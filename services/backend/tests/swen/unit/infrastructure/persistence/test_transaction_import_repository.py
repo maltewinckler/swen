@@ -4,7 +4,7 @@ Unit tests for TransactionImportRepositorySQLAlchemy.
 Tests the persistence of transaction import records that track bank transaction imports.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -91,6 +91,7 @@ def create_test_import(**overrides) -> TransactionImport:
     """
     defaults = {
         "bank_transaction_id": _get_next_bank_tx_id(),
+        "booking_date": date(2024, 1, 15),
         "status": ImportStatus.PENDING,
         "accounting_transaction_id": None,
         "error_message": None,
@@ -443,6 +444,7 @@ class TestTransactionImportRepositorySQLAlchemy:
             id=uuid4(),
             user_id=TEST_USER_ID,
             bank_transaction_id=_get_next_bank_tx_id(),
+            booking_date=date(2024, 1, 15),
             status=ImportStatus.SUCCESS,
             accounting_transaction_id=None,  # This violates the constraint!
         )
@@ -464,6 +466,7 @@ class TestTransactionImportRepositorySQLAlchemy:
             id=uuid4(),
             user_id=TEST_USER_ID,
             bank_transaction_id=_get_next_bank_tx_id(),
+            booking_date=date(2024, 1, 15),
             status=ImportStatus.FAILED,
             error_message=None,  # This violates the constraint!
         )

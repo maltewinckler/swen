@@ -20,24 +20,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from swen.infrastructure.persistence.sqlalchemy.models import Base
+from swen.presentation.api.accounting.routers import (
+    accounts_router as accounting_accounts_router,
+)
+from swen.presentation.api.accounting.routers import (
+    init_router as accounting_init_router,
+)
+from swen.presentation.api.accounting.routers.transactions import (
+    router as transactions_router,
+)
+from swen.presentation.api.admin.routers.admin import router as admin_router
+from swen.presentation.api.analytics.routers.analytics import router as analytics_router
+from swen.presentation.api.analytics.routers.dashboard import router as dashboard_router
+from swen.presentation.api.analytics.routers.exports import router as exports_router
+from swen.presentation.api.auth.routers.auth import router as auth_router
+from swen.presentation.api.banking.routers import (
+    bank_accounts_router,
+    bank_connections_router,
+)
 from swen.presentation.api.dependencies import get_engine, get_ml_client
 from swen.presentation.api.exception_handlers import (
     setup_exception_handlers,
 )
-from swen.presentation.api.routers import (
-    accounts_router,
-    admin_router,
-    analytics_router,
-    auth_router,
-    credentials_router,
-    dashboard_router,
-    exports_router,
-    imports_router,
-    mappings_router,
-    onboarding_router,
-    preferences_router,
-    sync_router,
-    transactions_router,
+from swen.presentation.api.integration.routers import router as integration_router
+from swen.presentation.api.integration.routers.imports import router as imports_router
+from swen.presentation.api.integration.routers.mappings import router as mappings_router
+from swen.presentation.api.integration.routers.sync import router as sync_router
+from swen.presentation.api.onboarding.routers.onboarding import (
+    router as onboarding_router,
+)
+from swen.presentation.api.settings.routers.preferences import (
+    router as preferences_router,
 )
 from swen_config.settings import Settings, get_settings
 
@@ -370,11 +383,26 @@ def create_v1_router() -> APIRouter:
     # Mount all routers under v1
     v1_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     v1_router.include_router(admin_router, tags=["Admin"])
-    v1_router.include_router(accounts_router, prefix="/accounts", tags=["Accounts"])
     v1_router.include_router(
-        credentials_router,
-        prefix="/credentials",
-        tags=["Credentials"],
+        accounting_accounts_router, prefix="/accounts", tags=["Accounts"]
+    )
+    v1_router.include_router(
+        accounting_init_router, prefix="/accounts", tags=["Accounts"]
+    )
+    v1_router.include_router(
+        bank_connections_router,
+        prefix="/bank-connections",
+        tags=["Banking"],
+    )
+    v1_router.include_router(
+        bank_accounts_router,
+        prefix="/bank-accounts",
+        tags=["Banking"],
+    )
+    v1_router.include_router(
+        integration_router,
+        prefix="/integration",
+        tags=["Integration"],
     )
     v1_router.include_router(
         transactions_router,

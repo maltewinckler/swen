@@ -18,8 +18,8 @@ from decimal import Decimal
 
 import pytest
 
-from swen.application.ports.identity import CurrentUser
 from swen.domain.banking.value_objects import BankAccount, BankTransaction
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     BankAccountRepositorySQLAlchemy,
     BankTransactionRepositorySQLAlchemy,

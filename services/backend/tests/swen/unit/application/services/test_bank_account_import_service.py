@@ -5,12 +5,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.ports.identity import CurrentUser
-from swen.application.services import BankAccountImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import BankAccountImportService
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.exceptions import ValidationError
 
 # Test user ID for all tests in this module
@@ -24,6 +24,7 @@ class TestBankAccountImportService:
         """Set up test fixtures."""
         self.mock_account_repo = Mock()
         self.mock_mapping_repo = Mock()
+        self.mock_bank_account_repo = AsyncMock()
         # AccountRepository methods are async in production
         self.mock_account_repo.find_by_account_number = AsyncMock(return_value=None)
         self.mock_account_repo.find_by_iban = AsyncMock(return_value=None)
@@ -32,6 +33,7 @@ class TestBankAccountImportService:
             account_repository=self.mock_account_repo,
             mapping_repository=self.mock_mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=self.mock_bank_account_repo,
         )
 
     @pytest.mark.asyncio
@@ -70,6 +72,7 @@ class TestBankAccountImportService:
         assert mapping.is_active is True
 
         # Verify save was called
+        self.mock_bank_account_repo.save.assert_called_once()
         self.mock_account_repo.save.assert_called_once()
         self.mock_mapping_repo.save.assert_called_once()
 
@@ -249,7 +252,7 @@ class TestBankAccountImportService:
         assert results[0][0].name == "DKB - Girokonto"
         assert results[1][0].name == "DKB - Tagesgeld"
 
-        # Verify both were saved
+        assert self.mock_bank_account_repo.save.call_count == 2
         assert self.mock_account_repo.save.call_count == 2
         assert self.mock_mapping_repo.save.call_count == 2
 
@@ -307,6 +310,7 @@ class TestBankAccountImportServiceCustomName:
         """Set up test fixtures."""
         self.mock_account_repo = Mock()
         self.mock_mapping_repo = Mock()
+        self.mock_bank_account_repo = AsyncMock()
         # AccountRepository methods are async in production
         self.mock_account_repo.find_by_account_number = AsyncMock(return_value=None)
         self.mock_account_repo.find_by_iban = AsyncMock(return_value=None)
@@ -315,6 +319,7 @@ class TestBankAccountImportServiceCustomName:
             account_repository=self.mock_account_repo,
             mapping_repository=self.mock_mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=self.mock_bank_account_repo,
         )
 
     @pytest.mark.asyncio
@@ -431,6 +436,7 @@ class TestBankAccountRenameService:
             account_repository=self.mock_account_repo,
             mapping_repository=self.mock_mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=AsyncMock(),
         )
 
     @pytest.mark.asyncio
@@ -463,9 +469,10 @@ class TestBankAccountRenameService:
             new_name="My Primary Account",
         )
 
-        # Assert - returns BankAccountDTO
-        assert result.name == "My Primary Account"
-        assert result.iban == "DE89370400440532013000"
+        # Assert - returns (Account, AccountMapping)
+        account, mapping = result
+        assert account.name == "My Primary Account"
+        assert mapping.iban == "DE89370400440532013000"
 
         # Verify both domain entities were saved
         self.mock_account_repo.save.assert_called_once()

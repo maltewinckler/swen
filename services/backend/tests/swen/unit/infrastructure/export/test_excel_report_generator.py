@@ -11,13 +11,13 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 
-from swen.application.dtos.analytics import (
+from swen.application.analytics.dtos import (
     BreakdownItem,
     MonthComparisonResult,
     TimeSeriesDataPoint,
 )
-from swen.application.dtos.export_dto import AccountExportDTO
-from swen.application.dtos.export_report_dto import (
+from swen.application.analytics.dtos.export_dto import AccountExportDTO
+from swen.application.analytics.dtos.export_report_dto import (
     AccountBalanceSummary,
     DashboardSummaryDTO,
     ExportReportData,

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.queries import ListAccountMappingsQuery
+from swen.application.integration.queries import ListAccountMappingsQuery
 
 
 class TestListAccountMappingsQuery:

@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import CreateSimpleTransactionCommand
-from swen.application.ports.identity import CurrentUser
+from swen.application.accounting.commands import CreateSimpleTransactionCommand
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.exceptions import ValidationError
 
 

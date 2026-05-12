@@ -9,11 +9,8 @@ export interface SyncRunRequest {
    * - Subsequent: from last sync date to today
    */
   days?: number | null
-  /** Sync only this specific account by IBAN */
-  iban?: string
   /** Sync only accounts from this bank (by BLZ/bank code) */
   blz?: string
-  auto_post?: boolean
 }
 
 export interface SyncStatusResponse {
@@ -74,18 +71,16 @@ export async function getSyncStatus(): Promise<SyncStatusResponse> {
  * Event types emitted during sync
  */
 export type SyncEventType =
-  | 'sync_started'
-  | 'sync_completed'
-  | 'sync_failed'
-  | 'account_started'
-  | 'account_fetched'
-  | 'account_classifying'
-  | 'account_completed'
-  | 'account_failed'
+  | 'batch_sync_started'
+  | 'batch_sync_completed'
+  | 'batch_sync_failed'
+  | 'account_sync_started'
+  | 'account_sync_fetched'
+  | 'account_sync_completed'
+  | 'account_sync_failed'
   | 'classification_started'
   | 'classification_progress'
   | 'classification_completed'
-  | 'transaction_classified'
   | 'result'
 
 /**
@@ -93,23 +88,22 @@ export type SyncEventType =
  */
 export interface SyncProgressEvent {
   event_type: SyncEventType
-  message: string
   timestamp: string
 }
 
 /**
- * Sync started event
+ * Batch sync started event
  */
-export interface SyncStartedEvent extends SyncProgressEvent {
-  event_type: 'sync_started'
+export interface BatchSyncStartedEvent extends SyncProgressEvent {
+  event_type: 'batch_sync_started'
   total_accounts: number
 }
 
 /**
- * Sync completed event
+ * Batch sync completed event
  */
-export interface SyncCompletedEvent extends SyncProgressEvent {
-  event_type: 'sync_completed'
+export interface BatchSyncCompletedEvent extends SyncProgressEvent {
+  event_type: 'batch_sync_completed'
   total_imported: number
   total_skipped: number
   total_failed: number
@@ -117,10 +111,19 @@ export interface SyncCompletedEvent extends SyncProgressEvent {
 }
 
 /**
- * Account started event
+ * Batch sync failed event
  */
-export interface AccountStartedEvent extends SyncProgressEvent {
-  event_type: 'account_started'
+export interface BatchSyncFailedEvent extends SyncProgressEvent {
+  event_type: 'batch_sync_failed'
+  code: string
+  error_key: string
+}
+
+/**
+ * Account sync started event
+ */
+export interface AccountSyncStartedEvent extends SyncProgressEvent {
+  event_type: 'account_sync_started'
   iban: string
   account_name: string
   account_index: number
@@ -128,23 +131,13 @@ export interface AccountStartedEvent extends SyncProgressEvent {
 }
 
 /**
- * Account fetched event
+ * Account sync fetched event
  */
-export interface AccountFetchedEvent extends SyncProgressEvent {
-  event_type: 'account_fetched'
+export interface AccountSyncFetchedEvent extends SyncProgressEvent {
+  event_type: 'account_sync_fetched'
   iban: string
   transactions_fetched: number
   new_transactions: number
-}
-
-/**
- * Account classifying event
- */
-export interface AccountClassifyingEvent extends SyncProgressEvent {
-  event_type: 'account_classifying'
-  iban: string
-  current: number
-  total: number
 }
 
 /**
@@ -153,7 +146,6 @@ export interface AccountClassifyingEvent extends SyncProgressEvent {
 export interface ClassificationStartedEvent extends SyncProgressEvent {
   event_type: 'classification_started'
   iban: string
-  total: number
 }
 
 /**
@@ -164,7 +156,6 @@ export interface ClassificationProgressEvent extends SyncProgressEvent {
   iban: string
   current: number
   total: number
-  last_tier?: string | null
   last_merchant?: string | null
 }
 
@@ -175,28 +166,14 @@ export interface ClassificationCompletedEvent extends SyncProgressEvent {
   event_type: 'classification_completed'
   iban: string
   total: number
-  by_tier?: Record<string, number>
   processing_time_ms?: number
 }
 
 /**
- * Transaction classified event
+ * Account sync completed event
  */
-export interface TransactionClassifiedEvent extends SyncProgressEvent {
-  event_type: 'transaction_classified'
-  iban: string
-  current: number
-  total: number
-  description: string
-  counter_account_name: string
-  transaction_id: string | null
-}
-
-/**
- * Account completed event
- */
-export interface AccountCompletedEvent extends SyncProgressEvent {
-  event_type: 'account_completed'
+export interface AccountSyncCompletedEvent extends SyncProgressEvent {
+  event_type: 'account_sync_completed'
   iban: string
   imported: number
   skipped: number
@@ -204,20 +181,13 @@ export interface AccountCompletedEvent extends SyncProgressEvent {
 }
 
 /**
- * Account failed event
+ * Account sync failed event
  */
-export interface AccountFailedEvent extends SyncProgressEvent {
-  event_type: 'account_failed'
+export interface AccountSyncFailedEvent extends SyncProgressEvent {
+  event_type: 'account_sync_failed'
   iban: string
-  error: string
-}
-
-/**
- * Sync failed event
- */
-export interface SyncFailedEvent extends SyncProgressEvent {
-  event_type: 'sync_failed'
-  error: string
+  code: string
+  error_key: string
 }
 
 /**
@@ -236,18 +206,16 @@ export interface SyncResultEvent {
  * All possible sync events
  */
 export type SyncEvent =
-  | SyncStartedEvent
-  | SyncCompletedEvent
-  | SyncFailedEvent
-  | AccountStartedEvent
-  | AccountFetchedEvent
-  | AccountClassifyingEvent
+  | BatchSyncStartedEvent
+  | BatchSyncCompletedEvent
+  | BatchSyncFailedEvent
+  | AccountSyncStartedEvent
+  | AccountSyncFetchedEvent
   | ClassificationStartedEvent
   | ClassificationProgressEvent
   | ClassificationCompletedEvent
-  | AccountCompletedEvent
-  | AccountFailedEvent
-  | TransactionClassifiedEvent
+  | AccountSyncCompletedEvent
+  | AccountSyncFailedEvent
   | SyncResultEvent
 
 /**

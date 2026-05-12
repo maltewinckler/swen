@@ -44,7 +44,7 @@ export function OnboardingConnectBankStep({
                     : bankConnection.step === 'success'
                       ? bankConnection.syncResult
                         ? `Synced ${bankConnection.syncResult.total_imported} transactions`
-                        : `Imported ${bankConnection.connectionResult?.accounts_imported.length ?? 0} accounts`
+                        : `Imported ${bankConnection.connectionResult?.imported_accounts.length ?? 0} accounts`
                       : bankConnection.step === 'error'
                         ? 'Connection failed'
                         : ''

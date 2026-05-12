@@ -10,7 +10,6 @@ export { useBankConnection } from './useBankConnection'
 export type {
   BankConnectionStep,
   BankForm,
-  ConnectionResult,
   UseBankConnectionOptions,
   UseBankConnectionReturn,
 } from './useBankConnection'
