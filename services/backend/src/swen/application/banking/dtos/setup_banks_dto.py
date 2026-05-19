@@ -33,24 +33,16 @@ class ImportedBankAccountDTO(BankAccountToImportDTO):
 class SetupBankRequestDTO(BaseModel):
     """DTO for bank account import with user-injected custom names."""
 
-    blz: str = Field(..., description="Bank BLZ")
-    accounts: list[BankAccountToImportDTO] = Field(
-        ...,
-        min_length=1,
-        description="Accounts to import",
-    )
+    blz: str
+    accounts: list[BankAccountToImportDTO] = Field(..., min_length=1)
 
 
 class SetupBankResponseDTO(BaseModel):
     """DTO for bank account import response."""
 
     blz: str
-    imported_accounts: list[ImportedBankAccountDTO] = Field(
-        ...,
-        min_length=1,
-        description="List of accounts that were imported",
-    )
-
-    success: bool = Field(..., description="Whether the import was successful")
-    message: str = Field(..., description="Status message")
-    warning: Optional[str] = Field(None, description="Warning message if any")
+    imported_accounts: list[ImportedBankAccountDTO] = Field(..., min_length=1)
+    # success flag and status messages
+    success: bool
+    message: str
+    warning: Optional[str]
