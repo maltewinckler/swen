@@ -23,42 +23,6 @@ export interface SyncStatusResponse {
 }
 
 /**
- * Sync recommendation for a single account
- */
-export interface AccountSyncRecommendation {
-  iban: string
-  /** True if this account has never been synced */
-  is_first_sync: boolean
-  /** Recommended start date (null for first sync - user should specify) */
-  recommended_start_date: string | null
-  /** Date of last successfully imported transaction */
-  last_successful_sync_date: string | null
-  /** Number of transactions successfully imported */
-  successful_import_count: number
-}
-
-/**
- * Response from sync recommendation endpoint
- */
-export interface SyncRecommendationResponse {
-  accounts: AccountSyncRecommendation[]
-  /** True if any account needs first-time sync */
-  has_first_sync_accounts: boolean
-  total_accounts: number
-}
-
-/**
- * Get sync recommendations for adaptive synchronization.
- *
- * Use this to determine whether to show a "first sync" dialog:
- * - If has_first_sync_accounts is true: ask user for days
- * - Otherwise: use adaptive sync (no days parameter)
- */
-export async function getSyncRecommendation(): Promise<SyncRecommendationResponse> {
-  return api.get<SyncRecommendationResponse>('/sync/recommendation')
-}
-
-/**
  * Get sync status and statistics
  */
 export async function getSyncStatus(): Promise<SyncStatusResponse> {

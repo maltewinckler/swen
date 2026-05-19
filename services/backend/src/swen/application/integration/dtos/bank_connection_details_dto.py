@@ -1,13 +1,15 @@
 """DTOs for bank connection details with account reconciliation."""
 
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class BankAccountDetailDTO:
+
+class BankAccountDetailDTO(BaseModel):
     """Details for a single bank account under a connection."""
+
+    model_config = ConfigDict(frozen=True)
 
     iban: str
     account_name: str
@@ -20,9 +22,10 @@ class BankAccountDetailDTO:
     is_reconciled: bool
 
 
-@dataclass(frozen=True)
-class BankConnectionDetailsDTO:
+class BankConnectionDetailsDTO(BaseModel):
     """Full details for a bank connection including all accounts."""
+
+    model_config = ConfigDict(frozen=True)
 
     blz: str
     bank_name: str | None

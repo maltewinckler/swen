@@ -135,7 +135,7 @@ def mock_bank_adapter():
             "swen.infrastructure.banking.bank_connection_dispatcher.BankConnectionDispatcher"
         ) as mock_router_adapter,
         patch(
-            "swen.application.banking.commands.bank_connection_command.BankConnectionDispatcher"
+            "swen.application.banking.commands.discover_accounts_command.BankConnectionDispatcher"
         ) as mock_command_adapter,
     ):
         adapter_instance = AsyncMock()
@@ -193,17 +193,28 @@ def user_with_bank(
         },
     )
 
-    # Setup accounts
+    # Discover accounts first (two-phase flow)
+    discover_response = test_client.post(
+        f"{api_v1_prefix}/bank-connections/discover/{blz}",
+        headers=headers,
+    )
+    assert discover_response.status_code == 200, (
+        f"Discover failed: {discover_response.status_code} - {discover_response.text}"
+    )
+    discovered_accounts = discover_response.json()["accounts"]
+
+    # Setup accounts with discovered accounts
     setup_response = test_client.post(
         f"{api_v1_prefix}/integration/setup/{blz}",
         headers=headers,
+        json={"accounts": discovered_accounts},
     )
     assert setup_response.status_code == 200, (
         f"Setup failed: {setup_response.status_code} - {setup_response.text}"
     )
     setup_data = setup_response.json()
-    assert len(setup_data["accounts_imported"]) >= 1, (
-        f"Expected at least 1 account imported, got {len(setup_data['accounts_imported'])}"
+    assert len(setup_data["imported_accounts"]) >= 1, (
+        f"Expected at least 1 account imported, got {len(setup_data['imported_accounts'])}"
     )
 
     # Initialize chart
@@ -218,70 +229,6 @@ def user_with_bank(
         "blz": blz,
         "iban": MOCK_ACCOUNT.iban,
     }
-
-
-@pytest.mark.integration
-class TestSyncRecommendation:
-    """Tests for GET /sync/recommendation."""
-
-    def test_recommendation_for_never_synced_account(
-        self,
-        test_client: TestClient,
-        user_with_bank: dict,
-        api_v1_prefix: str,
-    ):
-        """Accounts that have never synced should be flagged as first_sync."""
-        headers = user_with_bank["headers"]
-
-        # Debug: Check if credentials exist
-        credentials_response = test_client.get(
-            f"{api_v1_prefix}/bank-connections/credentials",
-            headers=headers,
-        )
-        assert credentials_response.status_code == 200
-        credentials = credentials_response.json()["credentials"]
-        assert len(credentials) >= 1, f"Expected credentials but got: {credentials}"
-
-        response = test_client.get(
-            f"{api_v1_prefix}/sync/recommendation",
-            headers=headers,
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-
-        assert data["has_first_sync_accounts"] is True, (
-            f"Expected has_first_sync_accounts=True but got {data}. "
-            f"Credentials: {credentials}"
-        )
-        assert data["total_accounts"] >= 1
-
-        # All accounts should be first sync
-        for account in data["accounts"]:
-            assert account["is_first_sync"] is True
-            assert account["successful_import_count"] == 0
-            assert account["last_successful_sync_date"] is None
-
-    def test_recommendation_empty_for_new_user(
-        self,
-        test_client: TestClient,
-        authenticated_user: dict,
-        api_v1_prefix: str,
-    ):
-        """User without bank connections should get empty recommendation."""
-        headers = authenticated_user["headers"]
-
-        response = test_client.get(
-            f"{api_v1_prefix}/sync/recommendation",
-            headers=headers,
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-
-        assert data["total_accounts"] == 0
-        assert data["has_first_sync_accounts"] is False
-        assert data["accounts"] == []
 
 
 @pytest.mark.integration

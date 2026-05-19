@@ -385,9 +385,3 @@ async def test_transaction_import_service_imports_real_transaction(
     duplicate_result = duplicate_results[0]
 
     assert duplicate_result.is_duplicate
-
-    stats = await transaction_import_service.get_import_statistics(sample_account.iban)
-    assert stats["success"] == 1
-    # Duplicate imports reuse the same persisted record, so stats stay at 1
-    assert stats["duplicate"] == 0
-    assert stats["total"] == 1

@@ -4,7 +4,6 @@
  * Provides:
  * - Streaming sync execution with real-time progress via SSE
  * - Progress state (phase, current/total transactions, account info)
- * - First-sync detection and days prompt handling
  * - Error handling
  *
  * Usage:
@@ -13,9 +12,7 @@
  *   progress,
  *   result,
  *   error,
- *   step,
  *   startSync,
- *   checkAndSync,
  * } = useSyncProgress({
  *   onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounts'] }),
  * })
@@ -24,7 +21,6 @@
 
 import { useState, useCallback, useRef } from 'react'
 import {
-  getSyncRecommendation,
   runSyncStreaming,
   type SyncEvent,
   type SyncResultEvent,
@@ -58,17 +54,6 @@ export interface SyncProgress {
 }
 
 /**
- * Step in the sync workflow
- */
-export type SyncStep =
-  | 'idle'           // Not started
-  | 'checking'       // Checking if first-sync is needed
-  | 'first_sync_prompt'  // Waiting for user to confirm days
-  | 'syncing'        // Actively syncing
-  | 'success'        // Completed successfully
-  | 'error'          // Failed
-
-/**
  * Options for the useSyncProgress hook
  */
 export interface UseSyncProgressOptions {
@@ -89,10 +74,6 @@ export interface UseSyncProgressReturn {
   result: SyncResultEvent | null
   /** Error message (empty when no error) */
   error: string
-  /** Current step in the sync workflow */
-  step: SyncStep
-  /** Days to sync for first-sync (user-configurable) */
-  firstSyncDays: number
   /** BLZ filter for bank-specific sync */
   syncBlz: string | undefined
   /** Whether modal is open */
@@ -100,31 +81,16 @@ export interface UseSyncProgressReturn {
 
   // === Actions ===
   /**
-   * Start sync directly without checking for first-sync.
+   * Start sync directly.
    * Use this when you already know the parameters.
    */
   startSync: (options?: SyncRunRequest) => Promise<void>
-
-  /**
-   * Check if first-sync is needed, then start sync.
-   * Shows first-sync prompt if needed, otherwise syncs adaptively.
-   */
-  checkAndSync: (blz?: string) => Promise<void>
-
-  /** Update the number of days for first-sync */
-  setFirstSyncDays: (days: number) => void
-
-  /** Confirm first-sync with the selected number of days */
-  confirmFirstSync: () => void
 
   /** Skip sync (close modal without syncing) */
   skip: () => void
 
   /** Reset all state (close modal and clear results) */
   reset: () => void
-
-  /** Open the sync modal (for external control) */
-  open: (blz?: string) => void
 }
 
 /**
@@ -135,11 +101,9 @@ export function useSyncProgress(
 ): UseSyncProgressReturn {
   // State
   const [isOpen, setIsOpen] = useState(false)
-  const [step, setStep] = useState<SyncStep>('idle')
   const [progress, setProgress] = useState<SyncProgress | null>(null)
   const [result, setResult] = useState<SyncResultEvent | null>(null)
   const [error, setError] = useState('')
-  const [firstSyncDays, setFirstSyncDays] = useState(90)
   const [syncBlz, setSyncBlz] = useState<string | undefined>(undefined)
 
   // Track if we have an account in progress (for transition delays)
@@ -159,32 +123,14 @@ export function useSyncProgress(
     syncAbortRef.current = null
 
     setIsOpen(false)
-    setStep('idle')
     setProgress(null)
     setResult(null)
     setError('')
-    setFirstSyncDays(90)
     setSyncBlz(undefined)
     // Clear event queue refs
     currentAccountRef.current = null
     eventQueueRef.current = []
     processingRef.current = false
-  }, [])
-
-  /**
-   * Open the sync modal
-   */
-  const open = useCallback((blz?: string) => {
-    // If something is still running, cancel it before reopening
-    syncAbortRef.current?.abort()
-    syncAbortRef.current = null
-
-    setIsOpen(true)
-    setStep('idle')
-    setProgress(null)
-    setResult(null)
-    setError('')
-    setSyncBlz(blz)
   }, [])
 
   /**
@@ -195,7 +141,6 @@ export function useSyncProgress(
     syncAbortRef.current = null
 
     setIsOpen(false)
-    setStep('idle')
   }, [])
 
   /**
@@ -337,9 +282,11 @@ export function useSyncProgress(
     const controller = new AbortController()
     syncAbortRef.current = controller
 
-    setStep('syncing')
+    // Open modal to show progress
+    setIsOpen(true)
     setProgress(null)
     setError('')
+    setResult(null)
 
     try {
       const streamResult = await runSyncStreaming(handleProgressEvent, request, {
@@ -347,7 +294,6 @@ export function useSyncProgress(
       })
 
       setResult(streamResult)
-      setStep('success')
       setProgress(null)
 
       options?.onSuccess?.(streamResult)
@@ -359,7 +305,6 @@ export function useSyncProgress(
 
       const errorMessage = err instanceof Error ? err.message : 'Sync failed'
       setError(errorMessage)
-      setStep('error')
       setProgress(null)
       options?.onError?.(errorMessage)
     } finally {
@@ -367,72 +312,19 @@ export function useSyncProgress(
         syncAbortRef.current = null
       }
     }
-  }, [handleProgressEvent, options])
-
-  /**
-   * Check if first-sync is needed, then start sync
-   */
-  const checkAndSync = useCallback(async (blz?: string) => {
-    setIsOpen(true)
-    setStep('checking')
-    setResult(null)
-    setError('')
-    setSyncBlz(blz)
-
-    try {
-      const recommendation = await getSyncRecommendation()
-
-      // Filter by BLZ if specified (check IBAN prefix for German accounts)
-      const relevantAccounts = blz
-        ? recommendation.accounts.filter(
-            acc => acc.iban.startsWith('DE') && acc.iban.slice(4, 12) === blz
-          )
-        : recommendation.accounts
-
-      const hasFirstSync = relevantAccounts.some(acc => acc.is_first_sync)
-
-      if (hasFirstSync) {
-        // Show dialog to ask for days
-        setStep('first_sync_prompt')
-        setFirstSyncDays(90) // Reset to default
-      } else {
-        // Use adaptive sync (no days parameter)
-        const request: SyncRunRequest = {}
-        if (blz) request.blz = blz
-        await startSync(request)
-      }
-    } catch (err) {
-      setStep('error')
-      setError(err instanceof Error ? err.message : 'Failed to check sync status')
-    }
-  }, [startSync])
-
-  /**
-   * Confirm first-sync with selected days
-   */
-  const confirmFirstSync = useCallback(() => {
-    const request: SyncRunRequest = { days: firstSyncDays }
-    if (syncBlz) request.blz = syncBlz
-    startSync(request)
-  }, [firstSyncDays, syncBlz, startSync])
+  }, [handleProgressEvent, options, setIsOpen])
 
   return {
     // State
     progress,
     result,
     error,
-    step,
-    firstSyncDays,
     syncBlz,
     isOpen,
 
     // Actions
     startSync,
-    checkAndSync,
-    setFirstSyncDays,
-    confirmFirstSync,
     skip,
     reset,
-    open,
   }
 }

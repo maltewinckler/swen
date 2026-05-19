@@ -76,42 +76,6 @@ class ImportListResponse(BaseModel):
     )
 
 
-class ImportStatisticsResponse(BaseModel):
-    """Overall import statistics with date range info."""
-
-    iban: Optional[str] = Field(None, description="IBAN filter (null for global)")
-    total: int = Field(description="Total imports")
-    success: int = Field(description="Successfully imported")
-    failed: int = Field(description="Failed imports")
-    pending: int = Field(description="Pending review")
-    duplicate: int = Field(description="Duplicate (already imported)")
-    skipped: int = Field(description="Skipped (filtered out)")
-    last_import_at: Optional[datetime] = Field(
-        None,
-        description="Most recent successful import",
-    )
-    oldest_import_at: Optional[datetime] = Field(
-        None,
-        description="Oldest successful import",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "iban": None,
-                "total": 150,
-                "success": 140,
-                "failed": 2,
-                "pending": 3,
-                "duplicate": 5,
-                "skipped": 0,
-                "last_import_at": "2024-12-15T10:30:00Z",
-                "oldest_import_at": "2024-06-01T09:00:00Z",
-            },
-        },
-    )
-
-
 DaysFilter = Annotated[
     int,
     Query(ge=1, le=730, description="Days to look back"),
@@ -183,46 +147,4 @@ async def list_imports(
         imports=imports,
         count=result.total_count,
         status_counts=result.status_counts,
-    )
-
-
-@router.get(
-    "/statistics",
-    summary="Get import statistics",
-    responses={
-        200: {"description": "Import statistics"},
-    },
-)
-async def get_import_statistics(
-    factory: RepoFactory,
-    iban: IbanFilter = None,
-) -> ImportStatisticsResponse:
-    """
-    Get import statistics with date range info.
-
-    Returns counts of imports by status, plus timestamps for the
-    oldest and most recent successful imports.
-
-    **Parameters:**
-    - `iban`: Optional filter by bank account IBAN.
-              If not provided, returns global statistics.
-
-    **Use cases:**
-    - Dashboard widgets showing import health
-    - Per-account sync status display
-    - Monitoring import activity
-    """
-    query = ListImportsQuery.from_factory(factory)
-    stats = await query.get_statistics(iban=iban)
-
-    return ImportStatisticsResponse(
-        iban=stats.iban,
-        total=stats.total_imports,
-        success=stats.successful_imports,
-        failed=stats.failed_imports,
-        pending=stats.pending_imports,
-        duplicate=stats.duplicate_imports,
-        skipped=stats.skipped_imports,
-        last_import_at=stats.last_import_at,
-        oldest_import_at=stats.oldest_import_at,
     )

@@ -9,8 +9,10 @@ import type { ReactNode } from 'react'
 vi.mock('@/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api')>()
   return {
+    ...actual,
     lookupBank: vi.fn(),
     storeCredentials: vi.fn(),
+    updateCredentialsTan: vi.fn(),
     discoverBankAccounts: vi.fn(),
     setupBankAccounts: vi.fn(),
     queryTANMethods: vi.fn(),
@@ -221,7 +223,7 @@ describe('useBankConnection', () => {
       expect(result.current.tanDiscoveryError).toBe('Please enter username and PIN')
     })
 
-    it('calls queryTANMethods API with credentials', async () => {
+    it('calls queryTANMethods API with blz only', async () => {
       const mockTanMethods = {
         tan_methods: [
           { code: '920', name: 'Push TAN', is_decoupled: true },
@@ -229,6 +231,7 @@ describe('useBankConnection', () => {
         default_method: '920',
       }
       vi.mocked(api.queryTANMethods).mockResolvedValue(mockTanMethods)
+      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
 
       const { result } = renderHook(() => useBankConnection(), {
         wrapper: createWrapper(),
@@ -248,10 +251,9 @@ describe('useBankConnection', () => {
         await result.current.handleDiscoverTanMethods()
       })
 
+      expect(api.storeCredentials).toHaveBeenCalled()
       expect(api.queryTANMethods).toHaveBeenCalledWith({
         blz: '12345678',
-        username: 'testuser',
-        pin: 'secret',
       })
       expect(result.current.discoveredTanMethods).toEqual(mockTanMethods.tan_methods)
       expect(result.current.step).toBe('tan_discovery')
@@ -290,13 +292,13 @@ describe('useBankConnection', () => {
   })
 
   describe('handleDiscoverAccounts', () => {
-    it('stores credentials and discovers accounts', async () => {
+    it('updates credentials TAN and discovers accounts', async () => {
       const mockAccounts = {
         accounts: [
           { iban: 'DE123', default_name: 'Girokonto', balance: '1000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
+      vi.mocked(api.updateCredentialsTan).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {
@@ -317,10 +319,7 @@ describe('useBankConnection', () => {
         await result.current.handleDiscoverAccounts()
       })
 
-      expect(api.storeCredentials).toHaveBeenCalledWith({
-        blz: '12345678',
-        username: 'testuser',
-        pin: 'secret',
+      expect(api.updateCredentialsTan).toHaveBeenCalledWith('12345678', {
         tan_method: '920',
         tan_medium: 'Push TAN',
       })
@@ -336,7 +335,7 @@ describe('useBankConnection', () => {
           { iban: 'DE456', default_name: 'Sparkonto', balance: '5000.00', currency: 'EUR' },
         ],
       }
-      vi.mocked(api.storeCredentials).mockResolvedValue(undefined)
+      vi.mocked(api.updateCredentialsTan).mockResolvedValue(undefined)
       vi.mocked(api.discoverBankAccounts).mockResolvedValue(mockAccounts)
 
       const { result } = renderHook(() => useBankConnection(), {

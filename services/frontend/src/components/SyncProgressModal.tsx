@@ -2,13 +2,12 @@
  * Reusable modal for displaying sync progress with streaming updates.
  *
  * Shows:
- * 1. First-sync prompt (if applicable) with days selector
- * 2. Progress indicator with phases (connecting → fetching → classifying)
- * 3. Transaction counter with progress bar
- * 4. Success/error states with summary
+ * 1. Progress indicator with phases (connecting → fetching → classifying)
+ * 2. Transaction counter with progress bar
+ * 3. Success/error states with summary
  */
 
-import { CheckCircle2, XCircle, RefreshCw, Loader2, ArrowRight, CloudOff } from 'lucide-react'
+import { CheckCircle2, XCircle, CloudOff } from 'lucide-react'
 import {
   Modal,
   ModalHeader,
@@ -16,10 +15,9 @@ import {
   ModalFooter,
   Button,
 } from '@/components/ui'
-import { TANApprovalNotice } from '@/components/TANApprovalNotice'
 import { SyncProgressDisplay } from '@/components/SyncProgressDisplay'
 import { cn } from '@/lib/utils'
-import type { SyncProgress, SyncStep } from '@/hooks/useSyncProgress'
+import type { SyncProgress } from '@/hooks/useSyncProgress'
 import type { SyncResultEvent } from '@/api'
 
 interface SyncProgressModalProps {
@@ -29,22 +27,14 @@ interface SyncProgressModalProps {
   onClose: () => void
 
   // === State from useSyncProgress ===
-  /** Current step in the workflow */
-  step: SyncStep
   /** Progress data (null when not syncing) */
   progress: SyncProgress | null
   /** Final result (null until success) */
   result: SyncResultEvent | null
   /** Error message */
   error: string
-  /** Days for first-sync */
-  firstSyncDays: number
 
   // === Actions ===
-  /** Update days for first-sync */
-  onSetFirstSyncDays: (days: number) => void
-  /** Confirm first-sync with selected days */
-  onConfirmFirstSync: () => void
   /** Skip sync option (optional) */
   onSkipSync?: () => void
 
@@ -55,83 +45,53 @@ interface SyncProgressModalProps {
   showSkipOption?: boolean
 }
 
-/** Preset options for first-sync days */
-const FIRST_SYNC_OPTIONS = [
-  { days: 30, label: '1 month' },
-  { days: 90, label: '3 months' },
-  { days: 180, label: '6 months' },
-  { days: 365, label: '1 year' },
-  { days: 730, label: '2 years' },
-]
+/** Sync step for display purposes */
+type SyncDisplayStep = 'syncing' | 'success' | 'error' | 'nothing_to_sync'
 
 export function SyncProgressModal({
   open,
   onClose,
-  step,
   progress,
   result,
   error,
-  firstSyncDays,
-  onSetFirstSyncDays,
-  onConfirmFirstSync,
   onSkipSync,
   bankName,
   showSkipOption = false,
 }: SyncProgressModalProps) {
-  // Don't allow closing during sync
-  const canClose = step !== 'syncing'
+  // Determine current display step
+  const step: SyncDisplayStep = error
+    ? 'error'
+    : result
+      ? result.accounts_synced === 0 && result.total_imported === 0
+        ? 'nothing_to_sync'
+        : 'success'
+      : 'syncing'
 
   const handleClose = () => {
-    if (canClose) {
-      onClose()
-    }
+    onClose()
   }
 
   return (
     <Modal isOpen={open} onClose={handleClose}>
-      <ModalHeader onClose={canClose ? handleClose : undefined}>
+      <ModalHeader onClose={handleClose}>
         {getModalTitle(step, bankName)}
       </ModalHeader>
 
       <ModalBody>
-        {/* Checking state */}
-        {step === 'checking' && <CheckingState />}
-
-        {/* First sync prompt */}
-        {step === 'first_sync_prompt' && (
-          <FirstSyncPrompt
-            days={firstSyncDays}
-            onSetDays={onSetFirstSyncDays}
-            bankName={bankName}
-          />
-        )}
-
         {/* Syncing state with progress */}
         {step === 'syncing' && <SyncProgressDisplay progress={progress} />}
 
         {/* Success state */}
         {step === 'success' && result && <SuccessState result={result} />}
 
+        {/* Nothing to sync state */}
+        {step === 'nothing_to_sync' && <NothingToSyncState />}
+
         {/* Error state */}
         {step === 'error' && <ErrorState error={error} />}
       </ModalBody>
 
       <ModalFooter>
-        {/* First sync prompt actions */}
-        {step === 'first_sync_prompt' && (
-          <>
-            {showSkipOption && onSkipSync && (
-              <Button variant="ghost" onClick={onSkipSync}>
-                Skip for now
-              </Button>
-            )}
-            <Button onClick={onConfirmFirstSync}>
-              Start Sync
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </>
-        )}
-
         {/* Syncing - no actions, just show progress */}
         {step === 'syncing' && (
           <p className="text-sm text-text-muted">
@@ -140,7 +100,7 @@ export function SyncProgressModal({
         )}
 
         {/* Success actions */}
-        {step === 'success' && (
+        {(step === 'success' || step === 'nothing_to_sync') && (
           <Button onClick={onClose}>
             Done
           </Button>
@@ -149,89 +109,18 @@ export function SyncProgressModal({
         {/* Error actions */}
         {step === 'error' && (
           <>
+            {showSkipOption && onSkipSync && (
+              <Button variant="ghost" onClick={onSkipSync}>
+                Skip
+              </Button>
+            )}
             <Button variant="ghost" onClick={onClose}>
               Close
-            </Button>
-            <Button onClick={onConfirmFirstSync}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
             </Button>
           </>
         )}
       </ModalFooter>
     </Modal>
-  )
-}
-
-/** Get modal title based on current step */
-function getModalTitle(step: SyncStep, bankName?: string): string {
-  const bank = bankName ? ` from ${bankName}` : ''
-  switch (step) {
-    case 'checking':
-      return 'Preparing Sync'
-    case 'first_sync_prompt':
-      return 'Initial Sync'
-    case 'syncing':
-      return `Syncing Transactions${bank}`
-    case 'success':
-      return 'Sync Complete'
-    case 'error':
-      return 'Sync Failed'
-    default:
-      return 'Sync Transactions'
-  }
-}
-
-/** Loading state while checking sync recommendations */
-function CheckingState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-8 gap-4">
-      <Loader2 className="h-8 w-8 animate-spin text-accent-primary" />
-      <p className="text-text-secondary">Checking sync status...</p>
-    </div>
-  )
-}
-
-/** First sync prompt with days selector */
-function FirstSyncPrompt({
-  days,
-  onSetDays,
-  bankName,
-}: {
-  days: number
-  onSetDays: (days: number) => void
-  bankName?: string
-}) {
-  return (
-    <div className="space-y-6">
-      <p className="text-text-secondary">
-        This is the first time syncing{bankName ? ` with ${bankName}` : ''}.
-        How much transaction history would you like to import?
-      </p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {FIRST_SYNC_OPTIONS.map(option => (
-          <button
-            key={option.days}
-            onClick={() => onSetDays(option.days)}
-            className={cn(
-              'p-4 rounded-xl border-2 transition-all text-center',
-              days === option.days
-                ? 'border-accent-primary bg-accent-primary/10 text-text-primary'
-                : 'border-border-subtle bg-bg-elevated hover:border-border-focus text-text-secondary'
-            )}
-          >
-            <div className="text-lg font-semibold">{option.label}</div>
-            <div className="text-xs text-text-muted">{option.days} days</div>
-          </button>
-        ))}
-      </div>
-
-      <TANApprovalNotice
-        variant="compact"
-        message="Longer periods may require TAN approval and take more time to process."
-      />
-    </div>
   )
 }
 
@@ -312,4 +201,38 @@ function ErrorState({ error }: { error: string }) {
       </div>
     </div>
   )
+}
+
+/** Nothing to sync state - all accounts are up to date */
+function NothingToSyncState() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col items-center justify-center py-4 gap-3">
+        <CheckCircle2 className="h-12 w-12 text-accent-success" />
+        <p className="text-text-primary font-medium">All accounts are up to date</p>
+      </div>
+
+      <div className="text-center text-sm text-text-secondary">
+        <p>
+          Your transactions are already synchronized with your bank.
+          No new transactions were found.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Get modal title based on current step */
+function getModalTitle(step: SyncDisplayStep, bankName?: string): string {
+  const bank = bankName ? ` from ${bankName}` : ''
+  switch (step) {
+    case 'syncing':
+      return `Syncing Transactions${bank}`
+    case 'success':
+      return 'Sync Complete'
+    case 'nothing_to_sync':
+      return 'Sync Status'
+    case 'error':
+      return 'Sync Failed'
+  }
 }

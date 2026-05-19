@@ -59,49 +59,6 @@ def service():
     }
 
 
-@pytest.mark.asyncio
-async def test_get_import_statistics_aggregates_counts(service):
-    """Statistics should use repository counts and include totals."""
-    svc, deps = service
-    import_repo = deps["import_repo"]
-    import_repo.count_by_status.return_value = {
-        "success": 5,
-        "failed": 1,
-        "pending": 2,
-        "duplicate": 3,
-        "skipped": 4,
-    }
-
-    stats = await svc.get_import_statistics()
-
-    assert stats == {
-        "success": 5,
-        "failed": 1,
-        "pending": 2,
-        "duplicate": 3,
-        "skipped": 4,
-        "total": 15,
-    }
-    import_repo.count_by_status.assert_awaited_once_with(None)
-
-
-@pytest.mark.asyncio
-async def test_get_import_statistics_defaults_missing_statuses(service):
-    """Missing status buckets should default to zero and forward IBAN filters."""
-    svc, deps = service
-    import_repo = deps["import_repo"]
-    import_repo.count_by_status.return_value = {"success": 2}
-
-    stats = await svc.get_import_statistics(iban="DE89...")
-
-    assert stats["success"] == 2
-    assert stats["failed"] == 0
-    assert stats["pending"] == 0
-    assert stats["duplicate"] == 0
-    assert stats["skipped"] == 0
-    assert stats["total"] == 2
-    import_repo.count_by_status.assert_awaited_once_with("DE89...")
-
-    # NOTE: Legacy test for import_transaction method removed
-    # The new flow uses import_from_stored_transactions which is tested
-    # in test_transaction_import_duplicates.py
+# NOTE: Legacy test for import_transaction method removed
+# The new flow uses import_from_stored_transactions which is tested
+# in test_transaction_import_duplicates.py

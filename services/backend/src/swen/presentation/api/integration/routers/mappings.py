@@ -143,7 +143,7 @@ async def create_external_account_mapping(
     ## Examples
 
     - Stock portfolio: Create as **asset** → monthly transfers become internal
-    - Credit card (Norwegian Bank): Create as **liability** → payments reduce debt
+    - Credit card: Create as **liability** → payments reduce debt
     """
     command = CreateExternalAccountCommand.from_factory(factory)
 

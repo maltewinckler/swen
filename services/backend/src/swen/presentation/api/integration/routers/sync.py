@@ -14,7 +14,6 @@ from swen.application.integration.commands.sync_bank_accounts_command import (
     SyncBankAccountsCommand,
 )
 from swen.application.integration.queries import (
-    SyncRecommendationQuery,
     SyncStatusQuery,
 )
 from swen.domain.shared.exceptions import DomainException, ErrorCode
@@ -26,8 +25,6 @@ from swen.infrastructure.integration.adapters.event_publisher import (
 )
 from swen.presentation.api.dependencies import MLClient, RepoFactory
 from swen.presentation.api.integration.schemas.sync import (
-    AccountSyncRecommendationResponse,
-    SyncRecommendationResponse,
     SyncRunRequest,
     SyncStatusResponse,
 )
@@ -35,54 +32,6 @@ from swen.presentation.api.integration.schemas.sync import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-@router.get(
-    "/recommendation",
-    summary="Get sync recommendations",
-    responses={
-        200: {"description": "Sync recommendations for adaptive sync"},
-    },
-)
-async def get_sync_recommendation(
-    factory: RepoFactory,
-) -> SyncRecommendationResponse:
-    """
-    Get sync recommendations for adaptive synchronization.
-
-    Returns per-account information to help implement adaptive sync:
-
-    - **First sync accounts**: Accounts that have never been synced. The frontend
-      should prompt the user to specify how many days of history to load.
-    - **Subsequent sync accounts**: Accounts with sync history. Use adaptive mode
-      (no `days` parameter) to automatically sync from last sync date.
-
-    ## Recommended Flow
-
-    1. Call `GET /sync/recommendation`
-    2. If `has_first_sync_accounts` is true:
-       - Show a dialog asking user how many days to load
-         - Call `POST /sync/run/stream` with `days` parameter
-    3. Otherwise:
-         - Call `POST /sync/run/stream` without `days` (adaptive mode)
-    """
-    query = SyncRecommendationQuery.from_factory(factory)
-    result = await query.execute()
-
-    return SyncRecommendationResponse(
-        accounts=[
-            AccountSyncRecommendationResponse(
-                iban=acc.iban,
-                is_first_sync=acc.is_first_sync,
-                recommended_start_date=acc.recommended_start_date,
-                last_successful_sync_date=acc.last_successful_sync_date,
-                successful_import_count=acc.successful_import_count,
-            )
-            for acc in result.accounts
-        ],
-        has_first_sync_accounts=result.has_first_sync_accounts,
-        total_accounts=result.total_accounts,
-    )
 
 
 @router.post(

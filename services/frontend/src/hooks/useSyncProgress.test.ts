@@ -5,7 +5,6 @@ import * as api from '@/api'
 
 // Mock the API module
 vi.mock('@/api', () => ({
-  getSyncRecommendation: vi.fn(),
   runSyncStreaming: vi.fn(),
 }))
 
@@ -15,12 +14,6 @@ describe('useSyncProgress', () => {
   })
 
   describe('initial state', () => {
-    it('starts in idle step', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      expect(result.current.step).toBe('idle')
-    })
-
     it('has no progress initially', () => {
       const { result } = renderHook(() => useSyncProgress())
 
@@ -45,42 +38,10 @@ describe('useSyncProgress', () => {
       expect(result.current.isOpen).toBe(false)
     })
 
-    it('has default first sync days of 90', () => {
+    it('has undefined syncBlz initially', () => {
       const { result } = renderHook(() => useSyncProgress())
 
-      expect(result.current.firstSyncDays).toBe(90)
-    })
-  })
-
-  describe('open', () => {
-    it('sets isOpen to true', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.open()
-      })
-
-      expect(result.current.isOpen).toBe(true)
-    })
-
-    it('stores BLZ when provided', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.open('12345678')
-      })
-
-      expect(result.current.syncBlz).toBe('12345678')
-    })
-
-    it('resets step to idle', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.open()
-      })
-
-      expect(result.current.step).toBe('idle')
+      expect(result.current.syncBlz).toBeUndefined()
     })
   })
 
@@ -88,8 +49,9 @@ describe('useSyncProgress', () => {
     it('closes the modal', () => {
       const { result } = renderHook(() => useSyncProgress())
 
+      // Open the modal first
       act(() => {
-        result.current.open()
+        result.current.startSync()
       })
 
       expect(result.current.isOpen).toBe(true)
@@ -100,26 +62,15 @@ describe('useSyncProgress', () => {
 
       expect(result.current.isOpen).toBe(false)
     })
-
-    it('sets step to idle', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.skip()
-      })
-
-      expect(result.current.step).toBe('idle')
-    })
   })
 
   describe('reset', () => {
     it('resets all state', () => {
       const { result } = renderHook(() => useSyncProgress())
 
-      // Set up some state
+      // Set up some state by starting a sync
       act(() => {
-        result.current.open('12345678')
-        result.current.setFirstSyncDays(365)
+        result.current.startSync()
       })
 
       // Reset
@@ -128,130 +79,15 @@ describe('useSyncProgress', () => {
       })
 
       expect(result.current.isOpen).toBe(false)
-      expect(result.current.step).toBe('idle')
       expect(result.current.progress).toBeNull()
       expect(result.current.result).toBeNull()
       expect(result.current.error).toBe('')
-      expect(result.current.firstSyncDays).toBe(90)
       expect(result.current.syncBlz).toBeUndefined()
     })
   })
 
-  describe('setFirstSyncDays', () => {
-    it('updates first sync days', () => {
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.setFirstSyncDays(365)
-      })
-
-      expect(result.current.firstSyncDays).toBe(365)
-    })
-  })
-
-  describe('checkAndSync', () => {
-    it('opens modal and checks recommendation', async () => {
-      const mockRecommendation = {
-        accounts: [{ iban: 'DE123', is_first_sync: false }],
-      }
-      vi.mocked(api.getSyncRecommendation).mockResolvedValue(mockRecommendation)
-      vi.mocked(api.runSyncStreaming).mockResolvedValue({
-        success: true,
-        total_imported: 10,
-        total_skipped: 2,
-        total_failed: 0,
-        accounts_synced: 1,
-      })
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      await act(async () => {
-        await result.current.checkAndSync()
-      })
-
-      expect(result.current.isOpen).toBe(true)
-      expect(api.getSyncRecommendation).toHaveBeenCalled()
-    })
-
-    it('shows first sync prompt when first sync is needed', async () => {
-      const mockRecommendation = {
-        accounts: [{ iban: 'DE123', is_first_sync: true }],
-      }
-      vi.mocked(api.getSyncRecommendation).mockResolvedValue(mockRecommendation)
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      await act(async () => {
-        await result.current.checkAndSync()
-      })
-
-      expect(result.current.step).toBe('first_sync_prompt')
-    })
-
-    it('starts sync directly when no first sync needed', async () => {
-      const mockRecommendation = {
-        accounts: [{ iban: 'DE123', is_first_sync: false }],
-      }
-      vi.mocked(api.getSyncRecommendation).mockResolvedValue(mockRecommendation)
-      vi.mocked(api.runSyncStreaming).mockResolvedValue({
-        success: true,
-        total_imported: 10,
-        total_skipped: 2,
-        total_failed: 0,
-        accounts_synced: 1,
-      })
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      await act(async () => {
-        await result.current.checkAndSync()
-      })
-
-      expect(api.runSyncStreaming).toHaveBeenCalled()
-    })
-
-    it('filters accounts by BLZ when provided', async () => {
-      const mockRecommendation = {
-        accounts: [
-          { iban: 'DE12123456780000001234', is_first_sync: true },
-          { iban: 'DE12999999990000005678', is_first_sync: false },
-        ],
-      }
-      vi.mocked(api.getSyncRecommendation).mockResolvedValue(mockRecommendation)
-      vi.mocked(api.runSyncStreaming).mockResolvedValue({
-        success: true,
-        total_imported: 0,
-        total_skipped: 0,
-        total_failed: 0,
-        accounts_synced: 0,
-      })
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      await act(async () => {
-        await result.current.checkAndSync('12345678')
-      })
-
-      // Should show first sync prompt because the matching account needs first sync
-      expect(result.current.step).toBe('first_sync_prompt')
-    })
-
-    it('handles check error', async () => {
-      vi.mocked(api.getSyncRecommendation).mockRejectedValue(new Error('Network error'))
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      await act(async () => {
-        await result.current.checkAndSync()
-      })
-
-      expect(result.current.step).toBe('error')
-      expect(result.current.error).toBe('Network error')
-    })
-  })
-
   describe('startSync', () => {
-    it('transitions to syncing step', async () => {
+    it('opens modal and starts syncing', async () => {
       vi.mocked(api.runSyncStreaming).mockResolvedValue({
         success: true,
         total_imported: 10,
@@ -266,8 +102,8 @@ describe('useSyncProgress', () => {
         await result.current.startSync()
       })
 
-      // Should end in success after completing
-      expect(result.current.step).toBe('success')
+      expect(result.current.isOpen).toBe(true)
+      expect(api.runSyncStreaming).toHaveBeenCalled()
     })
 
     it('passes sync options to API', async () => {
@@ -341,7 +177,6 @@ describe('useSyncProgress', () => {
         await result.current.startSync()
       })
 
-      expect(result.current.step).toBe('error')
       expect(result.current.error).toBe('Sync failed')
     })
 
@@ -356,61 +191,6 @@ describe('useSyncProgress', () => {
       })
 
       expect(onError).toHaveBeenCalledWith('Sync failed')
-    })
-  })
-
-  describe('confirmFirstSync', () => {
-    it('starts sync with selected days', async () => {
-      vi.mocked(api.runSyncStreaming).mockResolvedValue({
-        success: true,
-        total_imported: 10,
-        total_skipped: 2,
-        total_failed: 0,
-        accounts_synced: 1,
-      })
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.setFirstSyncDays(365)
-      })
-
-      await act(async () => {
-        result.current.confirmFirstSync()
-      })
-
-      expect(api.runSyncStreaming).toHaveBeenCalledWith(
-        expect.any(Function),
-        { days: 365 },
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
-      )
-    })
-
-    it('includes BLZ when set', async () => {
-      vi.mocked(api.runSyncStreaming).mockResolvedValue({
-        success: true,
-        total_imported: 10,
-        total_skipped: 2,
-        total_failed: 0,
-        accounts_synced: 1,
-      })
-
-      const { result } = renderHook(() => useSyncProgress())
-
-      act(() => {
-        result.current.open('12345678')
-        result.current.setFirstSyncDays(90)
-      })
-
-      await act(async () => {
-        result.current.confirmFirstSync()
-      })
-
-      expect(api.runSyncStreaming).toHaveBeenCalledWith(
-        expect.any(Function),
-        { days: 90, blz: '12345678' },
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
-      )
     })
   })
 })

@@ -14,7 +14,7 @@ Also tests error cases:
 - Non-existent email (should still return 202 for security)
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -27,8 +27,8 @@ def mock_email_service():
     with patch(
         "swen.presentation.api.auth.routers.auth.EmailService"
     ) as mock_email_class:
-        email_instance = AsyncMock()
-        email_instance.send_password_reset_email = AsyncMock()
+        email_instance = MagicMock()
+        email_instance.send_password_reset_email = MagicMock()
         mock_email_class.return_value = email_instance
         yield email_instance
 

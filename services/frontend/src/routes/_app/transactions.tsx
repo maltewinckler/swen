@@ -141,8 +141,8 @@ function TransactionsPage() {
         isReviewMode={isReviewMode}
         onToggleReviewMode={toggleReviewMode}
         onAddTransaction={() => setIsAddModalOpen(true)}
-        onSyncBank={() => sync.checkAndSync()}
-        isSyncing={sync.step === 'syncing'}
+        onSyncBank={() => sync.startSync()}
+        isSyncing={sync.progress !== null}
         onReclassify={() => setShowReclassifyConfirm(true)}
         isReclassifying={reclassify.isRunning}
       />
@@ -196,13 +196,9 @@ function TransactionsPage() {
       <SyncProgressModal
         open={sync.isOpen}
         onClose={sync.reset}
-        step={sync.step}
         progress={sync.progress}
         result={sync.result}
         error={sync.error}
-        firstSyncDays={sync.firstSyncDays}
-        onSetFirstSyncDays={sync.setFirstSyncDays}
-        onConfirmFirstSync={sync.confirmFirstSync}
         onSkipSync={sync.skip}
       />
 

@@ -114,8 +114,8 @@ class TestAccountMappingIntegration:
         This reproduces the notebook flow where two bank accounts
         are imported in sequence.
         """
-        mapping1_iban = "NL12TRIO0123456789"
-        mapping2_iban = "NL34TRIO0987654321"
+        mapping1_iban = "DE12TRIO0123456789"
+        mapping2_iban = "DE34TRIO0987654321"
 
         # First session: Save both mappings (like notebook does)
         async for session in get_session(integration_session_maker):
@@ -308,7 +308,7 @@ class TestAccountMappingIntegration:
                 f"before={len(accounts_before)}, after={len(accounts_after)}"
             )
 
-    async def test_sequential_session_pattern(
+    async def test_sequential_sessions_pattern(
         self,
         integration_session_maker,
         current_user,
@@ -319,9 +319,9 @@ class TestAccountMappingIntegration:
         This mimics how the notebook might call save() multiple times
         within a single session context.
         """
-        iban1 = "NL11TEST0000000001"
-        iban2 = "NL22TEST0000000002"
-        iban3 = "NL33TEST0000000003"
+        iban1 = "DE11TEST0000000001"
+        iban2 = "DE22TEST0000000002"
+        iban3 = "DE33TEST0000000003"
 
         # Single session, multiple saves (like import_multiple_bank_accounts)
         async for session in get_session(integration_session_maker):

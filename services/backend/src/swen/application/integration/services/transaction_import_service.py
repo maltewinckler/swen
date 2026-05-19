@@ -375,22 +375,6 @@ class TransactionImportService:
             suggestion_accepted=True,
         )
 
-    async def get_import_statistics(self, iban: str | None = None) -> dict[str, int]:
-        status_counts = await self._import_repo.count_by_status(iban)
-
-        def _count(status: ImportStatus) -> int:
-            return status_counts.get(status.value, 0)
-
-        stats = {
-            "success": _count(ImportStatus.SUCCESS),
-            "failed": _count(ImportStatus.FAILED),
-            "pending": _count(ImportStatus.PENDING),
-            "duplicate": _count(ImportStatus.DUPLICATE),
-            "skipped": _count(ImportStatus.SKIPPED),
-        }
-        stats["total"] = sum(stats.values())
-        return stats
-
     async def reconcile_transfers_for_account(
         self,
         iban: str,

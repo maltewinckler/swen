@@ -24,21 +24,6 @@ class ImportListResult:
     status_counts: dict[str, int]
 
 
-@dataclass
-class ImportStatistics:
-    """Import statistics with timestamps."""
-
-    iban: Optional[str]  # None for global statistics
-    total_imports: int
-    successful_imports: int
-    failed_imports: int
-    pending_imports: int
-    duplicate_imports: int
-    skipped_imports: int
-    last_import_at: Optional[datetime]
-    oldest_import_at: Optional[datetime]
-
-
 class ListImportsQuery:
     """Query to list transaction imports with filters."""
 
@@ -88,48 +73,6 @@ class ListImportsQuery:
             imports=imports,
             total_count=len(imports),
             status_counts=status_counts,
-        )
-
-    async def get_status_statistics(self) -> dict[str, int]:
-        return await self._import_repo.count_by_status()
-
-    async def get_statistics(
-        self,
-        iban: Optional[str] = None,
-    ) -> ImportStatistics:
-        status_counts = await self._import_repo.count_by_status(iban)
-
-        if iban:
-            all_imports = await self._import_repo.find_by_iban(iban)
-        else:
-            all_imports = []
-            for status in ImportStatus:
-                status_imports = await self._import_repo.find_by_status(status)
-                all_imports.extend(status_imports)
-
-        last_import_at = None
-        oldest_import_at = None
-
-        if all_imports:
-            valid_imports = [imp for imp in all_imports if imp.imported_at]
-            if valid_imports:
-                sorted_imports = sorted(
-                    valid_imports,
-                    key=lambda imp: imp.imported_at,  # type: ignore[arg-type, return-value]
-                )
-                oldest_import_at = sorted_imports[0].imported_at
-                last_import_at = sorted_imports[-1].imported_at
-
-        return ImportStatistics(
-            iban=iban,
-            total_imports=sum(status_counts.values()),
-            successful_imports=status_counts.get(ImportStatus.SUCCESS.value, 0),
-            failed_imports=status_counts.get(ImportStatus.FAILED.value, 0),
-            pending_imports=status_counts.get(ImportStatus.PENDING.value, 0),
-            duplicate_imports=status_counts.get(ImportStatus.DUPLICATE.value, 0),
-            skipped_imports=status_counts.get(ImportStatus.SKIPPED.value, 0),
-            last_import_at=last_import_at,
-            oldest_import_at=oldest_import_at,
         )
 
     async def has_recent_failures(

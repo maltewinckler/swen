@@ -1,7 +1,6 @@
 export { useSyncProgress } from './useSyncProgress'
 export type {
   SyncProgress,
-  SyncStep,
   UseSyncProgressOptions,
   UseSyncProgressReturn,
 } from './useSyncProgress'
