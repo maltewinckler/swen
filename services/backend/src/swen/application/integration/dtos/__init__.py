@@ -8,14 +8,10 @@ from swen.application.integration.dtos.reconciliation_dto import (
     AccountReconciliationDTO,
     ReconciliationResultDTO,
 )
-from swen.application.integration.dtos.transaction_import_result import (
-    TransactionImportResult,
-)
 
 __all__ = [
     "AccountReconciliationDTO",
     "BankAccountDetailDTO",
     "BankConnectionDetailsDTO",
     "ReconciliationResultDTO",
-    "TransactionImportResult",
 ]

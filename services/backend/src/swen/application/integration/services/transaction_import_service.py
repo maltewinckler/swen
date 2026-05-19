@@ -12,20 +12,20 @@ Responsibilities:
 4. Track import status for audit trail
 
 Counter-account resolution is handled upstream by
-``CounterAccountBatchService`` — this service receives already-validated
+``CounterAccountBatchService``. This service receives already-validated
 ``ResolvedCounterAccount`` objects.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, computed_field
+
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.integration.dtos.transaction_import_result import (
-    TransactionImportResult,
-)
+from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.services import OpeningBalanceService
 from swen.domain.accounting.value_objects import AIResolutionMetadata
 from swen.domain.banking.repositories import StoredBankTransaction
@@ -43,6 +43,7 @@ from swen.domain.shared.time import utc_now
 
 logger = logging.getLogger(__name__)
 
+
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
     from swen.domain.accounting.entities import Account
@@ -52,6 +53,38 @@ if TYPE_CHECKING:
     )
     from swen.domain.integration.repositories import TransactionImportRepository
     from swen.domain.shared.current_user import CurrentUser
+
+
+class TransactionImportResult(BaseModel):
+    """Result of a single transaction import attempt."""
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    bank_transaction: BankTransaction
+    status: ImportStatus
+    accounting_transaction: Optional[Transaction] = None
+    error_message: Optional[str] = None
+    was_reconciled: bool = False
+
+    @computed_field
+    @property
+    def is_success(self) -> bool:
+        return self.status == ImportStatus.SUCCESS
+
+    @computed_field
+    @property
+    def is_duplicate(self) -> bool:
+        return self.status == ImportStatus.DUPLICATE
+
+    @computed_field
+    @property
+    def is_failed(self) -> bool:
+        return self.status == ImportStatus.FAILED
+
+    @computed_field
+    @property
+    def is_reconciled(self) -> bool:
+        return self.was_reconciled
 
 
 class TransactionImportService:
