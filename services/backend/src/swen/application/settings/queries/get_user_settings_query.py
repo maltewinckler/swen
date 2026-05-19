@@ -18,9 +18,7 @@ class GetUserSettingsQuery:
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> GetUserSettingsQuery:
-        return cls(
-            settings_repo=factory.user_settings_repository(),
-        )
+        return cls(settings_repo=factory.user_settings_repository())
 
     async def execute(self) -> UserSettings:
         return await self._settings_repo.get_or_create()
