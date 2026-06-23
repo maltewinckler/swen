@@ -1,0 +1,17 @@
+"""Integration DTOs. Data transfer objects for sync and import results."""
+
+from swen.application.integration.dtos.bank_connection_details_dto import (
+    BankAccountDetailDTO,
+    BankConnectionDetailsDTO,
+)
+from swen.application.integration.dtos.reconciliation_dto import (
+    AccountReconciliationDTO,
+    ReconciliationResultDTO,
+)
+
+__all__ = [
+    "AccountReconciliationDTO",
+    "BankAccountDetailDTO",
+    "BankConnectionDetailsDTO",
+    "ReconciliationResultDTO",
+]

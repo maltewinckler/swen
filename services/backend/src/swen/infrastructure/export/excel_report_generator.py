@@ -13,9 +13,9 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
-from swen.application.dtos.analytics.analytics_dto import MonthComparisonResult
-from swen.application.dtos.export_dto import AccountExportDTO
-from swen.application.dtos.export_report_dto import (
+from swen.application.analytics.dtos.analytics_dto import MonthComparisonResult
+from swen.application.analytics.dtos.export_dto import AccountExportDTO
+from swen.application.analytics.dtos.export_report_dto import (
     DashboardSummaryDTO,
     ExportReportData,
     MappingExportRowDTO,

@@ -1,0 +1,433 @@
+import logging
+from datetime import datetime
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Query, status
+
+from swen.application.accounting.commands import (
+    CreateAccountCommand,
+    DeactivateAccountCommand,
+    DeleteAccountCommand,
+    ParentAction,
+    ReactivateAccountCommand,
+    UpdateAccountCommand,
+)
+from swen.application.accounting.queries import (
+    AccountStatsQuery,
+    ListAccountsQuery,
+)
+from swen.domain.shared.time import utc_now
+from swen.presentation.api.accounting.schemas.accounts import (
+    AccountCreateRequest,
+    AccountListResponse,
+    AccountResponse,
+    AccountStatsResponse,
+    AccountUpdateRequest,
+)
+from swen.presentation.api.dependencies import MLClient, RepoFactory
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+# Type aliases for query parameters using Annotated (modern FastAPI pattern)
+AccountTypeFilter = Annotated[
+    str | None,
+    Query(description="Filter by type: asset, liability, equity, income, expense"),
+]
+ActiveOnlyFilter = Annotated[
+    bool,
+    Query(description="Only return active accounts"),
+]
+
+StatsIncludeDrafts = Annotated[
+    bool,
+    Query(description="Include draft transactions in statistics"),
+]
+StatsPeriodDays = Annotated[
+    int | None,
+    Query(description="Number of days for flow stats (null = all-time)", ge=1, le=3650),
+]
+
+
+def _get_created_at_or_now(created_at: datetime | None) -> datetime:
+    """Get created_at timestamp, defaulting to now if None.
+
+    The DTO may have None for created_at in some cases (e.g., legacy data),
+    but the API response requires a non-null datetime.
+    """
+    return created_at if created_at is not None else utc_now()
+
+
+@router.get(
+    "",
+    summary="List accounts",
+    responses={
+        200: {"description": "List of accounts"},
+    },
+)
+async def list_accounts(
+    factory: RepoFactory,
+    account_type: AccountTypeFilter = None,
+    active_only: ActiveOnlyFilter = True,
+) -> AccountListResponse:
+    """
+    List all accounts for the current user.
+
+    Supports filtering by account type and active status.
+    """
+    query = ListAccountsQuery.from_factory(factory)
+    result = await query.execute(
+        account_type=account_type,
+        active_only=active_only,
+    )
+
+    return AccountListResponse(
+        accounts=[
+            AccountResponse(
+                id=UUID(dto.id),
+                name=dto.name,
+                account_number=dto.account_number,
+                account_type=dto.account_type,
+                description=dto.description,
+                iban=dto.iban,
+                currency=dto.currency,
+                is_active=dto.is_active,
+                created_at=_get_created_at_or_now(dto.created_at),
+                parent_id=UUID(dto.parent_id) if dto.parent_id else None,
+            )
+            for dto in result.accounts
+        ],
+        total=result.total_count,
+        by_type=result.by_type,
+    )
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create account",
+    responses={
+        201: {"description": "Account created"},
+        400: {"description": "Invalid input"},
+        409: {"description": "Account already exists"},
+    },
+)
+async def create_account(
+    request: AccountCreateRequest,
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> AccountResponse:
+    """
+    Create a new account in the chart of accounts.
+
+    Account types: asset, liability, equity, income, expense
+    """
+    command = CreateAccountCommand.from_factory(factory, ml_client=ml_client)
+
+    try:
+        account = await command.execute(
+            name=request.name,
+            account_type=request.account_type,
+            account_number=request.account_number,
+            currency=request.currency,
+            description=request.description,
+            parent_id=request.parent_id,
+        )
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        # Let the global exception handler process domain exceptions
+        raise
+
+    logger.info("Account created: %s (%s)", account.name, account.account_number)
+
+    # Convert domain entity to response (command returns entity for internal use)
+    return AccountResponse(
+        id=account.id,
+        name=account.name,
+        account_number=account.account_number or "",
+        account_type=account.account_type.value,
+        description=account.description,
+        iban=account.iban,
+        currency=account.default_currency.code,
+        is_active=account.is_active,
+        created_at=account.created_at,
+        parent_id=account.parent_id,
+    )
+
+
+@router.get(
+    "/{account_id}",
+    summary="Get account by ID",
+    responses={
+        200: {"description": "Account details"},
+        404: {"description": "Account not found"},
+    },
+)
+async def get_account(
+    account_id: UUID,
+    factory: RepoFactory,
+) -> AccountResponse:
+    """Get a specific account by ID."""
+    query = ListAccountsQuery.from_factory(factory)
+    dto = await query.find_by_id(account_id)
+
+    if dto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
+
+    return AccountResponse(
+        id=UUID(dto.id),
+        name=dto.name,
+        account_number=dto.account_number,
+        account_type=dto.account_type,
+        description=dto.description,
+        iban=dto.iban,
+        currency=dto.currency,
+        is_active=dto.is_active,
+        created_at=_get_created_at_or_now(dto.created_at),
+        parent_id=UUID(dto.parent_id) if dto.parent_id else None,
+    )
+
+
+@router.get(
+    "/{account_id}/stats",
+    summary="Get account statistics",
+    responses={
+        200: {"description": "Account statistics"},
+        404: {"description": "Account not found"},
+    },
+)
+async def get_account_stats(
+    account_id: UUID,
+    factory: RepoFactory,
+    days: StatsPeriodDays = None,
+    include_drafts: StatsIncludeDrafts = True,
+) -> AccountStatsResponse:
+    """
+    Get comprehensive statistics for a specific account.
+
+    Returns balance, transaction counts, and flow data for the account.
+
+    **Parameters:**
+    - `days`: Number of days to include in flow statistics (debits, credits, net_flow).
+              If not specified, includes all-time statistics.
+    - `include_drafts`: Whether to include draft (unposted) transactions in
+                        calculations. Defaults to True for a complete picture.
+
+    **Response includes:**
+    - Current balance
+    - Transaction counts (total, posted, draft)
+    - Flow statistics (debits, credits, net flow) for the specified period
+    - First and last transaction dates
+    """
+    query = AccountStatsQuery.from_factory(factory)
+
+    # Exceptions are handled by the global exception handler
+    stats = await query.execute(
+        account_id=account_id,
+        days=days,
+        include_drafts=include_drafts,
+    )
+
+    return AccountStatsResponse(
+        account_id=stats.account_id,
+        account_name=stats.account_name,
+        account_number=stats.account_number,
+        account_type=stats.account_type,
+        currency=stats.currency,
+        balance=stats.balance,
+        balance_includes_drafts=stats.balance_includes_drafts,
+        transaction_count=stats.transaction_count,
+        posted_count=stats.posted_count,
+        draft_count=stats.draft_count,
+        total_debits=stats.total_debits,
+        total_credits=stats.total_credits,
+        net_flow=stats.net_flow,
+        first_transaction_date=(
+            stats.first_transaction_date.isoformat()
+            if stats.first_transaction_date
+            else None
+        ),
+        last_transaction_date=(
+            stats.last_transaction_date.isoformat()
+            if stats.last_transaction_date
+            else None
+        ),
+        period_days=stats.period_days,
+        period_start=(stats.period_start.isoformat() if stats.period_start else None),
+        period_end=stats.period_end.isoformat() if stats.period_end else None,
+    )
+
+
+@router.patch(
+    "/{account_id}",
+    summary="Update account",
+    responses={
+        200: {"description": "Account updated"},
+        404: {"description": "Account not found"},
+        409: {"description": "Name already exists"},
+    },
+)
+async def update_account(
+    account_id: UUID,
+    request: AccountUpdateRequest,
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> AccountResponse:
+    """Update an account (name, account_number, description, and/or parent).
+
+    Use parent_action to control parent relationship:
+    - 'keep' (default): Don't change parent
+    - 'set': Set parent to parent_id (requires parent_id)
+    - 'remove': Remove parent, make top-level
+    """
+    command = UpdateAccountCommand.from_factory(factory, ml_client=ml_client)
+
+    # Map API enum to application enum (same values, ensures decoupling)
+    parent_action = ParentAction(request.parent_action.value)
+
+    try:
+        account = await command.execute(
+            account_id=account_id,
+            name=request.name,
+            account_number=request.account_number,
+            description=request.description,
+            parent_id=request.parent_id,
+            parent_action=parent_action,
+        )
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        # Let the global exception handler process domain exceptions
+        raise
+
+    logger.info("Account updated: %s", account.id)
+
+    return AccountResponse(
+        id=account.id,
+        name=account.name,
+        account_number=account.account_number or "",
+        account_type=account.account_type.value,
+        description=account.description,
+        iban=account.iban,
+        currency=account.default_currency.code,
+        is_active=account.is_active,
+        created_at=account.created_at,
+        parent_id=account.parent_id,
+    )
+
+
+@router.delete(
+    "/{account_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Deactivate account",
+    responses={
+        204: {"description": "Account deactivated"},
+        404: {"description": "Account not found"},
+    },
+)
+async def deactivate_account(
+    account_id: UUID,
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> None:
+    """
+    Deactivate an account (soft delete).
+
+    The account is marked as inactive but not removed from the database.
+    """
+    command = DeactivateAccountCommand.from_factory(factory, ml_client=ml_client)
+
+    try:
+        await command.execute(account_id=account_id)
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        # Let the global exception handler process domain exceptions
+        raise
+
+    logger.info("Account deactivated: %s", account_id)
+
+
+@router.post(
+    "/{account_id}/reactivate",
+    summary="Reactivate account",
+    responses={
+        200: {"description": "Account reactivated"},
+        404: {"description": "Account not found"},
+    },
+)
+async def reactivate_account(
+    account_id: UUID,
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> AccountResponse:
+    """
+    Reactivate a previously deactivated account.
+
+    The account will become visible in account lists and usable again.
+    """
+    command = ReactivateAccountCommand.from_factory(factory, ml_client=ml_client)
+
+    try:
+        account = await command.execute(account_id=account_id)
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        raise
+
+    logger.info("Account reactivated: %s", account_id)
+
+    return AccountResponse(
+        id=account.id,
+        name=account.name,
+        account_number=account.account_number or "",
+        account_type=account.account_type.value,
+        description=account.description,
+        iban=account.iban,
+        currency=account.default_currency.code,
+        is_active=account.is_active,
+        created_at=account.created_at,
+        parent_id=account.parent_id,
+    )
+
+
+@router.delete(
+    "/{account_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete account permanently",
+    responses={
+        204: {"description": "Account deleted permanently"},
+        404: {"description": "Account not found"},
+        422: {
+            "description": "Account cannot be deleted (has transactions or children)"
+        },
+    },
+)
+async def delete_account(
+    account_id: UUID,
+    factory: RepoFactory,
+    ml_client: MLClient,
+) -> None:
+    """
+    Permanently delete an account.
+
+    This is a hard delete - the account will be removed from the database.
+    Only accounts with no transactions and no child accounts can be deleted.
+    For accounts with data, use deactivate instead (soft delete).
+    """
+    command = DeleteAccountCommand.from_factory(factory, ml_client=ml_client)
+
+    try:
+        await command.execute(account_id=account_id)
+        await factory.session.commit()
+    except Exception:
+        await factory.session.rollback()
+        raise
+
+    logger.info("Account deleted permanently: %s", account_id)

@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from swen.domain.banking.value_objects.bank_info import BankInfo
 
-# Mock bank info for tests
 MOCK_BANK_INFO = BankInfo(
     blz="12345678",
     name="Test Bank",
@@ -17,7 +16,7 @@ MOCK_BANK_INFO = BankInfo(
 
 
 class TestListCredentials:
-    """Tests for GET /api/v1/credentials."""
+    """Tests for GET /api/v1/bank-connections/credentials."""
 
     def test_list_credentials_empty(
         self,
@@ -27,7 +26,7 @@ class TestListCredentials:
     ):
         """List credentials returns empty for new user."""
         response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
         )
 
@@ -43,68 +42,45 @@ class TestListCredentials:
         api_v1_prefix: str,
     ):
         """Cannot list credentials without auth."""
-        response = test_client.get(f"{api_v1_prefix}/credentials")
+        response = test_client.get(f"{api_v1_prefix}/bank-connections/credentials")
         assert response.status_code == 401
 
 
 class TestStoreCredentials:
-    """Tests for POST /api/v1/credentials."""
+    """Tests for POST /api/v1/bank-connections/credentials."""
 
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_store_credentials_success(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Successfully store bank credentials."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = MOCK_BANK_INFO
-        mock_lookup_factory.return_value = mock_query
-
+        """Successfully store bank credentials without tan_method returns 204."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
-        assert response.status_code == 201
-        data = response.json()
+        assert response.status_code == 204
+        assert response.content == b""
 
-        assert data["blz"] == "12345678"
-        assert data["label"] == "Test Bank"
-        assert "credential_id" in data
-        assert data["message"] == "Credentials stored successfully"
-
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
-    def test_store_credentials_bank_not_found(
+    def test_store_credentials_with_tan_method(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Cannot store credentials for unknown bank."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = None
-        mock_lookup_factory.return_value = mock_query
-
+        """Successfully store bank credentials including tan_method returns 204."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
-                "blz": "99999999",
+                "blz": "33333333",
                 "username": "testuser",
                 "pin": "testpin123",
                 "tan_method": "946",
@@ -112,59 +88,40 @@ class TestStoreCredentials:
             },
         )
 
-        assert response.status_code == 400
-        assert "not found" in response.json()["detail"].lower()
+        assert response.status_code == 204
+        assert response.content == b""
 
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_store_credentials_duplicate(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
         """Cannot store duplicate credentials for same bank."""
-        # Use a unique BLZ to avoid conflicts with other tests
         duplicate_test_blz = "11111111"
-        duplicate_bank_info = BankInfo(
-            blz=duplicate_test_blz,
-            name="Duplicate Test Bank",
-            bic="DUPTDE00XXX",
-            organization=None,
-            is_fints_capable=True,
-        )
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = duplicate_bank_info
-        mock_lookup_factory.return_value = mock_query
 
         # Store first
         first_response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": duplicate_test_blz,
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
-        assert first_response.status_code == 201, (
-            f"First store failed: {first_response.json()}"
+        assert first_response.status_code == 204, (
+            f"First store failed: {first_response.text}"
         )
 
         # Try to store again
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": duplicate_test_blz,
                 "username": "testuser2",
                 "pin": "testpin456",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
@@ -179,14 +136,12 @@ class TestStoreCredentials:
     ):
         """Cannot store credentials with invalid BLZ format."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "123",  # Too short
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
@@ -199,52 +154,40 @@ class TestStoreCredentials:
     ):
         """Cannot store credentials without auth."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             json={
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
         assert response.status_code == 401
 
 
 class TestDeleteCredentials:
-    """Tests for DELETE /api/v1/credentials/{blz}."""
+    """Tests for DELETE /api/v1/bank-connections/credentials/{blz}."""
 
-    @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
-    )
     def test_delete_credentials_success(
         self,
-        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
         """Successfully delete stored credentials."""
-        mock_query = AsyncMock()
-        mock_query.execute.return_value = MOCK_BANK_INFO
-        mock_lookup_factory.return_value = mock_query
-
         # Store first
         test_client.post(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin123",
-                "tan_method": "946",
-                "tan_medium": "SecureGo",
             },
         )
 
         # Delete
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/12345678",
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
             headers=auth_headers,
         )
 
@@ -252,7 +195,7 @@ class TestDeleteCredentials:
 
         # Verify deleted
         list_response = test_client.get(
-            f"{api_v1_prefix}/credentials",
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
         )
         assert list_response.json()["total"] == 0
@@ -265,7 +208,7 @@ class TestDeleteCredentials:
     ):
         """Cannot delete non-existent credentials."""
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/12345678",
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
             headers=auth_headers,
         )
 
@@ -279,7 +222,7 @@ class TestDeleteCredentials:
     ):
         """Cannot delete with invalid BLZ format."""
         response = test_client.delete(
-            f"{api_v1_prefix}/credentials/123",
+            f"{api_v1_prefix}/bank-connections/credentials/123",
             headers=auth_headers,
         )
 
@@ -292,15 +235,17 @@ class TestDeleteCredentials:
         api_v1_prefix: str,
     ):
         """Cannot delete credentials without auth."""
-        response = test_client.delete(f"{api_v1_prefix}/credentials/12345678")
+        response = test_client.delete(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678"
+        )
         assert response.status_code == 401
 
 
 class TestLookupBank:
-    """Tests for GET /api/v1/credentials/lookup/{blz}."""
+    """Tests for GET /api/v1/bank-connections/lookup/{blz}."""
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_lookup_bank_success(
         self,
@@ -315,7 +260,7 @@ class TestLookupBank:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/12345678",
+            f"{api_v1_prefix}/bank-connections/lookup/12345678",
             headers=auth_headers,
         )
 
@@ -327,7 +272,7 @@ class TestLookupBank:
         assert data["is_fints_capable"] is True
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_lookup_bank_not_found(
         self,
@@ -342,7 +287,7 @@ class TestLookupBank:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/99999999",
+            f"{api_v1_prefix}/bank-connections/lookup/99999999",
             headers=auth_headers,
         )
 
@@ -356,7 +301,7 @@ class TestLookupBank:
     ):
         """Lookup with invalid BLZ format returns 400."""
         response = test_client.get(
-            f"{api_v1_prefix}/credentials/lookup/123",
+            f"{api_v1_prefix}/bank-connections/lookup/123",
             headers=auth_headers,
         )
 
@@ -364,13 +309,16 @@ class TestLookupBank:
 
 
 class TestQueryTanMethods:
-    """Tests for POST /api/v1/credentials/tan-methods."""
+    """Tests for POST /api/v1/bank-connections/tan-methods.
+
+    Credentials must be stored first; the endpoint reads them from DB.
+    """
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_success(
         self,
@@ -380,7 +328,7 @@ class TestQueryTanMethods:
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Successfully query TAN methods from bank."""
+        """Successfully query TAN methods from bank when credentials are stored."""
         from swen.domain.banking.value_objects import TANMethod, TANMethodType
 
         mock_query = AsyncMock()
@@ -414,14 +362,21 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods
 
-        response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+        # Store credentials first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
             json={
                 "blz": "12345678",
                 "username": "testuser",
                 "pin": "testpin",
             },
+        )
+
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            headers=auth_headers,
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 200
@@ -440,7 +395,7 @@ class TestQueryTanMethods:
         assert method1["is_decoupled"] is True
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     def test_query_tan_methods_bank_not_found(
         self,
@@ -455,13 +410,9 @@ class TestQueryTanMethods:
         mock_lookup_factory.return_value = mock_query
 
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "99999999",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "99999999"},
         )
 
         assert response.status_code == 400
@@ -475,52 +426,36 @@ class TestQueryTanMethods:
     ):
         """Query TAN methods fails with invalid BLZ format."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "123",  # Too short
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "123"},  # Too short
         )
 
         assert response.status_code == 422  # Pydantic validation
 
-    def test_query_tan_methods_missing_username(
+    @patch(
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
+    )
+    def test_query_tan_methods_credentials_not_found(
         self,
+        mock_lookup_factory,
         test_client: TestClient,
         auth_headers: dict,
         api_v1_prefix: str,
     ):
-        """Query TAN methods fails without username."""
+        """Query TAN methods returns 404 when no credentials are stored for the BLZ."""
+        mock_query = AsyncMock()
+        mock_query.execute.return_value = MOCK_BANK_INFO
+        mock_lookup_factory.return_value = mock_query
+
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+            f"{api_v1_prefix}/bank-connections/tan-methods",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "pin": "testpin",
-            },
+            json={"blz": "77777777"},
         )
 
-        assert response.status_code == 422  # Pydantic validation
-
-    def test_query_tan_methods_missing_pin(
-        self,
-        test_client: TestClient,
-        auth_headers: dict,
-        api_v1_prefix: str,
-    ):
-        """Query TAN methods fails without PIN."""
-        response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
-            headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-            },
-        )
-
-        assert response.status_code == 422  # Pydantic validation
+        assert response.status_code == 404
+        assert "credentials" in response.json()["detail"].lower()
 
     def test_query_tan_methods_unauthorized(
         self,
@@ -529,21 +464,17 @@ class TestQueryTanMethods:
     ):
         """Cannot query TAN methods without auth."""
         response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 401
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_connection_failure(
         self,
@@ -566,24 +497,27 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_failure
 
-        response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            headers=auth_headers,
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 503
         assert "Failed to connect to bank" in response.json()["detail"]
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_invalid_credentials(
         self,
@@ -606,24 +540,27 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_auth_error
 
-        response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "wrongpin",
-            },
+            json={"blz": "12345678", "username": "u", "pin": "wrongpin"},
+        )
+
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            headers=auth_headers,
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
 
     @patch(
-        "swen.application.queries.banking.lookup_bank_query.LookupBankQuery.from_factory",
+        "swen.application.banking.queries.lookup_bank_query.LookupBankQuery.from_factory",
     )
     @patch(
-        "swen.application.queries.banking.query_tan_methods_query.BankConnectionDispatcher"
+        "swen.application.banking.queries.query_tan_methods_query.BankConnectionDispatcher"
     )
     def test_query_tan_methods_empty_result(
         self,
@@ -646,14 +583,17 @@ class TestQueryTanMethods:
 
         mock_adapter.get_tan_methods = mock_get_tan_methods_empty
 
-        response = test_client.post(
-            f"{api_v1_prefix}/credentials/tan-methods",
+        # Store credentials so the query proceeds past the 404 check
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
             headers=auth_headers,
-            json={
-                "blz": "12345678",
-                "username": "testuser",
-                "pin": "testpin",
-            },
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.post(
+            f"{api_v1_prefix}/bank-connections/tan-methods",
+            headers=auth_headers,
+            json={"blz": "12345678"},
         )
 
         assert response.status_code == 200
@@ -661,3 +601,95 @@ class TestQueryTanMethods:
 
         assert data["tan_methods"] == []
         assert data["default_method"] is None
+
+
+class TestUpdateCredentialsTan:
+    """Tests for PATCH /api/v1/bank-connections/credentials/{blz}."""
+
+    def test_update_tan_settings_success(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Successfully update TAN settings for stored credentials."""
+        # Store first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": "SecureGo"},
+        )
+
+        assert response.status_code == 204
+
+    def test_update_tan_settings_not_found(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Returns 404 when no credentials exist for the BLZ."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/88888888",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 404
+
+    def test_update_tan_settings_invalid_blz(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Returns 400 for invalid BLZ format."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/123",
+            headers=auth_headers,
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 400
+        assert "8 digits" in response.json()["detail"]
+
+    def test_update_tan_settings_unauthorized(
+        self,
+        test_client: TestClient,
+        api_v1_prefix: str,
+    ):
+        """Cannot update credentials without auth."""
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            json={"tan_method": "946", "tan_medium": None},
+        )
+
+        assert response.status_code == 401
+
+    def test_update_tan_settings_null_method(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Allows setting tan_method to null (clears TAN settings)."""
+        # Store first
+        test_client.post(
+            f"{api_v1_prefix}/bank-connections/credentials",
+            headers=auth_headers,
+            json={"blz": "12345678", "username": "u", "pin": "p"},
+        )
+
+        response = test_client.patch(
+            f"{api_v1_prefix}/bank-connections/credentials/12345678",
+            headers=auth_headers,
+            json={"tan_method": None, "tan_medium": None},
+        )
+
+        assert response.status_code == 204

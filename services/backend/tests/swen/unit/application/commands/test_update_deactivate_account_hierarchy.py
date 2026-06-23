@@ -4,11 +4,11 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import (
+from swen.application.accounting.commands import (
     DeactivateAccountCommand,
     UpdateAccountCommand,
 )
-from swen.application.commands.accounting.update_account_command import ParentAction
+from swen.application.accounting.commands.update_account_command import ParentAction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,

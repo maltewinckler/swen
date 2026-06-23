@@ -5,6 +5,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from swen.domain.shared.iban import normalize_iban
+
 
 class BankAccount(BaseModel):
     """
@@ -89,12 +91,15 @@ class BankAccount(BaseModel):
     @field_validator("iban")
     @classmethod
     def validate_iban(cls, v: str) -> str:
-        # Remove spaces for flexibility
-        v = v.replace(" ", "").upper()
-        if not v[:2].isalpha() or not v[2:4].isdigit():
+        # Normalize IBAN for consistency
+        normalized_v = normalize_iban(v)
+        if normalized_v is None:
+            msg = "Invalid IBAN format"
+            raise ValueError(msg)
+        if not normalized_v[:2].isalpha() or not normalized_v[2:4].isdigit():
             msg = "IBAN must start with 2 letters followed by 2 digits"
             raise ValueError(msg)
-        return v
+        return normalized_v
 
     def __str__(self) -> str:
         balance_str = f" ({self.balance} {self.currency})" if self.balance else ""

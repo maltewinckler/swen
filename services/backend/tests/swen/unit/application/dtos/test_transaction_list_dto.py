@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.dtos.accounting.transaction_list_dto import (
+from swen.application.accounting.dtos.transaction_list_dto import (
     TransactionListItemDTO,
     _determine_amount_and_direction,
     _find_payment_entry,

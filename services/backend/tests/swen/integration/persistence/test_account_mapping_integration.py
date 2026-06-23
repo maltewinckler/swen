@@ -16,13 +16,16 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from swen.application.services import BankAccountImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import BankAccountImportService
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
+)
+from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
+    BankAccountRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
@@ -111,8 +114,8 @@ class TestAccountMappingIntegration:
         This reproduces the notebook flow where two bank accounts
         are imported in sequence.
         """
-        mapping1_iban = "NL12TRIO0123456789"
-        mapping2_iban = "NL34TRIO0987654321"
+        mapping1_iban = "DE12TRIO0123456789"
+        mapping2_iban = "DE34TRIO0987654321"
 
         # First session: Save both mappings (like notebook does)
         async for session in get_session(integration_session_maker):
@@ -190,7 +193,7 @@ class TestAccountMappingIntegration:
         """
         # Create mock bank accounts (like from FinTS)
         bank_account_1 = BankAccount(
-            iban="NL12TRIO0123456789",
+            iban="DE12TRIO0123456789012",
             account_number="123456789",
             blz="12345678",  # BLZ needs 8 chars
             account_holder="Test User",
@@ -201,7 +204,7 @@ class TestAccountMappingIntegration:
         )
 
         bank_account_2 = BankAccount(
-            iban="NL34TRIO0987654321",
+            iban="DE34TRIO0987654321012",
             account_number="987654321",
             blz="12345678",  # BLZ needs 8 chars
             account_holder="Test User",
@@ -215,11 +218,13 @@ class TestAccountMappingIntegration:
         async for session in get_session(integration_session_maker):
             account_repo = AccountRepositorySQLAlchemy(session, current_user)
             mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
                 current_user=current_user,
+                bank_account_repository=bank_account_repo,
             )
 
             # Import both bank accounts
@@ -271,11 +276,13 @@ class TestAccountMappingIntegration:
         async for session in get_session(integration_session_maker):
             account_repo = AccountRepositorySQLAlchemy(session, current_user)
             mapping_repo = AccountMappingRepositorySQLAlchemy(session, current_user)
+            bank_account_repo = BankAccountRepositorySQLAlchemy(session, current_user)
 
             import_service = BankAccountImportService(
                 account_repository=account_repo,
                 mapping_repository=mapping_repo,
                 current_user=current_user,
+                bank_account_repository=bank_account_repo,
             )
 
             # Count before
@@ -301,7 +308,7 @@ class TestAccountMappingIntegration:
                 f"before={len(accounts_before)}, after={len(accounts_after)}"
             )
 
-    async def test_sequential_session_pattern(
+    async def test_sequential_sessions_pattern(
         self,
         integration_session_maker,
         current_user,
@@ -312,9 +319,9 @@ class TestAccountMappingIntegration:
         This mimics how the notebook might call save() multiple times
         within a single session context.
         """
-        iban1 = "NL11TEST0000000001"
-        iban2 = "NL22TEST0000000002"
-        iban3 = "NL33TEST0000000003"
+        iban1 = "DE11TEST0000000001"
+        iban2 = "DE22TEST0000000002"
+        iban3 = "DE33TEST0000000003"
 
         # Single session, multiple saves (like import_multiple_bank_accounts)
         async for session in get_session(integration_session_maker):

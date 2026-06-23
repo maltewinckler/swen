@@ -1,10 +1,14 @@
 """Repository interface for transaction imports."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
+from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.entities import Account
 from swen.domain.integration.entities import TransactionImport
 from swen.domain.integration.value_objects import ImportStatus
 
@@ -96,7 +100,7 @@ class TransactionImportRepository(ABC):
     @abstractmethod
     async def find_by_iban(self, iban: str) -> List[TransactionImport]:
         """
-        Find all imports for a specific bank account.
+        Find all imports for a given IBAN.
 
         Parameters
         ----------
@@ -105,7 +109,22 @@ class TransactionImportRepository(ABC):
 
         Returns
         -------
-        List of imports for this account (may be empty)
+        List of all imports (any status) for the account (may be empty)
+        """
+
+    @abstractmethod
+    async def find_latest_booking_date_by_iban(self, iban: str) -> Optional[date]:
+        """
+        Return the latest booking date among all successful imports for an IBAN.
+
+        Parameters
+        ----------
+        iban
+            Bank account IBAN
+
+        Returns
+        -------
+        Latest booking date, or None when no successful import exists
         """
 
     @abstractmethod
@@ -126,30 +145,6 @@ class TransactionImportRepository(ABC):
         Returns
         -------
         List of failed imports (may be empty)
-        """
-
-    @abstractmethod
-    async def find_imports_in_date_range(
-        self,
-        iban: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> List[TransactionImport]:
-        """
-        Find all imports for an account within a date range.
-
-        Parameters
-        ----------
-        iban
-            Bank account IBAN
-        start_date
-            Start of date range
-        end_date
-            End of date range
-
-        Returns
-        -------
-        List of imports in range (may be empty)
         """
 
     @abstractmethod
@@ -182,4 +177,53 @@ class TransactionImportRepository(ABC):
         Returns
         -------
         True if deleted, False if not found
+        """
+
+    @abstractmethod
+    async def save_complete_import(
+        self,
+        import_record: TransactionImport,
+        accounting_tx: Transaction,
+        ob_adjustment: Optional[Transaction] = None,
+    ) -> None:
+        """Atomically persist the import, accounting tx, and optional OB adjustment.
+
+        Either all three writes are durable on return, or none are.
+
+        Parameters
+        ----------
+        import_record
+            Transaction import record to persist (with state transition applied)
+        accounting_tx
+            Accounting transaction to persist
+        ob_adjustment
+            Optional opening-balance adjustment transaction
+        """
+
+    @abstractmethod
+    async def mark_reconciled_as_internal_transfer(
+        self,
+        import_record: TransactionImport,
+        existing_transaction: Transaction,
+        new_asset_account: Account,
+        source_iban: str,
+        counterparty_iban: str,
+    ) -> None:
+        """Atomically convert an existing transaction into an internal-transfer record.
+
+        Either both writes succeed or neither does.
+
+        Parameters
+        ----------
+        import_record
+            Transaction import record to update (linked to existing transaction)
+        existing_transaction
+            Existing accounting transaction to convert into an internal transfer
+        new_asset_account
+            Asset account that replaces the previous counter account on the
+            existing transaction
+        source_iban
+            IBAN of the synced bank account
+        counterparty_iban
+            IBAN of the counterparty (the other side of the transfer)
         """

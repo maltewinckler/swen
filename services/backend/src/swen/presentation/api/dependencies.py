@@ -21,8 +21,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from swen.application.ports.identity import CurrentUser
 from swen.application.ports.ml_service import MLServicePort
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.adapters.identity import IdentityAdapter
 from swen.infrastructure.integration.ml import (
     MLServiceAdapter,

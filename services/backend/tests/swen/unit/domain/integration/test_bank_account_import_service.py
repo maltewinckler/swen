@@ -5,12 +5,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.ports.identity import CurrentUser
-from swen.application.services import BankAccountImportService
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.banking.value_objects import BankAccount
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import BankAccountImportService
+from swen.domain.shared.current_user import CurrentUser
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -23,6 +23,7 @@ class TestBankAccountImportService:
         """Set up test fixtures."""
         self.mock_account_repo = Mock()
         self.mock_mapping_repo = Mock()
+        self.mock_bank_account_repo = AsyncMock()
         # AccountRepository methods are async in production
         self.mock_account_repo.find_by_account_number = AsyncMock(return_value=None)
         self.mock_account_repo.find_by_iban = AsyncMock(return_value=None)
@@ -31,6 +32,7 @@ class TestBankAccountImportService:
             account_repository=self.mock_account_repo,
             mapping_repository=self.mock_mapping_repo,
             current_user=self.current_user,
+            bank_account_repository=self.mock_bank_account_repo,
         )
 
     @pytest.mark.asyncio

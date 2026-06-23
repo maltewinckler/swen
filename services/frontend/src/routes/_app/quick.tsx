@@ -89,6 +89,9 @@ function QuickActionsPage() {
     },
   })
 
+  // Determine if sync is in progress
+  const isSyncing = sync.isOpen && sync.progress !== null
+
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
       {/* Header */}
@@ -103,10 +106,10 @@ function QuickActionsPage() {
           icon={RefreshCw}
           label="Sync Bank"
           description="Fetch latest transactions from your bank"
-          onClick={() => sync.checkAndSync()}
+          onClick={() => sync.startSync()}
           variant="primary"
-          isLoading={sync.step === 'syncing'}
-          disabled={sync.step === 'syncing'}
+          isLoading={isSyncing}
+          disabled={isSyncing}
         />
 
         <QuickAction
@@ -138,13 +141,9 @@ function QuickActionsPage() {
       <SyncProgressModal
         open={sync.isOpen}
         onClose={sync.reset}
-        step={sync.step}
         progress={sync.progress}
         result={sync.result}
         error={sync.error}
-        firstSyncDays={sync.firstSyncDays}
-        onSetFirstSyncDays={sync.setFirstSyncDays}
-        onConfirmFirstSync={sync.confirmFirstSync}
         onSkipSync={sync.skip}
       />
 

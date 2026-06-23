@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import (
+from swen.application.analytics.dtos import (
     BreakdownItem,
     IncomeBreakdownResult,
     SankeyData,
     SpendingBreakdownResult,
 )
-from swen.application.queries.analytics import SankeyQuery
+from swen.application.analytics.queries import SankeyQuery
 
 
 class TestSankeyQuery:

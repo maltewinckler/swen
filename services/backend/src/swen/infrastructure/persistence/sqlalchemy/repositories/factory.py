@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from swen.infrastructure.banking.bank_connection_dispatcher import (
+    BankConnectionDispatcher,
+)
 from swen.infrastructure.persistence.sqlalchemy.adapters.analytics import (
     SqlAlchemyAnalyticsReadAdapter,
 )
@@ -24,7 +27,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
-    CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
@@ -32,6 +34,9 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.settings import (
     UserSettingsRepositorySQLAlchemy,
+)
+from swen.infrastructure.persistence.sqlalchemy.unit_of_work import (
+    UnitOfWorkSQLAlchemy,
 )
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
@@ -41,7 +46,7 @@ from swen_identity.infrastructure.persistence.sqlalchemy import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class SQLAlchemyRepositoryFactory:
@@ -62,7 +67,6 @@ class SQLAlchemyRepositoryFactory:
         self._transaction_repo: TransactionRepositorySQLAlchemy | None = None
         self._mapping_repo: AccountMappingRepositorySQLAlchemy | None = None
         self._import_repo: TransactionImportRepositorySQLAlchemy | None = None
-        self._rule_repo: CounterAccountRuleRepositorySQLAlchemy | None = None
         self._credential_repo: BankCredentialRepositorySQLAlchemy | None = None
         self._bank_account_repo: BankAccountRepositorySQLAlchemy | None = None
         self._bank_transaction_repo: BankTransactionRepositorySQLAlchemy | None = None
@@ -74,6 +78,7 @@ class SQLAlchemyRepositoryFactory:
         ) = None
         self._bank_info_repo: BankInfoRepositorySQLAlchemy | None = None
         self._fints_endpoint_repo: FinTSEndpointRepositorySQLAlchemy | None = None
+        self._bank_connection_port: BankConnectionDispatcher | None = None
 
     @property
     def current_user(self) -> CurrentUser:
@@ -82,6 +87,9 @@ class SQLAlchemyRepositoryFactory:
     @property
     def session(self) -> AsyncSession:
         return self._session
+
+    def unit_of_work(self) -> UnitOfWorkSQLAlchemy:
+        return UnitOfWorkSQLAlchemy(self._session)
 
     def account_repository(self) -> AccountRepositorySQLAlchemy:
         if self._account_repo is None:
@@ -115,14 +123,6 @@ class SQLAlchemyRepositoryFactory:
                 self._current_user,
             )
         return self._import_repo
-
-    def counter_account_rule_repository(self) -> CounterAccountRuleRepositorySQLAlchemy:
-        if self._rule_repo is None:
-            self._rule_repo = CounterAccountRuleRepositorySQLAlchemy(
-                self._session,
-                self._current_user,
-            )
-        return self._rule_repo
 
     def credential_repository(self) -> BankCredentialRepositorySQLAlchemy:
         if self._credential_repo is None:
@@ -214,3 +214,9 @@ class SQLAlchemyRepositoryFactory:
                 self._session,
             )
         return self._fints_endpoint_repo
+
+    def bank_connection_port(self) -> BankConnectionDispatcher:
+        """Get the bank connection dispatcher (BankConnectionPort impl)."""
+        if self._bank_connection_port is None:
+            self._bank_connection_port = BankConnectionDispatcher.from_factory(self)
+        return self._bank_connection_port

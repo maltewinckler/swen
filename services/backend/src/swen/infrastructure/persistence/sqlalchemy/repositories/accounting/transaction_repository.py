@@ -35,7 +35,7 @@ from swen.infrastructure.persistence.sqlalchemy.models import (
 )
 
 if TYPE_CHECKING:
-    from swen.application.ports.identity import CurrentUser
+    from swen.domain.shared.current_user import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,10 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         self._user_id = current_user.user_id
 
     async def save(self, transaction: Transaction) -> None:
+        await self._save_no_commit(transaction)
+        await self._session.commit()
+
+    async def _save_no_commit(self, transaction: Transaction) -> None:
         # Check if transaction already exists
         model = await self._find_model_by_id(transaction.id)
 
@@ -117,6 +121,7 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         if model:
             await self._session.delete(model)
             await self._session.flush()
+            await self._session.commit()
             logger.info("Transaction deleted: %s", transaction_id)
 
     async def find_by_counterparty(self, counterparty: str) -> List[Transaction]:

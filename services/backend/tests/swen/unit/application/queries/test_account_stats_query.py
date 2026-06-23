@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.queries.accounting import AccountStatsQuery
+from swen.application.accounting.queries import AccountStatsQuery
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency, Money
@@ -346,9 +346,9 @@ class TestAccountStatsQuery:
         )
 
         result = await query.execute(account_id=sample_checking_account.id)
-        result_dict = result.to_dict()
+        result_dict = result.model_dump()
 
         assert "account_id" in result_dict
         assert "balance" in result_dict
         assert "transaction_count" in result_dict
-        assert result_dict["balance"] == "0"
+        assert result_dict["balance"] == Decimal("0")

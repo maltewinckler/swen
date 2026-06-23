@@ -5,15 +5,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.commands.integration import (
+from swen.application.integration.commands import (
     CreateExternalAccountCommand,
     CreateExternalAccountResult,
 )
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.current_user import CurrentUser
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
@@ -53,7 +53,7 @@ class TestCreateExternalAccountCommand:
 
         # Mock reconciliation service to not reconcile anything
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 0
@@ -145,7 +145,7 @@ class TestCreateExternalAccountCommand:
 
         # Mock reconciliation service to reconcile some transactions
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 5  # 5 reconciled
@@ -178,7 +178,7 @@ class TestCreateExternalAccountCommand:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service_class.return_value = mock_service
@@ -207,7 +207,7 @@ class TestCreateExternalAccountCommand:
         mapping_repo.save = AsyncMock()
 
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 0
@@ -280,7 +280,7 @@ class TestCreateExternalAccountCommand:
         mapping_repo.save = AsyncMock()
 
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 0
@@ -288,7 +288,7 @@ class TestCreateExternalAccountCommand:
 
             # Act - Create USD account
             result = await command.execute(
-                iban="US12345678901234567890",  # Made-up IBAN for test
+                iban="DE12345678901234567890",  # Made-up German IBAN for test
                 name="US Stock Portfolio",
                 currency="USD",
                 reconcile=False,
@@ -314,7 +314,7 @@ class TestCreateExternalAccountCommandLiability:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_liability_for_new_account.return_value = 0
@@ -347,7 +347,7 @@ class TestCreateExternalAccountCommandLiability:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_liability_for_new_account.return_value = 3
@@ -380,7 +380,7 @@ class TestCreateExternalAccountCommandLiability:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 2
@@ -446,7 +446,7 @@ class TestCreateExternalAccountCommandReuseExisting:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_for_new_account.return_value = 2
@@ -495,7 +495,7 @@ class TestCreateExternalAccountCommandReuseExisting:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service.reconcile_liability_for_new_account.return_value = 1
@@ -567,7 +567,7 @@ class TestCreateExternalAccountCommandReuseExisting:
 
         # Mock reconciliation service
         with patch(
-            "swen.application.commands.integration.create_external_account_command.TransferReconciliationService",
+            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
         ) as mock_service_class:
             mock_service = AsyncMock()
             mock_service_class.return_value = mock_service

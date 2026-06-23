@@ -48,6 +48,7 @@ dev = [
     "pre-commit>=4.5.1",
     "detect-secrets>=1.5.0",
     "testcontainers[postgres]>=4.0",
+    "hypothesis>=6.0",
 ]
 
 [project.scripts]
@@ -185,3 +186,8 @@ typeCheckingMode = "basic"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.152.4",
+]

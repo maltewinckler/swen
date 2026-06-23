@@ -23,6 +23,7 @@ dev = [
     "detect-secrets>=1.5.0",
     "ipykernel>=6.0",
     "testcontainers[postgres]>=4.0",
+    "hypothesis",
     # Include all workspace packages for development purposes
     "swen-backend",
     "swen-ml",

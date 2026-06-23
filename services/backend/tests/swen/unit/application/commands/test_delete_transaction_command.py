@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import DeleteTransactionCommand
+from swen.application.accounting.commands import DeleteTransactionCommand
 from swen.domain.accounting.exceptions import TransactionNotFoundError
 from swen.domain.shared.exceptions import BusinessRuleViolation
 

@@ -19,24 +19,29 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.factories import BankImportTransactionFactory
-from swen.application.ports.identity import CurrentUser
-from swen.application.queries.integration import OpeningBalanceQuery
-from swen.application.services import TransactionImportService
-from swen.application.services.opening_balance_adjustment_service import (
-    OpeningBalanceAdjustmentService,
-)
-from swen.application.services.transfer_reconciliation_service import (
+from swen.application.integration.services import TransactionImportService
+from swen.domain.accounting.entities import Account, AccountType
+from swen.domain.accounting.services import OpeningBalanceService
+from swen.domain.accounting.value_objects import Currency
+from swen.domain.banking.repositories import StoredBankTransaction
+from swen.domain.banking.value_objects import BankTransaction
+from swen.domain.integration.services import (
     TransferReconciliationService,
 )
-from swen.domain.accounting.entities import Account, AccountType
-from swen.domain.accounting.value_objects import Currency
-from swen.domain.banking.value_objects import BankTransaction
-from swen.domain.integration.value_objects import ImportStatus, ResolutionResult
-from swen.infrastructure.persistence.sqlalchemy.repositories.banking.bank_transaction_repository import (
-    StoredBankTransaction,
-)
+from swen.domain.integration.value_objects import ImportStatus, ResolvedCounterAccount
+from swen.domain.shared.current_user import CurrentUser
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
+
+
+def _fallback_resolved(
+    stored_list: list[StoredBankTransaction],
+    account: Account,
+) -> dict:
+    return {
+        s.id: ResolvedCounterAccount(account=account, confidence=None)
+        for s in stored_list
+    }
 
 
 def create_hostelworld_refund() -> BankTransaction:
@@ -74,7 +79,6 @@ def create_stored_transaction(
 def service_with_mocks():
     """Create a TransactionImportService with mocked dependencies."""
     bank_account_service = AsyncMock()
-    counter_account_resolution_service = AsyncMock()
     account_repo = AsyncMock()
     transaction_repo = AsyncMock()
     mapping_repo = AsyncMock()
@@ -99,44 +103,29 @@ def service_with_mocks():
 
     bank_account_service.get_or_create_asset_account.return_value = asset_account
 
-    # Create a mock resolution result
-    resolution_result = MagicMock(spec=ResolutionResult)
-    resolution_result.account = income_account
-    resolution_result.is_from_ai = False
-    resolution_result.has_ai_result = False
-    resolution_result.ai_result = None
-    counter_account_resolution_service.resolve_counter_account_with_details.return_value = resolution_result
-
     # No existing imports
     import_repo.find_by_bank_transaction_id.return_value = None
 
     # Mapping repo returns None (external transaction, not internal transfer)
     mapping_repo.find_by_iban.return_value = None
 
-    ob_query = OpeningBalanceQuery(transaction_repository=transaction_repo)
+    ob_service = OpeningBalanceService(
+        account_repository=account_repo,
+        transaction_repository=transaction_repo,
+        user_id=TEST_USER_ID,
+    )
     transfer_service = TransferReconciliationService(
         transaction_repository=transaction_repo,
-        mapping_repository=mapping_repo,
-        account_repository=account_repo,
-        opening_balance_query=ob_query,
     )
 
     transaction_factory = BankImportTransactionFactory(
         current_user=current_user,
     )
 
-    ob_adjustment_service = OpeningBalanceAdjustmentService(
-        account_repository=account_repo,
-        transaction_repository=transaction_repo,
-        opening_balance_query=ob_query,
-        current_user=current_user,
-    )
-
     service = TransactionImportService(
         bank_account_import_service=bank_account_service,
-        counter_account_resolution_service=counter_account_resolution_service,
         transfer_reconciliation_service=transfer_service,
-        opening_balance_adjustment_service=ob_adjustment_service,
+        opening_balance_service=ob_service,
         transaction_factory=transaction_factory,
         account_repository=account_repo,
         transaction_repository=transaction_repo,
@@ -146,7 +135,6 @@ def service_with_mocks():
 
     return service, {
         "bank_account_service": bank_account_service,
-        "counter_account_resolution_service": counter_account_resolution_service,
         "account_repo": account_repo,
         "transaction_repo": transaction_repo,
         "mapping_repo": mapping_repo,
@@ -177,9 +165,11 @@ class TestIdenticalTransactionHandling:
         stored2 = create_stored_transaction(transaction, hash_sequence=2)
 
         # Import both
-        results = await svc.import_from_stored_transactions(
-            stored_transactions=[stored1, stored2],
+        stored_list = [stored1, stored2]
+        results = await svc.import_batch(
+            stored_transactions=stored_list,
             source_iban="DE89370400440532013000",
+            resolved=_fallback_resolved(stored_list, deps["income_account"]),
             auto_post=False,
         )
 
@@ -187,11 +177,8 @@ class TestIdenticalTransactionHandling:
         assert len(results) == 2
         assert all(r.status == ImportStatus.SUCCESS for r in results)
 
-        # Both should have created accounting transactions
-        assert deps["transaction_repo"].save.await_count == 2
-
-        # Both should have created import records
-        assert deps["import_repo"].save.await_count == 2
+        # Both should have created accounting transactions via save_complete_import
+        assert deps["import_repo"].save_complete_import.await_count == 2
 
     @pytest.mark.asyncio
     async def test_import_uses_bank_transaction_id_for_deduplication(
@@ -204,9 +191,10 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        await svc.import_from_stored_transactions(
+        await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
         )
 
@@ -233,9 +221,10 @@ class TestIdenticalTransactionHandling:
         existing_import.status = ImportStatus.SUCCESS
         deps["import_repo"].find_by_bank_transaction_id.return_value = existing_import
 
-        results = await svc.import_from_stored_transactions(
+        results = await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
         )
 
@@ -257,14 +246,17 @@ class TestIdenticalTransactionHandling:
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        await svc.import_from_stored_transactions(
+        await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=False,
         )
 
-        # Check the saved import record
-        saved_import = deps["import_repo"].save.await_args.args[0]
+        # Check the saved import record via save_complete_import
+        saved_import = deps["import_repo"].save_complete_import.await_args.kwargs[
+            "import_record"
+        ]
         assert saved_import.bank_transaction_id == stored.id
 
 
@@ -323,14 +315,15 @@ class TestAutoPostBehavior:
         service_with_mocks,
     ):
         """auto_post=True should post the transactions."""
-        svc, _ = service_with_mocks
+        svc, deps = service_with_mocks
 
         transaction = create_hostelworld_refund()
         stored = create_stored_transaction(transaction, hash_sequence=1)
 
-        results = await svc.import_from_stored_transactions(
+        results = await svc.import_batch(
             stored_transactions=[stored],
             source_iban="DE89370400440532013000",
+            resolved=_fallback_resolved([stored], deps["income_account"]),
             auto_post=True,
         )
 

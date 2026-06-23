@@ -2,7 +2,7 @@
 
 import pytest
 
-from swen.domain.integration.value_objects import (
+from swen.infrastructure.integration.value_objects.ai_model_info import (
     AIModelInfo,
     DownloadProgress,
     ModelStatus,

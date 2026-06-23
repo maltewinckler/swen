@@ -1,20 +1,20 @@
-"""ML Service adapter implementing the application port."""
+"""ML Service adapter implementing the application port.
+
+Handles example submission and account embeddings. Classification is
+handled separately by ``MLCounterAccountAdapter``.
+"""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING
 
-from swen_ml_contracts import AccountOption, StoreExampleRequest, TransactionInput
+from swen_ml_contracts import AccountOption, StoreExampleRequest
 
 from swen.application.ports.ml_service import (
     AccountForClassification,
-    BatchClassificationResult,
-    ClassificationProgress,
-    ClassificationResult,
     MLServicePort,
     TransactionExample,
-    TransactionForClassification,
 )
 
 if TYPE_CHECKING:
@@ -29,6 +29,7 @@ class MLServiceAdapter(MLServicePort):
     """Infrastructure adapter that implements MLServicePort.
 
     Translates domain objects to ML contracts and delegates to the HTTP client.
+    Covers example submission and account embeddings only.
     """
 
     def __init__(self, client: MLServiceClient):
@@ -60,121 +61,6 @@ class MLServiceAdapter(MLServicePort):
             example.transaction_id,
             example.account_number,
         )
-
-    async def classify_batch(
-        self,
-        user_id: UUID,
-        transactions: list[TransactionForClassification],
-    ) -> BatchClassificationResult | None:
-        """Classify a batch of transactions."""
-        if not self._client.enabled:
-            return None
-
-        # Convert domain objects to ML contracts
-        ml_transactions = [
-            TransactionInput(
-                transaction_id=txn.transaction_id,
-                booking_date=txn.booking_date,
-                counterparty_name=txn.counterparty_name,
-                counterparty_iban=txn.counterparty_iban,
-                purpose=txn.purpose,
-                amount=txn.amount,
-            )
-            for txn in transactions
-        ]
-
-        result = await self._client.classify_batch(
-            user_id=user_id,
-            transactions=ml_transactions,
-        )
-
-        if result is None:
-            return None
-
-        # Convert ML response to domain objects
-        classifications = [
-            ClassificationResult(
-                transaction_id=clf.transaction_id,
-                account_id=clf.account_id,
-                account_number=clf.account_number,
-                confidence=clf.confidence,
-                tier=clf.tier,
-                merchant=clf.merchant,
-                is_recurring=clf.is_recurring,
-                recurring_pattern=clf.recurring_pattern,
-            )
-            for clf in result.classifications
-        ]
-
-        return BatchClassificationResult(
-            classifications=classifications,
-            processing_time_ms=result.processing_time_ms,
-            total=result.stats.total,
-            by_tier={str(k): v for k, v in result.stats.by_tier.items()},
-            recurring_detected=result.stats.recurring_detected,
-            merchants_extracted=result.stats.merchants_extracted,
-        )
-
-    async def classify_batch_streaming(
-        self,
-        user_id: UUID,
-        transactions: list[TransactionForClassification],
-    ) -> AsyncIterator[ClassificationProgress | BatchClassificationResult]:
-        """Classify batch with streaming progress updates."""
-        if not self._client.enabled:
-            return
-
-        # Convert domain objects to ML contracts
-        ml_transactions = [
-            TransactionInput(
-                transaction_id=txn.transaction_id,
-                booking_date=txn.booking_date,
-                counterparty_name=txn.counterparty_name,
-                counterparty_iban=txn.counterparty_iban,
-                purpose=txn.purpose,
-                amount=txn.amount,
-            )
-            for txn in transactions
-        ]
-
-        async for event in self._client.classify_batch_streaming(
-            user_id=user_id,
-            transactions=ml_transactions,
-        ):
-            event_type = event.get("type")
-
-            if event_type == "progress":
-                yield ClassificationProgress(
-                    current=event.get("current", 0),
-                    total=event.get("total", 0),
-                    last_tier=event.get("last_tier"),
-                    last_merchant=event.get("last_merchant"),
-                )
-            elif event_type == "result":
-                # Parse full result
-                classifications = [
-                    ClassificationResult(
-                        transaction_id=clf["transaction_id"],
-                        account_id=clf["account_id"],
-                        account_number=clf["account_number"],
-                        confidence=clf["confidence"],
-                        tier=clf["tier"],
-                        merchant=clf.get("merchant"),
-                        is_recurring=clf.get("is_recurring", False),
-                        recurring_pattern=clf.get("recurring_pattern"),
-                    )
-                    for clf in event.get("classifications", [])
-                ]
-
-                stats = event.get("stats", {})
-                yield BatchClassificationResult(
-                    classifications=classifications,
-                    processing_time_ms=event.get("processing_time_ms", 0),
-                    total=stats.get("total", 0),
-                    by_tier=stats.get("by_tier", {}),
-                    recurring_detected=stats.get("recurring_detected", 0),
-                    merchants_extracted=stats.get("merchants_extracted", 0),
-                )
 
     async def embed_accounts(
         self,

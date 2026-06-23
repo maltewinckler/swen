@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.settings import (
+from swen.application.settings.commands import (
     ResetUserSettingsCommand,
     UpdateUserSettingsCommand,
 )

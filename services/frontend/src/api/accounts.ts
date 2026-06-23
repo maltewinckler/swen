@@ -188,5 +188,5 @@ export interface ReconciliationResult {
  * Get reconciliation status - compare bank balances with bookkeeping
  */
 export async function getReconciliation(): Promise<ReconciliationResult> {
-  return api.get<ReconciliationResult>('/accounts/reconciliation')
+  return api.get<ReconciliationResult>('/integration/reconciliation')
 }

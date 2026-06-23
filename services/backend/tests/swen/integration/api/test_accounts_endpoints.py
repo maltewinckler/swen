@@ -408,7 +408,7 @@ class TestBankAccounts:
     ):
         """List bank accounts returns empty for new user."""
         response = test_client.get(
-            f"{api_v1_prefix}/accounts/bank",
+            f"{api_v1_prefix}/bank-accounts",
             headers=auth_headers,
         )
 

@@ -19,7 +19,6 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.factory import (
 # Integration domain repositories
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
-    CounterAccountRuleRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
 
@@ -35,5 +34,4 @@ __all__ = [
     # Integration
     "AccountMappingRepositorySQLAlchemy",
     "TransactionImportRepositorySQLAlchemy",
-    "CounterAccountRuleRepositorySQLAlchemy",
 ]

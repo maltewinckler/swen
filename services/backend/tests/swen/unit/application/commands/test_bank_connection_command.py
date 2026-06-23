@@ -1,194 +1,198 @@
-"""Unit tests for BankConnectionCommand."""
+"""Unit tests for SetupBankCommand."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import pytest
 
-from swen.application.commands import BankConnectionCommand
+from swen.application.banking.commands import SetupBankCommand
+from swen.application.banking.dtos import BankAccountToImportDTO, SetupBankRequestDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
-from swen.domain.banking.value_objects import BankAccount, BankCredentials
 from swen.domain.integration.entities import AccountMapping
-from swen.domain.shared.value_objects.secure_string import SecureString
 
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 
 
-class TestBankConnectionCommand:
-    """Test suite for BankConnectionCommand."""
+def _make_account_to_import_dto(
+    iban: str = "DE89370400440532013000",
+    custom_name: str | None = None,
+) -> BankAccountToImportDTO:
+    return BankAccountToImportDTO(
+        iban=iban,
+        default_name="Test Bank - Girokonto",
+        account_number="532013000",
+        account_holder="Max Mustermann",
+        account_type="Girokonto",
+        blz="37040044",
+        bic="TESTDEFFXXX",
+        bank_name="Test Bank",
+        currency="EUR",
+        custom_name=custom_name,
+        balance="1000.00",
+        balance_date="2024-01-01T00:00:00",
+    )
+
+
+class TestSetupBankCommand:
+    """Test suite for SetupBankCommand."""
 
     @pytest.mark.asyncio
-    async def test_successful_connection_and_import(self):
-        """Test successful bank connection and account import."""
-        # Arrange
-        mock_adapter = AsyncMock()
-        mock_import_service = AsyncMock()
-
-        bank_creds = BankCredentials(
-            blz="50031000",
-            username=SecureString("testuser"),
-            pin=SecureString("1234"),
-        )
-
-        bank_acct = BankAccount(
-            iban="DE89370400440532013000",
-            account_holder="Max Mustermann",
-            account_number="532013000",
-            blz="37040044",
-            account_type="Girokonto",
-            currency="EUR",
-            bank_name="Test Bank",
-        )
-
+    async def test_successful_import_returns_dto_with_accounting_ids(self):
+        """Importing accounts returns SetupBankResponseDTO with accounting_account_id set."""
         accounting_acct = Account(
             name="Test Bank - Girokonto",
             account_type=AccountType.ASSET,
-            account_number="1000",
+            account_number="BA-32013000",
             user_id=TEST_USER_ID,
             default_currency=Currency("EUR"),
         )
-
         mapping = AccountMapping(
             iban="DE89370400440532013000",
             accounting_account_id=accounting_acct.id,
             account_name="Test Bank - Girokonto",
             user_id=TEST_USER_ID,
         )
-
-        mock_adapter.fetch_accounts.return_value = [bank_acct]
+        mock_import_service = AsyncMock()
         mock_import_service.import_bank_account.return_value = (
             accounting_acct,
             mapping,
         )
 
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
+        command = SetupBankCommand(
+            bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
+            credential_repo=AsyncMock(),
         )
-
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
-
-        # Assert
-        assert result.success is True
-        assert result.bank_code == "50031000"
-        assert result.accounts_count == 1
-        assert result.accounts_imported[0].iban == "DE89370400440532013000"
-
-        # Verify workflow
-        mock_adapter.connect.assert_called_once_with(bank_creds)
-        mock_adapter.disconnect.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_connection_with_no_accounts(self):
-        """Test connection when bank returns no accounts."""
-        # Arrange
-        mock_adapter = AsyncMock()
-        mock_adapter.fetch_accounts.return_value = []
-
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=AsyncMock(),
-        )
-
-        bank_creds = BankCredentials(
-            blz="50031000",
-            username=SecureString("testuser"),
-            pin=SecureString("1234"),
-        )
-
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
-
-        # Assert
-        assert result.success is True
-        assert result.accounts_count == 0
-        assert result.error_message is None
-        assert result.warning_message == "No accounts found at bank"
-        mock_adapter.disconnect.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_connection_failure(self):
-        """Test handling of connection failure."""
-        # Arrange
-        mock_adapter = AsyncMock()
-        mock_adapter.connect.side_effect = Exception("Invalid credentials")
-        # is_connected() is a sync method, not async
-        mock_adapter.is_connected = Mock(return_value=False)
-
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
-            import_service=AsyncMock(),
-        )
-
-        bank_creds = BankCredentials(
-            blz="50031000",
-            username=SecureString("testuser"),
-            pin=SecureString("1234"),
-        )
-
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
-
-        # Assert
-        assert result.success is False
-        assert "Invalid credentials" in str(result.error_message)
-
-    @pytest.mark.asyncio
-    async def test_result_to_dict_serialization(self):
-        """Test that ConnectionResult can be serialized to dict."""
-        # Arrange
-        mock_adapter = AsyncMock()
-        mock_import_service = AsyncMock()
-
-        bank_acct = BankAccount(
-            iban="DE89370400440532013000",
-            account_holder="Max Mustermann",
-            account_number="532013000",
+        request_dto = SetupBankRequestDTO(
             blz="37040044",
-            account_type="Girokonto",
-            currency="EUR",
-            bank_name="Test Bank",
+            accounts=[_make_account_to_import_dto()],
         )
 
+        result = await command.execute(request_dto)
+
+        assert result.success is True
+        assert result.blz == "37040044"
+        assert len(result.imported_accounts) == 1
+        assert result.imported_accounts[0].iban == "DE89370400440532013000"
+        assert result.imported_accounts[0].accounting_account_id == accounting_acct.id
+
+    @pytest.mark.asyncio
+    async def test_custom_name_is_forwarded_to_import_service(self):
+        """custom_name from the DTO is passed through to BankAccountImportService."""
         accounting_acct = Account(
-            name="Test Bank - Girokonto",
+            name="Mein Konto",
             account_type=AccountType.ASSET,
-            account_number="1000",
+            account_number="BA-32013000",
             user_id=TEST_USER_ID,
             default_currency=Currency("EUR"),
         )
-
-        mapping = AccountMapping(
-            iban="DE89370400440532013000",
-            accounting_account_id=accounting_acct.id,
-            account_name="Test Bank - Girokonto",
-            user_id=TEST_USER_ID,
-        )
-
-        mock_adapter.fetch_accounts.return_value = [bank_acct]
+        mock_import_service = AsyncMock()
         mock_import_service.import_bank_account.return_value = (
             accounting_acct,
-            mapping,
+            AsyncMock(),
         )
 
-        command = BankConnectionCommand(
-            bank_adapter=mock_adapter,
+        command = SetupBankCommand(
+            bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
+            credential_repo=AsyncMock(),
+        )
+        request_dto = SetupBankRequestDTO(
+            blz="37040044",
+            accounts=[_make_account_to_import_dto(custom_name="Mein Konto")],
         )
 
-        bank_creds = BankCredentials(
-            blz="50031000",
-            username=SecureString("testuser"),
-            pin=SecureString("1234"),
+        await command.execute(request_dto)
+
+        _, call_kwargs = mock_import_service.import_bank_account.call_args
+        assert call_kwargs["custom_name"] == "Mein Konto"
+
+    @pytest.mark.asyncio
+    async def test_multiple_accounts_all_imported(self):
+        """All accounts in the request are imported and returned."""
+        mock_import_service = AsyncMock()
+        mock_import_service.import_bank_account.side_effect = [
+            (
+                Account(
+                    name=f"Account {i}",
+                    account_type=AccountType.ASSET,
+                    account_number=f"BA-{i:08d}",
+                    user_id=TEST_USER_ID,
+                    default_currency=Currency("EUR"),
+                ),
+                AsyncMock(),
+            )
+            for i in range(3)
+        ]
+
+        command = SetupBankCommand(
+            bank_fetch_service=AsyncMock(),
+            import_service=mock_import_service,
+            credential_repo=AsyncMock(),
+        )
+        accounts = [
+            _make_account_to_import_dto(iban=f"DE{i:020d}") for i in range(1, 4)
+        ]
+        request_dto = SetupBankRequestDTO(blz="37040044", accounts=accounts)
+
+        result = await command.execute(request_dto)
+
+        assert result.success is True
+        assert len(result.imported_accounts) == 3
+        assert mock_import_service.import_bank_account.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_import_service_exception_propagates(self):
+        """Exceptions from the import service bubble up so the router can rollback."""
+        mock_import_service = AsyncMock()
+        mock_import_service.import_bank_account.side_effect = ValueError(
+            "IBAN already linked to a non-asset account"
         )
 
-        # Act - user_id is now obtained from user-scoped repositories
-        result = await command.execute(credentials=bank_creds)
-        result_dict = result.to_dict()
+        command = SetupBankCommand(
+            bank_fetch_service=AsyncMock(),
+            import_service=mock_import_service,
+            credential_repo=AsyncMock(),
+        )
+        request_dto = SetupBankRequestDTO(
+            blz="37040044",
+            accounts=[_make_account_to_import_dto()],
+        )
 
-        # Assert
-        assert isinstance(result_dict, dict)
-        assert result_dict["success"] is True
-        assert result_dict["bank_code"] == "50031000"
+        with pytest.raises(ValueError, match="IBAN already linked"):
+            await command.execute(request_dto)
+
+    @pytest.mark.asyncio
+    async def test_result_is_serializable_as_dict(self):
+        """SetupBankResponseDTO can be round-tripped via model_dump (used by router)."""
+        accounting_acct = Account(
+            name="Test Bank - Girokonto",
+            account_type=AccountType.ASSET,
+            account_number="BA-32013000",
+            user_id=TEST_USER_ID,
+            default_currency=Currency("EUR"),
+        )
+        mock_import_service = AsyncMock()
+        mock_import_service.import_bank_account.return_value = (
+            accounting_acct,
+            AsyncMock(),
+        )
+
+        command = SetupBankCommand(
+            bank_fetch_service=AsyncMock(),
+            import_service=mock_import_service,
+            credential_repo=AsyncMock(),
+        )
+        request_dto = SetupBankRequestDTO(
+            blz="37040044",
+            accounts=[_make_account_to_import_dto()],
+        )
+
+        result = await command.execute(request_dto)
+        dumped = result.model_dump()
+
+        assert isinstance(dumped, dict)
+        assert dumped["success"] is True
+        assert dumped["blz"] == "37040044"
+        assert dumped["imported_accounts"][0]["iban"] == "DE89370400440532013000"

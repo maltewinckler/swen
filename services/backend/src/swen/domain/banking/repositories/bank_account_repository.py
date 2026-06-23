@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from swen.domain.banking.value_objects import BankAccount
@@ -84,3 +85,15 @@ class BankAccountRepository(ABC):
         sync_time
             The timestamp of the sync
         """
+
+    async def find_balance(self, iban: str) -> Optional[Decimal]:
+        """Return the stored balance for *iban*, or ``None`` if not available."""
+        account = await self.find_by_iban(iban)
+        if account is None or account.balance is None:
+            return None
+        return account.balance
+
+    async def save_accounts(self, accounts: list[BankAccount]) -> None:
+        """Persist a list of bank accounts (upsert semantics)."""
+        for account in accounts:
+            await self.save(account)

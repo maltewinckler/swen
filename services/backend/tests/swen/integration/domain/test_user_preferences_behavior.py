@@ -12,11 +12,11 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.value_objects import Currency, Money
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     AccountRepositorySQLAlchemy,
     TransactionRepositorySQLAlchemy,

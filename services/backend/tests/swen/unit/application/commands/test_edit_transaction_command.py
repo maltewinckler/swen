@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import EditTransactionCommand
+from swen.application.accounting.commands import EditTransactionCommand
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import (
     AccountNotFoundError,

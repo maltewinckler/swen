@@ -16,8 +16,8 @@ from uuid import UUID
 import pytest
 from sqlalchemy import text
 
-from swen.application.ports.identity import CurrentUser
 from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
     BankCredentialRepositorySQLAlchemy,
 )

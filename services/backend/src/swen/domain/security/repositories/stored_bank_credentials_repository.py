@@ -133,3 +133,35 @@ class StoredBankCredentialsRepository(ABC):
         CredentialNotFoundError
             If credentials not found
         """
+
+    @abstractmethod
+    async def update(
+        self,
+        blz: str,
+        *,
+        username_encrypted: Optional[bytes] = None,
+        pin_encrypted: Optional[bytes] = None,
+        tan_method: Optional[str] = None,
+        tan_medium: Optional[str] = None,
+    ) -> None:
+        """
+        Partially update stored credentials — only non-None fields are written.
+
+        Parameters
+        ----------
+        blz
+            Bankleitzahl
+        username_encrypted
+            Encrypted username bytes, or None to leave unchanged
+        pin_encrypted
+            Encrypted PIN bytes, or None to leave unchanged
+        tan_method
+            TAN method code to set, or None to leave unchanged
+        tan_medium
+            TAN medium/device name to set, or None to leave unchanged
+
+        Raises
+        ------
+        CredentialNotFoundError
+            If credentials not found
+        """

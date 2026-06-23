@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.queries import ListImportsQuery
+from swen.application.integration.queries import ListImportsQuery
 from swen.domain.integration.value_objects import ImportStatus
 
 
@@ -171,18 +171,3 @@ class TestListImportsQuery:
         # Status counts use status.value which is the enum value string
         assert len(result.status_counts) == 2
         assert result.total_count == 2
-
-    @pytest.mark.asyncio
-    async def test_get_status_statistics(self, mock_import_repo):
-        """Test getting overall statistics."""
-        mock_import_repo.count_by_status.return_value = {
-            "SUCCESS": 100,
-            "FAILED": 5,
-            "DUPLICATE": 10,
-        }
-
-        query = ListImportsQuery(mock_import_repo)
-        result = await query.get_status_statistics()
-
-        assert result == {"SUCCESS": 100, "FAILED": 5, "DUPLICATE": 10}
-        mock_import_repo.count_by_status.assert_called_once()

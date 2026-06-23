@@ -1,6 +1,6 @@
 """Tests for TransactionImport entity."""
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -10,6 +10,7 @@ from swen.domain.integration.value_objects import ImportStatus
 
 # Test user ID for all tests in this module
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
+_BOOKING_DATE = date(2024, 1, 15)
 
 
 class TestTransactionImport:
@@ -22,9 +23,11 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         assert import_record.bank_transaction_id == bank_tx_id
+        assert import_record.booking_date == _BOOKING_DATE
         assert import_record.status == ImportStatus.PENDING
         assert import_record.accounting_transaction_id is None
         assert import_record.error_message is None
@@ -41,6 +44,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.SUCCESS,
             accounting_transaction_id=accounting_tx_id,
         )
@@ -55,10 +59,12 @@ class TestTransactionImport:
         import1 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import2 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         # Should have the same ID
@@ -72,10 +78,12 @@ class TestTransactionImport:
         import1 = TransactionImport(
             bank_transaction_id=bank_tx_id_1,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import2 = TransactionImport(
             bank_transaction_id=bank_tx_id_2,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         assert import1.id != import2.id
@@ -86,8 +94,16 @@ class TestTransactionImport:
         user_id_1 = uuid4()
         user_id_2 = uuid4()
 
-        import1 = TransactionImport(bank_transaction_id=bank_tx_id, user_id=user_id_1)
-        import2 = TransactionImport(bank_transaction_id=bank_tx_id, user_id=user_id_2)
+        import1 = TransactionImport(
+            bank_transaction_id=bank_tx_id,
+            user_id=user_id_1,
+            booking_date=_BOOKING_DATE,
+        )
+        import2 = TransactionImport(
+            bank_transaction_id=bank_tx_id,
+            user_id=user_id_2,
+            booking_date=_BOOKING_DATE,
+        )
 
         assert import1.id != import2.id
 
@@ -99,6 +115,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_imported(accounting_tx_id)
 
@@ -114,6 +131,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.FAILED,
             error_message="Previous error",
         )
@@ -129,6 +147,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_failed("Connection timeout")
 
@@ -142,6 +161,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         with pytest.raises(ValueError, match="Error message cannot be empty"):
@@ -154,6 +174,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_failed("  Connection error  ")
 
@@ -166,6 +187,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_duplicate()
 
@@ -178,6 +200,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_skipped("Internal transfer")
 
@@ -191,6 +214,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.FAILED,
             error_message="Previous error",
         )
@@ -206,6 +230,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_skipped("Temporary skip")
         import_record.retry()
@@ -220,6 +245,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.SUCCESS,
             accounting_transaction_id=accounting_tx_id,
         )
@@ -235,6 +261,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.SUCCESS,
             accounting_transaction_id=accounting_tx_id,
         )
@@ -248,6 +275,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.FAILED,
             error_message="Error",
         )
@@ -261,6 +289,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_duplicate()
 
@@ -273,6 +302,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import_record.mark_as_skipped("Reason")
 
@@ -286,6 +316,7 @@ class TestTransactionImport:
         pending = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         assert pending.can_retry() is False
 
@@ -293,6 +324,7 @@ class TestTransactionImport:
         failed = TransactionImport(
             bank_transaction_id=uuid4(),
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.FAILED,
             error_message="Error",
         )
@@ -302,6 +334,7 @@ class TestTransactionImport:
         success = TransactionImport(
             bank_transaction_id=uuid4(),
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
             status=ImportStatus.SUCCESS,
             accounting_transaction_id=uuid4(),
         )
@@ -314,10 +347,12 @@ class TestTransactionImport:
         import1 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import2 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         # Same ID = equal
@@ -325,8 +360,16 @@ class TestTransactionImport:
 
     def test_inequality(self):
         """Test inequality for different IDs."""
-        import1 = TransactionImport(bank_transaction_id=uuid4(), user_id=TEST_USER_ID)
-        import2 = TransactionImport(bank_transaction_id=uuid4(), user_id=TEST_USER_ID)
+        import1 = TransactionImport(
+            bank_transaction_id=uuid4(),
+            user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
+        )
+        import2 = TransactionImport(
+            bank_transaction_id=uuid4(),
+            user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
+        )
 
         assert import1 != import2
 
@@ -336,6 +379,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         assert import_record != "not a TransactionImport"
@@ -348,10 +392,12 @@ class TestTransactionImport:
         import1 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         import2 = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         # Same ID = same hash
@@ -368,6 +414,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         str_repr = str(import_record)
@@ -383,6 +430,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         assert import_record.status == ImportStatus.PENDING
 
@@ -398,6 +446,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         # Fail
@@ -419,6 +468,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         import_record.mark_as_duplicate()
@@ -432,6 +482,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
 
         import_record.mark_as_skipped("Internal transfer")
@@ -450,6 +501,7 @@ class TestTransactionImport:
         import_record = TransactionImport(
             bank_transaction_id=bank_tx_id,
             user_id=TEST_USER_ID,
+            booking_date=_BOOKING_DATE,
         )
         after = datetime.now(tz=timezone.utc)
 

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID, uuid5
 
-from swen.domain.shared.iban import normalize_iban
+from swen.domain.shared.iban import extract_blz_from_iban, normalize_iban
 from swen.domain.shared.time import utc_now
 
 ACCOUNT_MAPPING_NAMESPACE = UUID("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d")
@@ -57,6 +57,11 @@ class AccountMapping:
         return self._iban
 
     @property
+    def blz(self) -> str:
+        """Return the BLZ extracted from the IBAN."""
+        return extract_blz_from_iban(self._iban)
+
+    @property
     def accounting_account_id(self) -> UUID:
         return self._accounting_account_id
 
@@ -88,6 +93,10 @@ class AccountMapping:
 
         if not self._iban[:2].isalpha():
             msg = "IBAN must start with 2 letter country code"
+            raise ValueError(msg)
+
+        if not self._iban.startswith("DE"):
+            msg = f"Only German IBANs (DE...) are supported. Got: {self._iban[:2]}"
             raise ValueError(msg)
 
         if not self._account_name:

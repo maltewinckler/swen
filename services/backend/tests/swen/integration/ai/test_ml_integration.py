@@ -369,7 +369,7 @@ class TestClassificationDuringSyncMocked:
 
         # Run sync (with mocked bank adapter returning empty)
         with patch(
-            "swen.application.commands.integration.transaction_sync_command.BankConnectionDispatcher"
+            "swen.infrastructure.persistence.sqlalchemy.repositories.factory.BankConnectionDispatcher"
         ) as mock_adapter_class:
             from unittest.mock import AsyncMock
 

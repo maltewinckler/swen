@@ -1,4 +1,4 @@
-"""Unit tests for OpeningBalanceService."""
+"""Unit tests for OpeningBalanceCalculator."""
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -9,11 +9,9 @@ import pytest
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import InvalidAccountTypeError
 from swen.domain.accounting.services import (
-    OPENING_BALANCE_IBAN_KEY,
-    OPENING_BALANCE_METADATA_KEY,
-    OpeningBalanceService,
+    OpeningBalanceCalculator,
 )
-from swen.domain.accounting.value_objects import Currency
+from swen.domain.accounting.value_objects import Currency, MetadataKeys
 from swen.domain.banking.value_objects import BankTransaction
 
 # Test user ID for all opening balance tests
@@ -24,9 +22,9 @@ class TestCalculateOpeningBalance:
     """Tests for calculate_opening_balance method."""
 
     @pytest.fixture
-    def service(self) -> OpeningBalanceService:
+    def service(self) -> OpeningBalanceCalculator:
         """Create service instance."""
-        return OpeningBalanceService()
+        return OpeningBalanceCalculator()
 
     @pytest.fixture
     def sample_transactions(self) -> list[BankTransaction]:
@@ -57,7 +55,7 @@ class TestCalculateOpeningBalance:
 
     def test_calculate_positive_opening_balance(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         sample_transactions: list[BankTransaction],
     ):
         """Should calculate opening balance when current > net change."""
@@ -75,7 +73,7 @@ class TestCalculateOpeningBalance:
 
     def test_calculate_negative_opening_balance(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         sample_transactions: list[BankTransaction],
     ):
         """Should handle negative opening balance (overdraft scenario)."""
@@ -93,7 +91,7 @@ class TestCalculateOpeningBalance:
 
     def test_calculate_zero_opening_balance(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         sample_transactions: list[BankTransaction],
     ):
         """Should handle zero opening balance."""
@@ -108,7 +106,7 @@ class TestCalculateOpeningBalance:
 
         assert result == Decimal("0.00")
 
-    def test_calculate_with_empty_transactions(self, service: OpeningBalanceService):
+    def test_calculate_with_empty_transactions(self, service: OpeningBalanceCalculator):
         """Should return current balance when no transactions."""
         current_balance = Decimal("1000.00")
 
@@ -119,7 +117,7 @@ class TestCalculateOpeningBalance:
 
         assert result == Decimal("1000.00")
 
-    def test_calculate_with_only_expenses(self, service: OpeningBalanceService):
+    def test_calculate_with_only_expenses(self, service: OpeningBalanceCalculator):
         """Should correctly calculate when only expenses."""
         transactions = [
             BankTransaction(
@@ -148,7 +146,7 @@ class TestCalculateOpeningBalance:
 
         assert result == Decimal("250.00")
 
-    def test_calculate_with_only_income(self, service: OpeningBalanceService):
+    def test_calculate_with_only_income(self, service: OpeningBalanceCalculator):
         """Should correctly calculate when only income."""
         transactions = [
             BankTransaction(
@@ -182,9 +180,9 @@ class TestCreateOpeningBalanceTransaction:
     """Tests for create_opening_balance_transaction method."""
 
     @pytest.fixture
-    def service(self) -> OpeningBalanceService:
+    def service(self) -> OpeningBalanceCalculator:
         """Create service instance."""
-        return OpeningBalanceService()
+        return OpeningBalanceCalculator()
 
     @pytest.fixture
     def asset_account(self) -> Account:
@@ -210,7 +208,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_create_positive_balance_transaction(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -238,9 +236,9 @@ class TestCreateOpeningBalanceTransaction:
         assert txn.user_id == TEST_USER_ID
 
         # Check metadata
-        assert txn.has_metadata_raw(OPENING_BALANCE_METADATA_KEY)
-        assert txn.get_metadata_raw(OPENING_BALANCE_METADATA_KEY) is True
-        assert txn.get_metadata_raw(OPENING_BALANCE_IBAN_KEY) == iban
+        assert txn.has_metadata_raw(MetadataKeys.IS_OPENING_BALANCE)
+        assert txn.get_metadata_raw(MetadataKeys.IS_OPENING_BALANCE) is True
+        assert txn.get_metadata_raw(MetadataKeys.OPENING_BALANCE_IBAN) == iban
 
         # Check entries - positive balance: Debit Asset, Credit Equity
         entries = txn.entries
@@ -257,7 +255,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_create_negative_balance_transaction(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -297,7 +295,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_create_zero_balance_transaction(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -319,7 +317,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_reject_non_asset_account(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         equity_account: Account,
     ):
         """Should reject if asset_account is not ASSET type."""
@@ -344,7 +342,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_reject_non_equity_account(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
     ):
         """Should reject if opening_balance_account is not EQUITY type."""
@@ -369,7 +367,7 @@ class TestCreateOpeningBalanceTransaction:
 
     def test_transaction_is_balanced(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -395,11 +393,11 @@ class TestGetEarliestTransactionDate:
     """Tests for get_earliest_transaction_date method."""
 
     @pytest.fixture
-    def service(self) -> OpeningBalanceService:
+    def service(self) -> OpeningBalanceCalculator:
         """Create service instance."""
-        return OpeningBalanceService()
+        return OpeningBalanceCalculator()
 
-    def test_get_earliest_date(self, service: OpeningBalanceService):
+    def test_get_earliest_date(self, service: OpeningBalanceCalculator):
         """Should return the earliest booking date."""
         transactions = [
             BankTransaction(
@@ -431,7 +429,9 @@ class TestGetEarliestTransactionDate:
         assert result.date() == date(2025, 1, 5)
         assert result.tzinfo == timezone.utc
 
-    def test_get_earliest_date_single_transaction(self, service: OpeningBalanceService):
+    def test_get_earliest_date_single_transaction(
+        self, service: OpeningBalanceCalculator
+    ):
         """Should work with single transaction."""
         transactions = [
             BankTransaction(
@@ -448,12 +448,12 @@ class TestGetEarliestTransactionDate:
         assert result is not None
         assert result.date() == date(2025, 3, 15)
 
-    def test_get_earliest_date_empty_list(self, service: OpeningBalanceService):
+    def test_get_earliest_date_empty_list(self, service: OpeningBalanceCalculator):
         """Should return None for empty list."""
         result = service.get_earliest_transaction_date([])
         assert result is None
 
-    def test_result_is_start_of_day_utc(self, service: OpeningBalanceService):
+    def test_result_is_start_of_day_utc(self, service: OpeningBalanceCalculator):
         """Should return datetime at start of day in UTC."""
         transactions = [
             BankTransaction(
@@ -478,9 +478,9 @@ class TestCreateOpeningBalanceAdjustment:
     """Tests for create_opening_balance_adjustment method."""
 
     @pytest.fixture
-    def service(self) -> OpeningBalanceService:
+    def service(self) -> OpeningBalanceCalculator:
         """Create service instance."""
-        return OpeningBalanceService()
+        return OpeningBalanceCalculator()
 
     @pytest.fixture
     def asset_account(self) -> Account:
@@ -506,7 +506,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_create_positive_adjustment_reduces_opening_balance(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -549,7 +549,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_create_negative_adjustment_increases_opening_balance(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -590,7 +590,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_zero_adjustment_returns_none(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -608,7 +608,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_adjustment_includes_transfer_hash_in_metadata(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -630,7 +630,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_adjustment_includes_iban_in_metadata(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -651,7 +651,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_adjustment_transaction_is_balanced(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
         equity_account: Account,
     ):
@@ -670,7 +670,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_reject_non_asset_account(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         equity_account: Account,
     ):
         """Should reject if asset_account is not ASSET type."""
@@ -693,7 +693,7 @@ class TestCreateOpeningBalanceAdjustment:
 
     def test_reject_non_equity_account(
         self,
-        service: OpeningBalanceService,
+        service: OpeningBalanceCalculator,
         asset_account: Account,
     ):
         """Should reject if opening_balance_account is not EQUITY type."""

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import MonthComparisonResult
-from swen.application.queries.analytics import MonthComparisonQuery
+from swen.application.analytics.dtos import MonthComparisonResult
+from swen.application.analytics.queries import MonthComparisonQuery
 
 
 class TestMonthComparisonQuery:

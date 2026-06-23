@@ -371,24 +371,6 @@ class TestImports:
 
         assert response.status_code == 200
 
-    def test_import_statistics(
-        self,
-        test_client: TestClient,
-        auth_headers: dict,
-        api_v1_prefix: str,
-    ):
-        """Get import statistics."""
-        response = test_client.get(
-            f"{api_v1_prefix}/imports/statistics",
-            headers=auth_headers,
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "total" in data
-        assert "success" in data
-        assert "failed" in data
-
     def test_imports_unauthorized(
         self,
         test_client: TestClient,

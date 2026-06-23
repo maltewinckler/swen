@@ -25,10 +25,6 @@ class AIResolutionMetadata(BaseModel):
     confidence: Annotated[float, Field(ge=0.0, le=1.0)] = Field(
         description="AI confidence score (0.0-1.0)",
     )
-    tier: Optional[str] = Field(
-        default=None,
-        description="Classification tier (pattern, example, anchor, nli, fallback)",
-    )
     reasoning: Optional[str] = Field(
         default=None,
         description="AI's explanation for the suggestion",
@@ -37,9 +33,7 @@ class AIResolutionMetadata(BaseModel):
     # Resolution context
     model: str = Field(description="AI model name (e.g., 'swen-ml-embeddings')")
     resolved_at: datetime = Field(description="When AI made the decision")
-    suggestion_accepted: bool = Field(
-        description="Whether the AI suggestion was used",
-    )
+    suggestion_accepted: bool = Field(description="Whether the AI suggestion was used")
 
 
 class TransactionMetadata(BaseModel):

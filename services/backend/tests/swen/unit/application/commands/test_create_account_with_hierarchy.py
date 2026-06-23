@@ -4,12 +4,11 @@ from uuid import uuid4
 
 import pytest
 
-from swen.application.commands.accounting import (
+from swen.application.accounting.commands import (
     CreateAccountCommand,
     ParentAction,
     UpdateAccountCommand,
 )
-from swen.application.ports.identity import CurrentUser
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -18,6 +17,7 @@ from swen.domain.accounting.exceptions import (
     InvalidCurrencyError,
 )
 from swen.domain.accounting.services import AccountHierarchyService
+from swen.domain.shared.current_user import CurrentUser
 from swen.domain.shared.exceptions import ValidationError
 
 

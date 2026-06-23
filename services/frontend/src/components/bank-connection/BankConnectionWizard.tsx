@@ -330,8 +330,7 @@ export function BankConnectionWizard({
       {step === 'connecting' && (
         <div className="py-8 text-center">
           <Loader2 className="h-12 w-12 text-accent-primary animate-spin mx-auto mb-4" />
-          <p className="text-text-primary font-medium mb-2">Connecting to {bankLookup?.name}...</p>
-          <TANApprovalNotice variant="compact" showTimingNote />
+          <p className="text-text-primary font-medium mb-2">Importing accounts from {bankLookup?.name}...</p>
         </div>
       )}
 
@@ -344,7 +343,7 @@ export function BankConnectionWizard({
               <div>
                 <p className="font-medium text-text-primary">{bankLookup?.name}</p>
                 <p className="text-sm text-text-secondary mt-1">
-                  {connectionResult.accounts_imported.length} account{connectionResult.accounts_imported.length !== 1 ? 's' : ''} imported
+                  {connectionResult.imported_accounts.length} account{connectionResult.imported_accounts.length !== 1 ? 's' : ''} imported
                 </p>
               </div>
             </div>
@@ -432,14 +431,14 @@ export function BankConnectionWizard({
               </div>
             </div>
           )}
-          {!syncResult && connectionResult && connectionResult.accounts_imported.length > 0 && (
+          {!syncResult && connectionResult && connectionResult.imported_accounts.length > 0 && (
             <div>
               <p className="text-sm font-medium text-text-primary mb-2">Imported Accounts:</p>
               <div className="space-y-1">
-                {connectionResult.accounts_imported.map((acc) => (
+                {connectionResult.imported_accounts.map((acc) => (
                   <div key={acc.iban} className="text-sm text-text-secondary flex items-center gap-2">
                     <CheckCircle2 className="h-3 w-3 text-accent-success" />
-                    {acc.account_name}
+                    {acc.custom_name ?? acc.default_name}
                   </div>
                 ))}
               </div>

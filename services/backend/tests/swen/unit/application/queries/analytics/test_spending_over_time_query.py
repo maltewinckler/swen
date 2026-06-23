@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.dtos.analytics import CategoryTimeSeriesResult
-from swen.application.queries.analytics import SpendingOverTimeQuery
+from swen.application.analytics.dtos import CategoryTimeSeriesResult
+from swen.application.analytics.queries import SpendingOverTimeQuery
 
 
 class TestSpendingOverTimeQuery:

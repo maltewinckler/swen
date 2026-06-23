@@ -13,7 +13,6 @@ from swen.infrastructure.persistence.sqlalchemy.models.banking import (
 from swen.infrastructure.persistence.sqlalchemy.models.base import Base
 from swen.infrastructure.persistence.sqlalchemy.models.integration import (
     AccountMappingModel,
-    CounterAccountRuleModel,
     TransactionImportModel,
 )
 from swen.infrastructure.persistence.sqlalchemy.models.settings import (
@@ -33,7 +32,6 @@ __all__ = [
     "JournalEntryModel",
     "AccountMappingModel",
     "TransactionImportModel",
-    "CounterAccountRuleModel",
     "StoredCredentialModel",
     "UserSettingsModel",
 ]

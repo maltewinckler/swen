@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from swen.application.queries import SyncStatusQuery
+from swen.application.integration.queries import SyncStatusQuery
 
 
 class TestSyncStatusQuery:
