@@ -63,46 +63,80 @@ SWEN separates **write** operations (Commands) from **read** operations (Queries
 | Purpose | Change state | Read state |
 | Returns | Nothing (or ID) | DTO / read model |
 | Side effects | Yes | None |
-| Example | `PostTransactionCommand` | `GetTransactionQuery` |
+| Example | `CreateAccountCommand` | `ListAccountsQuery` |
 
 Commands go through the Application layer use cases and touch the domain model. Queries can shortcut directly to the database via read-optimised DTOs, bypassing the domain entirely.
 
 ## Bounded Contexts
 
-SWEN has four bounded contexts, each with its own Python package:
+SWEN has two Python packages, each containing multiple bounded contexts:
 
 ```mermaid
 graph LR
-    Banking["Banking\n(BankAccount, BankTransaction,\nFinTS sync)"]
-    Accounting["Accounting\n(Account, Transaction,\nJournalEntry)"]
-    Identity["Identity\n(User, Credentials,\nJWT)"]
-    Integration["Integration\n(AccountMapping,\nImport, ML call)"]
-
-    Banking --> Integration
-    Accounting --> Integration
-    Identity -.->|auth context| Accounting
-    Identity -.->|auth context| Banking
+    swen["swen\n(main context)"] --> swen_id["swen_identity\n(identity context)"]
+    subgraph swen_contexts["swen sub-contexts"]
+        Acc["Accounting\n(Account, Transaction)"]
+        Ban["Banking\n(BankAccount, FinTS)"]
+        Int["Integration\n(Mapping, Import)"]
+        Ana["Analytics\n(Queries, Reports)"]
+        Sys["System\n(Config, Settings)"]
+    end
+    swen --> swen_contexts
 ```
 
-| Context | Package | Responsibility |
+| Sub-Context | Package Path | Responsibility |
 |---|---|---|
-| Accounting | `swen` | Double-entry bookkeeping, accounts, transactions |
-| Banking | `swen` | Bank accounts, FinTS fetch, raw transactions |
-| Identity | `swen_identity` | Users, password hashing, JWT tokens |
-| Integration | `swen` | Account mapping, import orchestration, ML client |
+| Accounting | `swen/application/accounting/` | Double-entry bookkeeping, accounts, transactions |
+| Banking | `swen/application/banking/` | Bank accounts, FinTS fetch, credentials |
+| Integration | `swen/application/integration/` | Account mapping, import orchestration, ML client |
+| Analytics | `swen/application/analytics/` | Read queries for dashboards, reports, exports |
+| System | `swen/application/system/` | Configuration, settings, onboarding |
+| Identity | `swen_identity/application/` | Users, password hashing, JWT tokens |
 
-## Repository Pattern + UserContext
+## Repository Pattern + Factory
 
-Every domain repository takes a **`UserContext`** (the authenticated user's ID + tenant ID). All database queries are automatically scoped to that user — there is no way to accidentally fetch another user's data.
+Every domain repository is constructed by the **`RepositoryFactory`**, which automatically scopes all queries to `current_user.user_id`. This is the project's main auth boundary — there is no way to accidentally fetch another user's data.
 
 ```python
+# Repository interfaces take no user context.
 class TransactionRepository(Protocol):
-    async def get_by_id(
-        self, id: TransactionId, ctx: UserContext
-    ) -> Transaction | None: ...
+    async def get_by_id(self, id: TransactionId) -> Transaction | None: ...
+
+# Every query is automatically scoped to current_user.user_id.
+repo = factory.transaction_repository()  # auto-scoped
+txn = await repo.get_by_id(txn_id)       # filtered by user_id internally
 ```
 
-This pattern enforces multi-tenancy at the type level.
+This pattern enforces multi-tenancy at the construction level.
+
+## Key Protocols & Patterns
+
+### Unit of Work
+
+All write operations use a Unit of Work pattern via `infrastructure/persistence/sqlalchemy/unit_of_work.py`. The `UnitOfWork` wraps the SQLAlchemy `AsyncSession`, managing transaction boundaries across multiple repositories. Commands use it as an async context manager — `commit()` is called on clean exit, `rollback()` on exception.
+
+```python
+async with self._uow:
+    await repo.save(entity)
+    # commit() happens automatically here
+# rollback() happens here if an exception occurred
+```
+
+### SyncEventPublisher Port
+
+The `SyncEventPublisher` (defined in `application/ports/integration/sync_event_publisher.py`) is an abstract interface for SSE event delivery. The infrastructure implementation `SseSyncEventPublisher` uses a queue-backed async iterator to stream events to connected clients. This decouples event emission from the sync orchestration — application services publish events without knowing about SSE, HTTP, or the frontend.
+
+```python
+class SyncEventPublisher(Protocol):
+    async def publish(self, event: SyncProgressEvent) -> None: ...
+    async def close(self) -> None: ...
+```
+
+### CounterAccountProposalPort
+
+The `CounterAccountProposalPort` (defined in `application/ports/ml_service.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `MLServicePort` (which handles training example submission and account embeddings).
+
+---
 
 ## Anti-Corruption Layer: GeldstromAdapter
 

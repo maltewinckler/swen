@@ -61,7 +61,7 @@ Key settings groups:
 | Registration | `REGISTRATION_MODE` (`open` / `admin_only`) |
 | ML | `SWEN_ML_SERVICE_URL` |
 
-## Authentication — JWT
+## JWT Authentication
 
 SWEN uses a **dual-token** JWT strategy:
 
@@ -80,11 +80,16 @@ FinTS credentials (username + PIN) are encrypted with **Fernet** (AES-128-CBC + 
 
 ## Key Application Services
 
-| Service | Responsibility |
-|---|---|
-| `TransactionImportService` | Orchestrates a full bank sync: FinTS fetch → dedup → ML classify → Draft creation |
-| `MLBatchClassificationService` | Re-classifies all unclassified Draft transactions in bulk |
-| `AccountMappingService` | Creates and validates the link between a BankAccount and its bookkeeping Account |
+| Service | Location | Responsibility |
+|---|---|---|
+| `SyncBankAccountsCommand` | `application/integration/commands/` | Orchestrates multi-account batch sync |
+| `BankAccountSyncService` | `application/integration/services/` | Per-IBAN sync: fetch → dedup → classify → import |
+| `CounterAccountBatchService` | `application/integration/services/` | Batch ML classification + validation + fallback |
+| `TransactionImportService` | `application/integration/services/` | Receives pre-resolved accounts, handles idempotency & persistence |
+| `SyncNotificationService` | `application/integration/services/` | Stateful SSE event emitter for sync progress |
+| `TransferReconciliationService` | `domain/integration/services/` | Internal transfer detection & reconciliation |
+| `OpeningBalanceService` | `domain/accounting/services/` | First-sync opening balance creation |
+| `AccountMappingService` | `domain/integration/services/` | Creates and validates BankAccount ↔ Account links |
 
 ## CLI Entry Points
 
@@ -92,7 +97,7 @@ Defined in `pyproject.toml` `[project.scripts]`:
 
 | Command | What it does |
 |---|---|
-| `swen setup` | Interactive guided setup wizard (generates secrets, writes `.env`, runs db-init) |
+| `swen setup` | Interactive guided setup wizard (generates secrets, writes `.env` for Docker or `.env.dev` for bare metal based on environment selection, runs db-init) |
 | `swen secrets generate` | Prints three freshly-generated secrets (Fernet key, JWT key, DB password) |
 | `db-init` | Creates all database tables (idempotent) |
 | `db-drop` | Drops all database tables (destructive — no reset, just drop) |

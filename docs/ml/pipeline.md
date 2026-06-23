@@ -91,7 +91,7 @@ If no stage produces a match above threshold, the pipeline returns `tier: "unres
 
 ## The Feedback Loop
 
-Every transaction you **post with a correction** (i.e. you changed the suggested account) is automatically added to the example store and improves Stage 2 on future similar transactions.
+Every transaction imported with a **non-fallback** counter-account is automatically added to the example store and improves Stage 2 on future similar transactions. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped — the ML model should not learn to use them.
 
 ```mermaid
 sequenceDiagram
@@ -99,12 +99,14 @@ sequenceDiagram
     participant Backend
     participant MLService
 
+    User->>Backend: POST /sync/run/stream
     Backend->>MLService: POST /classify (transaction)
     MLService-->>Backend: {account: "Groceries", confidence: 0.82, tier: "example"}
-    Backend-->>User: Draft transaction — suggested "Groceries"
-    User->>Backend: POST /transactions/{id}/post (change to "Restaurants")
-    Backend->>MLService: POST /examples (transaction + "Restaurants")
+    Backend->>Backend: Import transaction with suggested account
+    Backend->>MLService: POST /examples (transaction + "Groceries")
     Note over MLService: New example stored — improves Stage 2 next time
+    Note over Backend: Submitted after import if counter-account
+                        was not a fallback account
 ```
 
 ## ClassificationOrchestrator

@@ -80,16 +80,20 @@ sequenceDiagram
     participant Backend
     participant MLService
 
-    User->>Backend: POST /transactions/{id}/post
-(with corrected account)
+    User->>Backend: POST /sync/run/stream
+    Backend->>Backend: Fetch + dedup + classify transactions
+    Backend->>Backend: Import transactions to accounting
+    Backend->>Backend: MLExampleService.submit_example()
+    Note over Backend: Called after import if counter-account
+                        was not a fallback account
     Backend->>MLService: POST /examples
-{text, account_id, account_number}
+    {text, account_id, account_number}
     MLService->>MLService: Encode text → embedding vector
     MLService->>MLService: Store in user_examples table
     Note over MLService: Available for ExampleClassifier on next classify request
 ```
 
-The backend sends a training example whenever a transaction is posted **with a correction** (or on first post if no suggestion was made). No retraining loop — the example is immediately available for k-NN retrieval.
+The backend submits a training example via `MLExampleService.submit_example()` whenever a transaction is imported with a **non-fallback** counter-account. This happens at import time, not at post time. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped — the ML model should not learn to use them.
 
 ## Evaluation Tooling
 

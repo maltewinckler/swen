@@ -1,6 +1,6 @@
 # Frontend
 
-The frontend is a **React 19 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
+The frontend is a **React 18 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
 
 !!! note "AI-generated code"
     The frontend was largely written with AI assistance. It works well in practice, but hasn't been through a full human code review. Contributions are welcome!
@@ -9,7 +9,7 @@ The frontend is a **React 19 + TypeScript** single-page application, bundled by 
 
 | Tool | Version | Role |
 |---|---|---|
-| React | 19 | UI rendering |
+| React | 18 | UI rendering |
 | TypeScript | 5.9 | Type safety |
 | Vite | 7 | Dev server + production bundler |
 | TanStack Router | latest | File-based routing, type-safe URLs |

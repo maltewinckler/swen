@@ -79,7 +79,7 @@ Examples:
 
 ```
 Fix: prevent duplicate BankTransactions on partial-day re-import
-Add: Tier 0 IBAN anchor to ML classification pipeline
+Add: keyword pattern management UI
 Docs: add double-entry bookkeeping primer
 ```
 

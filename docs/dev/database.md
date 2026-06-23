@@ -55,7 +55,7 @@ This is **idempotent** — running it twice does not drop existing data. It only
 
 ### Multi-tenancy
 
-Every table that contains user data has a `user_id` foreign key. All repository queries include `WHERE user_id = :ctx_user_id` automatically via the `UserContext` pattern.
+Every table that contains user data has a `user_id` foreign key. All repository queries include `WHERE user_id = :user_id` automatically via the `RepositoryFactory` pattern — repositories are constructed with the current user's ID and all queries are scoped internally.
 
 ### Relationships (simplified)
 

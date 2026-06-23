@@ -11,10 +11,9 @@ To connect SWEN to your German bank you need two things from Deutsche Kreditwirt
 
 Both are configured through the SWEN admin UI — no config file editing needed after the initial setup.
 
-## Registeration
+## Registration
 
 1. Go to [fints.org/de/hersteller/produktregistrierung](https://www.fints.org/de/hersteller/produktregistrierung)
-2. Fill out the form:
 2. Fill out the form:
 
     - **Produktname**: e.g. "SWEN Personal Finance"
