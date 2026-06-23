@@ -111,7 +111,7 @@ class CounterAccountBatchService:
         )
 
         if proposals is None:
-            logger.warning("Proposal port unavailable — using fallback for all")
+            logger.warning("Proposal port unavailable. So, using fallback for all")
             fallbacks = await self._build_all_fallback(remaining)
             results.update(fallbacks)
             return results
@@ -269,9 +269,7 @@ class CounterAccountBatchService:
         """Build fallback results for all transactions (port unavailable)."""
         results: dict[UUID, ResolvedCounterAccount] = {}
         for stored in stored_transactions:
-            fallback = await self._get_fallback_account(
-                stored.transaction.is_debit(),
-            )
+            fallback = await self._get_fallback_account(stored.transaction.is_debit())
             results[stored.id] = ResolvedCounterAccount(
                 account=fallback,
                 confidence=None,

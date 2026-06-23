@@ -346,9 +346,9 @@ class TestAccountStatsQuery:
         )
 
         result = await query.execute(account_id=sample_checking_account.id)
-        result_dict = result.to_dict()
+        result_dict = result.model_dump()
 
         assert "account_id" in result_dict
         assert "balance" in result_dict
         assert "transaction_count" in result_dict
-        assert result_dict["balance"] == "0"
+        assert result_dict["balance"] == Decimal("0")

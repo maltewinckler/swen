@@ -1,8 +1,5 @@
 """Accounting DTOs - data transfer objects for account and transaction data."""
 
-from swen.application.accounting.dtos.account_balance_dto import (
-    AccountBalanceDTO,
-)
 from swen.application.accounting.dtos.account_stats_dto import (
     AccountStatsResult,
 )
@@ -30,7 +27,6 @@ from swen.application.accounting.dtos.transaction_list_dto import (
 )
 
 __all__ = [
-    "AccountBalanceDTO",
     "AccountStatsResult",
     "AccountSummaryDTO",
     "BankAccountDTO",

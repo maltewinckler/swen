@@ -221,6 +221,11 @@ class BankAccountSyncService:
 
         start_ms = time.monotonic()
 
+        # Accumulate stats across all batches
+        total_imported = 0
+        total_skipped = 0
+        total_failed = 0
+
         for batch_start in range(0, total, self.BATCH_SIZE):
             batch = to_import[batch_start : batch_start + self.BATCH_SIZE]
 
@@ -240,6 +245,10 @@ class BankAccountSyncService:
             imported, skipped, failed = self._import_service.compute_stats(
                 batch_results
             )
+            # Accumulate per-batch stats into running totals
+            total_imported += imported
+            total_skipped += skipped
+            total_failed += failed
 
         elapsed_ms = int((time.monotonic() - start_ms) * 1000)
         await self._notifier.emit_classification_completed_event(
@@ -247,4 +256,4 @@ class BankAccountSyncService:
             processing_time_ms=elapsed_ms,
         )
 
-        return imported, skipped, failed
+        return total_imported, total_skipped, total_failed
