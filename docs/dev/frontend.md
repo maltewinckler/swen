@@ -1,6 +1,6 @@
 # Frontend
 
-The frontend is a **React 19 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
+The frontend is a **React 18 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
 
 !!! note "AI-generated code"
     The frontend was largely written with AI assistance. It works well in practice, but hasn't been through a full human code review. Contributions are welcome!
@@ -9,7 +9,7 @@ The frontend is a **React 19 + TypeScript** single-page application, bundled by 
 
 | Tool | Version | Role |
 |---|---|---|
-| React | 19 | UI rendering |
+| React | 18 | UI rendering |
 | TypeScript | 5.9 | Type safety |
 | Vite | 7 | Dev server + production bundler |
 | TanStack Router | latest | File-based routing, type-safe URLs |
@@ -22,18 +22,27 @@ The frontend is a **React 19 + TypeScript** single-page application, bundled by 
 
 ```
 services/frontend/src/
-├── routes/         ← TanStack Router file-based routes
-│   ├── __root.tsx  ← root layout (nav, auth guard)
-│   ├── index.tsx   ← dashboard
-│   ├── transactions/
-│   ├── accounts/
-│   ├── bank-accounts/
-│   └── settings/
-├── components/     ← reusable UI components
-├── hooks/          ← custom React hooks (useTransactions, useBankAccounts, …)
-├── services/       ← API client, token service
-├── stores/         ← Zustand stores
-└── types/          ← TypeScript type definitions
+├── routes/              ← TanStack Router file-based routes
+│   ├── __root.tsx       ← root layout (nav, auth guard)
+│   ├── index.tsx        ← dashboard (redirects to _app)
+│   ├── _app.tsx         ← authenticated layout wrapper
+│   │   ├── accounts.tsx
+│   │   ├── dashboard.tsx
+│   │   ├── onboarding.tsx
+│   │   ├── quick.tsx
+│   │   ├── settings.tsx
+│   │   └── transactions.tsx
+│   └── _auth.tsx        ← unauthenticated layout wrapper
+│       ├── forgot-password.tsx
+│       ├── login.tsx
+│       ├── register.tsx
+│       └── reset-password.tsx
+├── api/                 ← API client + per-resource modules
+├── components/          ← reusable UI components
+├── hooks/               ← custom React hooks
+├── services/            ← token service
+├── stores/              ← Zustand stores
+└── types/               ← TypeScript type definitions
 ```
 
 ## Routing

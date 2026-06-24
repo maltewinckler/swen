@@ -73,13 +73,13 @@ No enforced format, but the convention used in this repo is:
 Optional body explaining why (not what — the diff shows what).
 ```
 
-Common types: `Fix`, `Add`, `Remove`, `Refactor`, `Docs`, `Chore`, `Test`
+Common types: `[Feat]`, `[Fix]`, `[Refactor]`, `[Docs]`, `[Test]`, `[Chore]`, `[Perf]`, `[Style]`, `[CI]`, `[Deps]`, `[Security]`, `[Hotfix]`, `[Revert]`, `[WIP]`
 
 Examples:
 
 ```
 Fix: prevent duplicate BankTransactions on partial-day re-import
-Add: Tier 0 IBAN anchor to ML classification pipeline
+Add: keyword pattern management UI
 Docs: add double-entry bookkeeping primer
 ```
 
@@ -89,7 +89,7 @@ Use the format `[Type] Short description`:
 
 ```
 [Fix] Correct sequence numbering for same-day duplicate transactions
-[Feature] Add keyword pattern management UI
+[Feat] Add keyword pattern management UI
 [Chore] Bump uv to 0.7
 [Docs] Implement MkDocs documentation site
 ```

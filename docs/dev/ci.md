@@ -4,19 +4,21 @@ SWEN has two automated workflows: **CI** (on every push/PR) and **Docker Publish
 
 ## CI Workflow (`ci.yml`)
 
-Triggers on every push and pull request to `main`.
+Triggers on every push and pull request to `main`. All 7 jobs run in parallel (no inter-job dependencies):
 
-```mermaid
-graph TD
-    A[check-lockfile] --> B[lint-backend]
-    A --> C[lint-frontend]
-    B --> D[test-backend-unit]
-    B --> E[test-backend-integration]
-    C --> F[test-frontend]
-    C --> G[build-frontend]
-```
+| Job | Purpose |
+|---|---|
+| `check-lockfile` | Verify `uv.lock` consistency |
+| `lint-backend` | Ruff lint + format check |
+| `lint-frontend` | ESLint + TypeScript check |
+| `test-backend-unit` | Unit tests (Python 3.13) |
+| `test-backend-integration` | Integration tests with Testcontainers |
+| `test-frontend` | Vitest tests |
+| `build-frontend` | Production Vite build |
 
 ### Jobs
+
+All jobs run on `ubuntu-latest` with Python 3.13 (backend) or Node.js 24 (frontend).
 
 #### `check-lockfile`
 
@@ -28,18 +30,19 @@ Verifies that `uv.lock` is consistent with all `pyproject.toml` files. Fails fas
 
 #### `lint-backend`
 
-Runs **Ruff** in check mode and format check:
+Runs **Ruff** in check mode and format check via `uv run`:
 
 ```bash
-ruff check services/backend/src/
-ruff format --check services/backend/src/
+uv run ruff check services/backend/src/
+uv run ruff format --check services/backend/src/
 ```
 
 #### `lint-frontend`
 
 ```bash
-npm run lint   # ESLint
-tsc --noEmit   # TypeScript type check
+npx @tanstack/router-cli generate   # Ensure route tree is up to date
+npm run lint                        # ESLint
+npx tsc --noEmit                    # TypeScript type check
 ```
 
 #### `test-backend-unit`
@@ -47,26 +50,37 @@ tsc --noEmit   # TypeScript type check
 Runs the unit test suite (no Docker required):
 
 ```bash
-pytest services/backend/tests/ -m "not integration and not external and not manual"
+uv run pytest services/backend/tests/swen/unit/ services/backend/tests/swen_identity/unit/ -v
 ```
 
 #### `test-backend-integration`
 
 Runs integration tests using Testcontainers. Requires Docker-in-Docker — GitHub's `ubuntu-latest` runner provides Docker out of the box.
 
-Dummy secrets are injected so the app starts correctly without real credentials:
+Hardcoded test secrets are injected so the app starts correctly without real credentials:
 
 ```yaml
 env:
-  ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-  JWT_SECRET_KEY: ${{ secrets.CI_JWT_SECRET_KEY }}
-  POSTGRES_PASSWORD: postgres
+  RUN_INTEGRATION: "1"
+  ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
+  JWT_SECRET_KEY: "test-jwt-secret-for-ci"
+  POSTGRES_PASSWORD: "test-password-not-used"
+```
+
+Runs integration tests across all test directories:
+
+```bash
+uv run pytest services/backend/tests/swen/integration/ \
+  services/backend/tests/swen_identity/integration/ \
+  services/backend/tests/cross_domain/integration/ \
+  services/backend/tests/cross_domain/e2e/ -v
 ```
 
 #### `test-frontend`
 
 ```bash
-npm run test   # Vitest
+npx @tanstack/router-cli generate   # Ensure route tree is up to date
+npm run test                        # Vitest
 ```
 
 #### `build-frontend`
@@ -74,6 +88,7 @@ npm run test   # Vitest
 Verifies the production Vite build succeeds:
 
 ```bash
+npx @tanstack/router-cli generate   # Ensure route tree is up to date
 npm run build
 ```
 
@@ -124,12 +139,30 @@ cache-to:   type=gha,scope=${{ matrix.service }},mode=max
 
 ## Dependabot (`dependabot.yml`)
 
-Dependabot runs **weekly** and opens grouped PRs:
+Dependabot runs **weekly** (Mondays) and opens grouped PRs:
 
-| Ecosystem | Group | Ignored |
-|---|---|---|
-| `pip` | Python dependencies | — |
-| `npm` | Frontend dependencies | ESLint major versions |
-| `github-actions` | Action versions | — |
+| Ecosystem | Directory | Group Name | Ignored |
+|---|---|---|---|
+| `pip` | `/services/backend` | `python-dependencies` | — |
+| `npm` | `/services/frontend` | `npm-dependencies` | ESLint & `@eslint/js` major versions |
+| `github-actions` | `/` | `github-actions-dependencies` | — |
 
 Grouped PRs mean you get one `[pip] Bump dependencies` PR per week rather than dozens of individual ones.
+
+---
+
+## Additional Workflows
+
+### Documentation (`docs.yml`)
+
+Triggers on pushes to `docs/**` or `zensical.toml`, or via `workflow_dispatch`. Builds the MkDocs site with Zensical and deploys to **GitHub Pages**.
+
+### PR Title Check (`pr-title.yml`)
+
+Triggers on `opened`, `edited`, `synchronize`, `reopened` for PRs to `main`. Validates that PR titles match the conventional commit format:
+
+```
+[Type] Description
+```
+
+Valid types: `[Feat]`, `[Fix]`, `[Refactor]`, `[Docs]`, `[Test]`, `[Chore]`, `[Perf]`, `[Style]`, `[CI]`, `[Deps]`, `[Security]`, `[Hotfix]`, `[Revert]`, `[WIP]`.
