@@ -430,6 +430,8 @@ class TestCreateSimpleTransaction:
                 "description": "Coffee shop",
                 "amount": "-5.50",
                 "counterparty": "Starbucks",
+                "payment_account": "1001",
+                "counter_account": "6099",
                 "auto_post": True,
             },
         )
@@ -459,6 +461,8 @@ class TestCreateSimpleTransaction:
                 "description": "Salary payment",
                 "amount": "3500.00",
                 "counterparty": "ACME Corp",
+                "payment_account": "1001",
+                "counter_account": "4099",
                 "auto_post": False,
             },
         )
@@ -477,7 +481,7 @@ class TestCreateSimpleTransaction:
         expense_account: dict,
         asset_account: dict,
     ):
-        """Create simple transaction with specific account hints."""
+        """Create simple transaction with specific account numbers."""
         response = test_client.post(
             f"{api_v1_prefix}/transactions/simple",
             headers=auth_headers,
@@ -485,8 +489,8 @@ class TestCreateSimpleTransaction:
                 "date": datetime.now(tz=timezone.utc).isoformat(),
                 "description": "Specific accounts",
                 "amount": "-100.00",
-                "asset_account": "1001",
-                "category_account": "6099",
+                "payment_account": "1001",
+                "counter_account": "6099",
             },
         )
 
@@ -508,6 +512,8 @@ class TestCreateSimpleTransaction:
                 "date": datetime.now(tz=timezone.utc).isoformat(),
                 "description": "Zero",
                 "amount": "0",
+                "payment_account": "1001",
+                "counter_account": "6099",
             },
         )
 
@@ -530,6 +536,8 @@ class TestCreateSimpleTransaction:
                 "date": datetime.now(tz=timezone.utc).isoformat(),
                 "description": "No accounts",
                 "amount": "-10.00",
+                "payment_account": "9999",
+                "counter_account": "9999",
             },
         )
 

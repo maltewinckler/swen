@@ -118,6 +118,8 @@ class TestCreateSimpleTransactionCommand:
         txn = await command.execute(
             description="Coffee",
             amount=Decimal("-4.50"),
+            payment_account_number="1000",
+            counter_account_number="4900",
             counterparty="Starbucks",
         )
 
@@ -135,6 +137,8 @@ class TestCreateSimpleTransactionCommand:
         txn = await command.execute(
             description="Salary",
             amount=Decimal("3000.00"),
+            payment_account_number="1000",
+            counter_account_number="8100",
             counterparty="ACME Corp",
         )
 
@@ -151,25 +155,27 @@ class TestCreateSimpleTransactionCommand:
             await command.execute(
                 description="Invalid",
                 amount=Decimal("0"),
+                payment_account_number="1000",
+                counter_account_number="4900",
             )
 
         assert "non-zero" in str(exc_info.value).lower()
 
-    async def test_account_hint_by_number(
+    async def test_account_lookup_by_number(
         self,
         command,
         mock_account_repo,
     ):
-        """Can specify account by number hint."""
+        """Looks up accounts by account number."""
         txn = await command.execute(
-            description="With hints",
+            description="With accounts",
             amount=Decimal("-10.00"),
-            asset_account_hint="1000",
-            category_account_hint="4900",
+            payment_account_number="1000",
+            counter_account_number="4900",
         )
 
         assert txn is not None
-        # Verify the hints were used to lookup accounts
+        # Verify the account numbers were used to lookup accounts
         mock_account_repo.find_by_account_number.assert_any_call("1000")
         mock_account_repo.find_by_account_number.assert_any_call("4900")
 
@@ -181,21 +187,22 @@ class TestCreateSimpleTransactionCommand:
         txn = await command.execute(
             description="Auto-posted",
             amount=Decimal("-25.00"),
+            payment_account_number="1000",
+            counter_account_number="4900",
             auto_post=True,
         )
 
         assert txn.is_posted
 
-    async def test_no_asset_account_raises_error(
+    async def test_missing_payment_account_raises_error(
         self,
         mock_transaction_repo,
         current_user,
     ):
-        """Raises error when no asset account exists."""
+        """Raises error when the payment account is not found."""
         # Empty account repo
         empty_repo = AsyncMock()
         empty_repo.find_by_account_number = AsyncMock(return_value=None)
-        empty_repo.find_all = AsyncMock(return_value=[])
 
         command = CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
@@ -207,19 +214,22 @@ class TestCreateSimpleTransactionCommand:
             await command.execute(
                 description="Should fail",
                 amount=Decimal("-10.00"),
+                payment_account_number="9999",
+                counter_account_number="4900",
             )
 
-    async def test_no_category_account_raises_error(
+    async def test_missing_category_account_raises_error(
         self,
         mock_transaction_repo,
         current_user,
         asset_account,
     ):
-        """Raises error when no matching category account exists."""
+        """Raises error when the category account is not found."""
         # Repo with only asset account
         repo = AsyncMock()
-        repo.find_by_account_number = AsyncMock(return_value=None)
-        repo.find_all = AsyncMock(return_value=[asset_account])
+        repo.find_by_account_number = AsyncMock(
+            side_effect=lambda n: asset_account if n == "1000" else None
+        )
 
         command = CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
@@ -231,41 +241,9 @@ class TestCreateSimpleTransactionCommand:
             await command.execute(
                 description="Should fail",
                 amount=Decimal("-10.00"),
+                payment_account_number="1000",
+                counter_account_number="9999",
             )
-
-    async def test_prefers_sonstig_account_as_default(
-        self,
-        mock_transaction_repo,
-        current_user,
-        mock_account,
-    ):
-        """Prefers 'sonstig/other' accounts as default category."""
-        asset = mock_account(AccountType.ASSET, name="Checking")
-        sonstig = mock_account(AccountType.EXPENSE, name="Sonstiges")
-        groceries = mock_account(AccountType.EXPENSE, name="Groceries")
-
-        accounts = [asset, groceries, sonstig]
-        accounts_by_id = {acc.id: acc for acc in accounts}
-
-        repo = AsyncMock()
-        repo.find_by_account_number = AsyncMock(return_value=None)
-        repo.find_all = AsyncMock(return_value=accounts)
-        repo.find_by_id = AsyncMock(side_effect=lambda x: accounts_by_id.get(x))
-
-        command = CreateSimpleTransactionCommand(
-            transaction_repository=mock_transaction_repo,
-            account_repository=repo,
-            current_user=current_user,
-        )
-
-        # Don't specify category - should use sonstig as default
-        txn = await command.execute(
-            description="Uses default",
-            amount=Decimal("-10.00"),
-        )
-
-        # The transaction was created - sonstig was selected
-        assert txn is not None
 
     async def test_from_factory(self, current_user):
         """Command can be created from factory."""
@@ -288,6 +266,8 @@ class TestCreateSimpleTransactionCommand:
         txn = await command.execute(
             description="Manual entry",
             amount=Decimal("-5.00"),
+            payment_account_number="1000",
+            counter_account_number="4900",
         )
 
         metadata = txn.metadata_raw

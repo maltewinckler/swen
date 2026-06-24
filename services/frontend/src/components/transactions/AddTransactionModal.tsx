@@ -201,8 +201,8 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
       amount: signedAmount,
       date: new Date(date).toISOString(),
       counterparty: counterparty.trim() || undefined,
-      asset_account: assetAccountId || undefined,
-      category_account: counterAccountId || undefined,
+      payment_account: assetAccountId,
+      category_account: counterAccountId,
       auto_post: autoPost,
     })
   }

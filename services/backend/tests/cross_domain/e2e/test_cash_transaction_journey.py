@@ -84,8 +84,8 @@ class TestCashTransactionJourney:
                 "description": "Coffee at bakery",
                 "amount": "-4.50",  # Negative for expense
                 "date": recent_date(0),
-                "asset_account": "1000",  # Bargeld
-                "category_account": "4900",  # Sonstiges
+                "payment_account": "1000",  # Bargeld
+                "counter_account": "4900",  # Sonstiges
                 "auto_post": True,
             },
         )

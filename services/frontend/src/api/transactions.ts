@@ -51,8 +51,8 @@ interface CreateSimpleTransactionData {
   description: string
   amount: string
   date?: string
-  asset_account?: string
-  category_account?: string
+  payment_account: string
+  category_account: string
   counterparty?: string
   reference?: string
   metadata?: Record<string, unknown>

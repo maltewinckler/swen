@@ -100,21 +100,20 @@ class TestBuildSimpleEntries:
             payment_account=checking_account,
             category_account=groceries_expense,
             amount=amount,
-            direction=TransactionDirection.EXPENSE,
+            is_expense=True,
         )
 
         assert len(entries) == 2
 
         # First entry: Debit expense
-        assert entries[0].account == groceries_expense
-        assert entries[0].amount == amount
-        assert entries[0].is_debit is True
+        assert entries[0].account_id == groceries_expense.id
+        assert entries[0].debit == Decimal("50.00")
+        assert entries[0].credit is None
 
         # Second entry: Credit asset
-        assert entries[1].account == checking_account
-        assert entries[1].amount == amount
-        assert entries[1].is_debit is False
-        assert entries[1].is_credit is True
+        assert entries[1].account_id == checking_account.id
+        assert entries[1].debit is None
+        assert entries[1].credit == Decimal("50.00")
 
     def test_income_creates_debit_asset_credit_income(
         self,
@@ -127,20 +126,20 @@ class TestBuildSimpleEntries:
             payment_account=checking_account,
             category_account=salary_income,
             amount=amount,
-            direction=TransactionDirection.INCOME,
+            is_expense=False,
         )
 
         assert len(entries) == 2
 
         # First entry: Debit asset
-        assert entries[0].account == checking_account
-        assert entries[0].amount == amount
-        assert entries[0].is_debit is True
+        assert entries[0].account_id == checking_account.id
+        assert entries[0].debit == Decimal("50.00")
+        assert entries[0].credit is None
 
         # Second entry: Credit income
-        assert entries[1].account == salary_income
-        assert entries[1].amount == amount
-        assert entries[1].is_credit is True
+        assert entries[1].account_id == salary_income.id
+        assert entries[1].debit is None
+        assert entries[1].credit == Decimal("50.00")
 
     def test_expense_with_liability_payment(
         self,
@@ -153,14 +152,16 @@ class TestBuildSimpleEntries:
             payment_account=credit_card_account,
             category_account=groceries_expense,
             amount=amount,
-            direction=TransactionDirection.EXPENSE,
+            is_expense=True,
         )
 
         assert len(entries) == 2
-        assert entries[0].account == groceries_expense
-        assert entries[0].is_debit is True
-        assert entries[1].account == credit_card_account
-        assert entries[1].is_credit is True
+        assert entries[0].account_id == groceries_expense.id
+        assert entries[0].debit == Decimal("50.00")
+        assert entries[0].credit is None
+        assert entries[1].account_id == credit_card_account.id
+        assert entries[1].debit is None
+        assert entries[1].credit == Decimal("50.00")
 
     def test_rejects_invalid_payment_account_type(
         self,
@@ -174,7 +175,7 @@ class TestBuildSimpleEntries:
                 payment_account=groceries_expense,  # Wrong type!
                 category_account=salary_income,
                 amount=amount,
-                direction=TransactionDirection.INCOME,
+                is_expense=False,
             )
 
     def test_rejects_mismatched_category_for_expense(
@@ -189,7 +190,7 @@ class TestBuildSimpleEntries:
                 payment_account=checking_account,
                 category_account=salary_income,  # Wrong type for expense!
                 amount=amount,
-                direction=TransactionDirection.EXPENSE,
+                is_expense=True,
             )
 
     def test_rejects_mismatched_category_for_income(
@@ -204,7 +205,7 @@ class TestBuildSimpleEntries:
                 payment_account=checking_account,
                 category_account=groceries_expense,  # Wrong type for income!
                 amount=amount,
-                direction=TransactionDirection.INCOME,
+                is_expense=False,
             )
 
 

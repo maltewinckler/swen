@@ -307,12 +307,13 @@ describe('AddTransactionModal', () => {
         expect(mockCreateSimpleTransaction).toHaveBeenCalled()
       })
 
-      // Verify the correct API parameter names are used (not _hint suffix)
+      // Verify the correct API parameter names are used
       // This prevents regression where accounts are ignored due to wrong field names
       const callArg = mockCreateSimpleTransaction.mock.calls[0][0]
-      expect(callArg).toHaveProperty('asset_account', '1100')
+      expect(callArg).toHaveProperty('payment_account', '1100')
       expect(callArg).toHaveProperty('category_account', '4100')
       // Ensure old incorrect names are NOT used
+      expect(callArg).not.toHaveProperty('asset_account')
       expect(callArg).not.toHaveProperty('asset_account_hint')
       expect(callArg).not.toHaveProperty('category_account_hint')
     })
