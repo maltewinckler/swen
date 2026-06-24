@@ -23,8 +23,9 @@ graph TD
     end
 
     subgraph Application["Application Layer"]
-        UC[Use Cases / Command Handlers]
+        UC[Command Handlers]
         QH[Query Handlers]
+        FC[Factory Ports]
     end
 
     subgraph Infrastructure["Infrastructure Layer"]
@@ -36,7 +37,6 @@ graph TD
 
     subgraph Presentation["Presentation Layer"]
         API[FastAPI Routers]
-        CLI[CLI Commands]
     end
 
     Presentation --> Application
@@ -54,7 +54,7 @@ graph TD
 | Infrastructure | DB repos, external clients, adapters | Domain + Application |
 | Presentation | FastAPI routers, CLI entrypoints | Application + Domain |
 
-## CQRS — Commands vs Queries
+## CQRS (Commands and Queries)
 
 SWEN separates **write** operations (Commands) from **read** operations (Queries).
 
@@ -65,37 +65,36 @@ SWEN separates **write** operations (Commands) from **read** operations (Queries
 | Side effects | Yes | None |
 | Example | `CreateAccountCommand` | `ListAccountsQuery` |
 
-Commands go through the Application layer use cases and touch the domain model. Queries can shortcut directly to the database via read-optimised DTOs, bypassing the domain entirely.
+Commands and Queries go through the Application layer use cases and touch the domain model. All read/write operations must go through domain repository ports. Actual implementations (SQLAlchemy for Postgres) live in the infrastructure layer.
 
 ## Bounded Contexts
 
-SWEN has two Python packages, each containing multiple bounded contexts:
+SWEN is split into four Python packages, each serving a distinct role:
 
-```mermaid
-graph LR
-    swen["swen\n(main context)"] --> swen_id["swen_identity\n(identity context)"]
-    subgraph swen_contexts["swen sub-contexts"]
-        Acc["Accounting\n(Account, Transaction)"]
-        Ban["Banking\n(BankAccount, FinTS)"]
-        Int["Integration\n(Mapping, Import)"]
-        Ana["Analytics\n(Queries, Reports)"]
-        Sys["System\n(Config, Settings)"]
-    end
-    swen --> swen_contexts
-```
+| Package | Responsibility |
+|---|---|
+| `swen` | Main bounded context with sub-contexts for accounting, banking, integration, and analytics. Resembles the main swen backend part. |
+| `swen_identity` | Identity management: users, password hashing, JWT tokens, password reset |
+| `swen_config` | Shared configuration: Pydantic Settings loaded from environment variables and `.env` files. Injected into swen presentation layer. Immutable by users. |
+| `swen_demo` | Demo data generation: seed scripts and transaction templates. |
 
-| Sub-Context | Package Path | Responsibility |
-|---|---|---|
-| Accounting | `swen/application/accounting/` | Double-entry bookkeeping, accounts, transactions |
-| Banking | `swen/application/banking/` | Bank accounts, FinTS fetch, credentials |
-| Integration | `swen/application/integration/` | Account mapping, import orchestration, ML client |
-| Analytics | `swen/application/analytics/` | Read queries for dashboards, reports, exports |
-| System | `swen/application/system/` | Configuration, settings, onboarding |
-| Identity | `swen_identity/application/` | Users, password hashing, JWT tokens |
+### Sub-Contexts
 
-## Repository Pattern + Factory
+In the `swen` package, we have multiple sub contexts which are generally bounded. The big swen application layer might combine concerns from these contexts.
 
-Every domain repository is constructed by the **`RepositoryFactory`**, which automatically scopes all queries to `current_user.user_id`. This is the project's main auth boundary — there is no way to accidentally fetch another user's data.
+| Sub-Context | Responsibility |
+|---|---|
+| Accounting | Double-entry bookkeeping, accounts, transactions |
+| Banking | Bank accounts, FinTS fetch, credentials |
+| Integration | Account mapping, import orchestration, ML client |
+| Analytics | Read queries for dashboards, reports, exports |
+
+
+## Key Protocols & Patterns
+
+### Repository + Factory Pattern
+
+Every domain repository is constructed by the **`RepositoryFactory`**, which automatically scopes all queries to `current_user.user_id`. This is the project's main auth boundary. There is (hopefully lmao) no way to accidentally fetch another user's data.
 
 ```python
 # Repository interfaces take no user context.
@@ -107,9 +106,7 @@ repo = factory.transaction_repository()  # auto-scoped
 txn = await repo.get_by_id(txn_id)       # filtered by user_id internally
 ```
 
-This pattern enforces multi-tenancy at the construction level.
-
-## Key Protocols & Patterns
+All application commands and queries should have a `.from_factory` method such that we have a unified initialization pattern.
 
 ### Unit of Work
 
@@ -136,7 +133,6 @@ class SyncEventPublisher(Protocol):
 
 The `CounterAccountProposalPort` (defined in `application/ports/ml_service.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `MLServicePort` (which handles training example submission and account embeddings).
 
----
 
 ## Anti-Corruption Layer: GeldstromAdapter
 
@@ -148,7 +144,7 @@ graph LR
     Adapter["GeldstromAdapter\n(infrastructure)"]
     Lib["geldstrom library\n(external)"]
 
-    Domain <-- Adapter
+    Adapter --> Domain
     Adapter --> Lib
 ```
 
