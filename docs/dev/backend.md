@@ -102,8 +102,8 @@ FinTS credentials (username + PIN) are encrypted with **Fernet** (AES-128-CBC + 
 | `TransactionImportService` | `application/integration/services/` | Receives pre-resolved accounts, handles idempotency & persistence |
 | `SyncNotificationService` | `application/integration/services/` | Stateful SSE event emitter for sync progress |
 | `TransferReconciliationService` | `domain/integration/services/` | Internal transfer detection & reconciliation |
-| `OpeningBalanceService` | `domain/accounting/services/` | First-sync opening balance creation |
-| `AccountMappingService` | `domain/integration/services/` | Creates and validates BankAccount ↔ Account links |
+| `OpeningBalanceService` | `domain/accounting/services/opening_balance/` | First-sync opening balance creation |
+| `BankAccountImportService` | `domain/integration/services/` | Creates and validates BankAccount ↔ Account links |
 
 ## CLI Entry Points
 

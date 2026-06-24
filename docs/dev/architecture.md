@@ -73,10 +73,12 @@ SWEN is split into four Python packages, each serving a distinct role:
 
 | Package | Responsibility |
 |---|---|
-| `swen` | Main bounded context with sub-contexts for accounting, banking, integration, and analytics. Resembles the main swen backend part. |
+| `swen` | Main bounded context with sub-contexts for accounting, banking, integration, and analytics. |
 | `swen_identity` | Identity management: users, password hashing, JWT tokens, password reset |
 | `swen_config` | Shared configuration: Pydantic Settings loaded from environment variables and `.env` files. Injected into swen presentation layer. Immutable by users. |
 | `swen_demo` | Demo data generation: seed scripts and transaction templates. |
+| `swen_ml` | ML classification service: embeddings, enrichment, training (in `services/ml/`) |
+| `swen_ml_contracts` | Shared Pydantic schemas between backend and ML service (in `services/contracts/`) |
 
 ### Sub-Contexts
 

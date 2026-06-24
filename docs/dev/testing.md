@@ -6,7 +6,7 @@ SWEN has a layered test suite following the **test pyramid**: many fast unit tes
 
 ```
           ┌──────────┐
-          │ External │  ~5 tests — real bank connections (never in CI)
+          │ External │  ~2 tests — real bank connections (never in CI)
           ├──────────┤
           │  Integr. │  ~25% — Testcontainers, ephemeral PostgreSQL
           ├──────────────────────────┤
@@ -18,22 +18,25 @@ SWEN has a layered test suite following the **test pyramid**: many fast unit tes
 
 ```
 services/backend/tests/
-├── swen/                    ← Main accounting domain
+├── swen/                    ← Main accounting/banking domain
 │   ├── unit/                ← Fast, isolated (no I/O)
 │   └── integration/         ← Requires Postgres (Testcontainers)
 ├── swen_identity/           ← Identity/auth domain
 │   ├── unit/
 │   └── integration/
 ├── cross_domain/            ← Tests spanning multiple domains
-│   ├── integration/
+│   ├── integration/         ← Tenant isolation, multi-context tests
 │   └── e2e/                 ← Full user journeys (bank connection, cash transactions)
 ├── external/                ← Real bank connections (manual only)
+│   ├── fints/
+│   ├── gateway/
+│   └── tan/
 └── shared/                  ← Shared fixtures and utilities
 ```
 
 ## Running Tests
 
-### ⚠️ Podman Users: Required Configuration
+### Podman Users: Required Configuration
 
 If you use **Podman** instead of Docker, you must set the `DOCKER_HOST` environment variable before running tests. The testcontainers library uses this to locate the Podman socket.
 
@@ -53,21 +56,23 @@ docker.errors.DockerException: Error while fetching server API version:
 === "All tests (unit + integration)"
 
     ```bash
-    make test
+    make test-backend
     # or
-    uv run pytest services/backend/tests/ -v -m "not external and not manual"
+    uv run pytest services/backend/tests/ -v
     ```
 
 === "Unit tests only (fast)"
 
     ```bash
-    uv run pytest services/backend/tests/ -v -m "not integration and not external"
+    uv run pytest services/backend/tests/swen/unit/ services/backend/tests/swen_identity/unit/ -v
     ```
 
 === "Integration tests only"
 
     ```bash
-    uv run pytest services/backend/tests/ -v -m integration
+    uv run pytest services/backend/tests/ -v --run-integration
+    # or
+    RUN_INTEGRATION=1 uv run pytest services/backend/tests/ -v -m integration
     ```
 
 === "With coverage"
@@ -76,14 +81,23 @@ docker.errors.DockerException: Error while fetching server API version:
     make test-cov
     ```
 
+=== "ML service tests"
+
+    ```bash
+    make test-ml
+    # or
+    uv run pytest services/ml/tests/ -v
+    ```
+
 ## Test Markers
 
 | Marker | Meaning | Runs in CI |
 |---|---|---|
 | `@pytest.mark.integration` | Requires Postgres (Testcontainers) | ✅ Yes |
 | `@pytest.mark.external` | Connects to a real bank | ❌ Never |
-| `@pytest.mark.slow` | Long-running test | ✅ Yes |
-| `@pytest.mark.manual` | Requires manual TAN input | ❌ Never |
+| `@pytest.mark.slow` | Long-running test (>1s) | ✅ Yes |
+| `@pytest.mark.manual` | Requires manual intervention | ❌ Never |
+| `@pytest.mark.tan` | Requires manual TAN input | ❌ Never |
 
 ## Unit Tests
 
@@ -116,6 +130,26 @@ export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
 export TESTCONTAINERS_RYUK_DISABLED=true
 ```
 
+### Test Secrets
+
+Integration tests use **hardcoded test secrets** (not real credentials):
+
+```yaml
+RUN_INTEGRATION: "1"
+ENCRYPTION_KEY: "X6gejiP08L9cH4nW4bQk8aGo961x2rhGE40jOg67VwU="
+JWT_SECRET_KEY: "test-jwt-secret-for-ci"
+POSTGRES_PASSWORD: "test-password-not-used"
+```
+
+### Running All Integration Tests
+
+```bash
+uv run pytest services/backend/tests/swen/integration/ \
+  services/backend/tests/swen_identity/integration/ \
+  services/backend/tests/cross_domain/integration/ \
+  services/backend/tests/cross_domain/e2e/ -v
+```
+
 ## External Tests
 
 Tests in `tests/external/` connect to real FinTS banks. They require valid bank credentials:
@@ -125,7 +159,7 @@ export FINTS_BLZ=...
 export FINTS_USERNAME=...
 export FINTS_PIN=...
 
-uv run pytest tests/external/ -v --run-external
+uv run pytest tests/external/ -v --run-manual --run-external
 ```
 
 These tests are **never run in CI**. Run them manually before a release if you want to validate bank connectivity.
@@ -143,10 +177,16 @@ See [CI / GitHub Actions](ci.md) for the full workflow breakdown.
 
 ## ML Tests
 
+ML tests live in `services/ml/tests/` and follow the same unit/integration pyramid:
+
+```
+services/ml/tests/
+├── unit/
+└── integration/
+```
+
 ```bash
 make test-ml
 # or
-uv run pytest services/ml/tests/ -v
+uv run --package swen-ml pytest services/ml/tests/ -v
 ```
-
-ML tests live in `services/ml/tests/` and follow the same pyramid / marker conventions.

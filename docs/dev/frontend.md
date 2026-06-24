@@ -22,18 +22,27 @@ The frontend is a **React 18 + TypeScript** single-page application, bundled by 
 
 ```
 services/frontend/src/
-├── routes/         ← TanStack Router file-based routes
-│   ├── __root.tsx  ← root layout (nav, auth guard)
-│   ├── index.tsx   ← dashboard
-│   ├── transactions/
-│   ├── accounts/
-│   ├── bank-accounts/
-│   └── settings/
-├── components/     ← reusable UI components
-├── hooks/          ← custom React hooks (useTransactions, useBankAccounts, …)
-├── services/       ← API client, token service
-├── stores/         ← Zustand stores
-└── types/          ← TypeScript type definitions
+├── routes/              ← TanStack Router file-based routes
+│   ├── __root.tsx       ← root layout (nav, auth guard)
+│   ├── index.tsx        ← dashboard (redirects to _app)
+│   ├── _app.tsx         ← authenticated layout wrapper
+│   │   ├── accounts.tsx
+│   │   ├── dashboard.tsx
+│   │   ├── onboarding.tsx
+│   │   ├── quick.tsx
+│   │   ├── settings.tsx
+│   │   └── transactions.tsx
+│   └── _auth.tsx        ← unauthenticated layout wrapper
+│       ├── forgot-password.tsx
+│       ├── login.tsx
+│       ├── register.tsx
+│       └── reset-password.tsx
+├── api/                 ← API client + per-resource modules
+├── components/          ← reusable UI components
+├── hooks/               ← custom React hooks
+├── services/            ← token service
+├── stores/              ← Zustand stores
+└── types/               ← TypeScript type definitions
 ```
 
 ## Routing
