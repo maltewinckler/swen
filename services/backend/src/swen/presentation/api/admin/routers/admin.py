@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 PasswordService = Annotated[PasswordHashingService, Depends(get_password_service)]
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["Admin"])
 
 # Include FinTS configuration sub-router
 router.include_router(fints_config_router)
