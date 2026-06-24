@@ -21,7 +21,10 @@ from typing import List, Optional, Tuple
 
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import InvalidAccountTypeError
-from swen.domain.accounting.value_objects import Money
+from swen.domain.accounting.value_objects import (
+    JournalEntryInput,
+    Money,
+)
 
 
 class TransactionDirection(Enum):
@@ -68,12 +71,21 @@ class TransactionEntryService:
     """
 
     @staticmethod
+    def resolve_transaction_direction(is_expense: bool) -> TransactionDirection:
+        """Determine the transaction direction based on whether it's an expense."""
+        return (
+            TransactionDirection.EXPENSE if is_expense else TransactionDirection.INCOME
+        )
+
+    @staticmethod
     def build_simple_entries(
         payment_account: Account,
         category_account: Account,
         amount: Money,
-        direction: TransactionDirection,
-    ) -> Tuple[EntrySpec, EntrySpec]:
+        is_expense: bool,
+    ) -> Tuple[JournalEntryInput, JournalEntryInput]:
+        direction = TransactionEntryService.resolve_transaction_direction(is_expense)
+
         TransactionEntryService._validate_payment_account(payment_account)
         TransactionEntryService._validate_category_for_direction(
             category_account,
@@ -83,13 +95,13 @@ class TransactionEntryService:
         if direction == TransactionDirection.EXPENSE:
             # Expense: Debit expense, Credit payment
             return (
-                EntrySpec(account=category_account, amount=amount, is_debit=True),
-                EntrySpec(account=payment_account, amount=amount, is_debit=False),
+                JournalEntryInput.debit_entry(category_account.id, amount.amount),
+                JournalEntryInput.credit_entry(payment_account.id, amount.amount),
             )
         # Income: Debit payment, Credit income
         return (
-            EntrySpec(account=payment_account, amount=amount, is_debit=True),
-            EntrySpec(account=category_account, amount=amount, is_debit=False),
+            JournalEntryInput.debit_entry(payment_account.id, amount.amount),
+            JournalEntryInput.credit_entry(category_account.id, amount.amount),
         )
 
     @staticmethod

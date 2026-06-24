@@ -357,8 +357,8 @@ async def create_simple_transaction(
         txn = await command.execute(
             description=request.description,
             amount=request.amount,
-            asset_account_hint=request.asset_account,
-            category_account_hint=request.category_account,
+            payment_account_number=request.payment_account,
+            counter_account_number=request.counter_account,
             counterparty=request.counterparty,
             date=request.date,
             auto_post=request.auto_post,

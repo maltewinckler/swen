@@ -139,7 +139,7 @@ export function CashExpenseModal({ isOpen, onClose }: CashExpenseModalProps) {
       description: desc,
       amount: `-${absAmount.toFixed(2)}`, // Negative for expense
       date: new Date().toISOString().split('T')[0],
-      asset_account: CASH_ACCOUNT_NUMBER,
+      payment_account: CASH_ACCOUNT_NUMBER,
       category_account: categoryId,
       auto_post: true,
     })

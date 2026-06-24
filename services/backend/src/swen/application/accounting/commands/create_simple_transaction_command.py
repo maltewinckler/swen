@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
@@ -10,36 +9,20 @@ from typing import TYPE_CHECKING, Optional
 from swen.application.accounting.commands.create_transaction_command import (
     CreateTransactionCommand,
 )
-from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities import Account
-from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
-from swen.domain.accounting.repositories import (
-    AccountRepository,
-    TransactionRepository,
-)
-from swen.domain.accounting.services import (
-    TransactionDirection,
-    TransactionEntryService,
-)
-from swen.domain.accounting.value_objects import (
-    JournalEntryInput,
-    Money,
-    TransactionSource,
-)
-from swen.domain.shared.current_user import CurrentUser
+from swen.domain.accounting.services import TransactionEntryService
+from swen.domain.accounting.value_objects import Money, TransactionSource
 from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-
-
-@dataclass
-class ResolvedAccounts:
-    """Result of account resolution for simple transactions."""
-
-    asset_account: Account
-    category_account: Account
+    from swen.domain.accounting.aggregates import Transaction
+    from swen.domain.accounting.entities import Account
+    from swen.domain.accounting.repositories import (
+        AccountRepository,
+        TransactionRepository,
+    )
+    from swen.domain.shared.current_user import CurrentUser
 
 
 class CreateSimpleTransactionCommand:
@@ -76,8 +59,8 @@ class CreateSimpleTransactionCommand:
         self,
         description: str,
         amount: Decimal,
-        asset_account_hint: Optional[str] = None,
-        category_account_hint: Optional[str] = None,
+        payment_account_number: str,
+        counter_account_number: str,
         counterparty: Optional[str] = None,
         date: Optional[datetime] = None,
         auto_post: bool = False,
@@ -89,42 +72,24 @@ class CreateSimpleTransactionCommand:
         is_expense = amount < 0
         abs_amount = abs(amount)
 
-        # Resolve accounts from hints or defaults
-        resolved = await self._resolve_accounts(
-            asset_hint=asset_account_hint,
-            category_hint=category_account_hint,
-            is_expense=is_expense,
-        )
+        # Look up accounts by account number
+        payment_account = await self._resolve_account_number(payment_account_number)
+        counter_account = await self._resolve_account_number(counter_account_number)
 
         # Use domain service for entry direction rules
-        direction = (
-            TransactionDirection.EXPENSE if is_expense else TransactionDirection.INCOME
-        )
-        money = Money(abs_amount, resolved.asset_account.default_currency)
+        money = Money(abs_amount, payment_account.default_currency)
 
-        entry_specs = TransactionEntryService.build_simple_entries(
-            payment_account=resolved.asset_account,
-            category_account=resolved.category_account,
+        entries = TransactionEntryService.build_simple_entries(
+            payment_account=payment_account,
+            category_account=counter_account,
             amount=money,
-            direction=direction,
+            is_expense=is_expense,
         )
-
-        # Convert EntrySpec to JournalEntryInput for CreateTransactionCommand
-        entries = []
-        for spec in entry_specs:
-            if spec.is_debit:
-                entries.append(
-                    JournalEntryInput.debit_entry(spec.account.id, spec.amount.amount),
-                )
-            else:
-                entries.append(
-                    JournalEntryInput.credit_entry(spec.account.id, spec.amount.amount),
-                )
 
         # Delegate to the entry-based command
         return await self._create_command.execute(
             description=description,
-            entries=entries,
+            entries=list(entries),  # build_simple_entries has always 2 entries
             counterparty=counterparty,
             date=date,
             source=TransactionSource.MANUAL,
@@ -132,90 +97,11 @@ class CreateSimpleTransactionCommand:
             auto_post=auto_post,
         )
 
-    async def _resolve_accounts(
+    async def _resolve_account_number(
         self,
-        asset_hint: Optional[str],
-        category_hint: Optional[str],
-        is_expense: bool,
-    ) -> ResolvedAccounts:
-        asset_account = await self._resolve_payment_account(asset_hint)
-        if not asset_account:
-            raise AccountNotFoundError(
-                account_name=asset_hint or "default payment account",
-            )
-
-        category_type = "expense" if is_expense else "income"
-        category_account = await self._resolve_category_account(
-            category_hint,
-            category_type,
-        )
-        if not category_account:
-            raise AccountNotFoundError(
-                account_name=category_hint or f"default {category_type}",
-            )
-
-        return ResolvedAccounts(
-            asset_account=asset_account,
-            category_account=category_account,
-        )
-
-    async def _resolve_payment_account(
-        self,
-        hint: Optional[str],
-    ) -> Optional[Account]:
-        payment_types = {AccountType.ASSET, AccountType.LIABILITY}
-
-        if hint:
-            account = await self._account_repo.find_by_account_number(hint)
-            if account and account.account_type in payment_types:
-                return account
-
-            # Try by name
-            all_accounts = await self._account_repo.find_all()
-            for acc in all_accounts:
-                if (
-                    acc.account_type in payment_types
-                    and acc.name.lower() == hint.lower()
-                ):
-                    return acc
-
-        # Default to first active asset account (prefer assets over liabilities)
-        all_accounts = await self._account_repo.find_all()
-        for acc in all_accounts:
-            if acc.account_type == AccountType.ASSET and acc.is_active:
-                return acc
-
-        return None
-
-    async def _resolve_category_account(
-        self,
-        hint: Optional[str],
-        category_type: str,
-    ) -> Optional[Account]:
-        target_type = (
-            AccountType.EXPENSE if category_type == "expense" else AccountType.INCOME
-        )
-
-        if hint:
-            account = await self._account_repo.find_by_account_number(hint)
-            if account and account.account_type == target_type:
-                return account
-
-        # Find default category (prefer "sonstig/other" accounts)
-        all_accounts = await self._account_repo.find_all()
-        candidates = [
-            acc
-            for acc in all_accounts
-            if acc.account_type == target_type and acc.is_active
-        ]
-
-        if not candidates:
-            return None
-
-        # Prefer "sonstig" or "other" accounts as fallback
-        for acc in candidates:
-            name_lower = acc.name.lower()
-            if "sonstig" in name_lower or "other" in name_lower:
-                return acc
-
-        return candidates[0]
+        account_number: str,
+    ) -> Account:
+        account = await self._account_repo.find_by_account_number(account_number)
+        if account is None:
+            raise AccountNotFoundError(account_name=account_number)
+        return account

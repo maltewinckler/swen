@@ -264,25 +264,24 @@ class TransactionCreateRequest(BaseModel):
 
 
 class TransactionCreateSimpleRequest(BaseModel):
-    """Simplified request for creating a transaction with automatic account resolution.
+    """Simplified request for creating a two-entry transaction.
 
-    Use this when you just want to record an expense or income without
-    worrying about double-entry details.
+    Use this when you want to record an expense or income with explicit
+    account selection (dropdown-based in the UI).
 
     - **Negative amount** = expense (money leaving)
     - **Positive amount** = income (money coming in)
 
-    The system will automatically:
-    - Find your default asset account (or use the one specified)
-    - Find an appropriate expense/income category
-    - Create the balanced journal entries
+    The caller must specify both accounts:
+    - ``payment_account``: the asset or liability account (e.g. bank account)
+    - ``counter_account``: the expense or income account
     """
 
     date: datetime
     description: str = Field(min_length=1, max_length=500)
     amount: Decimal
-    asset_account: Optional[str] = None
-    category_account: Optional[str] = None
+    payment_account: str = Field(min_length=1, max_length=20)
+    counter_account: str = Field(min_length=1, max_length=20)
     counterparty: Optional[str] = Field(None, max_length=200)
     auto_post: bool = False
 
@@ -292,8 +291,8 @@ class TransactionCreateSimpleRequest(BaseModel):
                 "date": "2024-12-05T14:30:00Z",
                 "description": "REWE Supermarket",
                 "amount": "-45.99",
-                "asset_account": None,
-                "category_account": "6001",
+                "payment_account": "1100",
+                "counter_account": "4200",
                 "counterparty": "REWE",
                 "auto_post": True,
             },
