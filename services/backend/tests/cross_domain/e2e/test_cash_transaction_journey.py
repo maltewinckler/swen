@@ -271,12 +271,12 @@ class TestManualTransactionEditing:
         )
         txn_id = create_response.json()["id"]
 
-        # Recategorize using category_account_id shortcut
+        # Recategorize using counter_account_id shortcut
         update_response = test_client.put(
             f"{api_v1_prefix}/transactions/{txn_id}",
             headers=headers,
             json={
-                "category_account_id": expense2["id"],
+                "counter_account_id": expense2["id"],
             },
         )
         assert update_response.status_code == 200

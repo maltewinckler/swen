@@ -14,3 +14,7 @@ class AccountType(Enum):
 
     def is_debit_normal(self) -> bool:
         return self in (AccountType.ASSET, AccountType.EXPENSE)
+
+
+PAYMENT_ACCOUNT_TYPES = frozenset({AccountType.ASSET, AccountType.LIABILITY})
+CATEGORY_ACCOUNT_TYPES = frozenset({AccountType.EXPENSE, AccountType.INCOME})

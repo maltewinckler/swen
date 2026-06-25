@@ -337,7 +337,7 @@ class TestTransactionPosting:
                 f"{api_v1_prefix}/transactions/{transaction_id}",
                 headers=headers,
                 json={
-                    "category_account_id": new_expense_id,
+                    "counter_account_id": new_expense_id,
                 },
             )
 

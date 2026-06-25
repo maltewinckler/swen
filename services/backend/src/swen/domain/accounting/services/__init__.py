@@ -13,9 +13,10 @@ from swen.domain.accounting.services.opening_balance import (
     OpeningBalanceCalculator,
     OpeningBalanceService,
 )
+from swen.domain.accounting.services.transaction_edit_service import (
+    TransactionEditService,
+)
 from swen.domain.accounting.services.transaction_entry_service import (
-    CATEGORY_ACCOUNT_TYPES,
-    PAYMENT_ACCOUNT_TYPES,
     EntrySpec,
     TransactionDirection,
     TransactionEntryService,
@@ -25,13 +26,12 @@ from swen.domain.accounting.value_objects import MetadataKeys
 __all__ = [
     "AccountBalanceService",
     "AccountHierarchyService",
-    "CATEGORY_ACCOUNT_TYPES",
     "ClassificationRules",
     "EntrySpec",
     "MetadataKeys",
     "OpeningBalanceCalculator",
     "OpeningBalanceService",
-    "PAYMENT_ACCOUNT_TYPES",
     "TransactionDirection",
+    "TransactionEditService",
     "TransactionEntryService",
 ]
