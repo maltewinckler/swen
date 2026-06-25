@@ -10,11 +10,13 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities import Account, AccountType, JournalEntry
-from swen.domain.accounting.services import (
+from swen.domain.accounting.entities import (
     CATEGORY_ACCOUNT_TYPES,
-    TransactionEntryService,
+    Account,
+    AccountType,
+    JournalEntry,
 )
+from swen.domain.accounting.services import TransactionEntryService
 from swen.domain.accounting.value_objects import MetadataKeys
 from swen.domain.banking.value_objects import BankTransaction
 

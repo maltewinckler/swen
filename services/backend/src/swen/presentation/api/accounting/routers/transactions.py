@@ -422,10 +422,10 @@ async def update_transaction(
     You can update:
     - **description**: Change the transaction description
     - **counterparty**: Change the merchant/payer name
-    - **category_account_id**: Re-categorize to a different expense/income account
+    - **counter_account_id**: Re-categorize to a different expense/income account
     - **entries**: Replace all journal entries (for splitting, amount changes, etc.)
 
-    Note: `entries` and `category_account_id` are mutually exclusive.
+    Note: `entries` and `counter_account_id` are mutually exclusive.
 
     If the transaction is posted and `repost=True` (default), it will be
     automatically unposted, modified, and re-posted.
@@ -443,7 +443,7 @@ async def update_transaction(
             entries=entry_inputs,
             description=request.description,
             counterparty=request.counterparty,
-            category_account_id=request.category_account_id,
+            counter_account_id=request.counter_account_id,
             repost=request.repost,
         )
         await factory.session.commit()

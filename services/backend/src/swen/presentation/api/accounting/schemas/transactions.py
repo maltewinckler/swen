@@ -309,16 +309,16 @@ class TransactionUpdateRequest(BaseModel):
     Use `entries` for full replacement of journal entries. This is for
     advanced editing like splitting transactions or correcting amounts.
 
-    **Category Change**:
-    Use `category_account_id` for simple re-categorization (swapping the
+    **Counter Account Change**:
+    Use `counter_account_id` for simple re-categorization (swapping the
     expense/income account while keeping the same amount).
 
-    Note: `entries` and `category_account_id` are mutually exclusive.
+    Note: `entries` and `counter_account_id` are mutually exclusive.
     """
 
     description: Optional[str] = Field(None, min_length=1, max_length=500)
     counterparty: Optional[str] = Field(None, max_length=200)
-    category_account_id: Optional[UUID] = None
+    counter_account_id: Optional[UUID] = None
     entries: Optional[list[JournalEntryRequest]] = Field(None, min_length=1)
     repost: bool = True
 
@@ -328,7 +328,7 @@ class TransactionUpdateRequest(BaseModel):
                 {
                     "summary": "Simple re-categorization",
                     "value": {
-                        "category_account_id": "660e8400-e29b-41d4-a716-446655440001",
+                        "counter_account_id": "660e8400-e29b-41d4-a716-446655440001",
                         "repost": True,
                     },
                 },

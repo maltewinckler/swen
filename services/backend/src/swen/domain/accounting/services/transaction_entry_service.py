@@ -19,7 +19,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Tuple
 
-from swen.domain.accounting.entities import Account, AccountType
+from swen.domain.accounting.entities import (
+    CATEGORY_ACCOUNT_TYPES,
+    PAYMENT_ACCOUNT_TYPES,
+    Account,
+    AccountType,
+)
 from swen.domain.accounting.exceptions import InvalidAccountTypeError
 from swen.domain.accounting.value_objects import (
     JournalEntryInput,
@@ -56,10 +61,6 @@ class EntrySpec:
     def __repr__(self) -> str:
         side = "Dr" if self.is_debit else "Cr"
         return f"{side} {self.account.name} {self.amount}"
-
-
-PAYMENT_ACCOUNT_TYPES = frozenset({AccountType.ASSET, AccountType.LIABILITY})
-CATEGORY_ACCOUNT_TYPES = frozenset({AccountType.EXPENSE, AccountType.INCOME})
 
 
 class TransactionEntryService:

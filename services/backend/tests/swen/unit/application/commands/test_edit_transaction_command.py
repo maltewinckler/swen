@@ -1,7 +1,11 @@
 """Unit tests for EditTransactionCommand."""
 
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -14,6 +18,16 @@ from swen.domain.accounting.exceptions import (
 )
 from swen.domain.accounting.value_objects import Currency, JournalEntryInput, Money
 from swen.domain.shared.exceptions import ValidationError
+
+
+@dataclass
+class DomainCallTracker:
+    """Tracks calls to domain service methods."""
+
+    replace_count: int = 0
+    change_count: int = 0
+    metadata_count: int = 0
+    metadata_applied: dict[str, Any] = field(default_factory=dict)
 
 
 @pytest.fixture
@@ -116,41 +130,34 @@ def mock_account_repo(mock_account) -> AsyncMock:
 class TestEditTransactionCommand:
     """Tests for EditTransactionCommand coordinator."""
 
-    @pytest.fixture
-    def command(
+    async def test_load_transaction_not_found(
         self,
         mock_transaction_repo,
         mock_account_repo,
-    ) -> EditTransactionCommand:
-        """Create command under test."""
-        return EditTransactionCommand(
-            transaction_repository=mock_transaction_repo,
-            account_repository=mock_account_repo,
-        )
-
-    # =========================================================================
-    # Coordinator tests
-    # =========================================================================
-
-    async def test_load_transaction_not_found(
-        self,
-        command,
-        mock_transaction_repo,
     ):
         """Raises TransactionNotFoundError when transaction doesn't exist."""
         mock_transaction_repo.find_by_id.return_value = None
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         with pytest.raises(TransactionNotFoundError):
             await command.execute(transaction_id=uuid4())
 
     async def test_unpost_if_posted(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Transaction is unposted before edits if it was posted."""
         txn = mock_transaction_repo._transaction
         txn.is_posted = True
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         await command.execute(
             transaction_id=txn.id,
@@ -162,12 +169,17 @@ class TestEditTransactionCommand:
 
     async def test_repost_if_was_posted_and_requested(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Transaction is reposted after edits if it was posted and repost=True."""
         txn = mock_transaction_repo._transaction
         txn.is_posted = True
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         await command.execute(
             transaction_id=txn.id,
@@ -180,11 +192,16 @@ class TestEditTransactionCommand:
 
     async def test_save_is_called(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Transaction is saved after edits."""
         txn = mock_transaction_repo._transaction
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         await command.execute(
             transaction_id=txn.id,
@@ -195,14 +212,17 @@ class TestEditTransactionCommand:
 
     async def test_entries_and_category_mutually_exclusive(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
-        """Cannot specify both entries and category_account_id."""
+        """Cannot specify both entries and counter_account_id."""
         txn = mock_transaction_repo._transaction
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             await command.execute(
                 transaction_id=txn.id,
                 entries=[
@@ -215,7 +235,7 @@ class TestEditTransactionCommand:
                         Decimal("50.00"),
                     ),
                 ],
-                category_account_id=mock_account_repo._expense_account2.id,
+                counter_account_id=mock_account_repo._expense_account2.id,
             )
 
         assert "cannot specify both" in str(exc_info.value).lower()
@@ -226,11 +246,16 @@ class TestEditTransactionCommand:
 
     async def test_update_description(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Description is updated via transaction method."""
         txn = mock_transaction_repo._transaction
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         await command.execute(
             transaction_id=txn.id,
@@ -245,11 +270,16 @@ class TestEditTransactionCommand:
 
     async def test_update_counterparty(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Counterparty is updated via transaction method."""
         txn = mock_transaction_repo._transaction
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         await command.execute(
             transaction_id=txn.id,
@@ -264,26 +294,46 @@ class TestEditTransactionCommand:
 
     async def test_update_metadata(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
-        """Metadata is updated via transaction method."""
+        """Metadata is updated via domain service."""
         txn = mock_transaction_repo._transaction
+        tracker = DomainCallTracker()
 
-        await command.execute(
-            transaction_id=txn.id,
-            metadata={"custom_tag": "value123"},
-        )
+        def mock_update_metadata(transaction, metadata):
+            tracker.metadata_count += 1
+            tracker.metadata_applied.update(metadata)
 
-        txn.set_metadata_raw.assert_called_once_with("custom_tag", "value123")
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.update_metadata",
+            staticmethod(mock_update_metadata),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=mock_transaction_repo,
+                account_repository=mock_account_repo,
+            )
+
+            await command.execute(
+                transaction_id=txn.id,
+                metadata={"custom_tag": "value123"},
+            )
+
+        assert tracker.metadata_count == 1
+        assert tracker.metadata_applied.get("custom_tag") == "value123"
 
     async def test_update_metadata_rejects_reserved_keys(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
-        """Reserved metadata keys are rejected."""
+        """Reserved metadata keys are rejected by domain service."""
         txn = mock_transaction_repo._transaction
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         with pytest.raises(ValidationError) as exc_info:
             await command.execute(
@@ -299,69 +349,97 @@ class TestEditTransactionCommand:
 
     async def test_replace_entries(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
-        """Entries are replaced via clear + add."""
+        """Entries are replaced via domain service."""
         txn = mock_transaction_repo._transaction
-        asset = mock_account_repo._asset_account
-        expense = mock_account_repo._expense_account
+        tracker = DomainCallTracker()
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("75.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("75.00")),
-        ]
+        def mock_replace_entries(transaction, entries, accounts):
+            tracker.replace_count += 1
 
-        await command.execute(
-            transaction_id=txn.id,
-            entries=entries,
-        )
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.replace_entries",
+            staticmethod(mock_replace_entries),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=mock_transaction_repo,
+                account_repository=mock_account_repo,
+            )
 
-        txn.clear_entries.assert_called_once()
-        assert txn.add_debit.call_count == 1
-        assert txn.add_credit.call_count == 1
+            entries = [
+                JournalEntryInput.debit_entry(
+                    mock_account_repo._expense_account.id, Decimal("75.00")
+                ),
+                JournalEntryInput.credit_entry(
+                    mock_account_repo._asset_account.id, Decimal("75.00")
+                ),
+            ]
+
+            await command.execute(
+                transaction_id=txn.id,
+                entries=entries,
+            )
+
+        assert tracker.replace_count == 1
 
     async def test_replace_entries_with_multiple(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
         """Multi-entry replacement works (split transaction)."""
         txn = mock_transaction_repo._transaction
-        asset = mock_account_repo._asset_account
-        expense1 = mock_account_repo._expense_account
-        expense2 = mock_account_repo._expense_account2
+        tracker = DomainCallTracker()
 
-        entries = [
-            JournalEntryInput.debit_entry(expense1.id, Decimal("30.00")),
-            JournalEntryInput.debit_entry(expense2.id, Decimal("20.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("50.00")),
-        ]
+        def mock_replace_entries(transaction, entries, accounts):
+            tracker.replace_count += 1
 
-        await command.execute(
-            transaction_id=txn.id,
-            entries=entries,
-        )
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.replace_entries",
+            staticmethod(mock_replace_entries),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=mock_transaction_repo,
+                account_repository=mock_account_repo,
+            )
 
-        txn.clear_entries.assert_called_once()
-        assert txn.add_debit.call_count == 2
-        assert txn.add_credit.call_count == 1
+            entries = [
+                JournalEntryInput.debit_entry(
+                    mock_account_repo._expense_account.id, Decimal("30.00")
+                ),
+                JournalEntryInput.debit_entry(
+                    mock_account_repo._expense_account2.id, Decimal("20.00")
+                ),
+                JournalEntryInput.credit_entry(
+                    mock_account_repo._asset_account.id, Decimal("50.00")
+                ),
+            ]
+
+            await command.execute(
+                transaction_id=txn.id,
+                entries=entries,
+            )
+
+        assert tracker.replace_count == 1
 
     async def test_replace_entries_requires_minimum_two(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
-        """At least 2 entries required."""
+        """At least 2 entries required - validated by domain service."""
         txn = mock_transaction_repo._transaction
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         entries = [
             JournalEntryInput.debit_entry(
-                mock_account_repo._expense_account.id,
-                Decimal("50.00"),
+                mock_account_repo._expense_account.id, Decimal("50.00")
             ),
         ]
 
@@ -375,12 +453,17 @@ class TestEditTransactionCommand:
 
     async def test_replace_entries_account_not_found(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
-        """Raises AccountNotFoundError for unknown account in entries."""
+        """Raises AccountNotFoundError for unknown account."""
         txn = mock_transaction_repo._transaction
         fake_id = uuid4()
+
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
 
         entries = [
             JournalEntryInput.debit_entry(fake_id, Decimal("50.00")),
@@ -394,35 +477,45 @@ class TestEditTransactionCommand:
             )
 
     # =========================================================================
-    # _change_category tests
+    # _change_counter_account tests
     # =========================================================================
 
-    async def test_change_category(
+    async def test_change_counter_account(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
-        """Category change swaps expense/income account."""
+        """Category change delegates to domain service."""
         txn = mock_transaction_repo._transaction
-        new_expense = mock_account_repo._expense_account2
+        tracker = DomainCallTracker()
 
-        await command.execute(
-            transaction_id=txn.id,
-            category_account_id=new_expense.id,
-        )
+        def mock_change_counter_account(transaction, counter_account):
+            tracker.change_count += 1
 
-        txn.clear_entries.assert_called_once()
-        # Should add new entries with the new category
-        assert txn.add_debit.call_count >= 1 or txn.add_credit.call_count >= 1
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.change_counter_account",
+            staticmethod(mock_change_counter_account),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=mock_transaction_repo,
+                account_repository=mock_account_repo,
+            )
 
-    async def test_change_category_with_liability_account(
+            await command.execute(
+                transaction_id=txn.id,
+                counter_account_id=mock_account_repo._expense_account2.id,
+            )
+
+        assert tracker.change_count == 1
+
+    async def test_change_counter_account_with_liability_account(
         self,
+        mock_transaction_repo,
         mock_account_repo,
         mock_account,
     ):
         """Category change works when payment account is a liability (credit card)."""
-        # Create a liability account (credit card)
+        # Create a liability account
         liability_account = mock_account(AccountType.LIABILITY, "Credit Card")
         expense_account = mock_account(AccountType.EXPENSE, "Groceries")
         new_expense_account = mock_account(AccountType.EXPENSE, "Restaurant")
@@ -459,36 +552,48 @@ class TestEditTransactionCommand:
         txn_repo.find_by_id = AsyncMock(return_value=txn)
         txn_repo.save = AsyncMock()
 
-        # Create command
-        command = EditTransactionCommand(
-            transaction_repository=txn_repo,
-            account_repository=mock_account_repo,
-        )
+        tracker = DomainCallTracker()
 
-        # Execute category change - should NOT raise BusinessRuleViolation
-        await command.execute(
-            transaction_id=txn.id,
-            category_account_id=new_expense_account.id,
-        )
+        def mock_change_counter_account(transaction, counter_account):
+            tracker.change_count += 1
+
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.change_counter_account",
+            staticmethod(mock_change_counter_account),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=txn_repo,
+                account_repository=mock_account_repo,
+            )
+
+            # Execute category change - should NOT raise BusinessRuleViolation
+            await command.execute(
+                transaction_id=txn.id,
+                counter_account_id=new_expense_account.id,
+            )
 
         # Verify the transaction was modified
-        txn.clear_entries.assert_called_once()
-        assert txn.add_debit.call_count >= 1 or txn.add_credit.call_count >= 1
+        assert tracker.change_count == 1
         txn_repo.save.assert_called_once_with(txn)
 
-    async def test_change_category_account_not_found(
+    async def test_change_counter_account_account_not_found(
         self,
-        command,
         mock_transaction_repo,
+        mock_account_repo,
     ):
         """Raises AccountNotFoundError for unknown category account."""
         txn = mock_transaction_repo._transaction
         fake_id = uuid4()
 
+        command = EditTransactionCommand(
+            transaction_repository=mock_transaction_repo,
+            account_repository=mock_account_repo,
+        )
+
         with pytest.raises(AccountNotFoundError):
             await command.execute(
                 transaction_id=txn.id,
-                category_account_id=fake_id,
+                counter_account_id=fake_id,
             )
 
     # =========================================================================
@@ -513,29 +618,43 @@ class TestEditTransactionCommand:
 
     async def test_multiple_operations_in_one_call(
         self,
-        command,
         mock_transaction_repo,
         mock_account_repo,
     ):
         """Can update description, counterparty, and entries in one call."""
         txn = mock_transaction_repo._transaction
-        asset = mock_account_repo._asset_account
-        expense = mock_account_repo._expense_account
+        tracker = DomainCallTracker()
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("100.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("100.00")),
-        ]
+        def mock_replace_entries(transaction, entries, accounts):
+            tracker.replace_count += 1
 
-        await command.execute(
-            transaction_id=txn.id,
-            entries=entries,
-            description="New description",
-            counterparty="New counterparty",
-        )
+        with patch(
+            "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.replace_entries",
+            staticmethod(mock_replace_entries),
+        ):
+            command = EditTransactionCommand(
+                transaction_repository=mock_transaction_repo,
+                account_repository=mock_account_repo,
+            )
+
+            entries = [
+                JournalEntryInput.debit_entry(
+                    mock_account_repo._expense_account.id, Decimal("100.00")
+                ),
+                JournalEntryInput.credit_entry(
+                    mock_account_repo._asset_account.id, Decimal("100.00")
+                ),
+            ]
+
+            await command.execute(
+                transaction_id=txn.id,
+                entries=entries,
+                description="New description",
+                counterparty="New counterparty",
+            )
 
         # All operations should have been called
-        txn.clear_entries.assert_called_once()
         txn.update_description.assert_called_once_with("New description")
         txn.update_counterparty.assert_called_once_with("New counterparty")
+        assert tracker.replace_count == 1
         mock_transaction_repo.save.assert_called_once()

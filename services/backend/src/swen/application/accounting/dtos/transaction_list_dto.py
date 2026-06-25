@@ -7,11 +7,7 @@ from typing import Optional
 from uuid import UUID
 
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities import JournalEntry
-from swen.domain.accounting.entities.account_type import AccountType
-
-# Account types that represent payment accounts (bank accounts, credit cards)
-PAYMENT_ACCOUNT_TYPES = frozenset({AccountType.ASSET, AccountType.LIABILITY})
+from swen.domain.accounting.entities import PAYMENT_ACCOUNT_TYPES, JournalEntry
 
 
 @dataclass(frozen=True)
