@@ -17,7 +17,6 @@ from swen.domain.accounting.services.transaction_edit_service import (
     TransactionEditService,
 )
 from swen.domain.accounting.services.transaction_entry_service import (
-    EntrySpec,
     TransactionDirection,
     TransactionEntryService,
 )
@@ -27,7 +26,6 @@ __all__ = [
     "AccountBalanceService",
     "AccountHierarchyService",
     "ClassificationRules",
-    "EntrySpec",
     "MetadataKeys",
     "OpeningBalanceCalculator",
     "OpeningBalanceService",

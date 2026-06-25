@@ -16,7 +16,6 @@ from swen.domain.accounting.entities import (
     AccountType,
     JournalEntry,
 )
-from swen.domain.accounting.services import TransactionEntryService
 from swen.domain.accounting.value_objects import MetadataKeys
 from swen.domain.banking.value_objects import BankTransaction
 
@@ -241,7 +240,7 @@ class TransferReconciliationService:
         liability_account: Account,
         expense_income_entry: JournalEntry,
         asset_entry: JournalEntry,
-    ):
+    ) -> None:
         amount = expense_income_entry.amount
         transaction.clear_entries()
 
@@ -250,19 +249,16 @@ class TransferReconciliationService:
         )
         is_payment_out = expense_income_entry.is_debit()
 
-        entry_specs = TransactionEntryService.build_liability_payment_entries(
-            asset_account=asset_entry.account,
-            liability_account=liability_account,
-            amount=amount,
-            is_payment_out=is_payment_out,
-            asset_preserved=asset_preserved,
-        )
-
-        for spec in entry_specs:
-            if spec.is_debit:
-                transaction.add_debit(spec.account, spec.amount)
-            else:
-                transaction.add_credit(spec.account, spec.amount)
+        if is_payment_out:
+            # Payment to liability: Debit Liability (reduces debt), Credit Asset
+            transaction.add_debit(liability_account, amount)
+            if not asset_preserved:
+                transaction.add_credit(asset_entry.account, amount)
+        else:
+            # Payout from liability: Debit Asset (increases cash), Credit Liability
+            if not asset_preserved:
+                transaction.add_debit(asset_entry.account, amount)
+            transaction.add_credit(liability_account, amount)
 
         description = (
             f"Payment to {liability_account.name}"
