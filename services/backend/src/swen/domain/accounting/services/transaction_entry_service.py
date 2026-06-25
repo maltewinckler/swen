@@ -106,44 +106,6 @@ class TransactionEntryService:
         )
 
     @staticmethod
-    def build_category_swap_entries(
-        new_category: Account,
-        payment_account: Account,
-        amount: Money,
-        payment_preserved: bool = False,
-    ) -> List[EntrySpec]:
-        # Used when recategorizing a transaction - e.g., changing from
-        # "Groceries" expense to "Restaurants" expense.
-        if new_category.account_type not in CATEGORY_ACCOUNT_TYPES:
-            raise InvalidAccountTypeError(
-                new_category.account_type.value,
-                ["expense", "income"],
-            )
-
-        entries: List[EntrySpec] = []
-
-        if new_category.account_type == AccountType.EXPENSE:
-            # Expense: Debit expense, Credit payment
-            entries.append(
-                EntrySpec(account=new_category, amount=amount, is_debit=True),
-            )
-            if not payment_preserved:
-                entries.append(
-                    EntrySpec(account=payment_account, amount=amount, is_debit=False),
-                )
-        else:
-            # Income: Debit payment, Credit income
-            if not payment_preserved:
-                entries.append(
-                    EntrySpec(account=payment_account, amount=amount, is_debit=True),
-                )
-            entries.append(
-                EntrySpec(account=new_category, amount=amount, is_debit=False),
-            )
-
-        return entries
-
-    @staticmethod
     def build_internal_transfer_entries(
         source_account: Account,
         destination_account: Account,

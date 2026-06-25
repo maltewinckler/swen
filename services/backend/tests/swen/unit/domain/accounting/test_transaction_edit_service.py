@@ -51,6 +51,7 @@ def mock_transaction():
         # Track calls
         txn.added_debits = []
         txn.added_credits = []
+        txn.removed_entry_ids = []
 
         def mock_add_debit(account, money):
             txn.added_debits.append((account, money))
@@ -58,8 +59,12 @@ def mock_transaction():
         def mock_add_credit(account, money):
             txn.added_credits.append((account, money))
 
+        def mock_remove_entry(entry_id):
+            txn.removed_entry_ids.append(entry_id)
+
         txn.add_debit = MagicMock(side_effect=mock_add_debit)
         txn.add_credit = MagicMock(side_effect=mock_add_credit)
+        txn.remove_entry = MagicMock(side_effect=mock_remove_entry)
         txn.clear_entries = MagicMock()
         txn.update_description = MagicMock()
         txn.update_counterparty = MagicMock()
@@ -198,7 +203,7 @@ class TestTransactionEditServiceChangeCounterAccount:
         mock_transaction,
         mock_account,
     ):
-        """Basic category change works."""
+        """Basic category change replaces only the category entry."""
         old_expense = mock_account(AccountType.EXPENSE, "Groceries")
         new_expense = mock_account(AccountType.EXPENSE, "Restaurant")
         asset = mock_account(AccountType.ASSET, "Checking")
@@ -206,6 +211,7 @@ class TestTransactionEditServiceChangeCounterAccount:
         # Create mock entries
         category_entry = MagicMock()
         category_entry.account = old_expense
+        category_entry.id = uuid4()
         category_entry.is_debit.return_value = True
         category_entry.debit = Money(Decimal("50.00"), Currency("EUR"))
         category_entry.credit = Money(Decimal("0"), Currency("EUR"))
@@ -218,9 +224,17 @@ class TestTransactionEditServiceChangeCounterAccount:
 
         TransactionEditService.change_counter_account(txn, new_expense)
 
-        txn.clear_entries.assert_called_once()
-        # Should add new entries
-        assert txn.add_debit.call_count >= 1 or txn.add_credit.call_count >= 1
+        # Should NOT call clear_entries
+        txn.clear_entries.assert_not_called()
+
+        # Should remove the old category entry
+        txn.remove_entry.assert_called_once_with(category_entry.id)
+
+        # Should add the new category entry as debit (same direction)
+        txn.add_debit.assert_called_once_with(new_expense, category_entry.debit)
+
+        # Payment entry should be untouched
+        assert len(txn.added_credits) == 0
 
     def test_change_counter_account_with_liability(
         self,
@@ -234,6 +248,7 @@ class TestTransactionEditServiceChangeCounterAccount:
 
         category_entry = MagicMock()
         category_entry.account = old_expense
+        category_entry.id = uuid4()
         category_entry.is_debit.return_value = True
         category_entry.debit = Money(Decimal("50.00"), Currency("EUR"))
         category_entry.credit = Money(Decimal("0"), Currency("EUR"))
@@ -246,7 +261,40 @@ class TestTransactionEditServiceChangeCounterAccount:
 
         TransactionEditService.change_counter_account(txn, new_expense)
 
-        txn.clear_entries.assert_called_once()
+        txn.clear_entries.assert_not_called()
+        txn.remove_entry.assert_called_once_with(category_entry.id)
+        txn.add_debit.assert_called_once()
+
+    def test_change_counter_account_income(
+        self,
+        mock_transaction,
+        mock_account,
+    ):
+        """Category change works for income transactions (credit direction)."""
+        old_income = mock_account(AccountType.INCOME, "Salary")
+        new_income = mock_account(AccountType.INCOME, "Freelance")
+        asset = mock_account(AccountType.ASSET, "Checking")
+
+        category_entry = MagicMock()
+        category_entry.account = old_income
+        category_entry.id = uuid4()
+        category_entry.is_debit.return_value = False
+        category_entry.debit = Money(Decimal("0"), Currency("EUR"))
+        category_entry.credit = Money(Decimal("1000.00"), Currency("EUR"))
+
+        payment_entry = MagicMock()
+        payment_entry.account = asset
+        payment_entry.is_debit.return_value = True
+
+        txn = mock_transaction(entries=[payment_entry, category_entry])
+
+        TransactionEditService.change_counter_account(txn, new_income)
+
+        txn.clear_entries.assert_not_called()
+        txn.remove_entry.assert_called_once_with(category_entry.id)
+
+        # Should add as credit (same direction as old income entry)
+        txn.add_credit.assert_called_once_with(new_income, category_entry.credit)
 
     def test_change_counter_account_missing_category_entry(
         self,
@@ -263,30 +311,11 @@ class TestTransactionEditServiceChangeCounterAccount:
 
         txn = mock_transaction(entries=[payment_entry])
 
-        income = mock_account(AccountType.ASSET, "Savings")
+        # Use INCOME type so it passes the account_type validation
+        # but there's no INCOME entry in the transaction
+        income = mock_account(AccountType.INCOME, "Salary")
         with pytest.raises(BusinessRuleViolation, match="category"):
             TransactionEditService.change_counter_account(txn, income)
-
-    def test_change_counter_account_missing_payment_entry(
-        self,
-        mock_transaction,
-        mock_account,
-    ):
-        """Raises BusinessRuleViolation when no payment entry found."""
-        expense = mock_account(AccountType.EXPENSE, "Groceries")
-
-        # Only category entry, no payment
-        category_entry = MagicMock()
-        category_entry.account = expense
-        category_entry.is_debit.return_value = True
-        category_entry.debit = Money(Decimal("50.00"), Currency("EUR"))
-        category_entry.credit = Money(Decimal("0"), Currency("EUR"))
-
-        txn = mock_transaction(entries=[category_entry])
-
-        new_expense = mock_account(AccountType.EXPENSE, "Restaurant")
-        with pytest.raises(BusinessRuleViolation, match="category"):
-            TransactionEditService.change_counter_account(txn, new_expense)
 
     def test_change_counter_account_invalid_new_category_type(
         self,
@@ -312,6 +341,41 @@ class TestTransactionEditServiceChangeCounterAccount:
         invalid_category = mock_account(AccountType.ASSET, "Savings")
         with pytest.raises(Exception, match="asset"):
             TransactionEditService.change_counter_account(txn, invalid_category)
+
+    def test_change_counter_account_multiple_category_entries_raises(
+        self,
+        mock_transaction,
+        mock_account,
+    ):
+        """Raises BusinessRuleViolation when transaction has multiple category entries."""
+        expense = mock_account(AccountType.EXPENSE, "Groceries")
+        income = mock_account(AccountType.INCOME, "Salary")
+        asset = mock_account(AccountType.ASSET, "Checking")
+
+        category_entry1 = MagicMock()
+        category_entry1.account = expense
+        category_entry1.id = uuid4()
+        category_entry1.is_debit.return_value = True
+        category_entry1.debit = Money(Decimal("50.00"), Currency("EUR"))
+        category_entry1.credit = Money(Decimal("0"), Currency("EUR"))
+
+        category_entry2 = MagicMock()
+        category_entry2.account = income
+        category_entry2.id = uuid4()
+        category_entry2.is_debit.return_value = False
+        category_entry2.debit = Money(Decimal("0"), Currency("EUR"))
+        category_entry2.credit = Money(Decimal("100.00"), Currency("EUR"))
+
+        payment_entry = MagicMock()
+        payment_entry.account = asset
+
+        txn = mock_transaction(
+            entries=[category_entry1, category_entry2, payment_entry]
+        )
+
+        new_expense = mock_account(AccountType.EXPENSE, "Restaurant")
+        with pytest.raises(BusinessRuleViolation, match="multiple category entries"):
+            TransactionEditService.change_counter_account(txn, new_expense)
 
 
 class TestTransactionEditServiceUpdateMetadata:

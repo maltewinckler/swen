@@ -6,8 +6,7 @@ including:
 - Recategorizing transactions (validating structure, swapping category)
 - Metadata updates (enforcing reserved key constraints)
 
-It operates purely on the Transaction aggregate and Account entities,
-delegating entry building to TransactionEntryService where appropriate.
+It operates purely on the Transaction aggregate and Account entities.
 """
 
 from __future__ import annotations
@@ -16,18 +15,38 @@ from typing import Any
 from uuid import UUID
 
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities import Account
-from swen.domain.accounting.services.transaction_entry_service import (
+from swen.domain.accounting.entities import (
     CATEGORY_ACCOUNT_TYPES,
-    PAYMENT_ACCOUNT_TYPES,
-    TransactionEntryService,
+    Account,
+    JournalEntry,
 )
+from swen.domain.accounting.exceptions import InvalidAccountTypeError
 from swen.domain.accounting.value_objects import (
     JournalEntryInput,
     MetadataKeys,
     Money,
 )
 from swen.domain.shared.exceptions import BusinessRuleViolation, ValidationError
+
+
+def _extract_counter_account_entry(transaction: Transaction) -> JournalEntry:
+    # Find the existing category entry (Income or Expense)
+    category_entry_to_replace = None
+    for entry in transaction.entries:
+        if entry.account.account_type in CATEGORY_ACCOUNT_TYPES:
+            # In multi entry trx, we cannot support this way of changing yet.
+            if category_entry_to_replace is not None:
+                msg = (
+                    "Transaction has multiple category entries; "
+                    "use 'replace_entries' for multi-entry transactions."
+                )
+                raise BusinessRuleViolation(msg)
+            category_entry_to_replace = entry
+
+    if category_entry_to_replace is None:
+        msg = "Transaction has no category (Income/Expense) entry to replace."
+        raise BusinessRuleViolation(msg)
+    return category_entry_to_replace
 
 
 class TransactionEditService:
@@ -80,59 +99,44 @@ class TransactionEditService:
         transaction: Transaction,
         counter_account: Account,
     ) -> None:
-        """Recategorize a transaction.
+        """Recategorize a transaction by replacing the category entry.
 
         Business rules:
-        - Transaction must have exactly one category + one payment entry
-        - New category must match transaction direction (expense/income)
-        - Bank imports preserve the payment entry
+        - Transaction must have exactly one category (Income/Expense) entry
+        - New category must match the transaction direction (expense/income)
+        - The payment entry is preserved — only the category entry is replaced
+
+        This is a targeted 2-step operation:
+        1. Remove the existing category entry
+        2. Add the new category entry with the same amount and debit/credit direction
         """
-        current_category_entry = None
-        payment_entry = None
-
-        for entry in transaction.entries:
-            if entry.account.account_type in CATEGORY_ACCOUNT_TYPES:
-                current_category_entry = entry
-            elif entry.account.account_type in PAYMENT_ACCOUNT_TYPES:
-                payment_entry = entry
-
-        if not current_category_entry or not payment_entry:
-            msg = (
-                "Transaction does not have the expected structure "
-                "(category + asset/liability). "
-                "Use 'entries' parameter for multi-entry transactions."
+        # Validate new category is Income or Expense
+        if counter_account.account_type not in CATEGORY_ACCOUNT_TYPES:
+            raise InvalidAccountTypeError(
+                counter_account.account_type.value,
+                ["expense", "income"],
             )
-            raise BusinessRuleViolation(msg)
 
-        # Get the amount from the current category entry
-        amount = (
-            current_category_entry.debit
-            if current_category_entry.is_debit()
-            else current_category_entry.credit
-        )
+        # Find the existing category entry (Income or Expense)
+        counter_entry_to_replace = _extract_counter_account_entry(transaction)
 
-        # Clear unprotected entries (preserves payment entry for bank imports)
-        transaction.clear_entries()
+        # Record the amount and debit/credit direction from the old entry
+        # Use is_debit() to determine which field holds the actual amount
+        if counter_entry_to_replace.is_debit():
+            amount = counter_entry_to_replace.debit
+            is_debit = True
+        else:
+            amount = counter_entry_to_replace.credit
+            is_debit = False
 
-        # Check if payment entry was preserved (bank import case)
-        payment_preserved = any(
-            e.account.account_type in PAYMENT_ACCOUNT_TYPES for e in transaction.entries
-        )
+        # Remove the old category entry
+        transaction.remove_entry(counter_entry_to_replace.id)
 
-        # Use domain service to build the new entries
-        entry_specs = TransactionEntryService.build_category_swap_entries(
-            new_category=counter_account,
-            payment_account=payment_entry.account,
-            amount=amount,
-            payment_preserved=payment_preserved,
-        )
-
-        # Apply the entry specifications to the transaction
-        for spec in entry_specs:
-            if spec.is_debit:
-                transaction.add_debit(spec.account, spec.amount)
-            else:
-                transaction.add_credit(spec.account, spec.amount)
+        # Add the new category entry with the same direction and amount
+        if is_debit:
+            transaction.add_debit(counter_account, amount)
+        else:
+            transaction.add_credit(counter_account, amount)
 
     @staticmethod
     def update_metadata(
