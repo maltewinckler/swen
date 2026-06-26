@@ -37,3 +37,18 @@ class AccountMappingListDTO(BaseModel):
 
     mappings: list[AccountMappingDTO]
     count: int
+
+
+class ExternalAccountCreatedDTO(BaseModel):
+    """DTO for the result of creating an external account mapping.
+
+    This is the application-layer DTO that carries the result of the
+    create external account command from the command layer to the
+    presentation layer.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    mapping: AccountMappingDTO
+    transactions_reconciled: int
+    already_existed: bool

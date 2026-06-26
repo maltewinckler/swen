@@ -5,10 +5,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen.application.integration.commands import (
-    CreateExternalAccountCommand,
-    CreateExternalAccountResult,
-)
+from swen.application.integration.commands import CreateExternalAccountCommand
+from swen.application.integration.dtos import ExternalAccountCreatedDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
 from swen.domain.accounting.value_objects import Currency
@@ -68,24 +66,15 @@ class TestCreateExternalAccountCommand:
             )
 
         # Assert
-        assert isinstance(result, CreateExternalAccountResult)
+        assert isinstance(result, ExternalAccountCreatedDTO)
         assert result.already_existed is False
         assert result.transactions_reconciled == 0
 
-        # Check account was created correctly
-        assert result.account.name == "Deutsche Bank Depot"
-        assert result.account.account_type == AccountType.ASSET
-        assert result.account.account_number == f"EXT-{TEST_IBAN[-8:]}"
-        assert result.account.iban == TEST_IBAN
-        assert result.account.default_currency == Currency("EUR")
-        assert result.account.user_id == TEST_USER_ID
-
-        # Check mapping was created correctly
+        # Check mapping DTO was created correctly
         assert result.mapping.iban == TEST_IBAN
         assert result.mapping.account_name == "Deutsche Bank Depot"
-        assert result.mapping.accounting_account_id == result.account.id
-        assert result.mapping.user_id == TEST_USER_ID
-        assert result.mapping.is_active is True
+        assert result.mapping.accounting_account_name == "Deutsche Bank Depot"
+        assert result.mapping.accounting_account_number == f"EXT-{TEST_IBAN[-8:]}"
 
         # Verify repositories were called
         account_repo.save.assert_called_once()
@@ -100,9 +89,10 @@ class TestCreateExternalAccountCommand:
         existing_account = Account(
             name="Existing Depot",
             account_type=AccountType.ASSET,
-            account_number=TEST_IBAN,
+            account_number="TEST-1234",
             user_id=TEST_USER_ID,
             default_currency=Currency("EUR"),
+            iban=TEST_IBAN,
         )
         existing_mapping = AccountMapping(
             iban=TEST_IBAN,
@@ -125,8 +115,10 @@ class TestCreateExternalAccountCommand:
         # Assert
         assert result.already_existed is True
         assert result.transactions_reconciled == 0
-        assert result.account.name == "Existing Depot"  # Original name kept
+        assert result.mapping.account_name == "Existing Depot"
         assert result.mapping.iban == TEST_IBAN
+        assert result.mapping.accounting_account_name == "Existing Depot"
+        assert result.mapping.accounting_account_number == "TEST-1234"
 
         # Verify no saves were called
         account_repo.save.assert_not_called()
@@ -222,8 +214,6 @@ class TestCreateExternalAccountCommand:
             )
 
         # Assert - IBAN should be normalized
-        assert result.account.iban == "DE51120700700756557355"
-        assert result.account.account_number == "EXT-56557355"
         assert result.mapping.iban == "DE51120700700756557355"
 
     @pytest.mark.asyncio
@@ -295,7 +285,7 @@ class TestCreateExternalAccountCommand:
             )
 
         # Assert
-        assert result.account.default_currency == Currency("USD")
+        assert result.mapping.iban == "DE12345678901234567890"
 
 
 class TestCreateExternalAccountCommandLiability:
@@ -330,9 +320,8 @@ class TestCreateExternalAccountCommandLiability:
             )
 
         # Assert
-        assert result.account.account_type == AccountType.LIABILITY
-        assert result.account.account_number == f"LIA-{TEST_IBAN[-8:]}"
-        assert result.account.name == "Norwegian VISA"
+        assert result.mapping.iban == TEST_IBAN
+        assert result.mapping.account_name == "Norwegian VISA"
 
     @pytest.mark.asyncio
     async def test_liability_reconciliation_called_for_liability_accounts(self):
@@ -463,11 +452,10 @@ class TestCreateExternalAccountCommandReuseExisting:
 
         # Assert
         assert result.already_existed is True  # Account existed
-        assert result.account.id == existing_account.id  # Reused existing
-        assert result.account.name == "Existing Account"  # Original name kept
         assert result.mapping.iban == TEST_IBAN
-        assert result.mapping.accounting_account_id == existing_account.id
         assert result.mapping.account_name == "New Name"  # Mapping gets new name
+        assert result.mapping.accounting_account_name == "Existing Account"
+        assert result.mapping.accounting_account_number == "EXT-existing"
         assert result.transactions_reconciled == 2
 
         # Account was NOT saved (reused), only mapping
@@ -512,8 +500,6 @@ class TestCreateExternalAccountCommandReuseExisting:
 
         # Assert
         assert result.already_existed is True
-        assert result.account.id == existing_liability.id
-        assert result.account.account_type == AccountType.LIABILITY
         assert result.transactions_reconciled == 1
         mock_service.reconcile_liability_for_new_account.assert_called_once()
 

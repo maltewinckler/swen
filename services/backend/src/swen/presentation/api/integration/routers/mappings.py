@@ -44,7 +44,9 @@ async def list_mappings(factory: RepoFactory) -> AccountMappingListResponse:
     query = ListAccountMappingsQuery.from_factory(factory)
     result = await query.execute()
 
-    mappings = [AccountMappingResponse.model_validate(m) for m in result.mappings]
+    mappings = [
+        AccountMappingResponse.model_validate(m.model_dump()) for m in result.mappings
+    ]
 
     return AccountMappingListResponse(
         mappings=mappings,
@@ -78,7 +80,7 @@ async def get_mapping_by_iban(
             detail=f"No mapping found for IBAN: {iban}",
         )
 
-    return AccountMappingResponse.model_validate(result)
+    return AccountMappingResponse.model_validate(result.model_dump())
 
 
 @router.post(
@@ -120,7 +122,6 @@ async def create_external_account_mapping(
     """
     command = CreateExternalAccountCommand.from_factory(factory)
 
-    # Convert API enum to domain enum
     domain_account_type = (
         AccountType.LIABILITY
         if request.account_type == ExternalAccountType.LIABILITY
@@ -138,20 +139,7 @@ async def create_external_account_mapping(
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
         raise
-
-    mapping_response = AccountMappingResponse(
-        id=result.mapping.id,
-        iban=result.mapping.iban,
-        account_name=result.mapping.account_name,
-        accounting_account_id=result.mapping.accounting_account_id,
-        accounting_account_name=result.account.name,
-        accounting_account_number=result.account.account_number,
-        created_at=(
-            result.mapping.created_at.isoformat() if result.mapping.created_at else None
-        ),
-    )
 
     logger.info(
         "External account mapping created: %s -> %s (reconciled %d transactions)",
@@ -160,8 +148,4 @@ async def create_external_account_mapping(
         result.transactions_reconciled,
     )
 
-    return ExternalAccountCreateResponse(
-        mapping=mapping_response,
-        transactions_reconciled=result.transactions_reconciled,
-        already_existed=result.already_existed,
-    )
+    return ExternalAccountCreateResponse.model_validate(result.model_dump())
