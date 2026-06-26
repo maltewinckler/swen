@@ -13,6 +13,7 @@ from swen.domain.accounting.services.opening_balance import (
     OpeningBalanceCalculator,
     OpeningBalanceService,
 )
+from swen.domain.accounting.services.transaction_analyzer import TransactionAnalyzer
 from swen.domain.accounting.services.transaction_edit_service import (
     TransactionEditService,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "MetadataKeys",
     "OpeningBalanceCalculator",
     "OpeningBalanceService",
+    "TransactionAnalyzer",
     "TransactionDirection",
     "TransactionEditService",
     "TransactionEntryService",

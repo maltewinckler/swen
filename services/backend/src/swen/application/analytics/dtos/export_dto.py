@@ -2,11 +2,11 @@
 
 import json
 from dataclasses import dataclass, field
-from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
+from swen.domain.accounting.services import TransactionAnalyzer
 from swen.domain.integration.entities import AccountMapping
 
 
@@ -51,21 +51,6 @@ class TransactionExportDTO:
 
     @classmethod
     def from_transaction(cls, txn: Transaction) -> "TransactionExportDTO":
-        amount = Decimal(0)
-        amount_currency = "EUR"
-        debit_account = ""
-        credit_account = ""
-
-        for entry in txn.entries:
-            if entry.is_debit():
-                debit_account = f"{entry.account.account_number} - {entry.account.name}"
-                amount = entry.debit.amount
-                amount_currency = entry.debit.currency.code
-            else:
-                credit_account = (
-                    f"{entry.account.account_number} - {entry.account.name}"
-                )
-
         return cls(
             id=str(txn.id),
             date=txn.date.strftime("%Y-%m-%d"),
@@ -75,14 +60,37 @@ class TransactionExportDTO:
             source=txn.source.value,
             source_iban=txn.source_iban or "",
             is_internal_transfer=txn.is_internal_transfer,
-            amount=float(amount),
-            currency=amount_currency,
-            debit_account=debit_account,
-            credit_account=credit_account,
+            amount=float(TransactionAnalyzer.payment_amount(txn)),
+            currency=TransactionAnalyzer.payment_currency(txn),
+            debit_account=cls._format_account_name(
+                txn, TransactionAnalyzer.debit_account_name(txn)
+            ),
+            credit_account=cls._format_account_name(
+                txn, TransactionAnalyzer.credit_account_name(txn)
+            ),
             status="posted" if txn.is_posted else "draft",
             metadata=json.dumps(txn.metadata_raw) if txn.metadata_raw else "",
             created_at=txn.created_at.isoformat(),
         )
+
+    @staticmethod
+    def _format_account_name(
+        txn: Transaction,
+        account_label: Optional[str],
+    ) -> str:
+        """Format account name with number for export.
+
+        Looks up the account by the label returned from TransactionAnalyzer
+        and returns "number - name" format.
+        """
+        if not account_label:
+            return ""
+
+        for entry in txn.entries:
+            if entry.account.name == account_label:
+                return f"{entry.account.account_number} - {entry.account.name}"
+
+        return account_label
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.services import TransactionAnalyzer
 
 
 @dataclass(frozen=True)
@@ -65,22 +66,18 @@ class TransactionDetailDTO:
     @classmethod
     def from_transaction(cls, txn: Transaction) -> "TransactionDetailDTO":
         entries: list[JournalEntryDTO] = []
-        total_debit = Decimal("0")
-        total_credit = Decimal("0")
 
         for entry in txn.entries:
             account = entry.account
 
             if entry.is_debit():
                 debit_amount = entry.debit.amount
-                credit_amount = None
+                credit_amount: Optional[Decimal] = None
                 currency = entry.debit.currency.code
-                total_debit += debit_amount
             else:
                 debit_amount = None
                 credit_amount = entry.credit.amount
                 currency = entry.credit.currency.code
-                total_credit += credit_amount
 
             entries.append(
                 JournalEntryDTO(
@@ -91,6 +88,8 @@ class TransactionDetailDTO:
                     currency=currency,
                 ),
             )
+
+        total_debit, total_credit = TransactionAnalyzer.debit_credit_totals(txn)
 
         return cls(
             id=txn.id,
