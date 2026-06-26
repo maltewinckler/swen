@@ -135,7 +135,10 @@ async def run_sync_streaming(
 
         try:
             async for item in publisher.events():
-                yield _format_sse_event(item.event_type.value, item.to_dict())
+                yield _format_sse_event(
+                    item.event_type.value,
+                    item.model_dump(mode="json"),
+                )
 
             await task
 

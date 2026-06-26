@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from pydantic import ConfigDict, Field
 
 from swen.application.events.base import ErrorCode, SyncEventType, SyncProgressEvent
 
 
-@dataclass
 class AccountSyncStartedEvent(SyncProgressEvent):
     """Emitted when starting to sync a specific account."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.ACCOUNT_SYNC_STARTED, init=False
     )
     iban: str = ""
@@ -20,11 +21,12 @@ class AccountSyncStartedEvent(SyncProgressEvent):
     total_accounts: int = 0
 
 
-@dataclass
 class AccountSyncFetchedEvent(SyncProgressEvent):
     """Emitted after fetching transactions from bank."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.ACCOUNT_SYNC_FETCHED, init=False
     )
     iban: str = ""
@@ -32,11 +34,12 @@ class AccountSyncFetchedEvent(SyncProgressEvent):
     new_transactions: int = 0
 
 
-@dataclass
 class AccountSyncCompletedEvent(SyncProgressEvent):
     """Emitted when account sync completes."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.ACCOUNT_SYNC_COMPLETED, init=False
     )
     iban: str = ""
@@ -45,11 +48,12 @@ class AccountSyncCompletedEvent(SyncProgressEvent):
     failed: int = 0
 
 
-@dataclass
 class AccountSyncFailedEvent(SyncProgressEvent):
     """Emitted when account sync fails."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.ACCOUNT_SYNC_FAILED, init=False
     )
     iban: str = ""

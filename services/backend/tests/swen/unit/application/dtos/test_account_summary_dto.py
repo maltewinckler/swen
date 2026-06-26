@@ -37,8 +37,8 @@ class TestAccountSummaryDTO:
         assert dto.name == "Groceries"
         assert dto.parent_id == str(parent.id)
 
-    def test_to_dict_includes_parent_id(self):
-        """Test to_dict includes parent_id field."""
+    def test_model_dump_includes_parent_id(self):
+        """Test model_dump includes parent_id field."""
         # Arrange
         user_id = uuid4()
         parent = Account("Food", AccountType.EXPENSE, "4000", user_id)
@@ -47,21 +47,21 @@ class TestAccountSummaryDTO:
 
         # Act
         dto = AccountSummaryDTO.from_entity(child)
-        result = dto.to_dict()
+        result = dto.model_dump()
 
         # Assert
         assert "parent_id" in result
         assert result["parent_id"] == str(parent.id)
 
-    def test_to_dict_parent_id_null_for_root(self):
-        """Test to_dict has null parent_id for root accounts."""
+    def test_model_dump_parent_id_null_for_root(self):
+        """Test model_dump has null parent_id for root accounts."""
         # Arrange
         user_id = uuid4()
         root = Account("Expenses", AccountType.EXPENSE, "4000", user_id)
 
         # Act
         dto = AccountSummaryDTO.from_entity(root)
-        result = dto.to_dict()
+        result = dto.model_dump()
 
         # Assert
         assert "parent_id" in result

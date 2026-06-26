@@ -2,30 +2,15 @@
 
 from __future__ import annotations
 
-import dataclasses
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from decimal import Decimal
 from enum import Enum
-from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 def _utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(UTC)
-
-
-def _to_jsonable(value):
-    """Convert a value to a JSON-serializable form."""
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, Decimal):
-        return float(value)
-    if isinstance(value, Enum):
-        return value.value
-    return value
 
 
 class ErrorCode(str, Enum):
@@ -65,12 +50,10 @@ class SyncEventType(str, Enum):
     RESULT = "result"
 
 
-@dataclass
-class SyncProgressEvent:
+class SyncProgressEvent(BaseModel):
     """Base class for sync progress events."""
 
-    event_type: SyncEventType
-    timestamp: datetime = field(default_factory=_utc_now)
+    model_config = ConfigDict(frozen=True)
 
-    def to_dict(self) -> dict:
-        return {k: _to_jsonable(v) for k, v in dataclasses.asdict(self).items()}
+    event_type: SyncEventType
+    timestamp: datetime = _utc_now()

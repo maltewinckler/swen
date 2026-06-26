@@ -1,26 +1,30 @@
 """DTOs for transaction listing."""
 
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, computed_field
+
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.services import TransactionAnalyzer
 
 
-@dataclass(frozen=True)
-class TransactionListItemDTO:
+class TransactionListItemDTO(BaseModel):
     """DTO for a transaction in a list view."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: UUID
     date: datetime
     description: str
-    counterparty: Optional[str]
-    counter_account: Optional[str]
-    debit_account: Optional[str]
-    credit_account: Optional[str]
+    counterparty: Optional[str] = None
+    counter_account: Optional[str] = None
+    debit_account: Optional[str] = None
+    credit_account: Optional[str] = None
     amount: Decimal
     currency: str
     is_income: bool
@@ -28,17 +32,19 @@ class TransactionListItemDTO:
     is_internal_transfer: bool
     short_id: str
 
+    @computed_field
     @property
     def amount_display(self) -> str:
         sign = "+" if self.is_income else "-"
         return f"{sign}{self.amount:,.2f}"
 
+    @computed_field
     @property
     def status_display(self) -> str:
         return "Posted" if self.is_posted else "Draft"
 
     @classmethod
-    def from_transaction(cls, txn: Transaction) -> "TransactionListItemDTO":
+    def from_transaction(cls, txn: Transaction) -> TransactionListItemDTO:
         return cls(
             id=txn.id,
             date=txn.date,
@@ -56,13 +62,13 @@ class TransactionListItemDTO:
         )
 
 
-@dataclass(frozen=True)
-class TransactionListResultDTO:
+class TransactionListResultDTO(BaseModel):
     """Result of listing transactions."""
 
-    transactions: list[TransactionListItemDTO] = field(default_factory=list)
+    transactions: list[TransactionListItemDTO] = []
     total_count: int = 0
 
+    @computed_field
     @property
     def is_empty(self) -> bool:
         return len(self.transactions) == 0
