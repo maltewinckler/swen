@@ -21,22 +21,19 @@ class ExternalAccountType(str, Enum):
     LIABILITY = "liability"
 
 
-class MappingResponse(BaseModel):
+class AccountMappingResponse(BaseModel):
     """Response schema for a bank account mapping."""
 
-    id: UUID = Field(description="Mapping unique identifier")
-    iban: str = Field(description="Bank account IBAN")
-    account_name: str = Field(description="Bank account name from bank")
-    accounting_account_id: UUID = Field(description="Linked ledger account UUID")
-    accounting_account_name: Optional[str] = Field(
-        None, description="Linked ledger account name"
-    )
-    accounting_account_number: Optional[str] = Field(
-        None, description="Linked ledger account number"
-    )
-    created_at: Optional[str] = Field(None, description="Creation timestamp")
+    id: UUID
+    iban: str
+    account_name: str
+    accounting_account_id: UUID
+    accounting_account_name: Optional[str] = None
+    accounting_account_number: Optional[str] = None
+    created_at: Optional[str] = None
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -47,23 +44,24 @@ class MappingResponse(BaseModel):
                 "accounting_account_number": "1000",
                 "created_at": "2024-01-01T00:00:00+00:00",
             }
-        }
+        },
     )
 
 
-class MappingListResponse(BaseModel):
+class AccountMappingListResponse(BaseModel):
     """Response for listing bank account mappings."""
 
-    mappings: list[MappingResponse]
-    count: int = Field(description="Number of mappings")
+    mappings: list[AccountMappingResponse]
+    count: int
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "mappings": [],
                 "count": 0,
             }
-        }
+        },
     )
 
 
@@ -146,7 +144,7 @@ class ExternalAccountCreateRequest(BaseModel):
 class ExternalAccountCreateResponse(BaseModel):
     """Response after creating an external account mapping."""
 
-    mapping: MappingResponse
+    mapping: AccountMappingResponse
     transactions_reconciled: int = Field(
         description="Number of existing transactions converted to internal transfers"
     )

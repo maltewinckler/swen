@@ -1,97 +1,25 @@
 """Imports router for transaction import history."""
 
 import logging
-from datetime import datetime
-from typing import Annotated, Optional
-from uuid import UUID
+from typing import Annotated
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.integration.queries import ListImportsQuery
 from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.integration.schemas.imported_transactions import (
+    ImportedTransactionsListResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-class ImportResponse(BaseModel):
-    """Response schema for a transaction import record."""
-
-    id: UUID = Field(description="Import record unique identifier")
-    bank_transaction_id: UUID = Field(description="Bank transaction UUID reference")
-    status: str = Field(
-        description="Import status: success, failed, pending, duplicate, skipped",
-    )
-    error_message: Optional[str] = Field(None, description="Error message if failed")
-    transaction_id: Optional[UUID] = Field(
-        None,
-        description="Created accounting transaction UUID (if successful)",
-    )
-    created_at: datetime = Field(description="When the import was attempted")
-    imported_at: Optional[datetime] = Field(
-        None,
-        description="When successfully imported",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "bank_transaction_id": "770e8400-e29b-41d4-a716-446655440002",
-                "status": "success",
-                "error_message": None,
-                "transaction_id": "660e8400-e29b-41d4-a716-446655440001",
-                "created_at": "2024-12-05T15:00:00Z",
-                "imported_at": "2024-12-05T15:00:01Z",
-            },
-        },
-    )
-
-
-class ImportListResponse(BaseModel):
-    """Response for listing import records."""
-
-    imports: list[ImportResponse]
-    count: int = Field(description="Number of imports in response")
-    status_counts: dict[str, int] = Field(
-        description="Count by status (success, failed, etc.)",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "imports": [],
-                "count": 0,
-                "status_counts": {
-                    "success": 0,
-                    "failed": 0,
-                    "pending": 0,
-                    "duplicate": 0,
-                    "skipped": 0,
-                },
-            },
-        },
-    )
-
-
-DaysFilter = Annotated[
-    int,
-    Query(ge=1, le=730, description="Days to look back"),
-]
-LimitFilter = Annotated[
-    int,
-    Query(ge=1, le=500, description="Maximum imports to return"),
-]
-FailedOnlyFilter = Annotated[
-    bool,
-    Query(description="Only show failed imports"),
-]
-IbanFilter = Annotated[
-    str | None,
-    Query(description="Filter by bank account IBAN"),
-]
+DaysFilter = Annotated[int, Query(ge=1, le=730, description="Days to look back")]
+LimitFilter = Annotated[int, Query(ge=1, le=500, description="Maximum imports")]
+FailedOnlyFilter = Annotated[bool, Query(description="Only show failed imports")]
+IbanFilter = Annotated[str | None, Query(description="Filter by bank account IBAN")]
 
 
 @router.get(
@@ -107,7 +35,7 @@ async def list_imports(
     limit: LimitFilter = 50,
     failed_only: FailedOnlyFilter = False,
     iban: IbanFilter = None,
-) -> ImportListResponse:
+) -> ImportedTransactionsListResponse:
     """
     List transaction import history.
 
@@ -130,21 +58,4 @@ async def list_imports(
         iban_filter=iban,
     )
 
-    imports = [
-        ImportResponse(
-            id=imp.id,
-            bank_transaction_id=imp.bank_transaction_id,
-            status=imp.status.value,
-            error_message=imp.error_message,
-            transaction_id=imp.accounting_transaction_id,
-            created_at=imp.created_at,
-            imported_at=imp.imported_at,
-        )
-        for imp in result.imports
-    ]
-
-    return ImportListResponse(
-        imports=imports,
-        count=result.total_count,
-        status_counts=result.status_counts,
-    )
+    return ImportedTransactionsListResponse.model_validate(result)

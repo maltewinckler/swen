@@ -11,11 +11,11 @@ from swen.application.integration.queries import (
 from swen.domain.accounting.entities import AccountType
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.integration.schemas.mappings import (
+    AccountMappingListResponse,
+    AccountMappingResponse,
     ExternalAccountCreateRequest,
     ExternalAccountCreateResponse,
     ExternalAccountType,
-    MappingListResponse,
-    MappingResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,9 +30,7 @@ router = APIRouter()
         200: {"description": "List of bank account mappings"},
     },
 )
-async def list_mappings(
-    factory: RepoFactory,
-) -> MappingListResponse:
+async def list_mappings(factory: RepoFactory) -> AccountMappingListResponse:
     """
     List all bank account to ledger account mappings.
 
@@ -44,26 +42,13 @@ async def list_mappings(
     - The linked ledger account (for categorization)
     """
     query = ListAccountMappingsQuery.from_factory(factory)
-    results = await query.get_all_with_accounts()
+    result = await query.execute()
 
-    mappings = [
-        MappingResponse(
-            id=r.mapping.id,
-            iban=r.mapping.iban,
-            account_name=r.mapping.account_name,
-            accounting_account_id=r.mapping.accounting_account_id,
-            accounting_account_name=r.account.name if r.account else None,
-            accounting_account_number=r.account.account_number if r.account else None,
-            created_at=r.mapping.created_at.isoformat()
-            if r.mapping.created_at
-            else None,
-        )
-        for r in results
-    ]
+    mappings = [AccountMappingResponse.model_validate(m) for m in result.mappings]
 
-    return MappingListResponse(
+    return AccountMappingListResponse(
         mappings=mappings,
-        count=len(mappings),
+        count=result.count,
     )
 
 
@@ -78,14 +63,14 @@ async def list_mappings(
 async def get_mapping_by_iban(
     iban: str,
     factory: RepoFactory,
-) -> MappingResponse:
+) -> AccountMappingResponse:
     """
     Get a specific bank account mapping by IBAN.
 
     Use this to check which ledger account a bank account is mapped to.
     """
     query = ListAccountMappingsQuery.from_factory(factory)
-    result = await query.get_mapping_with_account(iban)
+    result = await query.get_by_iban(iban)
 
     if not result:
         raise HTTPException(
@@ -93,19 +78,7 @@ async def get_mapping_by_iban(
             detail=f"No mapping found for IBAN: {iban}",
         )
 
-    return MappingResponse(
-        id=result.mapping.id,
-        iban=result.mapping.iban,
-        account_name=result.mapping.account_name,
-        accounting_account_id=result.mapping.accounting_account_id,
-        accounting_account_name=result.account.name if result.account else None,
-        accounting_account_number=result.account.account_number
-        if result.account
-        else None,
-        created_at=result.mapping.created_at.isoformat()
-        if result.mapping.created_at
-        else None,
-    )
+    return AccountMappingResponse.model_validate(result)
 
 
 @router.post(
@@ -168,7 +141,7 @@ async def create_external_account_mapping(
         # Let the global exception handler process domain exceptions
         raise
 
-    mapping_response = MappingResponse(
+    mapping_response = AccountMappingResponse(
         id=result.mapping.id,
         iban=result.mapping.iban,
         account_name=result.mapping.account_name,
