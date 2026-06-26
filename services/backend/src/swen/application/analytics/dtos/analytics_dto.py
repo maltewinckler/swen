@@ -4,22 +4,25 @@ These DTOs provide data structures optimized for frontend chart rendering,
 including time series data for line/bar charts and breakdowns for pie charts.
 """
 
-from dataclasses import dataclass, field
 from decimal import Decimal
 
+from pydantic import BaseModel, ConfigDict, computed_field
 
-@dataclass
-class TimeSeriesDataPoint:
+
+class TimeSeriesDataPoint(BaseModel):
     """Single data point in a time series (e.g., monthly totals)."""
+
+    model_config = ConfigDict(frozen=True)
 
     period: str
     period_label: str
     value: Decimal
 
 
-@dataclass
-class CategoryTimeSeriesDataPoint:
+class CategoryTimeSeriesDataPoint(BaseModel):
     """Data point with category breakdown for a single period."""
+
+    model_config = ConfigDict(frozen=True)
 
     period: str
     period_label: str
@@ -27,8 +30,7 @@ class CategoryTimeSeriesDataPoint:
     total: Decimal
 
 
-@dataclass
-class TimeSeriesResult:
+class TimeSeriesResult(BaseModel):
     """Result for simple time series queries.
 
     Used for:
@@ -36,6 +38,8 @@ class TimeSeriesResult:
     - Net income over time
     - Single account balance over time
     """
+
+    model_config = ConfigDict(frozen=True)
 
     data_points: list[TimeSeriesDataPoint]
     currency: str
@@ -45,8 +49,7 @@ class TimeSeriesResult:
     max_value: Decimal = Decimal("0")
 
 
-@dataclass
-class CategoryTimeSeriesResult:
+class CategoryTimeSeriesResult(BaseModel):
     """Result for time series with category breakdown.
 
     Used for:
@@ -55,19 +58,22 @@ class CategoryTimeSeriesResult:
     - Account balances over time (multi-line chart)
     """
 
+    model_config = ConfigDict(frozen=True)
+
     data_points: list[CategoryTimeSeriesDataPoint]
     categories: list[str]
     currency: str
-    totals_by_category: dict[str, Decimal] = field(default_factory=dict)
+    totals_by_category: dict[str, Decimal] = {}
 
 
-@dataclass
-class BreakdownItem:
+class BreakdownItem(BaseModel):
     """Single category in a breakdown (for pie charts).
 
     Represents one slice of a pie chart with its value,
     percentage of total, and associated account ID for drill-down.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     category: str  # Account name (e.g., "Groceries")
     amount: Decimal
@@ -75,37 +81,45 @@ class BreakdownItem:
     account_id: str  # For drill-down navigation
 
 
-@dataclass
-class SpendingBreakdownResult:
+class SpendingBreakdownResult(BaseModel):
     """Result for spending breakdown (pie chart data).
 
     Shows how spending is distributed across expense categories
     for a given period.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     period_label: str  # "December 2024" or "Last 30 days"
-    items: list[BreakdownItem]
+    items: list[BreakdownItem] = []
     total: Decimal
     currency: str
     category_count: int = 0  # Number of categories with spending
 
+    @computed_field
+    @property
+    def category_count_display(self) -> int:
+        return self.category_count
 
-@dataclass
-class IncomeBreakdownResult:
+
+class IncomeBreakdownResult(BaseModel):
     """Result for income breakdown (pie chart data).
 
     Shows how income is distributed across income sources.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     period_label: str
-    items: list[BreakdownItem]
+    items: list[BreakdownItem] = []
     total: Decimal
     currency: str
 
 
-@dataclass
-class CategoryComparison:
+class CategoryComparison(BaseModel):
     """Comparison data for a single category (month-over-month)."""
+
+    model_config = ConfigDict(frozen=True)
 
     category: str
     current_amount: Decimal
@@ -114,9 +128,10 @@ class CategoryComparison:
     change_percentage: Decimal  # Can be negative
 
 
-@dataclass
-class MonthComparisonResult:
+class MonthComparisonResult(BaseModel):
     """Result of month-over-month comparison."""
+
+    model_config = ConfigDict(frozen=True)
 
     current_month: str
     previous_month: str
@@ -141,12 +156,13 @@ class MonthComparisonResult:
     net_change_percentage: Decimal
 
     # Category-level breakdown (spending)
-    category_comparisons: list[CategoryComparison] = field(default_factory=list)
+    category_comparisons: list[CategoryComparison] = []
 
 
-@dataclass
-class TopExpenseItem:
+class TopExpenseItem(BaseModel):
     """A single top expense category."""
+
+    model_config = ConfigDict(frozen=True)
 
     rank: int
     category: str
@@ -157,12 +173,13 @@ class TopExpenseItem:
     transaction_count: int
 
 
-@dataclass
-class TopExpensesResult:
+class TopExpensesResult(BaseModel):
     """Result of top expenses query."""
 
+    model_config = ConfigDict(frozen=True)
+
     period_label: str
-    items: list[TopExpenseItem]
+    items: list[TopExpenseItem] = []
     total_spending: Decimal
     currency: str
     months_analyzed: int

@@ -236,7 +236,9 @@ async def export_transactions(
     logger.info("Exported %d transactions", len(transactions))
 
     return TransactionExportListResponse(
-        transactions=[TransactionExportResponse(**t.to_dict()) for t in transactions],
+        transactions=[
+            TransactionExportResponse(**t.model_dump()) for t in transactions
+        ],
         count=len(transactions),
     )
 
@@ -269,7 +271,7 @@ async def export_accounts(
     logger.info("Exported %d accounts", len(accounts))
 
     return AccountExportListResponse(
-        accounts=[AccountExportResponse(**a.to_dict()) for a in accounts],
+        accounts=[AccountExportResponse(**a.model_dump()) for a in accounts],
         count=len(accounts),
     )
 
@@ -310,10 +312,10 @@ async def export_full(
 
     return FullExportResponse(
         transactions=[
-            TransactionExportResponse(**t.to_dict()) for t in result.transactions
+            TransactionExportResponse(**t.model_dump()) for t in result.transactions
         ],
-        accounts=[AccountExportResponse(**a.to_dict()) for a in result.accounts],
-        mappings=[MappingExportResponse(**m.to_dict()) for m in result.mappings],
+        accounts=[AccountExportResponse(**a.model_dump()) for a in result.accounts],
+        mappings=[MappingExportResponse(**m.model_dump()) for m in result.mappings],
         transaction_count=result.transaction_count,
         account_count=result.account_count,
         mapping_count=result.mapping_count,

@@ -1,8 +1,9 @@
 """DTOs for data export."""
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
@@ -10,9 +11,10 @@ from swen.domain.accounting.services import TransactionAnalyzer
 from swen.domain.integration.entities import AccountMapping
 
 
-@dataclass(frozen=True)
-class TransactionExportDTO:
+class TransactionExportDTO(BaseModel):
     """DTO for exporting a transaction."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     date: str
@@ -29,25 +31,6 @@ class TransactionExportDTO:
     status: str
     metadata: str
     created_at: str
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "date": self.date,
-            "description": self.description,
-            "counterparty": self.counterparty,
-            "counterparty_iban": self.counterparty_iban,
-            "source": self.source,
-            "source_iban": self.source_iban,
-            "is_internal_transfer": self.is_internal_transfer,
-            "amount": self.amount,
-            "currency": self.currency,
-            "debit_account": self.debit_account,
-            "credit_account": self.credit_account,
-            "status": self.status,
-            "metadata": self.metadata,
-            "created_at": self.created_at,
-        }
 
     @classmethod
     def from_transaction(cls, txn: Transaction) -> "TransactionExportDTO":
@@ -93,9 +76,10 @@ class TransactionExportDTO:
         return account_label
 
 
-@dataclass(frozen=True)
-class AccountExportDTO:
+class AccountExportDTO(BaseModel):
     """DTO for exporting an account."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     account_number: str
@@ -105,18 +89,6 @@ class AccountExportDTO:
     is_active: bool
     parent_id: str
     created_at: str
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "account_number": self.account_number,
-            "name": self.name,
-            "type": self.type,
-            "currency": self.currency,
-            "is_active": self.is_active,
-            "parent_id": self.parent_id,
-            "created_at": self.created_at,
-        }
 
     @classmethod
     def from_account(cls, account: Account) -> "AccountExportDTO":
@@ -132,24 +104,16 @@ class AccountExportDTO:
         )
 
 
-@dataclass(frozen=True)
-class MappingExportDTO:
+class MappingExportDTO(BaseModel):
     """DTO for exporting a bank account mapping."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     iban: str
     account_name: str
     accounting_account_id: str
     created_at: str
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "iban": self.iban,
-            "account_name": self.account_name,
-            "accounting_account_id": self.accounting_account_id,
-            "created_at": self.created_at,
-        }
 
     @classmethod
     def from_mapping(cls, mapping: AccountMapping) -> "MappingExportDTO":
@@ -162,22 +126,24 @@ class MappingExportDTO:
         )
 
 
-@dataclass(frozen=True)
-class ExportResult:
+class ExportResult(BaseModel):
     """Result containing exported data as DTOs."""
 
-    transactions: list[TransactionExportDTO] = field(default_factory=list)
-    accounts: list[AccountExportDTO] = field(default_factory=list)
-    mappings: list[MappingExportDTO] = field(default_factory=list)
+    transactions: list[TransactionExportDTO] = []
+    accounts: list[AccountExportDTO] = []
+    mappings: list[MappingExportDTO] = []
 
+    @computed_field
     @property
     def transaction_count(self) -> int:
         return len(self.transactions)
 
+    @computed_field
     @property
     def account_count(self) -> int:
         return len(self.accounts)
 
+    @computed_field
     @property
     def mapping_count(self) -> int:
         return len(self.mappings)
