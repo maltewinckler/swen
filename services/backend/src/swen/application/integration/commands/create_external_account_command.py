@@ -8,41 +8,29 @@ from swen.application.integration.dtos import (
     AccountMappingDTO,
     ExternalAccountCreatedDTO,
 )
-from swen.domain.accounting.entities import Account, AccountType
-from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
-from swen.domain.accounting.value_objects import Currency
-from swen.domain.integration.entities import AccountMapping
-from swen.domain.integration.exceptions import InvalidIbanError
-from swen.domain.integration.services import (
-    TransferReconciliationService,
-)
-from swen.domain.shared.exceptions import ValidationError
-from swen.domain.shared.iban import normalize_iban
+from swen.domain.accounting.entities import AccountType
+from swen.domain.integration.services import ExternalAccountManagementService
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.domain.accounting.repositories import (
-        AccountRepository,
-        TransactionRepository,
+    from swen.domain.integration.services.external_account_management_service import (
+        ExternalAccountResult,
     )
-    from swen.domain.integration.repositories import AccountMappingRepository
-    from swen.domain.shared.current_user import CurrentUser
 
 
 class CreateExternalAccountCommand:
-    """Create an external account + mapping and optionally reconcile history."""
+    """Command to create or find an external account mapping.
+
+    This command is a thin orchestrator that validates inputs, delegates
+    business logic to ExternalAccountManagementService, and maps results
+    to DTOs.
+    """
 
     def __init__(
         self,
-        account_repository: AccountRepository,
-        mapping_repository: AccountMappingRepository,
-        transaction_repository: TransactionRepository,
-        current_user: CurrentUser,
+        external_account_management_service: ExternalAccountManagementService,
     ):
-        self._account_repo = account_repository
-        self._mapping_repo = mapping_repository
-        self._transaction_repo = transaction_repository
-        self._current_user = current_user
+        self._management_service = external_account_management_service
 
     @classmethod
     def from_factory(
@@ -50,10 +38,12 @@ class CreateExternalAccountCommand:
         factory: RepositoryFactory,
     ) -> CreateExternalAccountCommand:
         return cls(
-            account_repository=factory.account_repository(),
-            mapping_repository=factory.account_mapping_repository(),
-            transaction_repository=factory.transaction_repository(),
-            current_user=factory.current_user,
+            external_account_management_service=ExternalAccountManagementService(
+                account_repository=factory.account_repository(),
+                mapping_repository=factory.account_mapping_repository(),
+                transaction_repository=factory.transaction_repository(),
+                current_user=factory.current_user,
+            ),
         )
 
     async def execute(
@@ -64,151 +54,41 @@ class CreateExternalAccountCommand:
         account_type: AccountType = AccountType.ASSET,
         reconcile: bool = True,
     ) -> ExternalAccountCreatedDTO:
-        normalized_iban = normalize_iban(iban) or ""
-        if not normalized_iban:
-            raise InvalidIbanError(iban, "IBAN cannot be empty")
+        """Execute the command.
 
-        try:
-            curr = Currency(currency.upper())
-        except ValueError as e:
-            raise InvalidCurrencyError(currency) from e
+        Validates inputs, delegates to the domain service, and maps
+        the result to a DTO.
 
-        allowed_types = (AccountType.ASSET, AccountType.LIABILITY)
-        if account_type not in allowed_types:
-            msg = f"account_type must be ASSET or LIABILITY, got {account_type.value}"
-            raise ValidationError(msg)
-
-        existing_mapping = await self._mapping_repo.find_by_iban(normalized_iban)
-
-        if existing_mapping is not None:
-            existing_account = await self._account_repo.find_by_id(
-                existing_mapping.accounting_account_id,
-            )
-            if existing_account is None:
-                raise AccountNotFoundError(
-                    account_id=existing_mapping.accounting_account_id,
-                )
-            mapping_dto = await self._build_mapping_dto(
-                existing_mapping, existing_account
-            )
-            return ExternalAccountCreatedDTO(
-                mapping=mapping_dto,
-                transactions_reconciled=0,
-                already_existed=True,
-            )
-
-        existing_account_by_iban = await self._account_repo.find_by_iban(
-            normalized_iban,
-        )
-        if existing_account_by_iban is not None:
-            if existing_account_by_iban.account_type != account_type:
-                msg = (
-                    f"Found existing account for IBAN {normalized_iban} but it is "
-                    f"{existing_account_by_iban.account_type.value}, "
-                    f"not {account_type.value}"
-                )
-                raise ValidationError(msg)
-
-            mapping = AccountMapping(
-                iban=normalized_iban,
-                accounting_account_id=existing_account_by_iban.id,
-                account_name=name,
-                user_id=self._current_user.user_id,
-                is_active=True,
-            )
-            await self._mapping_repo.save(mapping)
-
-            reconciled_count = 0
-            if reconcile:
-                reconciled_count = await self._reconcile_transactions(
-                    normalized_iban,
-                    existing_account_by_iban,
-                    account_type,
-                )
-
-            mapping_dto = await self._build_mapping_dto(
-                mapping, existing_account_by_iban
-            )
-            return ExternalAccountCreatedDTO(
-                mapping=mapping_dto,
-                transactions_reconciled=reconciled_count,
-                already_existed=True,
-            )
-
-        prefix = "LIA" if account_type == AccountType.LIABILITY else "EXT"
-        account_number = f"{prefix}-{normalized_iban[-8:]}"
-
-        new_account = Account(
+        Returns
+        -------
+            ExternalAccountCreatedDTO with the result.
+        """
+        # Delegate to domain service
+        result = await self._management_service.create_or_find_external_account(
+            iban=iban,
             name=name,
+            currency=currency,
             account_type=account_type,
-            account_number=account_number,
-            user_id=self._current_user.user_id,
-            iban=normalized_iban,
-            default_currency=curr,
+            reconcile=reconcile,
         )
 
-        await self._account_repo.save(new_account)
+        # Map to DTO
+        return self._build_dto(result)
 
-        mapping = AccountMapping(
-            iban=normalized_iban,
-            accounting_account_id=new_account.id,
-            account_name=name,
-            user_id=self._current_user.user_id,
-            is_active=True,
-        )
-
-        await self._mapping_repo.save(mapping)
-
-        reconciled_count = 0
-        if reconcile:
-            reconciled_count = await self._reconcile_transactions(
-                normalized_iban,
-                new_account,
-                account_type,
-            )
-
-        mapping_dto = await self._build_mapping_dto(mapping, new_account)
+    def _build_dto(self, result: ExternalAccountResult) -> ExternalAccountCreatedDTO:
+        """Map domain result to application DTO."""
         return ExternalAccountCreatedDTO(
-            mapping=mapping_dto,
-            transactions_reconciled=reconciled_count,
-            already_existed=False,
+            mapping=AccountMappingDTO(
+                id=result.mapping.id,
+                iban=result.mapping.iban,
+                account_name=result.mapping.account_name,
+                accounting_account_id=result.mapping.accounting_account_id,
+                accounting_account_name=result.account.name,
+                accounting_account_number=result.account.account_number,
+                created_at=result.mapping.created_at.isoformat()
+                if result.mapping.created_at
+                else None,
+            ),
+            transactions_reconciled=result.transactions_reconciled,
+            already_existed=result.already_existed,
         )
-
-    async def _build_mapping_dto(
-        self,
-        mapping: AccountMapping,
-        account: Account,
-    ) -> AccountMappingDTO:
-        """Build an AccountMappingDTO from domain entities."""
-        return AccountMappingDTO(
-            id=mapping.id,
-            iban=mapping.iban,
-            account_name=mapping.account_name,
-            accounting_account_id=mapping.accounting_account_id,
-            accounting_account_name=account.name,
-            accounting_account_number=account.account_number,
-            created_at=mapping.created_at.isoformat(),
-        )
-
-    async def _reconcile_transactions(
-        self,
-        iban: str,
-        account: Account,
-        account_type: AccountType,
-    ) -> int:
-        reconciliation_service = TransferReconciliationService(
-            transaction_repository=self._transaction_repo,
-        )
-
-        if account_type == AccountType.ASSET:
-            return await reconciliation_service.reconcile_for_new_account(
-                iban=iban,
-                asset_account=account,
-            )
-        if account_type == AccountType.LIABILITY:
-            return await reconciliation_service.reconcile_liability_for_new_account(
-                iban=iban,
-                liability_account=account,
-            )
-
-        return 0

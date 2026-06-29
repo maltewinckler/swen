@@ -13,6 +13,8 @@ __all__ = [
     # Counter-Account Resolution
     "CounterAccountProposal",
     "ResolvedCounterAccount",
+    # Import Status
     "ImportStatus",
+    # Sync Period
     "SyncPeriod",
 ]

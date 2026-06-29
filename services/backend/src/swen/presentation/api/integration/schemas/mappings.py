@@ -79,41 +79,14 @@ class ExternalAccountCreateRequest(BaseModel):
     - Useful for credit cards, loans without FinTS access
     """
 
-    iban: str = Field(
-        ...,
-        description="IBAN of the external bank account",
-        min_length=15,
-        max_length=34,
-    )
-    name: str = Field(
-        ...,
-        description="Display name for the account (e.g., 'Deutsche Bank Depot')",
-        min_length=1,
-        max_length=255,
-    )
-    currency: str = Field(
-        default="EUR",
-        description="Currency code (default: EUR)",
-        min_length=3,
-        max_length=3,
-    )
-    account_type: ExternalAccountType = Field(
-        default=ExternalAccountType.ASSET,
-        description=(
-            "Account type: 'asset' for bank accounts/portfolios, "
-            "'liability' for credit cards/loans"
-        ),
-    )
-    reconcile: bool = Field(
-        default=True,
-        description=(
-            "If true, retroactively update existing transactions "
-            "to this IBAN. For assets: convert to internal transfers. "
-            "For liabilities: not yet implemented."
-        ),
-    )
+    iban: str = Field(..., min_length=15, max_length=34)
+    name: str = Field(..., min_length=1, max_length=255)
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
+    account_type: ExternalAccountType = Field(default=ExternalAccountType.ASSET)
+    reconcile: bool = Field(default=True)
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "examples": [
                 {
@@ -137,7 +110,7 @@ class ExternalAccountCreateRequest(BaseModel):
                     },
                 },
             ]
-        }
+        },
     )
 
 
@@ -145,14 +118,11 @@ class ExternalAccountCreateResponse(BaseModel):
     """Response after creating an external account mapping."""
 
     mapping: AccountMappingResponse
-    transactions_reconciled: int = Field(
-        description="Number of existing transactions converted to internal transfers"
-    )
-    already_existed: bool = Field(
-        description="True if the mapping already existed (no changes made)"
-    )
+    transactions_reconciled: int
+    already_existed: bool
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "mapping": {
@@ -167,5 +137,5 @@ class ExternalAccountCreateResponse(BaseModel):
                 "transactions_reconciled": 5,
                 "already_existed": False,
             }
-        }
+        },
     )

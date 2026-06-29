@@ -1,16 +1,18 @@
 """Unit tests for CreateExternalAccountCommand."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
 from swen.application.integration.commands import CreateExternalAccountCommand
 from swen.application.integration.dtos import ExternalAccountCreatedDTO
-from swen.domain.accounting.entities import Account, AccountType
-from swen.domain.accounting.exceptions import AccountNotFoundError, InvalidCurrencyError
+from swen.domain.accounting.entities import AccountType
 from swen.domain.accounting.value_objects import Currency
-from swen.domain.integration.entities import AccountMapping
+from swen.domain.integration.services import ExternalAccountManagementService
+from swen.domain.integration.services.external_account_management_service import (
+    ExternalAccountResult,
+)
 from swen.domain.shared.current_user import CurrentUser
 
 # Test user ID for all tests in this module
@@ -18,568 +20,207 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_IBAN = "DE51120700700756557355"
 
 
-def _make_command():
-    """Create command with mocked repositories."""
+def _make_command() -> tuple[
+    CreateExternalAccountCommand,
+    AsyncMock,
+    AsyncMock,
+    AsyncMock,
+]:
+    """Create command with mocked domain service."""
+    management_service = AsyncMock(spec=ExternalAccountManagementService)
     account_repo = AsyncMock()
     mapping_repo = AsyncMock()
     transaction_repo = AsyncMock()
-    current_user = CurrentUser(user_id=TEST_USER_ID, email="test@example.com")
 
     command = CreateExternalAccountCommand(
-        account_repository=account_repo,
-        mapping_repository=mapping_repo,
-        transaction_repository=transaction_repo,
-        current_user=current_user,
+        external_account_management_service=management_service,
     )
 
-    return command, account_repo, mapping_repo, transaction_repo
+    return command, management_service, account_repo, mapping_repo
 
 
 class TestCreateExternalAccountCommand:
     """Test cases for CreateExternalAccountCommand."""
 
     @pytest.mark.asyncio
-    async def test_creates_new_account_and_mapping(self):
-        """Test creating a new external account creates both account and mapping."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
+    async def test_delegates_to_management_service(self):
+        """Test that command delegates business logic to management service."""
+        command, mgmt_service, _, _ = _make_command()
 
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
+        # Create a mock result
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "Test Account"
+        mock_account.account_number = "EXT-56557355"
 
-        # Mock reconciliation service to not reconcile anything
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 0
-            mock_service_class.return_value = mock_service
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "Test"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = MagicMock()
+        mock_mapping.created_at.isoformat.return_value = "2024-01-01T00:00:00+00:00"
 
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="Deutsche Bank Depot",
-                currency="EUR",
-                reconcile=True,
-            )
-
-        # Assert
-        assert isinstance(result, ExternalAccountCreatedDTO)
-        assert result.already_existed is False
-        assert result.transactions_reconciled == 0
-
-        # Check mapping DTO was created correctly
-        assert result.mapping.iban == TEST_IBAN
-        assert result.mapping.account_name == "Deutsche Bank Depot"
-        assert result.mapping.accounting_account_name == "Deutsche Bank Depot"
-        assert result.mapping.accounting_account_number == f"EXT-{TEST_IBAN[-8:]}"
-
-        # Verify repositories were called
-        account_repo.save.assert_called_once()
-        mapping_repo.save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_returns_existing_when_mapping_exists(self):
-        """Test that existing mapping is returned without creating new one."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # Create existing account and mapping
-        existing_account = Account(
-            name="Existing Depot",
-            account_type=AccountType.ASSET,
-            account_number="TEST-1234",
-            user_id=TEST_USER_ID,
-            default_currency=Currency("EUR"),
-            iban=TEST_IBAN,
+        mock_result = ExternalAccountResult(
+            account=mock_account,
+            mapping=mock_mapping,
+            transactions_reconciled=0,
+            already_existed=True,
         )
-        existing_mapping = AccountMapping(
-            iban=TEST_IBAN,
-            accounting_account_id=existing_account.id,
-            account_name="Existing Depot",
-            user_id=TEST_USER_ID,
-        )
-
-        mapping_repo.find_by_iban.return_value = existing_mapping
-        account_repo.find_by_id.return_value = existing_account
+        mgmt_service.create_or_find_external_account.return_value = mock_result
 
         # Act
         result = await command.execute(
             iban=TEST_IBAN,
-            name="Deutsche Bank Depot",  # Different name - should be ignored
+            name="Test Account",
             currency="EUR",
+            account_type=AccountType.ASSET,
             reconcile=True,
         )
 
         # Assert
+        assert isinstance(result, ExternalAccountCreatedDTO)
         assert result.already_existed is True
         assert result.transactions_reconciled == 0
-        assert result.mapping.account_name == "Existing Depot"
-        assert result.mapping.iban == TEST_IBAN
-        assert result.mapping.accounting_account_name == "Existing Depot"
-        assert result.mapping.accounting_account_number == "TEST-1234"
-
-        # Verify no saves were called
-        account_repo.save.assert_not_called()
-        mapping_repo.save.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_reconciles_existing_transactions(self):
-        """Test that existing transactions are reconciled when reconcile=True."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service to reconcile some transactions
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 5  # 5 reconciled
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="Deutsche Bank Depot",
-                currency="EUR",
-                reconcile=True,
-            )
-
-            # Assert
-            assert result.transactions_reconciled == 5
-            mock_service.reconcile_for_new_account.assert_called_once()
-            call_args = mock_service.reconcile_for_new_account.call_args
-            assert call_args.kwargs["iban"] == TEST_IBAN
-
-    @pytest.mark.asyncio
-    async def test_skips_reconciliation_when_disabled(self):
-        """Test that reconciliation is skipped when reconcile=False."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="Deutsche Bank Depot",
-                currency="EUR",
-                reconcile=False,  # Disabled
-            )
-
-            # Assert
-            assert result.transactions_reconciled == 0
-            mock_service.reconcile_for_new_account.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_normalizes_iban(self):
-        """Test that IBAN is normalized (uppercase, stripped)."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 0
-            mock_service_class.return_value = mock_service
-
-            # Act - lowercase and with whitespace
-            result = await command.execute(
-                iban="  de51120700700756557355  ",
-                name="Test Account",
-                currency="EUR",
-                reconcile=False,
-            )
-
-        # Assert - IBAN should be normalized
-        assert result.mapping.iban == "DE51120700700756557355"
-
-    @pytest.mark.asyncio
-    async def test_validates_currency(self):
-        """Test that invalid currency raises InvalidCurrencyError."""
-        command, _account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping
-        mapping_repo.find_by_iban.return_value = None
-
-        # Act & Assert - "XYZ" is a valid format but unsupported currency
-        with pytest.raises(InvalidCurrencyError, match="Invalid currency 'XYZ'"):
-            await command.execute(
-                iban=TEST_IBAN,
-                name="Test Account",
-                currency="XYZ",
-                reconcile=False,
-            )
-
-    @pytest.mark.asyncio
-    async def test_raises_when_mapping_exists_but_account_missing(self):
-        """Test error when mapping exists but referenced account doesn't."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # Orphaned mapping - account was deleted
-        orphaned_mapping = AccountMapping(
+        mgmt_service.create_or_find_external_account.assert_called_once_with(
             iban=TEST_IBAN,
-            accounting_account_id=uuid4(),  # Non-existent account
-            account_name="Orphaned Mapping",
-            user_id=TEST_USER_ID,
+            name="Test Account",
+            currency=Currency("EUR"),
+            account_type=AccountType.ASSET,
+            reconcile=True,
         )
 
-        mapping_repo.find_by_iban.return_value = orphaned_mapping
-        account_repo.find_by_id.return_value = None  # Account not found
+    async def test_builds_dto_with_correct_fields(self):
+        """Test that DTO is built with all correct fields."""
+        command, mgmt_service, _, _ = _make_command()
 
-        # Act & Assert
-        with pytest.raises(AccountNotFoundError, match="not found"):
-            await command.execute(
-                iban=TEST_IBAN,
-                name="Test Account",
-                currency="EUR",
-                reconcile=False,
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "Account Name"
+        mock_account.account_number = "EXT-12345678"
+
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "Mapping Name"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = MagicMock()
+        mock_mapping.created_at.isoformat.return_value = "2024-06-01T12:00:00+00:00"
+
+        mgmt_service.create_or_find_external_account.return_value = (
+            ExternalAccountResult(
+                account=mock_account,
+                mapping=mock_mapping,
+                transactions_reconciled=5,
+                already_existed=False,
             )
+        )
+
+        result = await command.execute(
+            iban=TEST_IBAN,
+            name="Test",
+            currency="EUR",
+            account_type=AccountType.ASSET,
+            reconcile=True,
+        )
+
+        assert result.mapping.iban == TEST_IBAN
+        assert result.mapping.account_name == "Mapping Name"
+        assert result.mapping.accounting_account_name == "Account Name"
+        assert result.mapping.accounting_account_number == "EXT-12345678"
+        assert result.transactions_reconciled == 5
+        assert result.already_existed is False
 
     @pytest.mark.asyncio
-    async def test_supports_different_currencies(self):
-        """Test creating accounts with different currencies."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
+    async def test_passes_reconcile_flag_through(self):
+        """Test that reconcile flag is passed through to service."""
+        command, mgmt_service, _, _ = _make_command()
 
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "Test"
+        mock_account.account_number = "EXT-12345678"
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "Test"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = MagicMock()
+        mock_mapping.created_at.isoformat.return_value = "2024-01-01T00:00:00+00:00"
 
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 0
-            mock_service_class.return_value = mock_service
-
-            # Act - Create USD account
-            result = await command.execute(
-                iban="DE12345678901234567890",  # Made-up German IBAN for test
-                name="US Stock Portfolio",
-                currency="USD",
-                reconcile=False,
+        mgmt_service.create_or_find_external_account.return_value = (
+            ExternalAccountResult(
+                account=mock_account,
+                mapping=mock_mapping,
+                transactions_reconciled=0,
+                already_existed=True,
             )
+        )
+
+        # Act - reconcile=False
+        await command.execute(
+            iban=TEST_IBAN,
+            name="Test",
+            currency="EUR",
+            account_type=AccountType.ASSET,
+            reconcile=False,
+        )
 
         # Assert
-        assert result.mapping.iban == "DE12345678901234567890"
+        call_args = mgmt_service.create_or_find_external_account.call_args
+        assert call_args.kwargs["reconcile"] is False
 
 
 class TestCreateExternalAccountCommandLiability:
-    """Test cases for creating LIABILITY accounts (credit cards, loans)."""
+    """Test cases for LIABILITY account type handling."""
 
     @pytest.mark.asyncio
-    async def test_creates_liability_account_with_lia_prefix(self):
-        """Test creating a liability account uses LIA- prefix instead of EXT-."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
+    async def test_passes_liability_account_type_to_service(self):
+        """Test that LIABILITY account type is passed through correctly."""
+        command, mgmt_service, _, _ = _make_command()
 
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "Credit Card"
+        mock_account.account_number = "LIA-56557355"
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "Credit Card"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = MagicMock()
+        mock_mapping.created_at.isoformat.return_value = "2024-01-01T00:00:00+00:00"
 
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_liability_for_new_account.return_value = 0
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="Norwegian VISA",
-                currency="EUR",
-                account_type=AccountType.LIABILITY,
-                reconcile=True,
+        mgmt_service.create_or_find_external_account.return_value = (
+            ExternalAccountResult(
+                account=mock_account,
+                mapping=mock_mapping,
+                transactions_reconciled=0,
+                already_existed=False,
             )
-
-        # Assert
-        assert result.mapping.iban == TEST_IBAN
-        assert result.mapping.account_name == "Norwegian VISA"
-
-    @pytest.mark.asyncio
-    async def test_liability_reconciliation_called_for_liability_accounts(self):
-        """Test that liability reconciliation is called for LIABILITY accounts."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_liability_for_new_account.return_value = 3
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="Credit Card",
-                currency="EUR",
-                account_type=AccountType.LIABILITY,
-                reconcile=True,
-            )
-
-            # Assert
-            assert result.transactions_reconciled == 3
-            mock_service.reconcile_liability_for_new_account.assert_called_once()
-            mock_service.reconcile_for_new_account.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_asset_reconciliation_called_for_asset_accounts(self):
-        """Test that asset reconciliation is called for ASSET accounts (not liability)."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping or account
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = None
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 2
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="External Bank",
-                currency="EUR",
-                account_type=AccountType.ASSET,
-                reconcile=True,
-            )
-
-            # Assert
-            assert result.transactions_reconciled == 2
-            mock_service.reconcile_for_new_account.assert_called_once()
-            mock_service.reconcile_liability_for_new_account.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_rejects_invalid_account_types(self):
-        """Test that only ASSET and LIABILITY account types are allowed."""
-        command, _account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping
-        mapping_repo.find_by_iban.return_value = None
-
-        from swen.domain.shared.exceptions import ValidationError
-
-        # Act & Assert - EXPENSE is not allowed
-        with pytest.raises(ValidationError, match="ASSET or LIABILITY"):
-            await command.execute(
-                iban=TEST_IBAN,
-                name="Invalid",
-                currency="EUR",
-                account_type=AccountType.EXPENSE,
-                reconcile=False,
-            )
-
-
-class TestCreateExternalAccountCommandReuseExisting:
-    """Test cases for reusing existing accounts by IBAN."""
-
-    @pytest.mark.asyncio
-    async def test_reuses_existing_account_by_iban_creates_mapping(self):
-        """Test that existing account by IBAN is reused when no mapping exists."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping, but account exists
-        existing_account = Account(
-            name="Existing Account",
-            account_type=AccountType.ASSET,
-            account_number="EXT-existing",
-            user_id=TEST_USER_ID,
-            iban=TEST_IBAN,
-            default_currency=Currency("EUR"),
         )
 
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = existing_account
-        account_repo.save = AsyncMock()
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_for_new_account.return_value = 2
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="New Name",  # Different name than existing account
-                currency="EUR",
-                account_type=AccountType.ASSET,
-                reconcile=True,
-            )
-
-        # Assert
-        assert result.already_existed is True  # Account existed
-        assert result.mapping.iban == TEST_IBAN
-        assert result.mapping.account_name == "New Name"  # Mapping gets new name
-        assert result.mapping.accounting_account_name == "Existing Account"
-        assert result.mapping.accounting_account_number == "EXT-existing"
-        assert result.transactions_reconciled == 2
-
-        # Account was NOT saved (reused), only mapping
-        account_repo.save.assert_not_called()
-        mapping_repo.save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_reuses_existing_liability_account_by_iban(self):
-        """Test that existing LIABILITY account by IBAN is reused."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping, but LIABILITY account exists
-        existing_liability = Account(
-            name="Existing Credit Card",
+        # Act
+        await command.execute(
+            iban=TEST_IBAN,
+            name="Credit Card",
+            currency="EUR",
             account_type=AccountType.LIABILITY,
-            account_number="LIA-existing",
-            user_id=TEST_USER_ID,
-            iban=TEST_IBAN,
-            default_currency=Currency("EUR"),
+            reconcile=True,
         )
-
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = existing_liability
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.reconcile_liability_for_new_account.return_value = 1
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="VISA Card",
-                currency="EUR",
-                account_type=AccountType.LIABILITY,
-                reconcile=True,
-            )
 
         # Assert
-        assert result.already_existed is True
-        assert result.transactions_reconciled == 1
-        mock_service.reconcile_liability_for_new_account.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_raises_when_existing_account_type_mismatch(self):
-        """Test error when existing account has different type than requested."""
-        from swen.domain.shared.exceptions import ValidationError
-
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        # No existing mapping, but ASSET account exists
-        existing_asset = Account(
-            name="Existing Asset",
-            account_type=AccountType.ASSET,
-            account_number="EXT-existing",
-            user_id=TEST_USER_ID,
-            iban=TEST_IBAN,
-            default_currency=Currency("EUR"),
-        )
-
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = existing_asset
-
-        # Act & Assert - Try to create LIABILITY for IBAN that has ASSET
-        with pytest.raises(ValidationError, match="asset.*not liability"):
-            await command.execute(
-                iban=TEST_IBAN,
-                name="Credit Card",
-                currency="EUR",
-                account_type=AccountType.LIABILITY,  # Mismatch!
-                reconcile=False,
-            )
-
-    @pytest.mark.asyncio
-    async def test_reuse_skips_reconciliation_when_disabled(self):
-        """Test that reconciliation is skipped when reusing account with reconcile=False."""
-        command, account_repo, mapping_repo, _transaction_repo = _make_command()
-
-        existing_account = Account(
-            name="Existing Account",
-            account_type=AccountType.ASSET,
-            account_number="EXT-existing",
-            user_id=TEST_USER_ID,
-            iban=TEST_IBAN,
-            default_currency=Currency("EUR"),
-        )
-
-        mapping_repo.find_by_iban.return_value = None
-        account_repo.find_by_iban.return_value = existing_account
-        mapping_repo.save = AsyncMock()
-
-        # Mock reconciliation service
-        with patch(
-            "swen.application.integration.commands.create_external_account_command.TransferReconciliationService",
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service_class.return_value = mock_service
-
-            # Act
-            result = await command.execute(
-                iban=TEST_IBAN,
-                name="New Name",
-                currency="EUR",
-                account_type=AccountType.ASSET,
-                reconcile=False,  # Disabled
-            )
-
-        # Assert
-        assert result.already_existed is True
-        assert result.transactions_reconciled == 0
-        mock_service.reconcile_for_new_account.assert_not_called()
+        call_args = mgmt_service.create_or_find_external_account.call_args
+        assert call_args.kwargs["account_type"] == AccountType.LIABILITY
 
 
 class TestCreateExternalAccountCommandFromFactory:
     """Test the from_factory class method."""
 
-    def test_from_factory_creates_command(self):
-        """Test that from_factory correctly creates command from factory."""
+    def test_from_factory_creates_command_with_service(self):
+        """Test that from_factory creates command with management service."""
         # Create mock factory
-        mock_factory = Mock()
+        mock_factory = MagicMock()
         mock_factory.account_repository.return_value = AsyncMock()
         mock_factory.account_mapping_repository.return_value = AsyncMock()
         mock_factory.transaction_repository.return_value = AsyncMock()
@@ -588,10 +229,98 @@ class TestCreateExternalAccountCommandFromFactory:
         )
 
         # Act
-        command = CreateExternalAccountCommand.from_factory(mock_factory)
+        with patch(
+            "swen.application.integration.commands."
+            "create_external_account_command.ExternalAccountManagementService",
+        ) as mock_service_class:
+            mock_service = MagicMock()
+            mock_service_class.return_value = mock_service
+
+            command = CreateExternalAccountCommand.from_factory(mock_factory)
 
         # Assert
         assert isinstance(command, CreateExternalAccountCommand)
-        mock_factory.account_repository.assert_called_once()
-        mock_factory.account_mapping_repository.assert_called_once()
-        mock_factory.transaction_repository.assert_called_once()
+        assert command._management_service is mock_service
+        mock_service_class.assert_called_once_with(
+            account_repository=mock_factory.account_repository.return_value,
+            mapping_repository=mock_factory.account_mapping_repository.return_value,
+            transaction_repository=mock_factory.transaction_repository.return_value,
+            current_user=mock_factory.current_user,
+        )
+
+
+class TestCreateExternalAccountCommandDTOMapping:
+    """Test DTO mapping edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_handles_null_created_at(self):
+        """Test that DTO mapping handles None created_at gracefully."""
+        command, mgmt_service, _, _ = _make_command()
+
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "Test"
+        mock_account.account_number = "EXT-12345678"
+
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "Test"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = None  # None created_at
+
+        mgmt_service.create_or_find_external_account.return_value = (
+            ExternalAccountResult(
+                account=mock_account,
+                mapping=mock_mapping,
+                transactions_reconciled=0,
+                already_existed=True,
+            )
+        )
+
+        result = await command.execute(
+            iban=TEST_IBAN,
+            name="Test",
+            currency="EUR",
+            account_type=AccountType.ASSET,
+            reconcile=False,
+        )
+
+        assert result.mapping.created_at is None
+
+    @pytest.mark.asyncio
+    async def test_handles_different_currencies(self):
+        """Test that different currencies are passed through correctly."""
+        command, mgmt_service, _, _ = _make_command()
+
+        mock_account = MagicMock()
+        mock_account.id = uuid4()
+        mock_account.name = "US Account"
+        mock_account.account_number = "EXT-12345678"
+        mock_mapping = MagicMock()
+        mock_mapping.id = uuid4()
+        mock_mapping.iban = TEST_IBAN
+        mock_mapping.account_name = "US Account"
+        mock_mapping.accounting_account_id = mock_account.id
+        mock_mapping.created_at = MagicMock()
+        mock_mapping.created_at.isoformat.return_value = "2024-01-01T00:00:00+00:00"
+
+        mgmt_service.create_or_find_external_account.return_value = (
+            ExternalAccountResult(
+                account=mock_account,
+                mapping=mock_mapping,
+                transactions_reconciled=0,
+                already_existed=False,
+            )
+        )
+
+        await command.execute(
+            iban=TEST_IBAN,
+            name="US Account",
+            currency="USD",
+            account_type=AccountType.ASSET,
+            reconcile=False,
+        )
+
+        call_args = mgmt_service.create_or_find_external_account.call_args
+        assert call_args.kwargs["currency"] == Currency("USD")
