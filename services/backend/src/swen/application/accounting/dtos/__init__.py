@@ -17,13 +17,16 @@ from swen.application.accounting.dtos.reclassify_dto import (
     ReclassifyStartedEvent,
     ReclassifyTransactionEvent,
 )
-from swen.application.accounting.dtos.transaction_detail_dto import (
-    JournalEntryDTO,
-    TransactionDetailDTO,
-)
 from swen.application.accounting.dtos.transaction_list_dto import (
     TransactionListItemDTO,
     TransactionListResultDTO,
+)
+from swen.application.accounting.dtos.transactions_dto import (
+    JournalEntryDTO,
+    SimpleTransactionToCreateDTO,
+    TransactionDTO,
+    TransactionEntryDTO,
+    TransactionToCreateDTO,
 )
 
 __all__ = [
@@ -39,7 +42,10 @@ __all__ = [
     "ReclassifyResultDTO",
     "ReclassifyStartedEvent",
     "ReclassifyTransactionEvent",
-    "TransactionDetailDTO",
+    "SimpleTransactionToCreateDTO",
+    "TransactionDTO",
+    "TransactionEntryDTO",
     "TransactionListItemDTO",
     "TransactionListResultDTO",
+    "TransactionToCreateDTO",
 ]

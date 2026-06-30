@@ -23,6 +23,7 @@ class JournalEntryResponse(BaseModel):
     currency: str
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -119,6 +120,7 @@ class TransactionListItemResponse(BaseModel):
     is_internal_transfer: bool
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -152,6 +154,7 @@ class TransactionListResponse(BaseModel):
     total_pages: int
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "transactions": [

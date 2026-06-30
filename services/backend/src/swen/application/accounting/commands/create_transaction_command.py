@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+from swen.application.accounting.dtos.transactions_dto import (
+    TransactionDTO,
+    TransactionEntryDTO,
+    TransactionToCreateDTO,
+)
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import AccountNotFoundError
@@ -14,7 +18,6 @@ from swen.domain.accounting.repositories import (
     TransactionRepository,
 )
 from swen.domain.accounting.value_objects import (
-    JournalEntryInput,
     Money,
     TransactionMetadata,
     TransactionSource,
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class CreateTransactionCommand:
-    """Create a transaction from balanced journal entries."""
+    """Create a transaction from application-layer DTO."""
 
     def __init__(
         self,
@@ -50,55 +53,39 @@ class CreateTransactionCommand:
             current_user=factory.current_user,
         )
 
-    async def execute(  # NOQA: PLR0913
-        self,
-        description: str,
-        entries: list[JournalEntryInput],
-        counterparty: Optional[str] = None,
-        counterparty_iban: Optional[str] = None,
-        date: Optional[datetime] = None,
-        source: TransactionSource = TransactionSource.MANUAL,
-        source_iban: Optional[str] = None,
-        is_internal_transfer: bool = False,
-        is_manual_entry: bool = False,
-        auto_post: bool = False,
-    ) -> Transaction:
-        accounts = await self._load_accounts(entries)
+    async def execute(self, dto: TransactionToCreateDTO) -> TransactionDTO:
+        """Execute the create transaction use case."""
+        accounts = await self._load_accounts(dto.entries)
 
-        # Create transaction aggregate with promoted fields
         transaction = Transaction(
-            description=description,
+            description=dto.description,
             user_id=self._current_user.user_id,
-            date=date or utc_now(),
-            counterparty=counterparty,
-            counterparty_iban=counterparty_iban,
-            source=source,
-            source_iban=source_iban,
-            is_internal_transfer=is_internal_transfer,
+            date=dto.date or utc_now(),
+            counterparty=dto.counterparty,
+            counterparty_iban=dto.counterparty_iban,
+            source=TransactionSource(dto.source),
+            source_iban=dto.source_iban,
+            is_internal_transfer=dto.is_internal_transfer,
         )
 
-        # Set metadata with additional tracking info
         metadata = TransactionMetadata(
-            source=source,
-            is_manual_entry=is_manual_entry,
+            source=TransactionSource(dto.source),
+            is_manual_entry=dto.is_manual_entry,
         )
         transaction.set_metadata(metadata)
 
-        # Add entries to transaction
-        self._add_entries(transaction, entries, accounts)
+        self._add_entries(transaction, dto.entries, accounts)
 
-        # Post if requested (validates balance)
-        if auto_post:
+        if dto.auto_post:
             transaction.post()
 
-        # Persist
         await self._transaction_repo.save(transaction)
 
-        return transaction
+        return self._to_dto(transaction)
 
     async def _load_accounts(
         self,
-        entries: list[JournalEntryInput],
+        entries: list[TransactionEntryDTO],
     ) -> dict[UUID, Account]:
         account_ids = {entry.account_id for entry in entries}
         accounts: dict[UUID, Account] = {}
@@ -114,14 +101,17 @@ class CreateTransactionCommand:
     def _add_entries(
         self,
         transaction: Transaction,
-        entries: list[JournalEntryInput],
+        entries: list[TransactionEntryDTO],
         accounts: dict[UUID, Account],
-    ):
-        for entry_input in entries:
-            account = accounts[entry_input.account_id]
-            money = Money(entry_input.amount, account.default_currency)
-
-            if entry_input.is_debit:
+    ) -> None:
+        for entry in entries:
+            account = accounts[entry.account_id]
+            if entry.debit > 0:
+                money = Money(entry.debit, account.default_currency)
                 transaction.add_debit(account, money)
-            else:
+            elif entry.credit > 0:
+                money = Money(entry.credit, account.default_currency)
                 transaction.add_credit(account, money)
+
+    def _to_dto(self, transaction: Transaction) -> TransactionDTO:
+        return TransactionDTO.from_transaction(transaction)

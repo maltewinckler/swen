@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from swen.application.accounting.commands import CreateSimpleTransactionCommand
+from swen.application.accounting.dtos import SimpleTransactionToCreateDTO
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency
@@ -115,13 +116,14 @@ class TestCreateSimpleTransactionCommand:
         mock_transaction_repo,
     ):
         """Negative amount creates expense (debit expense, credit asset)."""
-        txn = await command.execute(
+        dto = SimpleTransactionToCreateDTO(
             description="Coffee",
             amount=Decimal("-4.50"),
-            payment_account_number="1000",
-            counter_account_number="4900",
+            payment_account="1000",
+            counter_account="4900",
             counterparty="Starbucks",
         )
+        txn = await command.execute(dto)
 
         assert txn.description == "Coffee"
         assert txn.counterparty == "Starbucks"
@@ -134,13 +136,14 @@ class TestCreateSimpleTransactionCommand:
         mock_transaction_repo,
     ):
         """Positive amount creates income (debit asset, credit income)."""
-        txn = await command.execute(
+        dto = SimpleTransactionToCreateDTO(
             description="Salary",
             amount=Decimal("3000.00"),
-            payment_account_number="1000",
-            counter_account_number="8100",
+            payment_account="1000",
+            counter_account="8100",
             counterparty="ACME Corp",
         )
+        txn = await command.execute(dto)
 
         assert txn.description == "Salary"
         assert len(txn.entries) == 2
@@ -151,13 +154,14 @@ class TestCreateSimpleTransactionCommand:
         command,
     ):
         """Zero amount raises ValidationError."""
+        dto = SimpleTransactionToCreateDTO(
+            description="Invalid",
+            amount=Decimal("0"),
+            payment_account="1000",
+            counter_account="4900",
+        )
         with pytest.raises(ValidationError) as exc_info:
-            await command.execute(
-                description="Invalid",
-                amount=Decimal("0"),
-                payment_account_number="1000",
-                counter_account_number="4900",
-            )
+            await command.execute(dto)
 
         assert "non-zero" in str(exc_info.value).lower()
 
@@ -167,12 +171,13 @@ class TestCreateSimpleTransactionCommand:
         mock_account_repo,
     ):
         """Looks up accounts by account number."""
-        txn = await command.execute(
+        dto = SimpleTransactionToCreateDTO(
             description="With accounts",
             amount=Decimal("-10.00"),
-            payment_account_number="1000",
-            counter_account_number="4900",
+            payment_account="1000",
+            counter_account="4900",
         )
+        txn = await command.execute(dto)
 
         assert txn is not None
         # Verify the account numbers were used to lookup accounts
@@ -184,13 +189,14 @@ class TestCreateSimpleTransactionCommand:
         command,
     ):
         """Transaction is posted when auto_post=True."""
-        txn = await command.execute(
+        dto = SimpleTransactionToCreateDTO(
             description="Auto-posted",
             amount=Decimal("-25.00"),
-            payment_account_number="1000",
-            counter_account_number="4900",
+            payment_account="1000",
+            counter_account="4900",
             auto_post=True,
         )
+        txn = await command.execute(dto)
 
         assert txn.is_posted
 
@@ -210,13 +216,14 @@ class TestCreateSimpleTransactionCommand:
             current_user=current_user,
         )
 
+        dto = SimpleTransactionToCreateDTO(
+            description="Should fail",
+            amount=Decimal("-10.00"),
+            payment_account="9999",
+            counter_account="4900",
+        )
         with pytest.raises(AccountNotFoundError):
-            await command.execute(
-                description="Should fail",
-                amount=Decimal("-10.00"),
-                payment_account_number="9999",
-                counter_account_number="4900",
-            )
+            await command.execute(dto)
 
     async def test_missing_category_account_raises_error(
         self,
@@ -237,13 +244,14 @@ class TestCreateSimpleTransactionCommand:
             current_user=current_user,
         )
 
+        dto = SimpleTransactionToCreateDTO(
+            description="Should fail",
+            amount=Decimal("-10.00"),
+            payment_account="1000",
+            counter_account="9999",
+        )
         with pytest.raises(AccountNotFoundError):
-            await command.execute(
-                description="Should fail",
-                amount=Decimal("-10.00"),
-                payment_account_number="1000",
-                counter_account_number="9999",
-            )
+            await command.execute(dto)
 
     async def test_from_factory(self, current_user):
         """Command can be created from factory."""
@@ -263,13 +271,14 @@ class TestCreateSimpleTransactionCommand:
         command,
     ):
         """Transactions are marked as manual entries."""
-        txn = await command.execute(
+        dto = SimpleTransactionToCreateDTO(
             description="Manual entry",
             amount=Decimal("-5.00"),
-            payment_account_number="1000",
-            counter_account_number="4900",
+            payment_account="1000",
+            counter_account="4900",
         )
+        txn = await command.execute(dto)
 
-        metadata = txn.metadata_raw
+        metadata = txn.metadata
         assert metadata.get("is_manual_entry") is True
         assert metadata.get("source") == "manual"

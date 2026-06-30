@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from swen.application.accounting.commands.create_transaction_command import (
     CreateTransactionCommand,
+)
+from swen.application.accounting.dtos.transactions_dto import (
+    SimpleTransactionToCreateDTO,
+    TransactionDTO,
+    TransactionEntryDTO,
+    TransactionToCreateDTO,
 )
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.services import TransactionEntryService
@@ -16,7 +21,6 @@ from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.domain.accounting.aggregates import Transaction
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -55,26 +59,17 @@ class CreateSimpleTransactionCommand:
             current_user=factory.current_user,
         )
 
-    async def execute(  # NOQA: PLR0913
-        self,
-        description: str,
-        amount: Decimal,
-        payment_account_number: str,
-        counter_account_number: str,
-        counterparty: Optional[str] = None,
-        date: Optional[datetime] = None,
-        auto_post: bool = False,
-    ) -> Transaction:
-        if amount == Decimal("0"):
+    async def execute(self, dto: SimpleTransactionToCreateDTO) -> TransactionDTO:
+        if dto.amount == Decimal("0"):
             msg = "Amount must be non-zero"
             raise ValidationError(msg)
 
-        is_expense = amount < 0
-        abs_amount = abs(amount)
+        is_expense = dto.amount < 0
+        abs_amount = abs(dto.amount)
 
         # Look up accounts by account number
-        payment_account = await self._resolve_account_number(payment_account_number)
-        counter_account = await self._resolve_account_number(counter_account_number)
+        payment_account = await self._resolve_account_number(dto.payment_account)
+        counter_account = await self._resolve_account_number(dto.counter_account)
 
         # Use domain service for entry direction rules
         money = Money(abs_amount, payment_account.default_currency)
@@ -86,16 +81,27 @@ class CreateSimpleTransactionCommand:
             is_expense=is_expense,
         )
 
-        # Delegate to the entry-based command
-        return await self._create_command.execute(
-            description=description,
-            entries=list(entries),  # build_simple_entries has always 2 entries
-            counterparty=counterparty,
-            date=date,
-            source=TransactionSource.MANUAL,
+        # Convert domain JournalEntryInput entries to application DTOs
+        dto_entries = [
+            TransactionEntryDTO(
+                account_id=entry.account_id,
+                debit=entry.debit if entry.debit is not None else Decimal("0"),
+                credit=entry.credit if entry.credit is not None else Decimal("0"),
+            )
+            for entry in entries
+        ]
+
+        # Delegate to the entry-based command via DTO
+        dto = TransactionToCreateDTO(
+            description=dto.description,
+            entries=dto_entries,
+            counterparty=dto.counterparty,
+            date=dto.date,
+            source=TransactionSource.MANUAL.value,
             is_manual_entry=True,
-            auto_post=auto_post,
+            auto_post=dto.auto_post,
         )
+        return await self._create_command.execute(dto)
 
     async def _resolve_account_number(
         self,

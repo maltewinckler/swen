@@ -19,7 +19,11 @@ from swen.application.accounting.commands import (
     ReclassifyDraftsCommand,
     UnpostTransactionCommand,
 )
-from swen.application.accounting.dtos import ReclassifyResultDTO
+from swen.application.accounting.dtos import (
+    ReclassifyResultDTO,
+    SimpleTransactionToCreateDTO,
+    TransactionToCreateDTO,
+)
 from swen.application.accounting.queries import ListTransactionsQuery
 from swen.application.events.base import SyncProgressEvent
 from swen.domain.accounting.aggregates import Transaction
@@ -232,9 +236,13 @@ async def create_transaction(
     }
     ```
     """
-    # Validate entries balance
     total_debit = sum((e.debit for e in request.entries), start=Decimal("0"))
     total_credit = sum((e.credit for e in request.entries), start=Decimal("0"))
+    if total_debit + total_credit == Decimal("0"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Transaction must have non-zero amounts",
+        )
 
     if total_debit != total_credit:
         raise HTTPException(
@@ -244,35 +252,24 @@ async def create_transaction(
             ),
         )
 
-    if total_debit == Decimal("0"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Transaction must have non-zero amounts",
-        )
-
-    # Convert request entries to domain JournalEntryInput objects
-    # Each entry in the request can have either debit or credit (or both if split)
-    entry_inputs = _convert_to_entry_inputs(request.entries)
+    dto = TransactionToCreateDTO(
+        **request.model_dump(),
+        source="manual",
+        is_manual_entry=True,
+    )
 
     command = CreateTransactionCommand.from_factory(factory)
 
     try:
-        txn = await command.execute(
-            description=request.description,
-            entries=entry_inputs,
-            counterparty=request.counterparty,
-            date=request.date,
-            is_manual_entry=True,
-            auto_post=request.auto_post,
-        )
+        created = await command.execute(dto)
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()
         # Let the global exception handler process domain exceptions
         raise
 
-    logger.info("Manual transaction created: %s", txn.id)
-    return _transaction_to_response(txn)
+    logger.info("Manual transaction created: %s", created.id)
+    return TransactionResponse.model_validate(created)
 
 
 def _convert_to_entry_inputs(entries: list) -> list[JournalEntryInput]:
@@ -281,6 +278,10 @@ def _convert_to_entry_inputs(entries: list) -> list[JournalEntryInput]:
     Each API entry can have both debit and credit fields (for flexibility),
     but the domain requires exactly one per entry. We split entries that
     have both into two separate JournalEntryInput objects.
+
+    Note: This helper is used by the update_transaction endpoint
+    (EditTransactionCommand). It will be removed when
+    EditTransactionCommand is refactored to use application DTOs.
 
     Parameters
     ----------
@@ -351,26 +352,20 @@ async def create_simple_transaction(
     }
     ```
     """
+    # Map presentation request → application DTO
+    dto = SimpleTransactionToCreateDTO.model_validate(request)
+
     command = CreateSimpleTransactionCommand.from_factory(factory)
 
     try:
-        txn = await command.execute(
-            description=request.description,
-            amount=request.amount,
-            payment_account_number=request.payment_account,
-            counter_account_number=request.counter_account,
-            counterparty=request.counterparty,
-            date=request.date,
-            auto_post=request.auto_post,
-        )
+        created = await command.execute(dto)
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
         raise
 
-    logger.info("Simple transaction created: %s", txn.id)
-    return _transaction_to_response(txn)
+    logger.info("Simple transaction created: %s", created.id)
+    return TransactionResponse.model_validate(created)
 
 
 @router.get(

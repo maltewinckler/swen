@@ -7,13 +7,14 @@ from uuid import uuid4
 import pytest
 
 from swen.application.accounting.commands import CreateTransactionCommand
+from swen.application.accounting.dtos import (
+    TransactionDTO,
+    TransactionToCreateDTO,
+)
+from swen.application.accounting.dtos.transactions_dto import TransactionEntryDTO
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
-from swen.domain.accounting.value_objects import (
-    Currency,
-    JournalEntryInput,
-    TransactionSource,
-)
+from swen.domain.accounting.value_objects import Currency
 from swen.domain.shared.current_user import CurrentUser
 
 
@@ -100,22 +101,26 @@ class TestCreateTransactionCommand:
         asset = mock_account_repo._asset_account
         expense = mock_account_repo._expense_account
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("50.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("50.00")),
-        ]
-
-        txn = await command.execute(
+        dto = TransactionToCreateDTO(
             description="Test expense",
-            entries=entries,
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense.id, debit=Decimal("50.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("50.00")
+                ),
+            ],
             counterparty="Test Merchant",
         )
 
-        assert txn.description == "Test expense"
-        assert txn.counterparty == "Test Merchant"
-        assert len(txn.entries) == 2
-        assert not txn.is_posted
-        mock_transaction_repo.save.assert_called_once_with(txn)
+        created = await command.execute(dto)
+
+        assert created.description == "Test expense"
+        assert created.counterparty == "Test Merchant"
+        assert len(created.entries) == 2
+        assert not created.is_posted
+        mock_transaction_repo.save.assert_called_once()
 
     async def test_create_multi_entry_transaction(
         self,
@@ -132,18 +137,24 @@ class TestCreateTransactionCommand:
         # Add second expense to repo
         mock_account_repo._accounts[expense2.id] = expense2
 
-        entries = [
-            JournalEntryInput.debit_entry(expense1.id, Decimal("30.00")),
-            JournalEntryInput.debit_entry(expense2.id, Decimal("20.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("50.00")),
-        ]
-
-        txn = await command.execute(
+        dto = TransactionToCreateDTO(
             description="Split purchase",
-            entries=entries,
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense1.id, debit=Decimal("30.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=expense2.id, debit=Decimal("20.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("50.00")
+                ),
+            ],
         )
 
-        assert len(txn.entries) == 3
+        created = await command.execute(dto)
+
+        assert len(created.entries) == 3
         mock_transaction_repo.save.assert_called_once()
 
     async def test_create_and_auto_post(
@@ -155,18 +166,22 @@ class TestCreateTransactionCommand:
         asset = mock_account_repo._asset_account
         expense = mock_account_repo._expense_account
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("25.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("25.00")),
-        ]
-
-        txn = await command.execute(
+        dto = TransactionToCreateDTO(
             description="Auto-posted",
-            entries=entries,
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense.id, debit=Decimal("25.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("25.00")
+                ),
+            ],
             auto_post=True,
         )
 
-        assert txn.is_posted
+        created = await command.execute(dto)
+
+        assert created.is_posted
 
     async def test_account_not_found_raises_error(
         self,
@@ -175,16 +190,20 @@ class TestCreateTransactionCommand:
         """Raises AccountNotFoundError for non-existent account."""
         fake_id = uuid4()
 
-        entries = [
-            JournalEntryInput.debit_entry(fake_id, Decimal("100.00")),
-            JournalEntryInput.credit_entry(fake_id, Decimal("100.00")),
-        ]
+        dto = TransactionToCreateDTO(
+            description="Should fail",
+            entries=[
+                TransactionEntryDTO(
+                    account_id=fake_id, debit=Decimal("100.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=fake_id, debit=Decimal("0"), credit=Decimal("100.00")
+                ),
+            ],
+        )
 
         with pytest.raises(AccountNotFoundError):
-            await command.execute(
-                description="Should fail",
-                entries=entries,
-            )
+            await command.execute(dto)
 
     async def test_metadata_is_set(
         self,
@@ -195,21 +214,24 @@ class TestCreateTransactionCommand:
         asset = mock_account_repo._asset_account
         expense = mock_account_repo._expense_account
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("10.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("10.00")),
-        ]
-
-        txn = await command.execute(
+        dto = TransactionToCreateDTO(
             description="With metadata",
-            entries=entries,
-            source=TransactionSource.BANK_IMPORT,
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
+                ),
+            ],
+            source="bank_import",
             is_manual_entry=True,
         )
 
-        metadata = txn.metadata_raw
-        assert metadata.get("source") == "bank_import"
-        assert metadata.get("is_manual_entry") is True
+        created = await command.execute(dto)
+
+        assert created.metadata.get("source") == "bank_import"
+        assert created.metadata.get("is_manual_entry") is True
 
     async def test_default_source_is_manual(
         self,
@@ -220,17 +242,21 @@ class TestCreateTransactionCommand:
         asset = mock_account_repo._asset_account
         expense = mock_account_repo._expense_account
 
-        entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("10.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("10.00")),
-        ]
-
-        txn = await command.execute(
+        dto = TransactionToCreateDTO(
             description="Default source",
-            entries=entries,
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
+                ),
+            ],
         )
 
-        assert txn.metadata_raw.get("source") == "manual"
+        created = await command.execute(dto)
+
+        assert created.metadata.get("source") == "manual"
 
     async def test_from_factory(self, current_user):
         """Command can be created from factory."""
@@ -244,3 +270,34 @@ class TestCreateTransactionCommand:
         assert command is not None
         factory.transaction_repository.assert_called_once()
         factory.account_repository.assert_called_once()
+
+    async def test_command_returns_dto_not_entity(
+        self,
+        command,
+        mock_account_repo,
+    ):
+        """Command returns TransactionCreatedDTO, not domain Transaction."""
+        asset = mock_account_repo._asset_account
+        expense = mock_account_repo._expense_account
+
+        dto = TransactionToCreateDTO(
+            description="DTO test",
+            entries=[
+                TransactionEntryDTO(
+                    account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
+                ),
+                TransactionEntryDTO(
+                    account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
+                ),
+            ],
+        )
+
+        created = await command.execute(dto)
+
+        assert isinstance(created, TransactionDTO)
+        assert created.id is not None
+        assert created.description == "DTO test"
+        assert len(created.entries) == 2
+        assert created.entries[0].account_name == expense.name
+        assert created.entries[0].debit == Decimal("10.00")
+        assert created.entries[1].credit == Decimal("10.00")
