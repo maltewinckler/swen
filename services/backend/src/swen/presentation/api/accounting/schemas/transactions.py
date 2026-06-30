@@ -201,7 +201,7 @@ class TransactionPostRequest(BaseModel):
     # No body needed, just the ID in path
 
 
-class JournalEntryRequest(BaseModel):
+class JournalEntryCreateRequest(BaseModel):
     """Request schema for a journal entry when creating a transaction.
 
     Each transaction needs at least two balanced entries (debits = credits).
@@ -238,7 +238,7 @@ class TransactionCreateRequest(BaseModel):
 
     date: datetime
     description: str = Field(min_length=1, max_length=500)
-    entries: list[JournalEntryRequest] = Field(min_length=2)
+    entries: list[JournalEntryCreateRequest] = Field(min_length=2)
     counterparty: Optional[str] = Field(None, max_length=200)
     auto_post: bool = False
 
@@ -266,7 +266,7 @@ class TransactionCreateRequest(BaseModel):
     )
 
 
-class TransactionCreateSimpleRequest(BaseModel):
+class SimpleTransactionToCreateRequest(BaseModel):
     """Simplified request for creating a two-entry transaction.
 
     Use this when you want to record an expense or income with explicit
@@ -322,7 +322,7 @@ class TransactionUpdateRequest(BaseModel):
     description: Optional[str] = Field(None, min_length=1, max_length=500)
     counterparty: Optional[str] = Field(None, max_length=200)
     counter_account_id: Optional[UUID] = None
-    entries: Optional[list[JournalEntryRequest]] = Field(None, min_length=1)
+    entries: Optional[list[JournalEntryCreateRequest]] = Field(None, min_length=1)
     repost: bool = True
 
     model_config = ConfigDict(

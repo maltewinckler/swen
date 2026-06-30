@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from swen.application.accounting.dtos.transactions_dto import (
+    JournalEntryToCreateDTO,
     TransactionDTO,
-    TransactionEntryDTO,
     TransactionToCreateDTO,
 )
 from swen.domain.accounting.aggregates import Transaction
@@ -85,7 +85,7 @@ class CreateTransactionCommand:
 
     async def _load_accounts(
         self,
-        entries: list[TransactionEntryDTO],
+        entries: list[JournalEntryToCreateDTO],
     ) -> dict[UUID, Account]:
         account_ids = {entry.account_id for entry in entries}
         accounts: dict[UUID, Account] = {}
@@ -101,7 +101,7 @@ class CreateTransactionCommand:
     def _add_entries(
         self,
         transaction: Transaction,
-        entries: list[TransactionEntryDTO],
+        entries: list[JournalEntryToCreateDTO],
         accounts: dict[UUID, Account],
     ) -> None:
         for entry in entries:

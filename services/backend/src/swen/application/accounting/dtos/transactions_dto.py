@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from swen.domain.accounting.aggregates import Transaction
 
 
-class TransactionEntryDTO(BaseModel):
+class JournalEntryToCreateDTO(BaseModel):
     """Single journal entry for transaction commands.
 
     Uses plain Decimal (currency resolved later in the command).
@@ -54,7 +54,7 @@ class TransactionToCreateDTO(BaseModel):
     """
 
     description: str = Field(min_length=1, max_length=500)
-    entries: list[TransactionEntryDTO] = Field(min_length=2)
+    entries: list[JournalEntryToCreateDTO] = Field(min_length=2)
     counterparty: Optional[str] = Field(None, max_length=200)
     counterparty_iban: Optional[str] = None
     date: Optional[datetime] = None

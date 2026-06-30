@@ -218,6 +218,18 @@ class Account:
     def is_asset_account(self) -> bool:
         return self._account_type == AccountType.ASSET
 
+    def is_expense_account(self) -> bool:
+        return self._account_type == AccountType.EXPENSE
+
+    def is_liability_account(self) -> bool:
+        return self._account_type == AccountType.LIABILITY
+
+    def is_equity_account(self) -> bool:
+        return self._account_type == AccountType.EQUITY
+
+    def is_income_account(self) -> bool:
+        return self._account_type == AccountType.INCOME
+
     def is_debit_normal(self) -> bool:
         return self._account_type in [AccountType.ASSET, AccountType.EXPENSE]
 

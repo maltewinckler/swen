@@ -11,7 +11,7 @@ from swen.application.accounting.dtos import (
     TransactionDTO,
     TransactionToCreateDTO,
 )
-from swen.application.accounting.dtos.transactions_dto import TransactionEntryDTO
+from swen.application.accounting.dtos.transactions_dto import JournalEntryToCreateDTO
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.value_objects import Currency
@@ -104,10 +104,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="Test expense",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense.id, debit=Decimal("50.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("50.00")
                 ),
             ],
@@ -140,13 +140,13 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="Split purchase",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense1.id, debit=Decimal("30.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense2.id, debit=Decimal("20.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("50.00")
                 ),
             ],
@@ -169,10 +169,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="Auto-posted",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense.id, debit=Decimal("25.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("25.00")
                 ),
             ],
@@ -193,10 +193,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="Should fail",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=fake_id, debit=Decimal("100.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=fake_id, debit=Decimal("0"), credit=Decimal("100.00")
                 ),
             ],
@@ -217,10 +217,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="With metadata",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
                 ),
             ],
@@ -245,10 +245,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="Default source",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
                 ),
             ],
@@ -283,10 +283,10 @@ class TestCreateTransactionCommand:
         dto = TransactionToCreateDTO(
             description="DTO test",
             entries=[
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=expense.id, debit=Decimal("10.00"), credit=Decimal("0")
                 ),
-                TransactionEntryDTO(
+                JournalEntryToCreateDTO(
                     account_id=asset.id, debit=Decimal("0"), credit=Decimal("10.00")
                 ),
             ],

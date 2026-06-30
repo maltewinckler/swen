@@ -23,9 +23,9 @@ from swen.application.accounting.dtos.transaction_list_dto import (
 )
 from swen.application.accounting.dtos.transactions_dto import (
     JournalEntryDTO,
+    JournalEntryToCreateDTO,
     SimpleTransactionToCreateDTO,
     TransactionDTO,
-    TransactionEntryDTO,
     TransactionToCreateDTO,
 )
 
@@ -35,6 +35,7 @@ __all__ = [
     "BankAccountDTO",
     "ChartOfAccountsDTO",
     "JournalEntryDTO",
+    "JournalEntryToCreateDTO",
     "ReclassifiedTransactionDetail",
     "ReclassifyCompletedEvent",
     "ReclassifyFailedEvent",
@@ -44,7 +45,6 @@ __all__ = [
     "ReclassifyTransactionEvent",
     "SimpleTransactionToCreateDTO",
     "TransactionDTO",
-    "TransactionEntryDTO",
     "TransactionListItemDTO",
     "TransactionListResultDTO",
     "TransactionToCreateDTO",

@@ -17,10 +17,6 @@ from swen.domain.accounting.services.transaction_analyzer import TransactionAnal
 from swen.domain.accounting.services.transaction_edit_service import (
     TransactionEditService,
 )
-from swen.domain.accounting.services.transaction_entry_service import (
-    TransactionDirection,
-    TransactionEntryService,
-)
 from swen.domain.accounting.value_objects import MetadataKeys
 
 __all__ = [
@@ -31,7 +27,5 @@ __all__ = [
     "OpeningBalanceCalculator",
     "OpeningBalanceService",
     "TransactionAnalyzer",
-    "TransactionDirection",
     "TransactionEditService",
-    "TransactionEntryService",
 ]

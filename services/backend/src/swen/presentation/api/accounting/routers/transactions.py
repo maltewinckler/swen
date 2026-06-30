@@ -37,8 +37,8 @@ from swen.presentation.api.accounting.schemas.transactions import (
     BulkPostResponse,
     JournalEntryResponse,
     ReclassifyDraftsRequest,
+    SimpleTransactionToCreateRequest,
     TransactionCreateRequest,
-    TransactionCreateSimpleRequest,
     TransactionListItemResponse,
     TransactionListResponse,
     TransactionResponse,
@@ -313,7 +313,7 @@ def _convert_to_entry_inputs(entries: list) -> list[JournalEntryInput]:
     },
 )
 async def create_simple_transaction(
-    request: TransactionCreateSimpleRequest,
+    request: SimpleTransactionToCreateRequest,
     factory: RepoFactory,
 ) -> TransactionResponse:
     """
@@ -354,7 +354,6 @@ async def create_simple_transaction(
     """
     # Map presentation request → application DTO
     dto = SimpleTransactionToCreateDTO.model_validate(request)
-
     command = CreateSimpleTransactionCommand.from_factory(factory)
 
     try:
