@@ -2,21 +2,27 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from swen.application.accounting.commands.create_transaction_command import (
     CreateTransactionCommand,
 )
-from swen.domain.accounting.exceptions import AccountNotFoundError
-from swen.domain.accounting.services import TransactionEntryService
-from swen.domain.accounting.value_objects import Money, TransactionSource
+from swen.application.accounting.dtos.transactions_dto import (
+    JournalEntryToCreateDTO,
+    SimpleTransactionToCreateDTO,
+    TransactionDTO,
+    TransactionToCreateDTO,
+)
+from swen.domain.accounting.exceptions import (
+    AccountNotFoundError,
+    InvalidAccountTypeError,
+)
+from swen.domain.accounting.value_objects import TransactionSource
 from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.domain.accounting.aggregates import Transaction
     from swen.domain.accounting.entities import Account
     from swen.domain.accounting.repositories import (
         AccountRepository,
@@ -55,49 +61,31 @@ class CreateSimpleTransactionCommand:
             current_user=factory.current_user,
         )
 
-    async def execute(  # NOQA: PLR0913
-        self,
-        description: str,
-        amount: Decimal,
-        payment_account_number: str,
-        counter_account_number: str,
-        counterparty: Optional[str] = None,
-        date: Optional[datetime] = None,
-        auto_post: bool = False,
-    ) -> Transaction:
-        if amount == Decimal("0"):
+    async def execute(self, dto: SimpleTransactionToCreateDTO) -> TransactionDTO:
+        if dto.amount == Decimal("0"):
             msg = "Amount must be non-zero"
             raise ValidationError(msg)
 
-        is_expense = amount < 0
-        abs_amount = abs(amount)
-
         # Look up accounts by account number
-        payment_account = await self._resolve_account_number(payment_account_number)
-        counter_account = await self._resolve_account_number(counter_account_number)
+        payment_account = await self._resolve_payment_account(dto)
+        counter_account = await self._resolve_counter_account(dto)
 
-        # Use domain service for entry direction rules
-        money = Money(abs_amount, payment_account.default_currency)
-
-        entries = TransactionEntryService.build_simple_entries(
-            payment_account=payment_account,
-            category_account=counter_account,
-            amount=money,
-            is_expense=is_expense,
+        dto_entries = self._create_journal_entry_dtos(
+            payment_account, counter_account, dto.amount
         )
 
-        # Delegate to the entry-based command
-        return await self._create_command.execute(
-            description=description,
-            entries=list(entries),  # build_simple_entries has always 2 entries
-            counterparty=counterparty,
-            date=date,
-            source=TransactionSource.MANUAL,
+        general_transaction_to_create_dto = TransactionToCreateDTO(
+            description=dto.description,
+            entries=list(dto_entries),
+            counterparty=dto.counterparty,
+            date=dto.date,
+            source=TransactionSource.MANUAL.value,
             is_manual_entry=True,
-            auto_post=auto_post,
+            auto_post=dto.auto_post,
         )
+        return await self._create_command.execute(general_transaction_to_create_dto)
 
-    async def _resolve_account_number(
+    async def _resolve_account_by_number(
         self,
         account_number: str,
     ) -> Account:
@@ -105,3 +93,64 @@ class CreateSimpleTransactionCommand:
         if account is None:
             raise AccountNotFoundError(account_name=account_number)
         return account
+
+    async def _resolve_payment_account(
+        self, dto: SimpleTransactionToCreateDTO
+    ) -> Account:
+        a = await self._resolve_account_by_number(dto.payment_account)
+        if not (a.is_asset_account() or a.is_liability_account()):
+            raise InvalidAccountTypeError(a.account_type.value, ["asset", "liability"])
+        return a
+
+    async def _resolve_counter_account(
+        self, dto: SimpleTransactionToCreateDTO
+    ) -> Account:
+        a = await self._resolve_account_by_number(dto.counter_account)
+        is_expense = dto.amount < 0
+
+        violation_1 = is_expense and not a.is_expense_account()
+        violation_2 = not is_expense and not a.is_income_account()
+        if violation_1 or violation_2:
+            raise InvalidAccountTypeError(a.account_type.value, ["income", "expense"])
+        return a
+
+    def _create_journal_entry_dtos(
+        self,
+        payment_account: Account,
+        counter_account: Account,
+        amount: Decimal,
+    ) -> tuple[JournalEntryToCreateDTO, JournalEntryToCreateDTO]:
+        """Build two journal entries for a simple transaction.
+
+        Debit/Credit rules:
+        - **Expense** (negative amount): Debit *counter_account* (expense),
+          Credit *payment_account* (asset/liability).
+        - **Income** (positive amount): Debit *payment_account* (asset/liability),
+          Credit *counter_account* (income).
+
+        Args:
+            payment_account: The asset or liability account from which funds
+                flow (the "checking", "credit card", etc.).
+            counter_account: The income or expense account paired with the
+                payment account.
+            amount: Positive for income, negative for expense.
+
+        Returns
+        -------
+            A two-element tuple of ``JournalEntryToCreateDTO`` where the first
+            element is the debit entry and the second is the credit entry.
+        """
+        payment_acc_id = payment_account.id
+        counter_acc_id = counter_account.id
+        is_expense = amount < 0
+        abs_amount = abs(amount)
+
+        if is_expense:
+            return (
+                JournalEntryToCreateDTO(account_id=counter_acc_id, debit=abs_amount),
+                JournalEntryToCreateDTO(account_id=payment_acc_id, credit=abs_amount),
+            )
+        return (
+            JournalEntryToCreateDTO(account_id=payment_acc_id, debit=abs_amount),
+            JournalEntryToCreateDTO(account_id=counter_acc_id, credit=abs_amount),
+        )

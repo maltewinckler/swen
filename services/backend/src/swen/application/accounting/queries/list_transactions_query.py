@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from swen.application.accounting.dtos import (
-    TransactionDetailDTO,
+    TransactionDTO,
     TransactionListItemDTO,
     TransactionListResultDTO,
 )
@@ -158,26 +158,26 @@ class ListTransactionsQuery:
     async def get_transaction_detail(
         self,
         transaction_id: UUID,
-    ) -> Optional[TransactionDetailDTO]:
+    ) -> Optional[TransactionDTO]:
         txn = await self.find_by_id(transaction_id)
         if not txn:
             return None
-        return TransactionDetailDTO.from_transaction(txn)
+        return TransactionDTO.from_transaction(txn)
 
     async def get_transaction_detail_by_partial_id(
         self,
         partial_id: str,
-    ) -> Optional[TransactionDetailDTO]:
+    ) -> Optional[TransactionDTO]:
         txn = await self.find_by_partial_id(partial_id)
         if not txn:
             return None
-        return TransactionDetailDTO.from_transaction(txn)
+        return TransactionDTO.from_transaction(txn)
 
     async def get_detail_by_id_or_partial(
         self,
         transaction_id: str,
-    ) -> Optional[TransactionDetailDTO]:
+    ) -> Optional[TransactionDTO]:
         txn = await self.find_by_id_or_partial(transaction_id)
         if not txn:
             return None
-        return TransactionDetailDTO.from_transaction(txn)
+        return TransactionDTO.from_transaction(txn)
