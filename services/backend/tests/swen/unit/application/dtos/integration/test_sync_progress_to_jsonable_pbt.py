@@ -1,11 +1,11 @@
-"""Property-based tests for _to_jsonable round-trip over sync progress events.
+"""Property-based tests for model_dump(mode='json') round-trip over sync progress events.
 
 **Validates: Requirements 2.3**
 
 Property: for any event built from (UUID, datetime, Decimal, Enum) fields,
-json.loads(json.dumps(event.to_dict())) == event.to_dict()
+json.loads(json.dumps(event.model_dump(mode='json'))) == event.model_dump(mode='json')
 modulo Decimal → float precision (Decimals are already converted to float by
-_to_jsonable before the round-trip, so the comparison is exact after that).
+Pydantic's JSON mode, so the comparison is exact after that).
 """
 
 from __future__ import annotations
@@ -72,9 +72,9 @@ def _assert_json_roundtrip(event_dict: dict) -> None:
 @settings(max_examples=100)
 @given(total_accounts=_non_negative_int())
 def test_batch_sync_started_event_roundtrip(total_accounts: int) -> None:
-    """BatchSyncStartedEvent.to_dict() survives a JSON round-trip."""
+    """BatchSyncStartedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = BatchSyncStartedEvent(total_accounts=total_accounts)
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -95,14 +95,14 @@ def test_batch_sync_completed_event_roundtrip(
     total_failed: int,
     accounts_synced: int,
 ) -> None:
-    """BatchSyncCompletedEvent.to_dict() survives a JSON round-trip."""
+    """BatchSyncCompletedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = BatchSyncCompletedEvent(
         total_imported=total_imported,
         total_skipped=total_skipped,
         total_failed=total_failed,
         accounts_synced=accounts_synced,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -120,9 +120,9 @@ def test_batch_sync_completed_event_roundtrip(
     ),
 )
 def test_batch_sync_failed_event_roundtrip(code: ErrorCode, error_key: str) -> None:
-    """BatchSyncFailedEvent.to_dict() survives a JSON round-trip."""
+    """BatchSyncFailedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = BatchSyncFailedEvent(code=code, error_key=error_key)
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -139,14 +139,14 @@ def test_account_sync_started_event_roundtrip(
     account_index: int,
     total_accounts: int,
 ) -> None:
-    """AccountSyncStartedEvent.to_dict() survives a JSON round-trip."""
+    """AccountSyncStartedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = AccountSyncStartedEvent(
         iban="DE89370400440532013000",
         account_name="Test Account",
         account_index=account_index,
         total_accounts=total_accounts,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -163,13 +163,13 @@ def test_account_sync_fetched_event_roundtrip(
     transactions_fetched: int,
     new_transactions: int,
 ) -> None:
-    """AccountSyncFetchedEvent.to_dict() survives a JSON round-trip."""
+    """AccountSyncFetchedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = AccountSyncFetchedEvent(
         iban="DE89370400440532013000",
         transactions_fetched=transactions_fetched,
         new_transactions=new_transactions,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -188,14 +188,14 @@ def test_account_sync_completed_event_roundtrip(
     skipped: int,
     failed: int,
 ) -> None:
-    """AccountSyncCompletedEvent.to_dict() survives a JSON round-trip."""
+    """AccountSyncCompletedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = AccountSyncCompletedEvent(
         iban="DE89370400440532013000",
         imported=imported,
         skipped=skipped,
         failed=failed,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -213,13 +213,13 @@ def test_account_sync_completed_event_roundtrip(
     ),
 )
 def test_account_sync_failed_event_roundtrip(code: ErrorCode, error_key: str) -> None:
-    """AccountSyncFailedEvent.to_dict() survives a JSON round-trip."""
+    """AccountSyncFailedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = AccountSyncFailedEvent(
         iban="DE89370400440532013000",
         code=code,
         error_key=error_key,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -230,9 +230,9 @@ def test_account_sync_failed_event_roundtrip(code: ErrorCode, error_key: str) ->
 @settings(max_examples=100)
 @given(iban=_iban_strategy())
 def test_classification_started_event_roundtrip(iban: str) -> None:
-    """ClassificationStartedEvent.to_dict() survives a JSON round-trip."""
+    """ClassificationStartedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = ClassificationStartedEvent(iban=iban)
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -246,13 +246,13 @@ def test_classification_started_event_roundtrip(iban: str) -> None:
     total=_non_negative_int(max_value=1_000),
 )
 def test_classification_progress_event_roundtrip(current: int, total: int) -> None:
-    """ClassificationProgressEvent.to_dict() survives a JSON round-trip."""
+    """ClassificationProgressEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = ClassificationProgressEvent(
         iban="DE89370400440532013000",
         current=current,
         total=total,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +273,7 @@ def test_classification_completed_event_roundtrip(
     merchants_extracted: int,
     processing_time_ms: int,
 ) -> None:
-    """ClassificationCompletedEvent.to_dict() survives a JSON round-trip."""
+    """ClassificationCompletedEvent.model_dump(mode='json') survives a JSON round-trip."""
     event = ClassificationCompletedEvent(
         iban="DE89370400440532013000",
         total=total,
@@ -281,4 +281,4 @@ def test_classification_completed_event_roundtrip(
         merchants_extracted=merchants_extracted,
         processing_time_ms=processing_time_ms,
     )
-    _assert_json_roundtrip(event.to_dict())
+    _assert_json_roundtrip(event.model_dump(mode="json"))

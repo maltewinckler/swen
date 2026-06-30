@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+
+from pydantic import BaseModel, ConfigDict, computed_field
 
 if TYPE_CHECKING:
     from swen.domain.accounting.entities import Account
     from swen.domain.integration.entities import AccountMapping
 
 
-@dataclass(frozen=True)
-class AccountSummaryDTO:
+class AccountSummaryDTO(BaseModel):
     """Simplified account information for display."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     name: str
@@ -41,24 +43,11 @@ class AccountSummaryDTO:
             parent_id=str(account.parent_id) if account.parent_id else None,
         )
 
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "account_number": self.account_number,
-            "account_type": self.account_type,
-            "currency": self.currency,
-            "is_active": self.is_active,
-            "description": self.description,
-            "iban": self.iban,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "parent_id": self.parent_id,
-        }
 
-
-@dataclass(frozen=True)
-class BankAccountDTO:
+class BankAccountDTO(BaseModel):
     """Bank account with mapping information for display."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     name: str
@@ -82,19 +71,8 @@ class BankAccountDTO:
             is_active=account.is_active,
         )
 
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "account_number": self.account_number,
-            "iban": self.iban,
-            "currency": self.currency,
-            "is_active": self.is_active,
-        }
 
-
-@dataclass(frozen=True)
-class ChartOfAccountsDTO:
+class ChartOfAccountsDTO(BaseModel):
     """Chart of accounts organized by type in standard accounting order.
 
     This DTO provides accounts grouped by their type, following the
@@ -106,12 +84,13 @@ class ChartOfAccountsDTO:
     presentation layer to understand accounting organization.
     """
 
-    assets: tuple[AccountSummaryDTO, ...] = field(default_factory=tuple)
-    liabilities: tuple[AccountSummaryDTO, ...] = field(default_factory=tuple)
-    equity: tuple[AccountSummaryDTO, ...] = field(default_factory=tuple)
-    income: tuple[AccountSummaryDTO, ...] = field(default_factory=tuple)
-    expenses: tuple[AccountSummaryDTO, ...] = field(default_factory=tuple)
+    assets: tuple[AccountSummaryDTO, ...] = ()
+    liabilities: tuple[AccountSummaryDTO, ...] = ()
+    equity: tuple[AccountSummaryDTO, ...] = ()
+    income: tuple[AccountSummaryDTO, ...] = ()
+    expenses: tuple[AccountSummaryDTO, ...] = ()
 
+    @computed_field
     @property
     def total_count(self) -> int:
         """Total number of accounts across all types."""
@@ -123,19 +102,10 @@ class ChartOfAccountsDTO:
             + len(self.expenses)
         )
 
+    @computed_field
     @property
     def is_empty(self) -> bool:
         return self.total_count == 0
-
-    def to_dict(self) -> dict:
-        return {
-            "assets": [a.to_dict() for a in self.assets],
-            "liabilities": [a.to_dict() for a in self.liabilities],
-            "equity": [a.to_dict() for a in self.equity],
-            "income": [a.to_dict() for a in self.income],
-            "expenses": [a.to_dict() for a in self.expenses],
-            "total_count": self.total_count,
-        }
 
     def iter_by_type(self):
         groups = [

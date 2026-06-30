@@ -636,7 +636,10 @@ async def reclassify_drafts_streaming(
                 only_fallback=only_fallback,
             ):
                 if isinstance(event, SyncProgressEvent):
-                    yield _format_sse_event(event.event_type.value, event.to_dict())
+                    yield _format_sse_event(
+                        event.event_type.value,
+                        event.model_dump(mode="json"),
+                    )
                 elif isinstance(event, ReclassifyResultDTO):
                     result = event
 

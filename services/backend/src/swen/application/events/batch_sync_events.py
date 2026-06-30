@@ -2,26 +2,28 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from pydantic import ConfigDict, Field
 
 from swen.application.events.base import ErrorCode, SyncEventType, SyncProgressEvent
 
 
-@dataclass
 class BatchSyncStartedEvent(SyncProgressEvent):
     """Emitted when sync begins."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.BATCH_SYNC_STARTED, init=False
     )
     total_accounts: int = 0
 
 
-@dataclass
 class BatchSyncCompletedEvent(SyncProgressEvent):
     """Emitted when sync completes successfully."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.BATCH_SYNC_COMPLETED, init=False
     )
     total_imported: int = 0
@@ -30,11 +32,12 @@ class BatchSyncCompletedEvent(SyncProgressEvent):
     accounts_synced: int = 0
 
 
-@dataclass
 class SyncResultEvent(SyncProgressEvent):
     """Terminal result event: emitted by the command as the last event."""
 
-    event_type: SyncEventType = field(default=SyncEventType.RESULT, init=False)
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(default=SyncEventType.RESULT, init=False)
     success: bool = False
     total_imported: int = 0
     total_skipped: int = 0
@@ -42,11 +45,12 @@ class SyncResultEvent(SyncProgressEvent):
     accounts_synced: int = 0
 
 
-@dataclass
 class BatchSyncFailedEvent(SyncProgressEvent):
     """Emitted when the entire batch sync fails."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.BATCH_SYNC_FAILED, init=False
     )
     code: ErrorCode = ErrorCode.INTERNAL_ERROR

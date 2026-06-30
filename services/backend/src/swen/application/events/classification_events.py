@@ -2,27 +2,30 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Optional
+
+from pydantic import ConfigDict, Field
 
 from swen.application.events.base import SyncEventType, SyncProgressEvent
 
 
-@dataclass
 class ClassificationStartedEvent(SyncProgressEvent):
     """Emitted when ML batch classification begins."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.CLASSIFICATION_STARTED, init=False
     )
     iban: str = ""
 
 
-@dataclass
 class ClassificationProgressEvent(SyncProgressEvent):
     """Emitted during ML batch classification for progress updates."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.CLASSIFICATION_PROGRESS, init=False
     )
     iban: str = ""
@@ -31,11 +34,12 @@ class ClassificationProgressEvent(SyncProgressEvent):
     last_merchant: Optional[str] = None
 
 
-@dataclass
 class ClassificationCompletedEvent(SyncProgressEvent):
     """Emitted when ML batch classification completes."""
 
-    event_type: SyncEventType = field(
+    model_config = ConfigDict(frozen=True)
+
+    event_type: SyncEventType = Field(
         default=SyncEventType.CLASSIFICATION_COMPLETED, init=False
     )
     iban: str = ""

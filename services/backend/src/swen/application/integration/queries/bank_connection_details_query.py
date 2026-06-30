@@ -9,16 +9,16 @@ from swen.application.integration.dtos import (
     BankAccountDetailDTO,
     BankConnectionDetailsDTO,
 )
-from swen.domain.accounting.repositories import (
-    AccountRepository,
-    TransactionRepository,
-)
 from swen.domain.accounting.services import AccountBalanceService
-from swen.domain.banking.repositories import BankAccountRepository
-from swen.domain.integration.repositories import AccountMappingRepository
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.domain.accounting.repositories import (
+        AccountRepository,
+        TransactionRepository,
+    )
+    from swen.domain.banking.repositories import BankAccountRepository
+    from swen.domain.integration.repositories import AccountMappingRepository
 
 
 class BankConnectionDetailsQuery:
