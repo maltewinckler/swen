@@ -35,8 +35,6 @@ interface CreateTransactionData {
     credit: string
   }>
   counterparty?: string
-  reference?: string
-  metadata?: Record<string, unknown>
   auto_post?: boolean
 }
 
@@ -52,10 +50,8 @@ interface CreateSimpleTransactionData {
   amount: string
   date?: string
   payment_account: string
-  category_account: string
+  counter_account: string
   counterparty?: string
-  reference?: string
-  metadata?: Record<string, unknown>
   auto_post?: boolean
 }
 
@@ -69,16 +65,15 @@ export async function createSimpleTransaction(data: CreateSimpleTransactionData)
 interface UpdateTransactionData {
   description?: string
   counterparty?: string
-  category_account_id?: string
+  counter_account_id?: string
   /** Replace all journal entries (for multi-entry edits).
-   * Mutually exclusive with category_account_id.
+   * Mutually exclusive with counter_account_id.
    * For bank imports, protected (asset) entries are preserved automatically. */
   entries?: Array<{
     account_id: string
     debit: string
     credit: string
   }>
-  metadata?: Record<string, unknown>
 }
 
 /**

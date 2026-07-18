@@ -2,7 +2,6 @@
 
 from swen.domain.accounting.value_objects.category_code import CategoryCode
 from swen.domain.accounting.value_objects.currency import Currency
-from swen.domain.accounting.value_objects.journal_entry_input import JournalEntryInput
 from swen.domain.accounting.value_objects.money import Money
 from swen.domain.accounting.value_objects.transaction_filters import TransactionFilters
 from swen.domain.accounting.value_objects.transaction_metadata import (
@@ -16,7 +15,6 @@ __all__ = [
     "AIResolutionMetadata",
     "CategoryCode",
     "Currency",
-    "JournalEntryInput",
     "MetadataKeys",
     "Money",
     "TransactionFilters",

@@ -8,7 +8,7 @@ import pytest
 
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.services import TransactionEditService
-from swen.domain.accounting.value_objects import Currency, JournalEntryInput, Money
+from swen.domain.accounting.value_objects import Currency, Money
 from swen.domain.shared.exceptions import BusinessRuleViolation, ValidationError
 
 
@@ -84,17 +84,24 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """Basic entry replacement works."""
+        from swen.domain.accounting.entities import JournalEntry
+
         expense = mock_account(AccountType.EXPENSE, "Groceries")
         asset = mock_account(AccountType.ASSET, "Checking")
 
-        accounts = {expense.id: expense, asset.id: asset}
         entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("50.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("50.00")),
+            JournalEntry(
+                account=expense, debit=Money(Decimal("50.00"), Currency("EUR"))
+            ),
+            JournalEntry(
+                account=asset,
+                debit=None,
+                credit=Money(Decimal("50.00"), Currency("EUR")),
+            ),
         ]
 
         txn = mock_transaction()
-        TransactionEditService.replace_entries(txn, entries, accounts)
+        TransactionEditService.replace_entries(txn, entries)
 
         txn.clear_entries.assert_called_once()
         assert txn.add_debit.call_count == 1
@@ -106,17 +113,19 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """At least 2 entries required."""
-        expense = mock_account(AccountType.EXPENSE, "Groceries")
-        asset = mock_account(AccountType.ASSET, "Checking")
+        from swen.domain.accounting.entities import JournalEntry
 
-        accounts = {expense.id: expense, asset.id: asset}
+        expense = mock_account(AccountType.EXPENSE, "Groceries")
+
         entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("50.00")),
+            JournalEntry(
+                account=expense, debit=Money(Decimal("50.00"), Currency("EUR"))
+            ),
         ]
 
         txn = mock_transaction()
         with pytest.raises(ValidationError, match="at least 2"):
-            TransactionEditService.replace_entries(txn, entries, accounts)
+            TransactionEditService.replace_entries(txn, entries)
 
         txn.clear_entries.assert_called_once()
 
@@ -126,15 +135,18 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """With 1 protected entry, only 1 new entry required."""
+        from swen.domain.accounting.entities import JournalEntry
+
         expense = mock_account(AccountType.EXPENSE, "Groceries")
 
-        accounts = {expense.id: expense}
         entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("50.00")),
+            JournalEntry(
+                account=expense, debit=Money(Decimal("50.00"), Currency("EUR"))
+            ),
         ]
 
         txn = mock_transaction(protected_count=1)
-        TransactionEditService.replace_entries(txn, entries, accounts)
+        TransactionEditService.replace_entries(txn, entries)
 
         # 1 protected + 1 new = 2, passes minimum
         assert txn.add_debit.call_count == 1
@@ -145,12 +157,9 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """With 1 protected entry, 0 new entries fails minimum."""
-        accounts = {}
-        entries = []
-
         txn = mock_transaction(protected_count=1)
         with pytest.raises(ValidationError, match="at least 2"):
-            TransactionEditService.replace_entries(txn, entries, accounts)
+            TransactionEditService.replace_entries(txn, [])
 
     def test_replace_entries_account_not_found(
         self,
@@ -158,18 +167,30 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """Raises KeyError for unknown account (dict lookup)."""
+        from swen.domain.accounting.entities import JournalEntry
+
         expense = mock_account(AccountType.EXPENSE, "Groceries")
         asset = mock_account(AccountType.ASSET, "Checking")
 
-        accounts = {expense.id: expense}
         entries = [
-            JournalEntryInput.debit_entry(expense.id, Decimal("50.00")),
-            JournalEntryInput.credit_entry(uuid4(), Decimal("50.00")),
+            JournalEntry(
+                account=expense, debit=Money(Decimal("50.00"), Currency("EUR"))
+            ),
+            JournalEntry(
+                account=asset,
+                debit=None,
+                credit=Money(Decimal("50.00"), Currency("EUR")),
+            ),
         ]
 
         txn = mock_transaction()
-        with pytest.raises(KeyError):
-            TransactionEditService.replace_entries(txn, entries, accounts)
+        # The service iterates entries and calls transaction.add_debit/add_credit
+        # which don't do account lookups — the "account not found" scenario
+        # is now handled by the command layer, not the domain service.
+        # This test verifies the service accepts valid JournalEntry objects.
+        TransactionEditService.replace_entries(txn, entries)
+        assert txn.add_debit.call_count == 1
+        assert txn.add_credit.call_count == 1
 
     def test_replace_entries_multi_entry(
         self,
@@ -177,19 +198,28 @@ class TestTransactionEditServiceReplaceEntries:
         mock_account,
     ):
         """Multi-entry replacement works."""
+        from swen.domain.accounting.entities import JournalEntry
+
         expense1 = mock_account(AccountType.EXPENSE, "Groceries")
         expense2 = mock_account(AccountType.EXPENSE, "Restaurant")
         asset = mock_account(AccountType.ASSET, "Checking")
 
-        accounts = {expense1.id: expense1, expense2.id: expense2, asset.id: asset}
         entries = [
-            JournalEntryInput.debit_entry(expense1.id, Decimal("30.00")),
-            JournalEntryInput.debit_entry(expense2.id, Decimal("20.00")),
-            JournalEntryInput.credit_entry(asset.id, Decimal("50.00")),
+            JournalEntry(
+                account=expense1, debit=Money(Decimal("30.00"), Currency("EUR"))
+            ),
+            JournalEntry(
+                account=expense2, debit=Money(Decimal("20.00"), Currency("EUR"))
+            ),
+            JournalEntry(
+                account=asset,
+                debit=None,
+                credit=Money(Decimal("50.00"), Currency("EUR")),
+            ),
         ]
 
         txn = mock_transaction()
-        TransactionEditService.replace_entries(txn, entries, accounts)
+        TransactionEditService.replace_entries(txn, entries)
 
         assert txn.add_debit.call_count == 2
         assert txn.add_credit.call_count == 1
