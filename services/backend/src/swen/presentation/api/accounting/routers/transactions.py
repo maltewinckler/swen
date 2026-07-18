@@ -23,11 +23,11 @@ from swen.application.accounting.dtos import (
     ReclassifyResultDTO,
     SimpleTransactionToCreateDTO,
     TransactionToCreateDTO,
+    TransactionToEditDTO,
 )
 from swen.application.accounting.queries import ListTransactionsQuery
 from swen.application.events.base import SyncProgressEvent
 from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.value_objects import JournalEntryInput
 from swen.domain.shared.exceptions import DomainException, ErrorCode
 from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
     MLCounterAccountAdapter,
@@ -272,37 +272,6 @@ async def create_transaction(
     return TransactionResponse.model_validate(created)
 
 
-def _convert_to_entry_inputs(entries: list) -> list[JournalEntryInput]:
-    """Convert API entry requests to domain JournalEntryInput objects.
-
-    Each API entry can have both debit and credit fields (for flexibility),
-    but the domain requires exactly one per entry. We split entries that
-    have both into two separate JournalEntryInput objects.
-
-    Note: This helper is used by the update_transaction endpoint
-    (EditTransactionCommand). It will be removed when
-    EditTransactionCommand is refactored to use application DTOs.
-
-    Parameters
-    ----------
-    entries
-        List of JournalEntryRequest from the API
-
-    Returns
-    -------
-    List of JournalEntryInput domain value objects
-    """
-    result = []
-    for entry in entries:
-        if entry.debit > 0:
-            result.append(JournalEntryInput.debit_entry(entry.account_id, entry.debit))
-        if entry.credit > 0:
-            result.append(
-                JournalEntryInput.credit_entry(entry.account_id, entry.credit),
-            )
-    return result
-
-
 @router.post(
     "/simple",
     status_code=status.HTTP_201_CREATED,
@@ -352,7 +321,6 @@ async def create_simple_transaction(
     }
     ```
     """
-    # Map presentation request → application DTO
     dto = SimpleTransactionToCreateDTO.model_validate(request)
     command = CreateSimpleTransactionCommand.from_factory(factory)
 
@@ -425,21 +393,11 @@ async def update_transaction(
     automatically unposted, modified, and re-posted.
     """
     # Convert entries from request schema to domain value objects
-    entry_inputs = None
-    if request.entries is not None:
-        entry_inputs = _convert_to_entry_inputs(request.entries)
-
+    dto = TransactionToEditDTO(transaction_id=transaction_id, **request.model_dump())
     command = EditTransactionCommand.from_factory(factory)
 
     try:
-        txn = await command.execute(
-            transaction_id=transaction_id,
-            entries=entry_inputs,
-            description=request.description,
-            counterparty=request.counterparty,
-            counter_account_id=request.counter_account_id,
-            repost=request.repost,
-        )
+        txn = await command.execute(dto)
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()

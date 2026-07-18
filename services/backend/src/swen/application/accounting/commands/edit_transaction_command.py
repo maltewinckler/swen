@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+from swen.application.accounting.dtos.transactions_dto import (
+    JournalEntryToCreateDTO,
+    TransactionToEditDTO,
+)
 from swen.domain.accounting.aggregates import Transaction
+from swen.domain.accounting.entities import JournalEntry
 from swen.domain.accounting.exceptions import (
     AccountNotFoundError,
     TransactionNotFoundError,
 )
 from swen.domain.accounting.repositories import AccountRepository, TransactionRepository
 from swen.domain.accounting.services import TransactionEditService
-from swen.domain.accounting.value_objects import JournalEntryInput
+from swen.domain.accounting.value_objects import Money
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -40,11 +45,27 @@ class EditTransactionCommand:
     async def _update_with_new_entries(
         self,
         transaction: Transaction,
-        entries: list[JournalEntryInput],
-    ):
-        account_ids = {entry.account_id for entry in entries}
+        dto_entries: list[JournalEntryToCreateDTO],
+    ) -> None:
+        """Replace transaction entries."""
+        account_ids = {entry.account_id for entry in dto_entries}
         accounts = await self._load_accounts(account_ids)
-        TransactionEditService.replace_entries(transaction, entries, accounts)
+
+        journal_entries: list[JournalEntry] = []
+        for dto in dto_entries:
+            account = accounts[dto.account_id]
+            if dto.debit > 0:
+                money = Money(dto.debit, account.default_currency)
+                journal_entries.append(
+                    JournalEntry(account=account, debit=money, credit=None),
+                )
+            elif dto.credit > 0:
+                money = Money(dto.credit, account.default_currency)
+                journal_entries.append(
+                    JournalEntry(account=account, debit=None, credit=money),
+                )
+
+        TransactionEditService.replace_entries(transaction, journal_entries)
 
     async def _update_with_new_counter_account(
         self,
@@ -55,18 +76,12 @@ class EditTransactionCommand:
         counter_account = accounts[counter_account_id]
         TransactionEditService.change_counter_account(transaction, counter_account)
 
-    async def execute(  # NOQA: PLR0913
+    async def execute(
         self,
-        transaction_id: UUID,
-        entries: Optional[list[JournalEntryInput]] = None,
-        counter_account_id: Optional[UUID] = None,
-        description: Optional[str] = None,
-        counterparty: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        repost: bool = False,
+        dto: TransactionToEditDTO,
     ) -> Transaction:
         # Validate mutually exclusive parameters
-        if entries is not None and counter_account_id is not None:
+        if dto.entries is not None and dto.counter_account_id is not None:
             msg = (
                 "Cannot specify both 'entries' and 'counter_account_id'. "
                 "Use 'entries' for full entry replacement or "
@@ -74,23 +89,25 @@ class EditTransactionCommand:
             )
             raise ValueError(msg)
 
-        transaction = await self._load_transaction(transaction_id)
+        transaction = await self._load_transaction(dto.transaction_id)
         was_posted = self._unpost_if_needed(transaction)  # to be able to edit
 
-        if entries is not None:
-            await self._update_with_new_entries(transaction, entries)
-        elif counter_account_id is not None:
-            await self._update_with_new_counter_account(transaction, counter_account_id)
+        if dto.entries is not None:
+            await self._update_with_new_entries(transaction, dto.entries)
+        elif dto.counter_account_id is not None:
+            await self._update_with_new_counter_account(
+                transaction, dto.counter_account_id
+            )
 
-        if description is not None:
-            transaction.update_description(description)
-        if counterparty is not None:
-            transaction.update_counterparty(counterparty)
-        if metadata is not None:
-            TransactionEditService.update_metadata(transaction, metadata)
+        if dto.description is not None:
+            transaction.update_description(dto.description)
+        if dto.counterparty is not None:
+            transaction.update_counterparty(dto.counterparty)
+        if dto.metadata is not None:
+            TransactionEditService.update_metadata(transaction, dto.metadata)
 
         # Repost if requested and was originally posted
-        if repost and was_posted:
+        if dto.repost and was_posted:
             transaction.post()
 
         # Persist changes

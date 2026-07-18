@@ -11,12 +11,16 @@ from uuid import uuid4
 import pytest
 
 from swen.application.accounting.commands import EditTransactionCommand
+from swen.application.accounting.dtos.transactions_dto import (
+    JournalEntryToCreateDTO,
+    TransactionToEditDTO,
+)
 from swen.domain.accounting.entities.account_type import AccountType
 from swen.domain.accounting.exceptions import (
     AccountNotFoundError,
     TransactionNotFoundError,
 )
-from swen.domain.accounting.value_objects import Currency, JournalEntryInput, Money
+from swen.domain.accounting.value_objects import Currency, Money
 from swen.domain.shared.exceptions import ValidationError
 
 
@@ -25,6 +29,7 @@ class DomainCallTracker:
     """Tracks calls to domain service methods."""
 
     replace_count: int = 0
+    replace_entries_received: list = field(default_factory=list)
     change_count: int = 0
     metadata_count: int = 0
     metadata_applied: dict[str, Any] = field(default_factory=dict)
@@ -142,8 +147,9 @@ class TestEditTransactionCommand:
             account_repository=mock_account_repo,
         )
 
+        dto = TransactionToEditDTO(transaction_id=uuid4())
         with pytest.raises(TransactionNotFoundError):
-            await command.execute(transaction_id=uuid4())
+            await command.execute(dto)
 
     async def test_unpost_if_posted(
         self,
@@ -160,9 +166,10 @@ class TestEditTransactionCommand:
         )
 
         await command.execute(
-            transaction_id=txn.id,
-            description="New description",
-            repost=False,
+            TransactionToEditDTO(
+                transaction_id=txn.id,
+                description="New description",
+            )
         )
 
         txn.unpost.assert_called_once()
@@ -182,9 +189,11 @@ class TestEditTransactionCommand:
         )
 
         await command.execute(
-            transaction_id=txn.id,
-            description="New description",
-            repost=True,
+            TransactionToEditDTO(
+                transaction_id=txn.id,
+                description="New description",
+                repost=True,
+            )
         )
 
         txn.unpost.assert_called_once()
@@ -204,8 +213,10 @@ class TestEditTransactionCommand:
         )
 
         await command.execute(
-            transaction_id=txn.id,
-            description="New description",
+            TransactionToEditDTO(
+                transaction_id=txn.id,
+                description="New description",
+            )
         )
 
         mock_transaction_repo.save.assert_called_once_with(txn)
@@ -224,18 +235,20 @@ class TestEditTransactionCommand:
 
         with pytest.raises(ValueError) as exc_info:
             await command.execute(
-                transaction_id=txn.id,
-                entries=[
-                    JournalEntryInput.debit_entry(
-                        mock_account_repo._expense_account.id,
-                        Decimal("50.00"),
-                    ),
-                    JournalEntryInput.credit_entry(
-                        mock_account_repo._asset_account.id,
-                        Decimal("50.00"),
-                    ),
-                ],
-                counter_account_id=mock_account_repo._expense_account2.id,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=[
+                        JournalEntryToCreateDTO(
+                            account_id=mock_account_repo._expense_account.id,
+                            debit=Decimal("50.00"),
+                        ),
+                        JournalEntryToCreateDTO(
+                            account_id=mock_account_repo._asset_account.id,
+                            credit=Decimal("50.00"),
+                        ),
+                    ],
+                    counter_account_id=mock_account_repo._expense_account2.id,
+                )
             )
 
         assert "cannot specify both" in str(exc_info.value).lower()
@@ -258,8 +271,10 @@ class TestEditTransactionCommand:
         )
 
         await command.execute(
-            transaction_id=txn.id,
-            description="Updated description",
+            TransactionToEditDTO(
+                transaction_id=txn.id,
+                description="Updated description",
+            )
         )
 
         txn.update_description.assert_called_once_with("Updated description")
@@ -282,8 +297,10 @@ class TestEditTransactionCommand:
         )
 
         await command.execute(
-            transaction_id=txn.id,
-            counterparty="New Merchant",
+            TransactionToEditDTO(
+                transaction_id=txn.id,
+                counterparty="New Merchant",
+            )
         )
 
         txn.update_counterparty.assert_called_once_with("New Merchant")
@@ -315,8 +332,10 @@ class TestEditTransactionCommand:
             )
 
             await command.execute(
-                transaction_id=txn.id,
-                metadata={"custom_tag": "value123"},
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    metadata={"custom_tag": "value123"},
+                )
             )
 
         assert tracker.metadata_count == 1
@@ -337,8 +356,10 @@ class TestEditTransactionCommand:
 
         with pytest.raises(ValidationError) as exc_info:
             await command.execute(
-                transaction_id=txn.id,
-                metadata={"source": "hacked"},
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    metadata={"source": "hacked"},
+                )
             )
 
         assert "reserved" in str(exc_info.value).lower()
@@ -356,8 +377,9 @@ class TestEditTransactionCommand:
         txn = mock_transaction_repo._transaction
         tracker = DomainCallTracker()
 
-        def mock_replace_entries(transaction, entries, accounts):
+        def mock_replace_entries(transaction, entries):
             tracker.replace_count += 1
+            tracker.replace_entries_received = entries
 
         with patch(
             "swen.application.accounting.commands.edit_transaction_command.TransactionEditService.replace_entries",
@@ -369,20 +391,28 @@ class TestEditTransactionCommand:
             )
 
             entries = [
-                JournalEntryInput.debit_entry(
-                    mock_account_repo._expense_account.id, Decimal("75.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._expense_account.id,
+                    debit=Decimal("75.00"),
                 ),
-                JournalEntryInput.credit_entry(
-                    mock_account_repo._asset_account.id, Decimal("75.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._asset_account.id,
+                    credit=Decimal("75.00"),
                 ),
             ]
 
             await command.execute(
-                transaction_id=txn.id,
-                entries=entries,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=entries,
+                )
             )
 
         assert tracker.replace_count == 1
+        # Verify that JournalEntry entities were passed to the domain service
+        assert len(tracker.replace_entries_received) == 2
+        for entry in tracker.replace_entries_received:
+            assert isinstance(entry, MagicMock) or hasattr(entry, "account")
 
     async def test_replace_entries_with_multiple(
         self,
@@ -393,7 +423,7 @@ class TestEditTransactionCommand:
         txn = mock_transaction_repo._transaction
         tracker = DomainCallTracker()
 
-        def mock_replace_entries(transaction, entries, accounts):
+        def mock_replace_entries(transaction, entries):
             tracker.replace_count += 1
 
         with patch(
@@ -406,20 +436,25 @@ class TestEditTransactionCommand:
             )
 
             entries = [
-                JournalEntryInput.debit_entry(
-                    mock_account_repo._expense_account.id, Decimal("30.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._expense_account.id,
+                    debit=Decimal("30.00"),
                 ),
-                JournalEntryInput.debit_entry(
-                    mock_account_repo._expense_account2.id, Decimal("20.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._expense_account2.id,
+                    debit=Decimal("20.00"),
                 ),
-                JournalEntryInput.credit_entry(
-                    mock_account_repo._asset_account.id, Decimal("50.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._asset_account.id,
+                    credit=Decimal("50.00"),
                 ),
             ]
 
             await command.execute(
-                transaction_id=txn.id,
-                entries=entries,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=entries,
+                )
             )
 
         assert tracker.replace_count == 1
@@ -438,15 +473,18 @@ class TestEditTransactionCommand:
         )
 
         entries = [
-            JournalEntryInput.debit_entry(
-                mock_account_repo._expense_account.id, Decimal("50.00")
+            JournalEntryToCreateDTO(
+                account_id=mock_account_repo._expense_account.id,
+                debit=Decimal("50.00"),
             ),
         ]
 
         with pytest.raises(ValidationError) as exc_info:
             await command.execute(
-                transaction_id=txn.id,
-                entries=entries,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=entries,
+                )
             )
 
         assert "at least 2" in str(exc_info.value).lower()
@@ -466,14 +504,16 @@ class TestEditTransactionCommand:
         )
 
         entries = [
-            JournalEntryInput.debit_entry(fake_id, Decimal("50.00")),
-            JournalEntryInput.credit_entry(fake_id, Decimal("50.00")),
+            JournalEntryToCreateDTO(account_id=fake_id, debit=Decimal("50.00")),
+            JournalEntryToCreateDTO(account_id=fake_id, credit=Decimal("50.00")),
         ]
 
         with pytest.raises(AccountNotFoundError):
             await command.execute(
-                transaction_id=txn.id,
-                entries=entries,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=entries,
+                )
             )
 
     # =========================================================================
@@ -502,8 +542,10 @@ class TestEditTransactionCommand:
             )
 
             await command.execute(
-                transaction_id=txn.id,
-                counter_account_id=mock_account_repo._expense_account2.id,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    counter_account_id=mock_account_repo._expense_account2.id,
+                )
             )
 
         assert tracker.change_count == 1
@@ -568,8 +610,10 @@ class TestEditTransactionCommand:
 
             # Execute category change - should NOT raise BusinessRuleViolation
             await command.execute(
-                transaction_id=txn.id,
-                counter_account_id=new_expense_account.id,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    counter_account_id=new_expense_account.id,
+                )
             )
 
         # Verify the transaction was modified
@@ -592,8 +636,10 @@ class TestEditTransactionCommand:
 
         with pytest.raises(AccountNotFoundError):
             await command.execute(
-                transaction_id=txn.id,
-                counter_account_id=fake_id,
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    counter_account_id=fake_id,
+                )
             )
 
     # =========================================================================
@@ -625,7 +671,7 @@ class TestEditTransactionCommand:
         txn = mock_transaction_repo._transaction
         tracker = DomainCallTracker()
 
-        def mock_replace_entries(transaction, entries, accounts):
+        def mock_replace_entries(transaction, entries):
             tracker.replace_count += 1
 
         with patch(
@@ -638,19 +684,23 @@ class TestEditTransactionCommand:
             )
 
             entries = [
-                JournalEntryInput.debit_entry(
-                    mock_account_repo._expense_account.id, Decimal("100.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._expense_account.id,
+                    debit=Decimal("100.00"),
                 ),
-                JournalEntryInput.credit_entry(
-                    mock_account_repo._asset_account.id, Decimal("100.00")
+                JournalEntryToCreateDTO(
+                    account_id=mock_account_repo._asset_account.id,
+                    credit=Decimal("100.00"),
                 ),
             ]
 
             await command.execute(
-                transaction_id=txn.id,
-                entries=entries,
-                description="New description",
-                counterparty="New counterparty",
+                TransactionToEditDTO(
+                    transaction_id=txn.id,
+                    entries=entries,
+                    description="New description",
+                    counterparty="New counterparty",
+                )
             )
 
         # All operations should have been called

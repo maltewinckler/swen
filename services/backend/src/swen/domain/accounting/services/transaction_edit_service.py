@@ -12,7 +12,6 @@ It operates purely on the Transaction aggregate and Account entities.
 from __future__ import annotations
 
 from typing import Any
-from uuid import UUID
 
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import (
@@ -21,11 +20,7 @@ from swen.domain.accounting.entities import (
     JournalEntry,
 )
 from swen.domain.accounting.exceptions import InvalidAccountTypeError
-from swen.domain.accounting.value_objects import (
-    JournalEntryInput,
-    MetadataKeys,
-    Money,
-)
+from swen.domain.accounting.value_objects import MetadataKeys
 from swen.domain.shared.exceptions import BusinessRuleViolation, ValidationError
 
 
@@ -59,40 +54,35 @@ class TransactionEditService:
     @staticmethod
     def replace_entries(
         transaction: Transaction,
-        entries: list[JournalEntryInput],
-        accounts: dict[UUID, Account],
+        entries: list[JournalEntry],
     ) -> None:
         """Replace transaction entries with new ones.
 
         Business rules:
         - Bank imports preserve protected (asset) entries
         - Minimum 2 entries required after considering protected ones
-        """
-        # Clear existing entries (preserves protected entries for bank imports)
-        transaction.clear_entries()
 
-        # Count protected entries that were preserved
+        Each JournalEntry already carries its Account reference and Money amount,
+        so no external account lookup is needed.
+        """
+        transaction.clear_entries()  # preserves protected entries
         protected_count = len(transaction.protected_entries)
 
         # Validate minimum entries after considering protected ones
-        min_entries = 2
         total_entries = protected_count + len(entries)
-        if total_entries < min_entries:
+        if total_entries < 2:
             msg = (
-                f"Transaction must have at least {min_entries} entries, "
+                f"Transaction must have at least 2 entries, "
                 f"got {total_entries} (including {protected_count} protected)"
             )
             raise ValidationError(msg)
 
-        # Add new entries
-        for entry_input in entries:
-            account = accounts[entry_input.account_id]
-            money = Money(entry_input.amount, account.default_currency)
-
-            if entry_input.is_debit:
-                transaction.add_debit(account, money)
+        # Add new entries — each JournalEntry already has account + Money
+        for entry in entries:
+            if entry.is_debit():
+                transaction.add_debit(entry.account, entry.amount)
             else:
-                transaction.add_credit(account, money)
+                transaction.add_credit(entry.account, entry.amount)
 
     @staticmethod
     def change_counter_account(

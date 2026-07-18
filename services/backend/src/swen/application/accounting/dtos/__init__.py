@@ -27,6 +27,7 @@ from swen.application.accounting.dtos.transactions_dto import (
     SimpleTransactionToCreateDTO,
     TransactionDTO,
     TransactionToCreateDTO,
+    TransactionToEditDTO,
 )
 
 __all__ = [
@@ -47,5 +48,6 @@ __all__ = [
     "TransactionDTO",
     "TransactionListItemDTO",
     "TransactionListResultDTO",
+    "TransactionToEditDTO",
     "TransactionToCreateDTO",
 ]

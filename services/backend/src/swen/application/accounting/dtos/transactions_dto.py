@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,10 +18,9 @@ if TYPE_CHECKING:
 
 
 class JournalEntryToCreateDTO(BaseModel):
-    """Single journal entry for transaction commands.
+    """Single journal entry for transaction commands."""
 
-    Uses plain Decimal (currency resolved later in the command).
-    """
+    model_config = ConfigDict(from_attributes=True)
 
     account_id: UUID
     debit: Decimal = Field(default=Decimal("0"), ge=0)
@@ -29,11 +28,7 @@ class JournalEntryToCreateDTO(BaseModel):
 
 
 class SimpleTransactionToCreateDTO(BaseModel):
-    """Application DTO for creating a simple two-entry transaction.
-
-    The command resolves account numbers -> Account entities and
-    Decimal amounts -> Money value objects internally.
-    """
+    """Application DTO for creating a simple two-entry transaction."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,11 +42,9 @@ class SimpleTransactionToCreateDTO(BaseModel):
 
 
 class TransactionToCreateDTO(BaseModel):
-    """Application DTO for creating a transaction.
+    """Application DTO for creating a transaction."""
 
-    The command resolves account_ids -> Account entities and
-    Decimal amounts -> Money value objects internally.
-    """
+    model_config = ConfigDict(from_attributes=True)
 
     description: str = Field(min_length=1, max_length=500)
     entries: list[JournalEntryToCreateDTO] = Field(min_length=2)
@@ -63,6 +56,20 @@ class TransactionToCreateDTO(BaseModel):
     is_internal_transfer: bool = False
     is_manual_entry: bool = False
     auto_post: bool = False
+
+
+class TransactionToEditDTO(BaseModel):
+    """Application DTO for editing a transaction."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    transaction_id: UUID
+    entries: Optional[list[JournalEntryToCreateDTO]] = None
+    counter_account_id: Optional[UUID] = None
+    description: Optional[str] = None
+    counterparty: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+    repost: bool = False
 
 
 class JournalEntryDTO(BaseModel):
