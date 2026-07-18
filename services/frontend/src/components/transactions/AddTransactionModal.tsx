@@ -202,7 +202,7 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
       date: new Date(date).toISOString(),
       counterparty: counterparty.trim() || undefined,
       payment_account: assetAccountId,
-      category_account: counterAccountId,
+      counter_account: counterAccountId,
       auto_post: autoPost,
     })
   }
