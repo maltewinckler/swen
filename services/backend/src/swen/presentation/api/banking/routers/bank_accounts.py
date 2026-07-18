@@ -26,9 +26,7 @@ router = APIRouter()
         200: {"description": "List of bank accounts with mappings"},
     },
 )
-async def list_bank_accounts(
-    factory: RepoFactory,
-) -> BankAccountListResponse:
+async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
     """
     List all imported bank accounts with their mapping information.
 

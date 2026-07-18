@@ -16,9 +16,8 @@ from swen.presentation.api.banking.schemas.bank_connections import (
     TANMethodTypeStr,
 )
 from swen.presentation.api.banking.schemas.discovery import (
-    # DiscoveredAccount,
     BankDiscoveryResult,
-    BankInfo,
+    BankInfoResponse,
     TanMethodQueryRequest,
 )
 from swen.presentation.api.dependencies import RepoFactory
@@ -40,7 +39,7 @@ router = APIRouter()
 async def lookup_bank(
     blz: str,
     factory: RepoFactory,
-) -> BankInfo:
+) -> BankInfoResponse:
     """Lookup bank information by BLZ."""
     # Validate BLZ format
     if not blz.isdigit() or len(blz) != 8:
@@ -58,7 +57,7 @@ async def lookup_bank(
             detail=f"Bank with BLZ {blz} not found in bank directory",
         )
 
-    return BankInfo.model_validate(info)
+    return BankInfoResponse.model_validate(info)
 
 
 @router.post(

@@ -29,8 +29,8 @@ class TanMethodQueryRequest(BaseModel):
     )
 
 
-class BankInfo(BaseModel):
-    """Bank Info Fast API Schema."""
+class BankInfoResponse(BaseModel):
+    """Response schema for bank lookup by BLZ."""
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
 

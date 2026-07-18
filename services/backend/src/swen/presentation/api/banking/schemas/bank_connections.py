@@ -8,28 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from swen.application.banking.dtos import DiscoveredAccountDTO
 
 
-class BankLookupResponse(BaseModel):
-    """Response schema for bank lookup by BLZ."""
-
-    blz: str = Field(..., description="Bank code (BLZ)")
-    name: str = Field(..., description="Bank name")
-    bic: Optional[str] = Field(None, description="Bank BIC code")
-    organization: Optional[str] = Field(None, description="Parent organization")
-    is_fints_capable: bool = Field(True, description="Whether this bank supports FinTS")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "blz": "50031000",
-                "name": "Triodos Bank N.V. Deutschland",
-                "bic": "TRODDEF1",
-                "organization": None,
-                "is_fints_capable": True,
-            },
-        },
-    )
-
-
 class ConnectionTestResponse(BaseModel):
     """Response schema for connection test."""
 
