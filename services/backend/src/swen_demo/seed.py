@@ -28,10 +28,13 @@ from swen.application.accounting.commands import (
     GenerateDefaultAccountsCommand,
     PostTransactionCommand,
 )
+from swen.application.accounting.dtos import (
+    JournalEntryToCreateDTO,
+    TransactionToCreateDTO,
+)
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import (
     Currency,
-    JournalEntryInput,
     TransactionSource,
 )
 from swen.domain.shared.current_user import CurrentUser
@@ -232,15 +235,21 @@ async def create_opening_balances(
         # Create opening balance transaction
         # Debit Asset (increase), Credit Equity (increase)
         entries = [
-            JournalEntryInput.debit_entry(asset_account.id, acc_def.opening_balance),
-            JournalEntryInput.credit_entry(equity_account.id, acc_def.opening_balance),
+            JournalEntryToCreateDTO(
+                account_id=asset_account.id, debit=acc_def.opening_balance
+            ),
+            JournalEntryToCreateDTO(
+                account_id=equity_account.id, credit=acc_def.opening_balance
+            ),
         ]
 
         txn = await create_cmd.execute(
-            description=f"Anfangssaldo - {acc_def.name}",
-            entries=entries,
-            date=balance_date,
-            source=TransactionSource.OPENING_BALANCE,
+            TransactionToCreateDTO(
+                description=f"Anfangssaldo - {acc_def.name}",
+                entries=entries,
+                date=balance_date,
+                source=TransactionSource.OPENING_BALANCE,
+            ),
         )
         await post_cmd.execute(txn.id)
         created += 1
@@ -358,18 +367,20 @@ async def generate_transactions(
 
         # Income: Debit Asset, Credit Income
         entries = [
-            JournalEntryInput.debit_entry(primary_asset.id, amount),
-            JournalEntryInput.credit_entry(category.id, amount),
+            JournalEntryToCreateDTO(account_id=primary_asset.id, debit=amount),
+            JournalEntryToCreateDTO(account_id=category.id, credit=amount),
         ]
 
         txn = await create_cmd.execute(
-            description=description,
-            entries=entries,
-            counterparty=template.counterparty,
-            counterparty_iban=template.counterparty_iban,
-            date=txn_date,
-            source=TransactionSource.MANUAL,
-            source_iban=primary_asset.iban,
+            TransactionToCreateDTO(
+                description=description,
+                entries=entries,
+                counterparty=template.counterparty,
+                counterparty_iban=template.counterparty_iban,
+                date=txn_date,
+                source=TransactionSource.MANUAL,
+                source_iban=primary_asset.iban,
+            ),
         )
         await post_cmd.execute(txn.id)
         created += 1
@@ -396,17 +407,19 @@ async def generate_transactions(
         amount = amount.quantize(Decimal("0.01"))
 
         entries = [
-            JournalEntryInput.debit_entry(primary_asset.id, amount),
-            JournalEntryInput.credit_entry(category.id, amount),
+            JournalEntryToCreateDTO(account_id=primary_asset.id, debit=amount),
+            JournalEntryToCreateDTO(account_id=category.id, credit=amount),
         ]
 
         txn = await create_cmd.execute(
-            description=template.description,
-            entries=entries,
-            counterparty=template.counterparty,
-            date=txn_date,
-            source=TransactionSource.MANUAL,
-            source_iban=primary_asset.iban,
+            TransactionToCreateDTO(
+                description=template.description,
+                entries=entries,
+                counterparty=template.counterparty,
+                date=txn_date,
+                source=TransactionSource.MANUAL,
+                source_iban=primary_asset.iban,
+            ),
         )
         await post_cmd.execute(txn.id)
         created += 1
@@ -432,18 +445,20 @@ async def generate_transactions(
 
             # Expense: Debit Expense, Credit Asset
             entries = [
-                JournalEntryInput.debit_entry(category.id, amount),
-                JournalEntryInput.credit_entry(primary_asset.id, amount),
+                JournalEntryToCreateDTO(account_id=category.id, debit=amount),
+                JournalEntryToCreateDTO(account_id=primary_asset.id, credit=amount),
             ]
 
             txn = await create_cmd.execute(
-                description=template.description,
-                entries=entries,
-                counterparty=template.counterparty,
-                counterparty_iban=template.counterparty_iban,
-                date=txn_date,
-                source=TransactionSource.MANUAL,
-                source_iban=primary_asset.iban,
+                TransactionToCreateDTO(
+                    description=template.description,
+                    entries=entries,
+                    counterparty=template.counterparty,
+                    counterparty_iban=template.counterparty_iban,
+                    date=txn_date,
+                    source=TransactionSource.MANUAL,
+                    source_iban=primary_asset.iban,
+                ),
             )
             await post_cmd.execute(txn.id)
             created += 1
@@ -473,16 +488,18 @@ async def generate_transactions(
 
         # Transfer: Debit destination, Credit source
         entries = [
-            JournalEntryInput.debit_entry(to_account.id, amount),
-            JournalEntryInput.credit_entry(from_account.id, amount),
+            JournalEntryToCreateDTO(account_id=to_account.id, debit=amount),
+            JournalEntryToCreateDTO(account_id=from_account.id, credit=amount),
         ]
 
         txn = await create_cmd.execute(
-            description=template.description,
-            entries=entries,
-            date=txn_date,
-            source=TransactionSource.MANUAL,
-            is_internal_transfer=True,
+            TransactionToCreateDTO(
+                description=template.description,
+                entries=entries,
+                date=txn_date,
+                source=TransactionSource.MANUAL,
+                is_internal_transfer=True,
+            ),
         )
         await post_cmd.execute(txn.id)
         created += 1

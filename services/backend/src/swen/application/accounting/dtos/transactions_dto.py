@@ -36,7 +36,7 @@ class SimpleTransactionToCreateDTO(BaseModel):
     amount: Decimal
     payment_account: str
     counter_account: str
-    counterparty: Optional[str] = Field(None, max_length=200)
+    counterparty: Optional[str] = Field(default=None, max_length=200)
     date: Optional[datetime] = None
     auto_post: bool = False
 
@@ -48,7 +48,7 @@ class TransactionToCreateDTO(BaseModel):
 
     description: str = Field(min_length=1, max_length=500)
     entries: list[JournalEntryToCreateDTO] = Field(min_length=2)
-    counterparty: Optional[str] = Field(None, max_length=200)
+    counterparty: Optional[str] = Field(default=None, max_length=200)
     counterparty_iban: Optional[str] = None
     date: Optional[datetime] = None
     source: str = "manual"
