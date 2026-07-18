@@ -4,11 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from swen.application.banking.queries import (
-    QueryTanMethodsQuery,
-    TANMethodInfo,
-    TANMethodsResult,
-)
+from swen.application.banking.dtos import TANMethodInfoDTO, TANMethodsResultDTO
+from swen.application.banking.queries import QueryTanMethodsQuery
 from swen.domain.banking.value_objects import BankCredentials, TANMethod, TANMethodType
 
 
@@ -74,7 +71,7 @@ class TestQueryTanMethodsQuery:
         query = QueryTanMethodsQuery(mock_bank_adapter, mock_credential_repo)
         result = await query.execute("12345678", "Test Bank")
 
-        assert isinstance(result, TANMethodsResult)
+        assert isinstance(result, TANMethodsResultDTO)
         assert result.blz == "12345678"
         assert result.bank_name == "Test Bank"
         assert len(result.tan_methods) == 2
@@ -164,8 +161,8 @@ class TestQueryTanMethodsQuery:
             await query.execute("12345678", "Test Bank")
 
 
-class TestTANMethodInfo:
-    """Tests for TANMethodInfo dataclass."""
+class TestTANMethodInfoDTO:
+    """Tests for TANMethodInfoDTO."""
 
     def test_from_domain_creates_correct_dto(self):
         """Test conversion from domain TANMethod to DTO."""
@@ -185,7 +182,7 @@ class TestTANMethodInfo:
             supports_multiple_tan=False,
         )
 
-        info = TANMethodInfo.from_domain(domain_method)
+        info = TANMethodInfoDTO.from_domain(domain_method)
 
         assert info.code == "940"
         assert info.name == "DKB App"
@@ -210,7 +207,7 @@ class TestTANMethodInfo:
             is_decoupled=False,
         )
 
-        info = TANMethodInfo.from_domain(domain_method)
+        info = TANMethodInfoDTO.from_domain(domain_method)
 
         assert info.code == "920"
         assert info.technical_id is None
@@ -219,13 +216,13 @@ class TestTANMethodInfo:
         assert info.decoupled_max_polls is None
 
 
-class TestTANMethodsResult:
-    """Tests for TANMethodsResult dataclass."""
+class TestTANMethodsResultDTO:
+    """Tests for TANMethodsResultDTO."""
 
     def test_result_creation(self):
-        """Test TANMethodsResult creation."""
+        """Test TANMethodsResultDTO creation."""
         methods = [
-            TANMethodInfo(
+            TANMethodInfoDTO(
                 code="940",
                 name="DKB App",
                 method_type="decoupled",
@@ -233,7 +230,7 @@ class TestTANMethodsResult:
             ),
         ]
 
-        result = TANMethodsResult(
+        result = TANMethodsResultDTO(
             blz="12345678",
             bank_name="Test Bank",
             tan_methods=methods,
@@ -246,8 +243,8 @@ class TestTANMethodsResult:
         assert result.default_method == "940"
 
     def test_result_with_no_default(self):
-        """Test TANMethodsResult with no default method."""
-        result = TANMethodsResult(
+        """Test TANMethodsResultDTO with no default method."""
+        result = TANMethodsResultDTO(
             blz="12345678",
             bank_name="Test Bank",
             tan_methods=[],

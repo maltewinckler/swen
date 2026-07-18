@@ -1,8 +1,5 @@
 from fastapi import APIRouter
 
-from swen.presentation.api.banking.routers.bank_accounts import (
-    router as _bank_accounts_router,
-)
 from swen.presentation.api.banking.routers.credentials import (
     router as _credentials_router,
 )
@@ -13,7 +10,4 @@ bank_connections_router = APIRouter()
 bank_connections_router.include_router(_credentials_router, prefix="/credentials")
 bank_connections_router.include_router(_discovery_router)
 
-# Bank accounts (imported into accounting domain) under /bank-accounts prefix
-bank_accounts_router = _bank_accounts_router
-
-__all__ = ["bank_connections_router", "bank_accounts_router"]
+__all__ = ["bank_connections_router"]

@@ -1,7 +1,6 @@
 """Bank Discovery Routers."""
 
 import logging
-from typing import cast
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -10,11 +9,7 @@ from swen.application.banking.commands import (
 )
 from swen.application.banking.queries import LookupBankQuery, QueryTanMethodsQuery
 from swen.domain.banking.exceptions import CredentialsNotFoundError
-from swen.presentation.api.banking.schemas.bank_connections import (
-    TANMethodResponse,
-    TANMethodsResponse,
-    TANMethodTypeStr,
-)
+from swen.presentation.api.banking.schemas.bank_connections import TANMethodsResponse
 from swen.presentation.api.banking.schemas.discovery import (
     BankDiscoveryResult,
     BankInfoResponse,
@@ -189,27 +184,4 @@ async def query_tan_methods(
             detail="Failed to connect to bank. Please try again later.",
         ) from e
 
-    # Map to response
-    return TANMethodsResponse(
-        blz=result.blz,
-        bank_name=result.bank_name,
-        tan_methods=[
-            TANMethodResponse(
-                code=m.code,
-                name=m.name,
-                method_type=cast(TANMethodTypeStr, m.method_type),
-                is_decoupled=m.is_decoupled,
-                technical_id=m.technical_id,
-                zka_id=m.zka_id,
-                zka_version=m.zka_version,
-                max_tan_length=m.max_tan_length,
-                decoupled_max_polls=m.decoupled_max_polls,
-                decoupled_first_poll_delay=m.decoupled_first_poll_delay,
-                decoupled_poll_interval=m.decoupled_poll_interval,
-                supports_cancel=m.supports_cancel,
-                supports_multiple_tan=m.supports_multiple_tan,
-            )
-            for m in result.tan_methods
-        ],
-        default_method=result.default_method,
-    )
+    return TANMethodsResponse.model_validate(result)

@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from fastapi import APIRouter
 
@@ -36,17 +35,7 @@ async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
     dtos = await query.list_bank_accounts()
 
     return BankAccountListResponse(
-        accounts=[
-            BankAccountResponse(
-                id=UUID(dto.id),
-                name=dto.name,
-                account_number=dto.account_number,
-                iban=dto.iban,
-                currency=dto.currency,
-                is_active=dto.is_active,
-            )
-            for dto in dtos
-        ],
+        accounts=[BankAccountResponse.model_validate(dto) for dto in dtos],
         total=len(dtos),
     )
 
@@ -87,11 +76,4 @@ async def rename_bank_account(
 
     logger.info("Bank account renamed: %s -> %s", normalized_iban, request.name)
 
-    return BankAccountResponse(
-        id=UUID(dto.id),
-        name=dto.name,
-        account_number=dto.account_number,
-        iban=dto.iban,
-        currency=dto.currency,
-        is_active=dto.is_active,
-    )
+    return BankAccountResponse.model_validate(dto)

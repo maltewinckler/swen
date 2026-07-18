@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from swen.application.banking.dtos import StoredCredentialDTO, StoredCredentialListDTO
+
 
 class CredentialToStore(BaseModel):
     """Request schema for storing new credentials."""
@@ -43,12 +45,13 @@ class CredentialToUpdate(BaseModel):
     )
 
 
-class StoredCredential(BaseModel):
+# inherit from DTO to reuse fields and inject json schema
+class StoredCredential(StoredCredentialDTO):
     """Response schema for credential metadata (no sensitive data)."""
 
-    credential_id: str = Field(..., description="Unique credential identifier")
-    blz: str = Field(..., description="Bank code (BLZ) - 8 digits")
-    label: str = Field(..., description="User-friendly label (typically bank name)")
+    # we have to override label since the repository always populates it,
+    # even though the DTO types it Optional for looser internal typing.
+    label: str
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -62,7 +65,7 @@ class StoredCredential(BaseModel):
     )
 
 
-class StoredCredentialList(BaseModel):
+class StoredCredentialList(StoredCredentialListDTO):
     """Response schema for listing stored credentials."""
 
     credentials: list[StoredCredential] = Field(..., description="Stored cred ids")

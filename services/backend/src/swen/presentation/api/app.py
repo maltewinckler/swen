@@ -34,15 +34,17 @@ from swen.presentation.api.analytics.routers.analytics import router as analytic
 from swen.presentation.api.analytics.routers.dashboard import router as dashboard_router
 from swen.presentation.api.analytics.routers.exports import router as exports_router
 from swen.presentation.api.auth.routers.auth import router as auth_router
-from swen.presentation.api.banking.routers import (
-    bank_accounts_router,
-    bank_connections_router,
-)
+from swen.presentation.api.banking.routers import bank_connections_router
 from swen.presentation.api.dependencies import get_engine, get_ml_client
 from swen.presentation.api.exception_handlers import (
     setup_exception_handlers,
 )
-from swen.presentation.api.integration.routers import router as integration_router
+from swen.presentation.api.integration.routers import (
+    bank_accounts_router,
+)
+from swen.presentation.api.integration.routers import (
+    router as integration_router,
+)
 from swen.presentation.api.integration.routers.imports import router as imports_router
 from swen.presentation.api.integration.routers.mappings import router as mappings_router
 from swen.presentation.api.integration.routers.sync import router as sync_router

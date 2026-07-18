@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.accounting.commands import ParentAction
+from swen.application.accounting.dtos import BankAccountDTO
 
 
 class ChartTemplateEnum(str, Enum):
@@ -336,19 +337,15 @@ class AccountListResponse(BaseModel):
     )
 
 
-class BankAccountResponse(BaseModel):
+# inherit from DTO to reuse fields and inject json schema
+class BankAccountResponse(BankAccountDTO):
     """Response schema for bank account with mapping info."""
 
-    id: UUID = Field(..., description="Account ID in the system")
-    name: str = Field(..., description="Account name (can be customized)")
-    account_number: str = Field(..., description="Chart of accounts number")
-    iban: str = Field(
-        ..., description="Bank account IBAN (used for transaction matching)"
-    )
-    currency: str = Field(..., description="Account currency code")
-    is_active: bool = Field(..., description="Whether account is active")
+    # we have to override id from str to UUID for a stricter OpenAPI type.
+    id: UUID
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -365,10 +362,8 @@ class BankAccountResponse(BaseModel):
 class BankAccountListResponse(BaseModel):
     """Response schema for bank account listing."""
 
-    accounts: list[BankAccountResponse] = Field(
-        ..., description="Bank accounts imported from bank connections"
-    )
-    total: int = Field(..., description="Total number of bank accounts")
+    accounts: list[BankAccountResponse]
+    total: int
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -400,12 +395,7 @@ class BankAccountListResponse(BaseModel):
 class BankAccountRenameRequest(BaseModel):
     """Request schema for renaming a bank account."""
 
-    name: str = Field(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="New display name for the account",
-    )
+    name: str = Field(..., min_length=1, max_length=255)
 
     model_config = ConfigDict(
         json_schema_extra={
