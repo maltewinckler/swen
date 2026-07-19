@@ -36,7 +36,6 @@ async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
 
     return BankAccountListResponse(
         accounts=[BankAccountResponse.model_validate(dto) for dto in dtos],
-        total=len(dtos),
     )
 
 
@@ -58,14 +57,11 @@ async def rename_bank_account(
 
     Updates both the accounting account name and the account mapping.
     """
-    import_service = RenameBankAccountCommand.from_factory(factory)
-
-    # Normalize IBAN (presentation concern - input sanitization)
-    normalized_iban = iban.replace(" ", "").upper()
+    rename_bank_account_command = RenameBankAccountCommand.from_factory(factory)
 
     try:
-        dto = await import_service.execute(
-            iban=normalized_iban,
+        dto = await rename_bank_account_command.execute(
+            iban=iban,
             new_name=request.name,
         )
         await factory.session.commit()
@@ -74,6 +70,6 @@ async def rename_bank_account(
         # Let the global exception handler process domain exceptions
         raise
 
-    logger.info("Bank account renamed: %s -> %s", normalized_iban, request.name)
+    logger.info("Bank account renamed: %s -> %s", iban, request.name)
 
     return BankAccountResponse.model_validate(dto)

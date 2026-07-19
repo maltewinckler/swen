@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -13,16 +12,16 @@ from swen.application.accounting.commands import (
     ReactivateAccountCommand,
     UpdateAccountCommand,
 )
+from swen.application.accounting.dtos import AccountSummaryDTO
 from swen.application.accounting.queries import (
     AccountStatsQuery,
     ListAccountsQuery,
 )
-from swen.domain.shared.time import utc_now
 from swen.presentation.api.accounting.schemas.accounts import (
     AccountCreateRequest,
     AccountListResponse,
-    AccountResponse,
     AccountStatsResponse,
+    AccountSummaryResponse,
     AccountUpdateRequest,
 )
 from swen.presentation.api.dependencies import MLClient, RepoFactory
@@ -51,13 +50,8 @@ StatsPeriodDays = Annotated[
 ]
 
 
-def _get_created_at_or_now(created_at: datetime | None) -> datetime:
-    """Get created_at timestamp, defaulting to now if None.
-
-    The DTO may have None for created_at in some cases (e.g., legacy data),
-    but the API response requires a non-null datetime.
-    """
-    return created_at if created_at is not None else utc_now()
+def _to_account_response(dto: AccountSummaryDTO) -> AccountSummaryResponse:
+    return AccountSummaryResponse.model_validate(dto)
 
 
 @router.get(
@@ -84,21 +78,7 @@ async def list_accounts(
     )
 
     return AccountListResponse(
-        accounts=[
-            AccountResponse(
-                id=UUID(dto.id),
-                name=dto.name,
-                account_number=dto.account_number,
-                account_type=dto.account_type,
-                description=dto.description,
-                iban=dto.iban,
-                currency=dto.currency,
-                is_active=dto.is_active,
-                created_at=_get_created_at_or_now(dto.created_at),
-                parent_id=UUID(dto.parent_id) if dto.parent_id else None,
-            )
-            for dto in result.accounts
-        ],
+        accounts=[_to_account_response(dto) for dto in result.accounts],
         total=result.total_count,
         by_type=result.by_type,
     )
@@ -118,7 +98,7 @@ async def create_account(
     request: AccountCreateRequest,
     factory: RepoFactory,
     ml_client: MLClient,
-) -> AccountResponse:
+) -> AccountSummaryResponse:
     """
     Create a new account in the chart of accounts.
 
@@ -144,18 +124,7 @@ async def create_account(
     logger.info("Account created: %s (%s)", account.name, account.account_number)
 
     # Convert domain entity to response (command returns entity for internal use)
-    return AccountResponse(
-        id=account.id,
-        name=account.name,
-        account_number=account.account_number or "",
-        account_type=account.account_type.value,
-        description=account.description,
-        iban=account.iban,
-        currency=account.default_currency.code,
-        is_active=account.is_active,
-        created_at=account.created_at,
-        parent_id=account.parent_id,
-    )
+    return _to_account_response(AccountSummaryDTO.from_entity(account))
 
 
 @router.get(
@@ -169,7 +138,7 @@ async def create_account(
 async def get_account(
     account_id: UUID,
     factory: RepoFactory,
-) -> AccountResponse:
+) -> AccountSummaryResponse:
     """Get a specific account by ID."""
     query = ListAccountsQuery.from_factory(factory)
     dto = await query.find_by_id(account_id)
@@ -180,18 +149,7 @@ async def get_account(
             detail="Account not found",
         )
 
-    return AccountResponse(
-        id=UUID(dto.id),
-        name=dto.name,
-        account_number=dto.account_number,
-        account_type=dto.account_type,
-        description=dto.description,
-        iban=dto.iban,
-        currency=dto.currency,
-        is_active=dto.is_active,
-        created_at=_get_created_at_or_now(dto.created_at),
-        parent_id=UUID(dto.parent_id) if dto.parent_id else None,
-    )
+    return _to_account_response(dto)
 
 
 @router.get(
@@ -234,34 +192,7 @@ async def get_account_stats(
         include_drafts=include_drafts,
     )
 
-    return AccountStatsResponse(
-        account_id=stats.account_id,
-        account_name=stats.account_name,
-        account_number=stats.account_number,
-        account_type=stats.account_type,
-        currency=stats.currency,
-        balance=stats.balance,
-        balance_includes_drafts=stats.balance_includes_drafts,
-        transaction_count=stats.transaction_count,
-        posted_count=stats.posted_count,
-        draft_count=stats.draft_count,
-        total_debits=stats.total_debits,
-        total_credits=stats.total_credits,
-        net_flow=stats.net_flow,
-        first_transaction_date=(
-            stats.first_transaction_date.isoformat()
-            if stats.first_transaction_date
-            else None
-        ),
-        last_transaction_date=(
-            stats.last_transaction_date.isoformat()
-            if stats.last_transaction_date
-            else None
-        ),
-        period_days=stats.period_days,
-        period_start=(stats.period_start.isoformat() if stats.period_start else None),
-        period_end=stats.period_end.isoformat() if stats.period_end else None,
-    )
+    return AccountStatsResponse.model_validate(stats)
 
 
 @router.patch(
@@ -278,7 +209,7 @@ async def update_account(
     request: AccountUpdateRequest,
     factory: RepoFactory,
     ml_client: MLClient,
-) -> AccountResponse:
+) -> AccountSummaryResponse:
     """Update an account (name, account_number, description, and/or parent).
 
     Use parent_action to control parent relationship:
@@ -308,18 +239,7 @@ async def update_account(
 
     logger.info("Account updated: %s", account.id)
 
-    return AccountResponse(
-        id=account.id,
-        name=account.name,
-        account_number=account.account_number or "",
-        account_type=account.account_type.value,
-        description=account.description,
-        iban=account.iban,
-        currency=account.default_currency.code,
-        is_active=account.is_active,
-        created_at=account.created_at,
-        parent_id=account.parent_id,
-    )
+    return _to_account_response(AccountSummaryDTO.from_entity(account))
 
 
 @router.delete(
@@ -366,7 +286,7 @@ async def reactivate_account(
     account_id: UUID,
     factory: RepoFactory,
     ml_client: MLClient,
-) -> AccountResponse:
+) -> AccountSummaryResponse:
     """
     Reactivate a previously deactivated account.
 
@@ -383,18 +303,7 @@ async def reactivate_account(
 
     logger.info("Account reactivated: %s", account_id)
 
-    return AccountResponse(
-        id=account.id,
-        name=account.name,
-        account_number=account.account_number or "",
-        account_type=account.account_type.value,
-        description=account.description,
-        iban=account.iban,
-        currency=account.default_currency.code,
-        is_active=account.is_active,
-        created_at=account.created_at,
-        parent_id=account.parent_id,
-    )
+    return _to_account_response(AccountSummaryDTO.from_entity(account))
 
 
 @router.delete(

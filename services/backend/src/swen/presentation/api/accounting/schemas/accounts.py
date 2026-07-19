@@ -1,15 +1,18 @@
 """Account schemas for API request/response models."""
 
-from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from swen.application.accounting.commands import ParentAction
-from swen.application.accounting.dtos import BankAccountDTO
+from swen.application.accounting.dtos import (
+    AccountStatsResult,
+    AccountSummaryDTO,
+    BankAccountDTO,
+)
 
 
 class ChartTemplateEnum(str, Enum):
@@ -116,38 +119,13 @@ class InitEssentialsResponse(BaseModel):
     )
 
 
-class AccountResponse(BaseModel):
+# inherit from DTO to reuse fields and inject json schema
+class AccountSummaryResponse(AccountSummaryDTO):
     """Response schema for account data."""
 
-    id: UUID = Field(..., description="Account unique identifier")
-    name: str = Field(
-        ..., description="Account name (e.g., 'Checking Account', 'Groceries')"
-    )
-    account_number: str = Field(
-        ..., description="Chart of accounts number (e.g., '1200', '6001')"
-    )
-    account_type: str = Field(
-        ..., description="Account type: asset, liability, equity, income, expense"
-    )
-    description: Optional[str] = Field(
-        None,
-        description="Description with typical transactions/merchants",
-    )
-    iban: Optional[str] = Field(
-        None,
-        description="IBAN for bank accounts or external accounts with IBAN mapping",
-    )
-    currency: str = Field(
-        ..., description="ISO 4217 currency code (e.g., 'EUR', 'USD')"
-    )
-    is_active: bool = Field(
-        ..., description="Whether account is active (inactive = soft deleted)"
-    )
-    created_at: datetime = Field(..., description="Creation timestamp")
-    parent_id: Optional[UUID] = Field(
-        None,
-        description="Parent account ID for sub-accounts (null if top-level account)",
-    )
+    # we have to override id/parent_id from str to UUID for a stricter OpenAPI type.
+    id: UUID
+    parent_id: Optional[UUID] = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -168,13 +146,10 @@ class AccountResponse(BaseModel):
     )
 
 
-class AccountWithBalanceResponse(AccountResponse):
+class AccountWithBalanceResponse(AccountSummaryResponse):
     """Account response with current balance."""
 
-    balance: Decimal = Field(
-        ...,
-        description="Current balance (positive for assets, negative for liabilities)",
-    )
+    balance: Decimal
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -301,7 +276,7 @@ class AccountUpdateRequest(BaseModel):
 class AccountListResponse(BaseModel):
     """Response schema for account listing."""
 
-    accounts: list[AccountResponse] = Field(
+    accounts: list[AccountSummaryResponse] = Field(
         ..., description="List of accounts matching filters"
     )
     total: int = Field(..., description="Total number of accounts")
@@ -337,7 +312,6 @@ class AccountListResponse(BaseModel):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class BankAccountResponse(BankAccountDTO):
     """Response schema for bank account with mapping info."""
 
@@ -363,9 +337,15 @@ class BankAccountListResponse(BaseModel):
     """Response schema for bank account listing."""
 
     accounts: list[BankAccountResponse]
-    total: int
+
+    @computed_field
+    @property
+    def total(self) -> int:
+        """Total number of bank accounts."""
+        return len(self.accounts)
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "accounts": [
@@ -406,65 +386,11 @@ class BankAccountRenameRequest(BaseModel):
     )
 
 
-class AccountStatsResponse(BaseModel):
-    """Response schema for account statistics.
-
-    Provides comprehensive statistics for a single account including
-    balance, transaction counts, and flow data.
-    """
-
-    # Account identification
-    account_id: UUID = Field(..., description="Account unique identifier")
-    account_name: str = Field(..., description="Account display name")
-    account_number: str = Field(..., description="Chart of accounts number")
-    account_type: str = Field(..., description="Account type (asset, liability, etc.)")
-    currency: str = Field(..., description="ISO 4217 currency code")
-
-    # Balance information
-    balance: Decimal = Field(..., description="Current balance")
-    balance_includes_drafts: bool = Field(
-        ...,
-        description="Whether balance includes draft transactions",
-    )
-
-    # Transaction statistics
-    transaction_count: int = Field(..., description="Total transactions in period")
-    posted_count: int = Field(..., description="Posted transactions")
-    draft_count: int = Field(..., description="Draft (pending) transactions")
-
-    # Flow statistics
-    total_debits: Decimal = Field(..., description="Total debit amount in period")
-    total_credits: Decimal = Field(..., description="Total credit amount in period")
-    net_flow: Decimal = Field(
-        ...,
-        description="Net flow (debits - credits; for assets: positive = money in)",
-    )
-
-    # Activity timestamps
-    first_transaction_date: Optional[str] = Field(
-        None,
-        description="Date of first transaction (ISO format)",
-    )
-    last_transaction_date: Optional[str] = Field(
-        None,
-        description="Date of most recent transaction (ISO format)",
-    )
-
-    # Period info
-    period_days: Optional[int] = Field(
-        None,
-        description="Number of days in the stats period (null = all-time)",
-    )
-    period_start: Optional[str] = Field(
-        None,
-        description="Start of the stats period (ISO date)",
-    )
-    period_end: Optional[str] = Field(
-        None,
-        description="End of the stats period (ISO date)",
-    )
+class AccountStatsResponse(AccountStatsResult):
+    """Response schema for account statistics."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "account_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -485,93 +411,6 @@ class AccountStatsResponse(BaseModel):
                 "period_days": 30,
                 "period_start": "2024-11-05",
                 "period_end": "2024-12-05",
-            },
-        },
-    )
-
-
-class AccountReconciliationResponse(BaseModel):
-    """Reconciliation result for a single bank account."""
-
-    iban: str = Field(..., description="Bank account IBAN")
-    account_name: str = Field(..., description="Accounting account name")
-    accounting_account_id: str = Field(..., description="Accounting account UUID")
-    currency: str = Field(..., description="Account currency")
-
-    bank_balance: str = Field(
-        ..., description="Balance reported by bank (from last sync)"
-    )
-    bank_balance_date: Optional[str] = Field(
-        None, description="Date of bank balance (ISO format)"
-    )
-    last_sync_at: Optional[str] = Field(
-        None, description="Last sync timestamp (ISO format)"
-    )
-
-    bookkeeping_balance: str = Field(
-        ..., description="Balance calculated from accounting transactions"
-    )
-    discrepancy: str = Field(
-        ..., description="Difference between bank and bookkeeping balances"
-    )
-    is_reconciled: bool = Field(
-        ..., description="Whether balances match (within tolerance)"
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "iban": "DE89370400440532013000",
-                "account_name": "DKB Checking Account",
-                "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
-                "currency": "EUR",
-                "bank_balance": "2543.67",
-                "bank_balance_date": "2024-12-10T10:30:00Z",
-                "last_sync_at": "2024-12-10T10:30:00Z",
-                "bookkeeping_balance": "2543.67",
-                "discrepancy": "0.00",
-                "is_reconciled": True,
-            },
-        },
-    )
-
-
-class ReconciliationResponse(BaseModel):
-    """Aggregated reconciliation result for all bank accounts."""
-
-    accounts: list[AccountReconciliationResponse] = Field(
-        ..., description="Reconciliation results per bank account"
-    )
-    total_accounts: int = Field(..., description="Total number of bank accounts")
-    reconciled_count: int = Field(
-        ..., description="Number of accounts with matching balances"
-    )
-    discrepancy_count: int = Field(
-        ..., description="Number of accounts with discrepancies"
-    )
-    all_reconciled: bool = Field(..., description="Whether all accounts are reconciled")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "accounts": [
-                    {
-                        "iban": "DE89370400440532013000",
-                        "account_name": "DKB Checking Account",
-                        "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
-                        "currency": "EUR",
-                        "bank_balance": "2543.67",
-                        "bank_balance_date": "2024-12-10T10:30:00Z",
-                        "last_sync_at": "2024-12-10T10:30:00Z",
-                        "bookkeeping_balance": "2543.67",
-                        "discrepancy": "0.00",
-                        "is_reconciled": True,
-                    },
-                ],
-                "total_accounts": 1,
-                "reconciled_count": 1,
-                "discrepancy_count": 0,
-                "all_reconciled": True,
             },
         },
     )

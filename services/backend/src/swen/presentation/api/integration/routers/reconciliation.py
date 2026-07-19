@@ -8,14 +8,12 @@ from swen.application.integration.queries import (
     BankConnectionDetailsQuery,
     ReconciliationQuery,
 )
-from swen.presentation.api.accounting.schemas.accounts import (
-    AccountReconciliationResponse,
-    ReconciliationResponse,
-)
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.integration.schemas.reconciliation import (
+    AccountReconciliationResponse,
     BankAccountDetailResponse,
     BankConnectionDetailsResponse,
+    ReconciliationResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +66,6 @@ async def get_reconciliation(factory: RepoFactory) -> ReconciliationResponse:
         total_accounts=result.total_accounts,
         reconciled_count=result.reconciled_count,
         discrepancy_count=result.discrepancy_count,
-        all_reconciled=result.all_reconciled,
     )
 
 

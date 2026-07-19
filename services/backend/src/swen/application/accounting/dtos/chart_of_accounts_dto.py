@@ -25,7 +25,7 @@ class AccountSummaryDTO(BaseModel):
     is_active: bool
     description: Optional[str] = None
     iban: Optional[str] = None
-    created_at: Optional[datetime] = None
+    created_at: datetime
     parent_id: Optional[str] = None
 
     @classmethod
