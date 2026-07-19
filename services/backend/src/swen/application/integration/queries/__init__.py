@@ -14,7 +14,7 @@ from swen.application.integration.queries.reconciliation_query import (
 )
 from swen.application.integration.queries.sync_status_query import (
     SyncStatusQuery,
-    SyncStatusResult,
+    SyncStatusResultDTO,
 )
 
 __all__ = [
@@ -23,5 +23,5 @@ __all__ = [
     "ListImportsQuery",
     "ReconciliationQuery",
     "SyncStatusQuery",
-    "SyncStatusResult",
+    "SyncStatusResultDTO",
 ]

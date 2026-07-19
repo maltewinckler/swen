@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from swen.application.integration.queries import SyncStatusResultDTO
+
 
 class SyncRunRequest(BaseModel):
     """Request schema for running a bank transaction sync.
@@ -40,20 +42,14 @@ class SyncRunRequest(BaseModel):
     )
 
 
-class SyncStatusResponse(BaseModel):
+class SyncStatusResponse(SyncStatusResultDTO):
     """Response schema for overall sync status and statistics.
 
     Shows aggregate counts across all historical sync operations.
     """
 
-    success_count: int = Field(..., description="Successfully imported transactions")
-    failed_count: int = Field(..., description="Transactions that failed to import")
-    pending_count: int = Field(..., description="Transactions awaiting processing")
-    duplicate_count: int = Field(..., description="Transactions detected as duplicates")
-    skipped_count: int = Field(..., description="Transactions intentionally skipped")
-    total_count: int = Field(..., description="Total import records in system")
-
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success_count": 1250,

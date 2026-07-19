@@ -12,11 +12,11 @@ from swen.presentation.api.accounting.schemas.accounts import (
     AccountReconciliationResponse,
     ReconciliationResponse,
 )
-from swen.presentation.api.banking.schemas.bank_connections import (
+from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.integration.schemas.reconciliation import (
     BankAccountDetailResponse,
     BankConnectionDetailsResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
 
 logger = logging.getLogger(__name__)
 

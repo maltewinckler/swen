@@ -44,14 +44,7 @@ async def list_mappings(factory: RepoFactory) -> AccountMappingListResponse:
     query = ListAccountMappingsQuery.from_factory(factory)
     result = await query.execute()
 
-    mappings = [
-        AccountMappingResponse.model_validate(m.model_dump()) for m in result.mappings
-    ]
-
-    return AccountMappingListResponse(
-        mappings=mappings,
-        count=result.count,
-    )
+    return AccountMappingListResponse.model_validate(result)
 
 
 @router.get(
@@ -80,7 +73,7 @@ async def get_mapping_by_iban(
             detail=f"No mapping found for IBAN: {iban}",
         )
 
-    return AccountMappingResponse.model_validate(result.model_dump())
+    return AccountMappingResponse.model_validate(result)
 
 
 @router.post(
@@ -148,4 +141,4 @@ async def create_external_account_mapping(
         result.transactions_reconciled,
     )
 
-    return ExternalAccountCreateResponse.model_validate(result.model_dump())
+    return ExternalAccountCreateResponse.model_validate(result)

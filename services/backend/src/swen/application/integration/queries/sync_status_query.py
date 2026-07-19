@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.domain.integration.repositories import TransactionImportRepository
 from swen.domain.integration.value_objects import ImportStatus
@@ -12,9 +13,10 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass
-class SyncStatusResult:
+class SyncStatusResultDTO(BaseModel):
     """Result of sync status query."""
+
+    model_config = ConfigDict(frozen=True)
 
     success_count: int
     failed_count: int
@@ -34,7 +36,7 @@ class SyncStatusQuery:
     def from_factory(cls, factory: RepositoryFactory) -> SyncStatusQuery:
         return cls(import_repository=factory.import_repository())
 
-    async def execute(self) -> SyncStatusResult:
+    async def execute(self) -> SyncStatusResultDTO:
         total = await self._import_repo.count_by_status()
 
         success = total.get(ImportStatus.SUCCESS.value, 0)
@@ -43,7 +45,7 @@ class SyncStatusQuery:
         duplicate = total.get(ImportStatus.DUPLICATE.value, 0)
         skipped = total.get(ImportStatus.SKIPPED.value, 0)
 
-        return SyncStatusResult(
+        return SyncStatusResultDTO(
             success_count=success,
             failed_count=failed,
             pending_count=pending,
