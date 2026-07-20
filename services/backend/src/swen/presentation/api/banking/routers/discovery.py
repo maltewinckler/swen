@@ -11,7 +11,7 @@ from swen.application.banking.queries import LookupBankQuery, QueryTanMethodsQue
 from swen.domain.banking.exceptions import CredentialsNotFoundError
 from swen.presentation.api.banking.schemas.bank_connections import TANMethodsResponse
 from swen.presentation.api.banking.schemas.discovery import (
-    BankDiscoveryResult,
+    BankDiscoveryResultResponse,
     BankInfoResponse,
     TanMethodQueryRequest,
 )
@@ -69,7 +69,7 @@ async def lookup_bank(
 async def discover_bank_accounts(
     blz: str,
     factory: RepoFactory,
-) -> BankDiscoveryResult:
+) -> BankDiscoveryResultResponse:
     """
     Connect to bank and discover accounts without importing them.
 
@@ -105,7 +105,7 @@ async def discover_bank_accounts(
     try:
         command = DiscoverAccountsCommand.from_factory(factory)
         dto = await command.execute(blz)
-        return BankDiscoveryResult.model_validate(dto)
+        return BankDiscoveryResultResponse.model_validate(dto)
 
     except Exception as e:
         logger.exception("Account discovery failed for BLZ %s: %s", blz, e)

@@ -1,8 +1,8 @@
 """Onboarding queries."""
 
 from swen.application.system.queries.onboarding.onboarding_status_query import (
-    OnboardingStatus,
+    OnboardingStatusDTO,
     OnboardingStatusQuery,
 )
 
-__all__ = ["OnboardingStatus", "OnboardingStatusQuery"]
+__all__ = ["OnboardingStatusDTO", "OnboardingStatusQuery"]

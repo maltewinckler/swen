@@ -4,7 +4,7 @@ from swen.application.accounting.queries.account_stats_query import (
     AccountStatsQuery,
 )
 from swen.application.accounting.queries.list_accounts_query import (
-    AccountListResult,
+    AccountListDTO,
     ListAccountsQuery,
 )
 from swen.application.accounting.queries.list_transactions_query import (
@@ -13,7 +13,7 @@ from swen.application.accounting.queries.list_transactions_query import (
 )
 
 __all__ = [
-    "AccountListResult",
+    "AccountListDTO",
     "AccountStatsQuery",
     "ListAccountsQuery",
     "ListTransactionsQuery",

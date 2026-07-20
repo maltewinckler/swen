@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -77,10 +78,18 @@ def mock_transaction(mock_account):
         # Create mock transaction
         txn = MagicMock()
         txn.id = uuid4()
+        txn.date = datetime(2024, 12, 5, tzinfo=timezone.utc)
         txn.description = "Original description"
         txn.counterparty = "Original counterparty"
+        txn.counterparty_iban = None
+        txn.source.value = "manual"
+        txn.source_iban = None
         txn.is_posted = is_posted
+        txn.is_internal_transfer = False
+        txn.created_at = datetime(2024, 12, 5, tzinfo=timezone.utc)
         txn.entries = [debit_entry, credit_entry]
+        txn.metadata_raw = {}
+        txn.get_metadata_raw = MagicMock(return_value=None)
         txn._asset_account = asset
         txn._expense_account = expense
 
@@ -584,10 +593,18 @@ class TestEditTransactionCommand:
         # Create mock transaction with liability as payment account
         txn = MagicMock()
         txn.id = uuid4()
+        txn.date = datetime(2024, 12, 5, tzinfo=timezone.utc)
         txn.description = "Credit card purchase"
         txn.counterparty = "Store"
+        txn.counterparty_iban = None
+        txn.source.value = "manual"
+        txn.source_iban = None
         txn.is_posted = False
+        txn.is_internal_transfer = False
+        txn.created_at = datetime(2024, 12, 5, tzinfo=timezone.utc)
         txn.entries = [debit_entry, credit_entry]
+        txn.metadata_raw = {}
+        txn.get_metadata_raw = MagicMock(return_value=None)
 
         # Transaction repo
         txn_repo = AsyncMock()

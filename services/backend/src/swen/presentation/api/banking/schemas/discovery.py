@@ -16,12 +16,7 @@ from swen.application.banking.dtos import (
 class TanMethodQueryRequest(BaseModel):
     """Request schema for querying available TAN methods (credentials read from DB)."""
 
-    blz: str = Field(
-        ...,
-        min_length=8,
-        max_length=8,
-        pattern=r"^\d{8}$",
-    )
+    blz: str = Field(..., min_length=8, max_length=8, pattern=r"^\d{8}$")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -49,7 +44,7 @@ class BankInfoResponse(BankInfoDTO):
     )
 
 
-class DiscoveredAccount(DiscoveredAccountDTO):
+class DiscoveredAccountResponse(DiscoveredAccountDTO):
     """Full bank account data from discovery."""
 
     model_config = ConfigDict(
@@ -72,10 +67,10 @@ class DiscoveredAccount(DiscoveredAccountDTO):
     )
 
 
-class BankDiscoveryResult(BankDiscoveryResultDTO):
+class BankDiscoveryResultResponse(BankDiscoveryResultDTO):
     """Collection of discovered accounts for a bank."""
 
-    accounts: list[DiscoveredAccount]
+    accounts: list[DiscoveredAccountResponse]
 
     model_config = ConfigDict(
         from_attributes=True,

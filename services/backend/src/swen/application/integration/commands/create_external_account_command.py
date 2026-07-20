@@ -85,9 +85,7 @@ class CreateExternalAccountCommand:
                 accounting_account_id=result.mapping.accounting_account_id,
                 accounting_account_name=result.account.name,
                 accounting_account_number=result.account.account_number,
-                created_at=result.mapping.created_at.isoformat()
-                if result.mapping.created_at
-                else None,
+                created_at=result.mapping.created_at,
             ),
             transactions_reconciled=result.transactions_reconciled,
             already_existed=result.already_existed,

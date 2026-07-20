@@ -1,6 +1,5 @@
 """Account schemas for API request/response models."""
 
-from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -9,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from swen.application.accounting.commands import ParentAction
 from swen.application.accounting.dtos import (
-    AccountStatsResult,
+    AccountStatsDTO,
     AccountSummaryDTO,
     BankAccountDTO,
 )
@@ -123,10 +122,6 @@ class InitEssentialsResponse(BaseModel):
 class AccountSummaryResponse(AccountSummaryDTO):
     """Response schema for account data."""
 
-    # we have to override id/parent_id from str to UUID for a stricter OpenAPI type.
-    id: UUID
-    parent_id: Optional[UUID] = None
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -141,29 +136,6 @@ class AccountSummaryResponse(AccountSummaryDTO):
                 "is_active": True,
                 "created_at": "2024-12-01T09:00:00Z",
                 "parent_id": None,
-            },
-        },
-    )
-
-
-class AccountWithBalanceResponse(AccountSummaryResponse):
-    """Account response with current balance."""
-
-    balance: Decimal
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "name": "DKB Checking Account",
-                "account_number": "1200",
-                "account_type": "asset",
-                "description": None,
-                "currency": "EUR",
-                "is_active": True,
-                "created_at": "2024-12-01T09:00:00Z",
-                "balance": "2543.67",
             },
         },
     )
@@ -315,9 +287,6 @@ class AccountListResponse(BaseModel):
 class BankAccountResponse(BankAccountDTO):
     """Response schema for bank account with mapping info."""
 
-    # we have to override id from str to UUID for a stricter OpenAPI type.
-    id: UUID
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -386,7 +355,7 @@ class BankAccountRenameRequest(BaseModel):
     )
 
 
-class AccountStatsResponse(AccountStatsResult):
+class AccountStatsResponse(AccountStatsDTO):
     """Response schema for account statistics."""
 
     model_config = ConfigDict(

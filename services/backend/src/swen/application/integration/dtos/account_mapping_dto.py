@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -23,7 +24,7 @@ class AccountMappingDTO(BaseModel):
     accounting_account_id: UUID
     accounting_account_name: Optional[str] = None
     accounting_account_number: Optional[str] = None
-    created_at: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class AccountMappingListDTO(BaseModel):

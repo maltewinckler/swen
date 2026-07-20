@@ -39,11 +39,11 @@ class SetupBankRequest(BaseModel):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class SetupBankResponse(SetupBankResponseDTO):
     """Response for bank setup (connect + import accounts)."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,

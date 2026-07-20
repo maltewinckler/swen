@@ -1,9 +1,6 @@
 """Reconciliation schemas for API request/response models."""
 
-from decimal import Decimal
-from typing import Optional
-
-from pydantic import ConfigDict, computed_field
+from pydantic import ConfigDict
 
 from swen.application.integration.dtos import (
     AccountReconciliationDTO,
@@ -13,15 +10,10 @@ from swen.application.integration.dtos import (
 )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class BankAccountDetailResponse(BankAccountDetailDTO):
     """Details for a single bank account under a connection."""
 
-    # we have to override types from Decimal/datetime to str for serialization.
-    bank_balance: str
-    bank_balance_date: Optional[str] = None
-    bookkeeping_balance: str
-    discrepancy: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BankConnectionDetailsResponse(BankConnectionDetailsDTO):
@@ -30,6 +22,7 @@ class BankConnectionDetailsResponse(BankConnectionDetailsDTO):
     accounts: list[BankAccountDetailResponse]
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "blz": "50031000",
@@ -55,24 +48,11 @@ class BankConnectionDetailsResponse(BankConnectionDetailsDTO):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class AccountReconciliationResponse(AccountReconciliationDTO):
     """Reconciliation result for a single bank account."""
 
-    # we have to override types from Decimal/datetime to str for serialization.
-    bank_balance: str
-    bank_balance_date: Optional[str] = None
-    last_sync_at: Optional[str] = None
-    bookkeeping_balance: str
-    discrepancy: str
-
-    # overrides the DTO's Decimal computed field to keep the same str serialization
-    @computed_field
-    @property
-    def discrepancy_abs(self) -> str:
-        return str(abs(Decimal(self.discrepancy)))
-
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "iban": "DE89370400440532013000",
@@ -96,6 +76,7 @@ class ReconciliationResponse(ReconciliationResultDTO):
     accounts: list[AccountReconciliationResponse]
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "accounts": [

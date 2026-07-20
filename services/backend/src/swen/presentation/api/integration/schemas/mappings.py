@@ -25,7 +25,6 @@ class ExternalAccountType(str, Enum):
     LIABILITY = "liability"
 
 
-# inherit from DTO to reuse fields and inject json schema
 class AccountMappingResponse(AccountMappingDTO):
     """Response schema for a bank account mapping."""
 

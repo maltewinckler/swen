@@ -35,7 +35,7 @@ class TestAccountSummaryDTO:
 
         # Assert
         assert dto.name == "Groceries"
-        assert dto.parent_id == str(parent.id)
+        assert dto.parent_id == parent.id
 
     def test_model_dump_includes_parent_id(self):
         """Test model_dump includes parent_id field."""
@@ -51,7 +51,7 @@ class TestAccountSummaryDTO:
 
         # Assert
         assert "parent_id" in result
-        assert result["parent_id"] == str(parent.id)
+        assert result["parent_id"] == parent.id
 
     def test_model_dump_parent_id_null_for_root(self):
         """Test model_dump has null parent_id for root accounts."""

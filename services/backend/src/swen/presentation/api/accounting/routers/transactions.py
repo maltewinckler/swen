@@ -27,7 +27,6 @@ from swen.application.accounting.dtos import (
 )
 from swen.application.accounting.queries import ListTransactionsQuery
 from swen.application.events.base import SyncProgressEvent
-from swen.domain.accounting.aggregates import Transaction
 from swen.domain.shared.exceptions import DomainException, ErrorCode
 from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
     MLCounterAccountAdapter,
@@ -35,7 +34,6 @@ from swen.infrastructure.integration.adapters.counter_account_resolution.ml impo
 from swen.presentation.api.accounting.schemas.transactions import (
     BulkPostRequest,
     BulkPostResponse,
-    JournalEntryResponse,
     ReclassifyDraftsRequest,
     SimpleTransactionToCreateRequest,
     TransactionCreateRequest,
@@ -73,61 +71,6 @@ ForceDeleteFilter = Annotated[
 ]
 
 _PAGE_SIZE = 50  # Transactions per page
-
-
-def _transaction_to_response(txn: Transaction) -> TransactionResponse:
-    """Convert domain Transaction to response schema."""
-    entries = [
-        JournalEntryResponse(
-            account_id=entry.account.id,
-            account_name=entry.account.name,
-            account_type=entry.account.account_type.value,
-            # Use is_debit()/is_credit() to check for positive amounts
-            # (entry.debit is always a Money object, never None)
-            debit=entry.debit.amount if entry.is_debit() else None,
-            credit=entry.credit.amount if entry.is_credit() else None,
-            currency=(
-                entry.debit.currency.code
-                if entry.is_debit()
-                else entry.credit.currency.code
-            ),
-        )
-        for entry in txn.entries
-    ]
-
-    return TransactionResponse(
-        id=txn.id,
-        date=txn.date,
-        description=txn.description,
-        counterparty=txn.counterparty,
-        counterparty_iban=txn.counterparty_iban,
-        source=txn.source.value,
-        source_iban=txn.source_iban,
-        is_posted=txn.is_posted,
-        is_internal_transfer=txn.is_internal_transfer,
-        created_at=txn.created_at,
-        entries=entries,
-        metadata=txn.metadata_raw or {},
-    )
-
-
-def _list_item_to_response(dto) -> TransactionListItemResponse:
-    """Convert DTO to response schema."""
-    return TransactionListItemResponse(
-        id=dto.id,
-        short_id=dto.short_id,
-        date=dto.date,
-        description=dto.description,
-        counterparty=dto.counterparty,
-        counter_account=dto.counter_account,
-        debit_account=dto.debit_account,
-        credit_account=dto.credit_account,
-        amount=dto.amount,
-        currency=dto.currency,
-        is_income=dto.is_income,
-        is_posted=dto.is_posted,
-        is_internal_transfer=dto.is_internal_transfer,
-    )
 
 
 @router.get(
@@ -176,7 +119,10 @@ async def list_transactions(
     total_pages = (result.filtered_count + _PAGE_SIZE - 1) // _PAGE_SIZE
 
     return TransactionListResponse(
-        transactions=[_list_item_to_response(dto) for dto in dto_result.transactions],
+        transactions=[
+            TransactionListItemResponse.model_validate(dto)
+            for dto in dto_result.transactions
+        ],
         total=result.total_count,
         filtered_count=result.filtered_count,
         draft_count=result.draft_count,
@@ -353,14 +299,14 @@ async def get_transaction(
         account_repository=factory.account_repository(),
     )
 
-    txn = await query.find_by_id(transaction_id)
-    if txn is None:
+    dto = await query.get_transaction_detail(transaction_id)
+    if dto is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Transaction not found",
         )
 
-    return _transaction_to_response(txn)
+    return TransactionResponse.model_validate(dto)
 
 
 @router.put(
@@ -405,7 +351,7 @@ async def update_transaction(
         raise
 
     logger.info("Transaction updated: %s", transaction_id)
-    return _transaction_to_response(txn)
+    return TransactionResponse.model_validate(txn)
 
 
 @router.post(
@@ -438,7 +384,7 @@ async def post_transaction(
         raise
 
     logger.info("Transaction posted: %s", transaction_id)
-    return _transaction_to_response(txn)
+    return TransactionResponse.model_validate(txn)
 
 
 @router.post(
@@ -470,7 +416,7 @@ async def unpost_transaction(
         raise
 
     logger.info("Transaction unposted: %s", transaction_id)
-    return _transaction_to_response(txn)
+    return TransactionResponse.model_validate(txn)
 
 
 @router.delete(

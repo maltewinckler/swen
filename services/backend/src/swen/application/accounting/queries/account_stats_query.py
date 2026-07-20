@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from swen.application.accounting.dtos import AccountStatsResult
+from swen.application.accounting.dtos import AccountStatsDTO
 from swen.domain.accounting.exceptions import AccountNotFoundError
 from swen.domain.accounting.repositories import (
     AccountRepository,
@@ -52,7 +52,7 @@ class AccountStatsQuery:
         account_id: UUID,
         days: Optional[int] = None,
         include_drafts: bool = True,
-    ) -> AccountStatsResult:
+    ) -> AccountStatsDTO:
         account = await self._account_repo.find_by_id(account_id)
         if account is None:
             raise AccountNotFoundError(account_id=account_id)
@@ -113,7 +113,7 @@ class AccountStatsQuery:
             first_transaction_date = sorted_txns[0].date.date()
             last_transaction_date = sorted_txns[-1].date.date()
 
-        return AccountStatsResult(
+        return AccountStatsDTO(
             account_id=account.id,
             account_name=account.name,
             account_number=account.account_number,

@@ -115,7 +115,7 @@ class ReconciliationQuery:
                 AccountReconciliationDTO(
                     iban=mapping.iban,
                     account_name=accounting_account.name,
-                    accounting_account_id=str(mapping.accounting_account_id),
+                    accounting_account_id=mapping.accounting_account_id,
                     currency=accounting_account.default_currency.code,
                     bank_balance=bank_balance,
                     bank_balance_date=bank_account.balance_date,

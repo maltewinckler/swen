@@ -8,8 +8,9 @@ This query derives the onboarding status from existing data:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.domain.accounting.entities import AccountType
 from swen.domain.accounting.repositories import AccountRepository, TransactionRepository
@@ -19,21 +20,23 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass
-class OnboardingCompletedSteps:
+class OnboardingCompletedStepsDTO(BaseModel):
     """Individual onboarding steps completion status."""
+
+    model_config = ConfigDict(frozen=True)
 
     accounts_initialized: bool
     first_bank_connected: bool
     has_transactions: bool
 
 
-@dataclass
-class OnboardingStatus:
+class OnboardingStatusDTO(BaseModel):
     """Result of onboarding status query."""
 
+    model_config = ConfigDict(frozen=True)
+
     needs_onboarding: bool
-    completed_steps: OnboardingCompletedSteps
+    completed_steps: OnboardingCompletedStepsDTO
 
 
 class OnboardingStatusQuery:
@@ -64,7 +67,7 @@ class OnboardingStatusQuery:
             credential_repository=factory.credential_repository(),
         )
 
-    async def execute(self) -> OnboardingStatus:
+    async def execute(self) -> OnboardingStatusDTO:
         expense_accounts = await self._account_repo.find_by_type(
             AccountType.EXPENSE.value,
         )
@@ -75,9 +78,9 @@ class OnboardingStatusQuery:
 
         transactions = await self._transaction_repo.find_all()
         has_transactions = len(transactions) > 0
-        return OnboardingStatus(
+        return OnboardingStatusDTO(
             needs_onboarding=not accounts_initialized,
-            completed_steps=OnboardingCompletedSteps(
+            completed_steps=OnboardingCompletedStepsDTO(
                 accounts_initialized=accounts_initialized,
                 first_bank_connected=first_bank_connected,
                 has_transactions=has_transactions,

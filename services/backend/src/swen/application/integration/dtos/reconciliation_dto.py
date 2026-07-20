@@ -3,6 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
@@ -14,7 +15,7 @@ class AccountReconciliationDTO(BaseModel):
 
     iban: str
     account_name: str
-    accounting_account_id: str
+    accounting_account_id: UUID
     currency: str
 
     bank_balance: Decimal

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
@@ -17,7 +18,7 @@ class AccountSummaryDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     name: str
     account_number: str
     account_type: str
@@ -26,12 +27,12 @@ class AccountSummaryDTO(BaseModel):
     description: Optional[str] = None
     iban: Optional[str] = None
     created_at: datetime
-    parent_id: Optional[str] = None
+    parent_id: Optional[UUID] = None
 
     @classmethod
     def from_entity(cls, account: Account) -> AccountSummaryDTO:
         return cls(
-            id=str(account.id),
+            id=account.id,
             name=account.name,
             account_number=account.account_number or "",
             account_type=account.account_type.value,
@@ -40,7 +41,7 @@ class AccountSummaryDTO(BaseModel):
             description=account.description,
             iban=account.iban,
             created_at=account.created_at,
-            parent_id=str(account.parent_id) if account.parent_id else None,
+            parent_id=account.parent_id,
         )
 
 
@@ -49,7 +50,7 @@ class BankAccountDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     name: str
     account_number: str
     iban: str
@@ -63,7 +64,7 @@ class BankAccountDTO(BaseModel):
         mapping: AccountMapping,
     ) -> BankAccountDTO:
         return cls(
-            id=str(account.id),
+            id=account.id,
             name=account.name,
             account_number=account.account_number or "",
             iban=mapping.iban,

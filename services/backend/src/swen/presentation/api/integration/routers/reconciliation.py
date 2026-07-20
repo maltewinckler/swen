@@ -10,8 +10,6 @@ from swen.application.integration.queries import (
 )
 from swen.presentation.api.dependencies import RepoFactory
 from swen.presentation.api.integration.schemas.reconciliation import (
-    AccountReconciliationResponse,
-    BankAccountDetailResponse,
     BankConnectionDetailsResponse,
     ReconciliationResponse,
 )
@@ -43,30 +41,7 @@ async def get_reconciliation(factory: RepoFactory) -> ReconciliationResponse:
     query = ReconciliationQuery.from_factory(factory)
     result = await query.execute()
 
-    return ReconciliationResponse(
-        accounts=[
-            AccountReconciliationResponse(
-                iban=acc.iban,
-                account_name=acc.account_name,
-                accounting_account_id=acc.accounting_account_id,
-                currency=acc.currency,
-                bank_balance=str(acc.bank_balance),
-                bank_balance_date=(
-                    acc.bank_balance_date.isoformat() if acc.bank_balance_date else None
-                ),
-                last_sync_at=(
-                    acc.last_sync_at.isoformat() if acc.last_sync_at else None
-                ),
-                bookkeeping_balance=str(acc.bookkeeping_balance),
-                discrepancy=str(acc.discrepancy),
-                is_reconciled=acc.is_reconciled,
-            )
-            for acc in result.accounts
-        ],
-        total_accounts=result.total_accounts,
-        reconciled_count=result.reconciled_count,
-        discrepancy_count=result.discrepancy_count,
-    )
+    return ReconciliationResponse.model_validate(result)
 
 
 @router.get(
@@ -108,26 +83,4 @@ async def get_bank_connection_details(
             detail=f"No accounts found for bank connection {blz}",
         )
 
-    return BankConnectionDetailsResponse(
-        blz=result.blz,
-        bank_name=result.bank_name,
-        accounts=[
-            BankAccountDetailResponse(
-                iban=acc.iban,
-                account_name=acc.account_name,
-                account_type=acc.account_type,
-                currency=acc.currency,
-                bank_balance=str(acc.bank_balance),
-                bank_balance_date=(
-                    acc.bank_balance_date.isoformat() if acc.bank_balance_date else None
-                ),
-                bookkeeping_balance=str(acc.bookkeeping_balance),
-                discrepancy=str(acc.discrepancy),
-                is_reconciled=acc.is_reconciled,
-            )
-            for acc in result.accounts
-        ],
-        total_accounts=result.total_accounts,
-        reconciled_count=result.reconciled_count,
-        discrepancy_count=result.discrepancy_count,
-    )
+    return BankConnectionDetailsResponse.model_validate(result)
