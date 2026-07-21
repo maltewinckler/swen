@@ -3,23 +3,13 @@
 from pydantic import ConfigDict
 
 from swen.application.integration.dtos import (
-    AccountReconciliationDTO,
-    BankAccountDetailDTO,
     BankConnectionDetailsDTO,
     ReconciliationResultDTO,
 )
 
 
-class BankAccountDetailResponse(BankAccountDetailDTO):
-    """Details for a single bank account under a connection."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class BankConnectionDetailsResponse(BankConnectionDetailsDTO):
     """Full details for a bank connection including all accounts."""
-
-    accounts: list[BankAccountDetailResponse]
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -48,32 +38,8 @@ class BankConnectionDetailsResponse(BankConnectionDetailsDTO):
     )
 
 
-class AccountReconciliationResponse(AccountReconciliationDTO):
-    """Reconciliation result for a single bank account."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "iban": "DE89370400440532013000",
-                "account_name": "DKB Checking Account",
-                "accounting_account_id": "550e8400-e29b-41d4-a716-446655440000",
-                "currency": "EUR",
-                "bank_balance": "2543.67",
-                "bank_balance_date": "2024-12-10T10:30:00Z",
-                "last_sync_at": "2024-12-10T10:30:00Z",
-                "bookkeeping_balance": "2543.67",
-                "discrepancy": "0.00",
-                "is_reconciled": True,
-            },
-        },
-    )
-
-
 class ReconciliationResponse(ReconciliationResultDTO):
     """Aggregated reconciliation result for all bank accounts."""
-
-    accounts: list[AccountReconciliationResponse]
 
     model_config = ConfigDict(
         from_attributes=True,

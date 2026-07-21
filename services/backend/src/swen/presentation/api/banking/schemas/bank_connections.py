@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict
 from swen.application.banking.dtos import (
     BankAccountToImportDTO,
     SetupBankResponseDTO,
-    TANMethodInfoDTO,
     TANMethodsResultDTO,
 )
 
@@ -72,35 +71,8 @@ class SetupBankResponse(SetupBankResponseDTO):
     )
 
 
-class TANMethodResponse(TANMethodInfoDTO):
-    """Information about a TAN authentication method supported by a bank."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "code": "940",
-                "name": "DKB App",
-                "method_type": "decoupled",
-                "is_decoupled": True,
-                "technical_id": "SealOne",
-                "zka_id": "Decoupled",
-                "zka_version": None,
-                "max_tan_length": None,
-                "decoupled_max_polls": 999,
-                "decoupled_first_poll_delay": 5,
-                "decoupled_poll_interval": 2,
-                "supports_cancel": False,
-                "supports_multiple_tan": False,
-            },
-        },
-    )
-
-
 class TANMethodsResponse(TANMethodsResultDTO):
     """Response for TAN methods query."""
-
-    tan_methods: list[TANMethodResponse]
 
     model_config = ConfigDict(
         from_attributes=True,

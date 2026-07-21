@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from swen.application.banking.dtos import (
     BankDiscoveryResultDTO,
     BankInfoDTO,
-    DiscoveredAccountDTO,
 )
 
 
@@ -43,33 +42,8 @@ class BankInfoResponse(BankInfoDTO):
     )
 
 
-class DiscoveredAccountResponse(DiscoveredAccountDTO):
-    """Full bank account data from discovery."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "iban": "DE89370400440532013000",
-                "default_name": "DKB - Girokonto",
-                "account_number": "0532013000",
-                "account_holder": "Max Mustermann",
-                "account_type": "Girokonto",
-                "blz": "12030000",
-                "bic": "BYLADEM1001",
-                "bank_name": "DKB",
-                "currency": "EUR",
-                "balance": "1250.00",
-                "balance_date": "2025-12-14T10:00:00",
-            },
-        },
-    )
-
-
 class BankDiscoveryResultResponse(BankDiscoveryResultDTO):
     """Collection of discovered accounts for a bank."""
-
-    accounts: list[DiscoveredAccountResponse]
 
     model_config = ConfigDict(
         from_attributes=True,

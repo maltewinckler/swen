@@ -7,7 +7,6 @@ from pydantic import ConfigDict
 
 from swen.application.system.queries.onboarding import OnboardingStatusQuery
 from swen.application.system.queries.onboarding.onboarding_status_query import (
-    OnboardingCompletedStepsDTO,
     OnboardingStatusDTO,
 )
 from swen.presentation.api.dependencies import RepoFactory
@@ -17,16 +16,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class CompletedStepsResponse(OnboardingCompletedStepsDTO):
-    """Individual onboarding steps completion status."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class OnboardingStatusResponse(OnboardingStatusDTO):
     """Onboarding status response."""
-
-    completed_steps: CompletedStepsResponse
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,9 +29,7 @@ class OnboardingStatusResponse(OnboardingStatusDTO):
         200: {"description": "Onboarding status for the current user"},
     },
 )
-async def get_onboarding_status(
-    factory: RepoFactory,
-) -> OnboardingStatusResponse:
+async def get_onboarding_status(factory: RepoFactory) -> OnboardingStatusResponse:
     """
     Get the onboarding status for the current user.
 

@@ -8,32 +8,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.accounting.dtos import (
-    JournalEntryDTO,
     TransactionDTO,
     TransactionListItemDTO,
 )
-
-
-class JournalEntryResponse(JournalEntryDTO):
-    """Response schema for a journal entry (one side of double-entry).
-
-    In double-entry bookkeeping, each transaction has at least two entries
-    that balance (total debits = total credits).
-    """
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "account_id": "550e8400-e29b-41d4-a716-446655440000",
-                "account_name": "DKB Checking Account",
-                "account_type": "asset",
-                "debit": None,
-                "credit": "45.99",
-                "currency": "EUR",
-            },
-        },
-    )
 
 
 class TransactionResponse(TransactionDTO):
@@ -42,8 +19,6 @@ class TransactionResponse(TransactionDTO):
     Each transaction contains balanced journal entries following
     double-entry bookkeeping principles.
     """
-
-    entries: list[JournalEntryResponse]
 
     model_config = ConfigDict(
         from_attributes=True,
