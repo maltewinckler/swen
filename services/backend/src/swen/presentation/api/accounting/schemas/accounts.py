@@ -12,6 +12,7 @@ from swen.application.accounting.dtos import (
     AccountSummaryDTO,
     BankAccountDTO,
 )
+from swen.application.accounting.queries import AccountListDTO
 
 
 class ChartTemplateEnum(str, Enum):
@@ -118,7 +119,6 @@ class InitEssentialsResponse(BaseModel):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class AccountSummaryResponse(AccountSummaryDTO):
     """Response schema for account data."""
 
@@ -145,26 +145,11 @@ class AccountCreateRequest(BaseModel):
     """Request schema for creating an account."""
 
     name: str = Field(..., min_length=1, max_length=255, description="Account name")
-    account_number: str = Field(
-        ...,
-        min_length=1,
-        max_length=50,
-        description="Account number",
-    )
-    account_type: str = Field(
-        ...,
-        description="Account type: asset, liability, equity, income, expense",
-    )
-    description: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="Description with examples for classification",
-    )
-    currency: str = Field(default="EUR", description="Currency code (default: EUR)")
-    parent_id: Optional[UUID] = Field(
-        None,
-        description="Parent account ID to create this as a sub-account (same type)",
-    )
+    account_number: str = Field(..., min_length=1, max_length=50)
+    account_type: str
+    description: Optional[str] = Field(default=None, max_length=500)
+    currency: str = Field(default="EUR")
+    parent_id: Optional[UUID] = Field(default=None)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -183,36 +168,11 @@ class AccountCreateRequest(BaseModel):
 class AccountUpdateRequest(BaseModel):
     """Request schema for updating an account."""
 
-    name: Optional[str] = Field(
-        None,
-        min_length=1,
-        max_length=255,
-        description="New account name",
-    )
-    account_number: Optional[str] = Field(
-        None,
-        min_length=1,
-        max_length=50,
-        description="New account number/code (must be unique per user)",
-    )
-    description: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="Description with examples for AI classification",
-    )
-    parent_id: Optional[UUID] = Field(
-        None,
-        description="Parent account ID (required when parent_action is 'set')",
-    )
-    parent_action: ParentAction = Field(
-        default=ParentAction.KEEP,
-        description=(
-            "Action for parent relationship: "
-            "'keep' = don't change (default), "
-            "'set' = set parent to parent_id, "
-            "'remove' = make top-level account"
-        ),
-    )
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    account_number: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=500)
+    parent_id: Optional[UUID] = Field(default=None)
+    parent_action: ParentAction = Field(default=ParentAction.KEEP)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -245,16 +205,13 @@ class AccountUpdateRequest(BaseModel):
     )
 
 
-class AccountListResponse(BaseModel):
+class AccountListResponse(AccountListDTO):
     """Response schema for account listing."""
 
-    accounts: list[AccountSummaryResponse] = Field(
-        ..., description="List of accounts matching filters"
-    )
-    total: int = Field(..., description="Total number of accounts")
-    by_type: dict[str, int] = Field(..., description="Breakdown of accounts by type")
+    accounts: list[AccountSummaryResponse]
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "accounts": [

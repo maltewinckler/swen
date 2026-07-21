@@ -14,7 +14,6 @@ from swen.application.accounting.dtos import (
 )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class JournalEntryResponse(JournalEntryDTO):
     """Response schema for a journal entry (one side of double-entry).
 
@@ -37,7 +36,6 @@ class JournalEntryResponse(JournalEntryDTO):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class TransactionResponse(TransactionDTO):
     """Response schema for full transaction data with journal entries.
 

@@ -12,15 +12,15 @@ import pytest
 from openpyxl import load_workbook
 
 from swen.application.analytics.dtos import (
-    BreakdownItem,
-    MonthComparisonResult,
-    TimeSeriesDataPoint,
+    BreakdownItemDTO,
+    MonthComparisonResultDTO,
+    TimeSeriesDataPointDTO,
 )
 from swen.application.analytics.dtos.export_dto import AccountExportDTO
 from swen.application.analytics.dtos.export_report_dto import (
-    AccountBalanceSummary,
+    AccountBalanceSummaryDTO,
     DashboardSummaryDTO,
-    ExportReportData,
+    ExportReportDataDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
 )
@@ -51,13 +51,13 @@ class TestExcelReportGenerator:
             savings_rate=Decimal("30.0"),
             net_worth=Decimal("25000.00"),
             account_balances=[
-                AccountBalanceSummary(
+                AccountBalanceSummaryDTO(
                     account_name="DKB Checking",
                     account_number="1000",
                     balance=Decimal("5000.00"),
                     currency="EUR",
                 ),
-                AccountBalanceSummary(
+                AccountBalanceSummaryDTO(
                     account_name="Savings",
                     account_number="1100",
                     balance=Decimal("20000.00"),
@@ -65,20 +65,20 @@ class TestExcelReportGenerator:
                 ),
             ],
             top_expenses=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Rent",
                     amount=Decimal("1200.00"),
                     percentage=Decimal("34.3"),
                     account_id="uuid-1",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Groceries",
                     amount=Decimal("500.00"),
                     percentage=Decimal("14.3"),
                     account_id="uuid-2",
                 ),
             ],
-            month_comparison=MonthComparisonResult(
+            month_comparison=MonthComparisonResultDTO(
                 current_month="December 2024",
                 previous_month="November 2024",
                 currency="EUR",
@@ -97,12 +97,12 @@ class TestExcelReportGenerator:
                 category_comparisons=[],
             ),
             net_worth_trend=[
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period="2024-11",
                     period_label="November 2024",
                     value=Decimal("24000.00"),
                 ),
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period="2024-12",
                     period_label="December 2024",
                     value=Decimal("25000.00"),
@@ -205,9 +205,9 @@ class TestExcelReportGenerator:
         sample_transactions,
         sample_accounts,
         sample_mappings,
-    ) -> ExportReportData:
+    ) -> ExportReportDataDTO:
         """Create complete sample report data."""
-        return ExportReportData(
+        return ExportReportDataDTO(
             summary=sample_summary,
             transactions=sample_transactions,
             accounts=sample_accounts,
@@ -357,7 +357,7 @@ class TestExcelReportGenerator:
             currency="EUR",
         )
 
-        empty_data = ExportReportData(
+        empty_data = ExportReportDataDTO(
             summary=empty_summary,
             transactions=[],
             accounts=[],

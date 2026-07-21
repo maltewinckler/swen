@@ -12,14 +12,14 @@ from uuid import uuid4
 import pytest
 
 from swen.application.analytics.dtos import (
-    BreakdownItem,
-    CategoryTimeSeriesDataPoint,
-    CategoryTimeSeriesResult,
-    IncomeBreakdownResult,
-    MonthComparisonResult,
-    SpendingBreakdownResult,
-    TimeSeriesDataPoint,
-    TimeSeriesResult,
+    BreakdownItemDTO,
+    CategoryTimeSeriesDataPointDTO,
+    CategoryTimeSeriesResultDTO,
+    IncomeBreakdownResultDTO,
+    MonthComparisonResultDTO,
+    SpendingBreakdownResultDTO,
+    TimeSeriesDataPointDTO,
+    TimeSeriesResultDTO,
 )
 from swen.application.analytics.queries.export_report_query import ExportReportQuery
 from swen.domain.accounting.entities import Account, AccountType
@@ -37,10 +37,10 @@ class TestExportReportQuery:
         port = AsyncMock()
 
         # Spending breakdown
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Groceries",
                     amount=Decimal("500.00"),
                     percentage=Decimal("50.0"),
@@ -53,7 +53,7 @@ class TestExportReportQuery:
         )
 
         # Income breakdown
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[],
             total=Decimal("3000.00"),
@@ -61,9 +61,9 @@ class TestExportReportQuery:
         )
 
         # Net worth over time
-        port.net_worth_over_time.return_value = TimeSeriesResult(
+        port.net_worth_over_time.return_value = TimeSeriesResultDTO(
             data_points=[
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period="2024-12",
                     period_label="December 2024",
                     value=Decimal("25000.00"),
@@ -75,7 +75,7 @@ class TestExportReportQuery:
         )
 
         # Month comparison
-        port.month_comparison.return_value = MonthComparisonResult(
+        port.month_comparison.return_value = MonthComparisonResultDTO(
             current_month="December 2024",
             previous_month="November 2024",
             currency="EUR",
@@ -95,9 +95,9 @@ class TestExportReportQuery:
         )
 
         # Balance history
-        port.balance_history_over_time.return_value = CategoryTimeSeriesResult(
+        port.balance_history_over_time.return_value = CategoryTimeSeriesResultDTO(
             data_points=[
-                CategoryTimeSeriesDataPoint(
+                CategoryTimeSeriesDataPointDTO(
                     period="2024-12",
                     period_label="December 2024",
                     categories={"DKB Checking": Decimal("5000.00")},
@@ -168,7 +168,7 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_execute_returns_export_report_data(self, query):
-        """Test that execute() returns ExportReportData with all sections."""
+        """Test that execute() returns ExportReportDataDTO with all sections."""
         result = await query.execute()
 
         assert result is not None

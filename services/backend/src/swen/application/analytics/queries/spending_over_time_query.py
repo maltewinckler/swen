@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import CategoryTimeSeriesResult
+from swen.application.analytics.dtos import CategoryTimeSeriesResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -14,10 +14,7 @@ if TYPE_CHECKING:
 class SpendingOverTimeQuery:
     """Return monthly spending totals by expense category."""
 
-    def __init__(
-        self,
-        analytics_read_port: AnalyticsReadPort,
-    ):
+    def __init__(self, analytics_read_port: AnalyticsReadPort):
         self._analytics = analytics_read_port
 
     @classmethod
@@ -29,7 +26,7 @@ class SpendingOverTimeQuery:
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         return await self._analytics.spending_over_time(
             months=months,
             end_month=end_month,

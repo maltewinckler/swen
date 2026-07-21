@@ -13,11 +13,11 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
-from swen.application.analytics.dtos.analytics_dto import MonthComparisonResult
+from swen.application.analytics.dtos.analytics_dto import MonthComparisonResultDTO
 from swen.application.analytics.dtos.export_dto import AccountExportDTO
 from swen.application.analytics.dtos.export_report_dto import (
     DashboardSummaryDTO,
-    ExportReportData,
+    ExportReportDataDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
 )
@@ -82,7 +82,7 @@ class ExcelStyles:
 
 
 class ExcelReportGenerator:
-    """Generates beautifully formatted Excel reports from ExportReportData.
+    """Generates beautifully formatted Excel reports from ExportReportDataDTO.
 
     Creates a multi-sheet workbook with:
     1. Dashboard - Summary metrics and overview
@@ -94,7 +94,7 @@ class ExcelReportGenerator:
     def __init__(self):
         self._styles = ExcelStyles()
 
-    def generate(self, data: ExportReportData) -> bytes:
+    def generate(self, data: ExportReportDataDTO) -> bytes:
         wb = Workbook()
 
         # Remove default sheet and create our sheets
@@ -225,7 +225,7 @@ class ExcelReportGenerator:
         self,
         ws: Worksheet,
         row: int,
-        comp: MonthComparisonResult,
+        comp: MonthComparisonResultDTO,
     ) -> int:
         """Add month-over-month comparison table."""
         row = self._add_section_header(ws, row, "MONTH-OVER-MONTH COMPARISON")

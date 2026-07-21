@@ -7,162 +7,21 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.analytics.queries import ExportDataQuery
 from swen.application.analytics.queries.export_report_query import ExportReportQuery
 from swen.domain.shared.time import utc_now
 from swen.infrastructure.export import ExcelReportGenerator
+from swen.presentation.api.analytics.schemas.exports import (
+    AccountExportListResponse,
+    FullExportResponse,
+    TransactionExportListResponse,
+)
 from swen.presentation.api.dependencies import RepoFactory
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class TransactionExportResponse(BaseModel):
-    """Exported transaction data."""
-
-    id: str = Field(description="Transaction UUID")
-    date: str = Field(description="Transaction date (YYYY-MM-DD)")
-    description: str = Field(description="Transaction description")
-    counterparty: str = Field(description="Counterparty name")
-    reference: str = Field(description="Bank reference number")
-    amount: float = Field(description="Transaction amount")
-    currency: str = Field(description="Currency code")
-    debit_account: str = Field(description="Debit account (number - name)")
-    credit_account: str = Field(description="Credit account (number - name)")
-    status: str = Field(description="Transaction status: posted or draft")
-    metadata: str = Field(description="JSON metadata")
-    created_at: str = Field(description="Creation timestamp (ISO 8601)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "date": "2024-12-05",
-                "description": "REWE Supermarket",
-                "counterparty": "REWE",
-                "reference": "2024120512345",
-                "amount": 45.99,
-                "currency": "EUR",
-                "debit_account": "4200 - Lebensmittel",
-                "credit_account": "1000 - DKB Checking",
-                "status": "posted",
-                "metadata": "{}",
-                "created_at": "2024-12-05T15:00:00+00:00",
-            }
-        }
-    )
-
-
-class AccountExportResponse(BaseModel):
-    """Exported account data."""
-
-    id: str = Field(description="Account UUID")
-    account_number: str = Field(description="Account number in chart")
-    name: str = Field(description="Account name")
-    type: str = Field(
-        description="Account type: asset, liability, equity, income, expense"
-    )
-    currency: str = Field(description="Default currency code")
-    is_active: bool = Field(description="Whether account is active")
-    parent_id: str = Field(description="Parent account UUID (empty if root)")
-    created_at: str = Field(description="Creation timestamp (ISO 8601)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "660e8400-e29b-41d4-a716-446655440001",
-                "account_number": "4200",
-                "name": "Lebensmittel",
-                "type": "expense",
-                "currency": "EUR",
-                "is_active": True,
-                "parent_id": "",
-                "created_at": "2024-01-01T00:00:00+00:00",
-            }
-        }
-    )
-
-
-class MappingExportResponse(BaseModel):
-    """Exported bank account mapping data."""
-
-    id: str = Field(description="Mapping UUID")
-    iban: str = Field(description="Bank account IBAN")
-    account_name: str = Field(description="Bank account name from bank")
-    accounting_account_id: str = Field(description="Linked accounting account UUID")
-    created_at: str = Field(description="Creation timestamp (ISO 8601)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "770e8400-e29b-41d4-a716-446655440002",
-                "iban": "DE89370400440532013000",
-                "account_name": "Girokonto",
-                "accounting_account_id": "880e8400-e29b-41d4-a716-446655440003",
-                "created_at": "2024-01-01T00:00:00+00:00",
-            }
-        }
-    )
-
-
-class TransactionExportListResponse(BaseModel):
-    """Response for transaction export."""
-
-    transactions: list[TransactionExportResponse]
-    count: int = Field(description="Number of transactions exported")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "transactions": [],
-                "count": 0,
-            }
-        }
-    )
-
-
-class AccountExportListResponse(BaseModel):
-    """Response for account export."""
-
-    accounts: list[AccountExportResponse]
-    count: int = Field(description="Number of accounts exported")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "accounts": [],
-                "count": 0,
-            }
-        }
-    )
-
-
-class FullExportResponse(BaseModel):
-    """Response for full data export (backup)."""
-
-    transactions: list[TransactionExportResponse]
-    accounts: list[AccountExportResponse]
-    mappings: list[MappingExportResponse]
-    transaction_count: int = Field(description="Number of transactions")
-    account_count: int = Field(description="Number of accounts")
-    mapping_count: int = Field(description="Number of bank account mappings")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "transactions": [],
-                "accounts": [],
-                "mappings": [],
-                "transaction_count": 0,
-                "account_count": 0,
-                "mapping_count": 0,
-            }
-        }
-    )
-
 
 DaysFilter = Annotated[
     int,
@@ -235,12 +94,7 @@ async def export_transactions(
 
     logger.info("Exported %d transactions", len(transactions))
 
-    return TransactionExportListResponse(
-        transactions=[
-            TransactionExportResponse(**t.model_dump()) for t in transactions
-        ],
-        count=len(transactions),
-    )
+    return TransactionExportListResponse(transactions=transactions)
 
 
 @router.get(
@@ -270,10 +124,7 @@ async def export_accounts(
 
     logger.info("Exported %d accounts", len(accounts))
 
-    return AccountExportListResponse(
-        accounts=[AccountExportResponse(**a.model_dump()) for a in accounts],
-        count=len(accounts),
-    )
+    return AccountExportListResponse(accounts=accounts)
 
 
 @router.get(
@@ -310,16 +161,7 @@ async def export_full(
         result.mapping_count,
     )
 
-    return FullExportResponse(
-        transactions=[
-            TransactionExportResponse(**t.model_dump()) for t in result.transactions
-        ],
-        accounts=[AccountExportResponse(**a.model_dump()) for a in result.accounts],
-        mappings=[MappingExportResponse(**m.model_dump()) for m in result.mappings],
-        transaction_count=result.transaction_count,
-        account_count=result.account_count,
-        mapping_count=result.mapping_count,
-    )
+    return FullExportResponse.model_validate(result)
 
 
 @router.get(

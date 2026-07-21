@@ -9,7 +9,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, computed_field
 
 
-class TimeSeriesDataPoint(BaseModel):
+class TimeSeriesDataPointDTO(BaseModel):
     """Single data point in a time series (e.g., monthly totals)."""
 
     model_config = ConfigDict(frozen=True)
@@ -19,7 +19,7 @@ class TimeSeriesDataPoint(BaseModel):
     value: Decimal
 
 
-class CategoryTimeSeriesDataPoint(BaseModel):
+class CategoryTimeSeriesDataPointDTO(BaseModel):
     """Data point with category breakdown for a single period."""
 
     model_config = ConfigDict(frozen=True)
@@ -30,7 +30,7 @@ class CategoryTimeSeriesDataPoint(BaseModel):
     total: Decimal
 
 
-class TimeSeriesResult(BaseModel):
+class TimeSeriesResultDTO(BaseModel):
     """Result for simple time series queries.
 
     Used for:
@@ -41,7 +41,7 @@ class TimeSeriesResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    data_points: list[TimeSeriesDataPoint]
+    data_points: list[TimeSeriesDataPointDTO]
     currency: str
     total: Decimal  # Sum of all values
     average: Decimal  # Average per period
@@ -49,7 +49,7 @@ class TimeSeriesResult(BaseModel):
     max_value: Decimal = Decimal("0")
 
 
-class CategoryTimeSeriesResult(BaseModel):
+class CategoryTimeSeriesResultDTO(BaseModel):
     """Result for time series with category breakdown.
 
     Used for:
@@ -60,13 +60,13 @@ class CategoryTimeSeriesResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    data_points: list[CategoryTimeSeriesDataPoint]
+    data_points: list[CategoryTimeSeriesDataPointDTO]
     categories: list[str]
     currency: str
     totals_by_category: dict[str, Decimal] = {}
 
 
-class BreakdownItem(BaseModel):
+class BreakdownItemDTO(BaseModel):
     """Single category in a breakdown (for pie charts).
 
     Represents one slice of a pie chart with its value,
@@ -81,7 +81,7 @@ class BreakdownItem(BaseModel):
     account_id: str  # For drill-down navigation
 
 
-class SpendingBreakdownResult(BaseModel):
+class SpendingBreakdownResultDTO(BaseModel):
     """Result for spending breakdown (pie chart data).
 
     Shows how spending is distributed across expense categories
@@ -91,7 +91,7 @@ class SpendingBreakdownResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     period_label: str  # "December 2024" or "Last 30 days"
-    items: list[BreakdownItem] = []
+    items: list[BreakdownItemDTO] = []
     total: Decimal
     currency: str
     category_count: int = 0  # Number of categories with spending
@@ -102,21 +102,18 @@ class SpendingBreakdownResult(BaseModel):
         return self.category_count
 
 
-class IncomeBreakdownResult(BaseModel):
-    """Result for income breakdown (pie chart data).
-
-    Shows how income is distributed across income sources.
-    """
+class IncomeBreakdownResultDTO(BaseModel):
+    """Result for income breakdown (pie chart data)."""
 
     model_config = ConfigDict(frozen=True)
 
     period_label: str
-    items: list[BreakdownItem] = []
+    items: list[BreakdownItemDTO] = []
     total: Decimal
     currency: str
 
 
-class CategoryComparison(BaseModel):
+class CategoryComparisonDTO(BaseModel):
     """Comparison data for a single category (month-over-month)."""
 
     model_config = ConfigDict(frozen=True)
@@ -128,7 +125,7 @@ class CategoryComparison(BaseModel):
     change_percentage: Decimal  # Can be negative
 
 
-class MonthComparisonResult(BaseModel):
+class MonthComparisonResultDTO(BaseModel):
     """Result of month-over-month comparison."""
 
     model_config = ConfigDict(frozen=True)
@@ -156,10 +153,10 @@ class MonthComparisonResult(BaseModel):
     net_change_percentage: Decimal
 
     # Category-level breakdown (spending)
-    category_comparisons: list[CategoryComparison] = []
+    category_comparisons: list[CategoryComparisonDTO] = []
 
 
-class TopExpenseItem(BaseModel):
+class TopExpenseItemDTO(BaseModel):
     """A single top expense category."""
 
     model_config = ConfigDict(frozen=True)
@@ -173,13 +170,13 @@ class TopExpenseItem(BaseModel):
     transaction_count: int
 
 
-class TopExpensesResult(BaseModel):
+class TopExpensesResultDTO(BaseModel):
     """Result of top expenses query."""
 
     model_config = ConfigDict(frozen=True)
 
     period_label: str
-    items: list[TopExpenseItem] = []
+    items: list[TopExpenseItemDTO] = []
     total_spending: Decimal
     currency: str
     months_analyzed: int

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.analytics.dtos import TopExpensesResult
+from swen.application.analytics.dtos import TopExpensesResultDTO
 from swen.application.analytics.queries import TopExpensesQuery
 
 
@@ -13,7 +13,7 @@ class TestTopExpensesQuery:
     @pytest.mark.asyncio
     async def test_execute_delegates_to_port(self):
         port = AsyncMock()
-        expected = TopExpensesResult(
+        expected = TopExpensesResultDTO(
             period_label="Last 3 months",
             items=[],
             total_spending=Decimal("0"),

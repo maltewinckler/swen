@@ -72,8 +72,6 @@ class SetupBankResponse(SetupBankResponseDTO):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
-# from_attributes lets the router build this directly via .model_validate(dto)
 class TANMethodResponse(TANMethodInfoDTO):
     """Information about a TAN authentication method supported by a bank."""
 

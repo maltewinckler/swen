@@ -45,7 +45,6 @@ class CredentialToUpdate(BaseModel):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class StoredCredential(StoredCredentialDTO):
     """Response schema for credential metadata (no sensitive data)."""
 

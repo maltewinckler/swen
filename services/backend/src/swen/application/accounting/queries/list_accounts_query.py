@@ -25,7 +25,7 @@ class AccountListDTO(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     accounts: list[AccountSummaryDTO]
-    total_count: int
+    total: int
     by_type: dict[str, int]
 
 
@@ -64,7 +64,7 @@ class ListAccountsQuery:
 
         return AccountListDTO(
             accounts=account_dtos,
-            total_count=len(account_dtos),
+            total=len(account_dtos),
             by_type=by_type,
         )
 

@@ -77,11 +77,7 @@ async def list_accounts(
         active_only=active_only,
     )
 
-    return AccountListResponse(
-        accounts=[_to_account_response(dto) for dto in result.accounts],
-        total=result.total_count,
-        by_type=result.by_type,
-    )
+    return AccountListResponse.model_validate(result)
 
 
 @router.post(

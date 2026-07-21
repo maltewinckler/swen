@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.analytics.dtos import SpendingBreakdownResult
+from swen.application.analytics.dtos import SpendingBreakdownResultDTO
 from swen.application.analytics.queries import SpendingBreakdownQuery
 
 
@@ -13,7 +13,7 @@ class TestSpendingBreakdownQuery:
     @pytest.mark.asyncio
     async def test_execute_delegates_to_port(self):
         port = AsyncMock()
-        expected = SpendingBreakdownResult(
+        expected = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[],
             total=Decimal("0"),

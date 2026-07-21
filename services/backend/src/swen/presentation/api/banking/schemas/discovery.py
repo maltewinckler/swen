@@ -27,7 +27,6 @@ class TanMethodQueryRequest(BaseModel):
     )
 
 
-# inherit from DTO to reuse fields and inject json schema
 class BankInfoResponse(BankInfoDTO):
     """Response schema for bank lookup by BLZ."""
 

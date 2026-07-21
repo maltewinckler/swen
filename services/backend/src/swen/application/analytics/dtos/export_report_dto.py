@@ -7,16 +7,16 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from swen.application.analytics.dtos.analytics_dto import (
-    BreakdownItem,
-    MonthComparisonResult,
-    TimeSeriesDataPoint,
+    BreakdownItemDTO,
+    MonthComparisonResultDTO,
+    TimeSeriesDataPointDTO,
 )
 from swen.application.analytics.dtos.export_dto import (
     AccountExportDTO,
 )
 
 
-class AccountBalanceSummary(BaseModel):
+class AccountBalanceSummaryDTO(BaseModel):
     """Account balance for dashboard overview."""
 
     model_config = ConfigDict(frozen=True)
@@ -115,10 +115,10 @@ class DashboardSummaryDTO(BaseModel):
     savings_rate: Decimal = Decimal("0")  # percentage (0-100)
     net_worth: Decimal = Decimal("0")
 
-    account_balances: list[AccountBalanceSummary] = []
-    top_expenses: list[BreakdownItem] = []
-    month_comparison: MonthComparisonResult | None = None
-    net_worth_trend: list[TimeSeriesDataPoint] = []
+    account_balances: list[AccountBalanceSummaryDTO] = []
+    top_expenses: list[BreakdownItemDTO] = []
+    month_comparison: MonthComparisonResultDTO | None = None
+    net_worth_trend: list[TimeSeriesDataPointDTO] = []
 
     transaction_count: int = 0
     posted_count: int = 0
@@ -154,7 +154,7 @@ class MappingExportRowDTO(BaseModel):
         ]
 
 
-class ExportReportData(BaseModel):
+class ExportReportDataDTO(BaseModel):
     """Complete data structure for Excel report generation."""
 
     summary: DashboardSummaryDTO

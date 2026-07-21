@@ -6,9 +6,9 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from swen.application.analytics.dtos.sankey_dto import (
-    SankeyData,
-    SankeyLink,
-    SankeyNode,
+    SankeyDataDTO,
+    SankeyLinkDTO,
+    SankeyNodeDTO,
 )
 from swen.application.ports.analytics import AnalyticsReadPort
 
@@ -46,24 +46,19 @@ DEFICIT_COLOR = "#ef4444"  # red-500 (negative savings)
 class SankeyQuery:
     """Generate Sankey nodes/links for income → spending → savings."""
 
-    def __init__(
-        self,
-        analytics_read_port: AnalyticsReadPort,
-    ):
+    def __init__(self, analytics_read_port: AnalyticsReadPort):
         self._analytics = analytics_read_port
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> SankeyQuery:
-        return cls(
-            analytics_read_port=factory.analytics_read_port(),
-        )
+        return cls(analytics_read_port=factory.analytics_read_port())
 
     async def execute(
         self,
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> SankeyData:
+    ) -> SankeyDataDTO:
         income_result = await self._analytics.income_breakdown(
             month=month,
             days=days,
@@ -75,13 +70,13 @@ class SankeyQuery:
             include_drafts=include_drafts,
         )
 
-        nodes: list[SankeyNode] = []
-        links: list[SankeyLink] = []
+        nodes: list[SankeyNodeDTO] = []
+        links: list[SankeyLinkDTO] = []
 
         for idx, item in enumerate(income_result.items):
             node_id = f"income_{item.account_id}"
             nodes.append(
-                SankeyNode(
+                SankeyNodeDTO(
                     id=node_id,
                     label=item.category,
                     category="income",
@@ -89,7 +84,7 @@ class SankeyQuery:
                 ),
             )
             links.append(
-                SankeyLink(
+                SankeyLinkDTO(
                     source=node_id,
                     target="total",
                     value=item.amount,
@@ -97,7 +92,7 @@ class SankeyQuery:
             )
 
         nodes.append(
-            SankeyNode(
+            SankeyNodeDTO(
                 id="total",
                 label="Total Income",
                 category="total",
@@ -108,7 +103,7 @@ class SankeyQuery:
         for idx, item in enumerate(spending_result.items):
             node_id = f"expense_{item.account_id}"
             nodes.append(
-                SankeyNode(
+                SankeyNodeDTO(
                     id=node_id,
                     label=item.category,
                     category="expense",
@@ -116,7 +111,7 @@ class SankeyQuery:
                 ),
             )
             links.append(
-                SankeyLink(
+                SankeyLinkDTO(
                     source="total",
                     target=node_id,
                     value=item.amount,
@@ -127,7 +122,7 @@ class SankeyQuery:
 
         if net_savings > Decimal("0"):
             nodes.append(
-                SankeyNode(
+                SankeyNodeDTO(
                     id="savings",
                     label="Savings",
                     category="savings",
@@ -135,14 +130,14 @@ class SankeyQuery:
                 ),
             )
             links.append(
-                SankeyLink(
+                SankeyLinkDTO(
                     source="total",
                     target="savings",
                     value=net_savings,
                 ),
             )
 
-        return SankeyData(
+        return SankeyDataDTO(
             nodes=nodes,
             links=links,
             currency=income_result.currency,

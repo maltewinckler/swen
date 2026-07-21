@@ -10,12 +10,12 @@ from typing import Protocol
 from uuid import UUID
 
 from swen.application.analytics.dtos import (
-    CategoryTimeSeriesResult,
-    IncomeBreakdownResult,
-    MonthComparisonResult,
-    SpendingBreakdownResult,
-    TimeSeriesResult,
-    TopExpensesResult,
+    CategoryTimeSeriesResultDTO,
+    IncomeBreakdownResultDTO,
+    MonthComparisonResultDTO,
+    SpendingBreakdownResultDTO,
+    TimeSeriesResultDTO,
+    TopExpensesResultDTO,
 )
 
 
@@ -28,7 +28,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         """Monthly spending (expense accounts) by category over time."""
         ...
 
@@ -39,7 +39,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         """Monthly spending for a single expense account over time.
 
         Used for drill-down views where user selects a specific expense
@@ -53,7 +53,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         """Monthly income totals over time."""
         ...
 
@@ -63,7 +63,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         """Monthly net income (income - expenses) over time."""
         ...
 
@@ -73,7 +73,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         """Monthly savings rate (%) over time."""
         ...
 
@@ -83,7 +83,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = True,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         """Monthly net worth (assets - liabilities) over time."""
         ...
 
@@ -93,7 +93,7 @@ class AnalyticsReadPort(Protocol):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = True,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         """Monthly balances by asset account over time."""
         ...
 
@@ -103,7 +103,7 @@ class AnalyticsReadPort(Protocol):
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> SpendingBreakdownResult:
+    ) -> SpendingBreakdownResultDTO:
         """Spending breakdown (pie) for a month or rolling window."""
         ...
 
@@ -113,7 +113,7 @@ class AnalyticsReadPort(Protocol):
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> IncomeBreakdownResult:
+    ) -> IncomeBreakdownResultDTO:
         """Income breakdown (pie) for a month or rolling window."""
         ...
 
@@ -122,7 +122,7 @@ class AnalyticsReadPort(Protocol):
         *,
         month: str | None = None,
         include_drafts: bool = False,
-    ) -> MonthComparisonResult:
+    ) -> MonthComparisonResultDTO:
         """Compare current vs previous month (income/spending/net + categories)."""
         ...
 
@@ -133,6 +133,6 @@ class AnalyticsReadPort(Protocol):
         top_n: int = 10,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TopExpensesResult:
+    ) -> TopExpensesResultDTO:
         """Top expense categories over a period."""
         ...

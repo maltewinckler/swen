@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import TopExpensesResult
+from swen.application.analytics.dtos import TopExpensesResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -14,10 +14,7 @@ if TYPE_CHECKING:
 class TopExpensesQuery:
     """Return ranked expense categories for a period."""
 
-    def __init__(
-        self,
-        analytics_read_port: AnalyticsReadPort,
-    ):
+    def __init__(self, analytics_read_port: AnalyticsReadPort):
         self._analytics = analytics_read_port
 
     @classmethod
@@ -30,7 +27,7 @@ class TopExpensesQuery:
         top_n: int = 10,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TopExpensesResult:
+    ) -> TopExpensesResultDTO:
         return await self._analytics.top_expenses(
             months=months,
             top_n=top_n,

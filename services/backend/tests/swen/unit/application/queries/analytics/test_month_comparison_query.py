@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.analytics.dtos import MonthComparisonResult
+from swen.application.analytics.dtos import MonthComparisonResultDTO
 from swen.application.analytics.queries import MonthComparisonQuery
 
 
@@ -13,7 +13,7 @@ class TestMonthComparisonQuery:
     @pytest.mark.asyncio
     async def test_execute_delegates_to_port(self):
         port = AsyncMock()
-        expected = MonthComparisonResult(
+        expected = MonthComparisonResultDTO(
             current_month="December 2024",
             previous_month="November 2024",
             currency="EUR",

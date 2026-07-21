@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import CategoryTimeSeriesResult
+from swen.application.analytics.dtos import CategoryTimeSeriesResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ class BalanceHistoryQuery:
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = True,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         return await self._analytics.balance_history_over_time(
             months=months,
             end_month=end_month,
