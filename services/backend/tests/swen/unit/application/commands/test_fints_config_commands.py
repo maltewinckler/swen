@@ -64,9 +64,8 @@ class TestGetFinTSConfigurationQuery:
     @pytest.mark.asyncio
     async def test_returns_dto_with_masked_product_id(self):
         repo = _make_mock_repo()
-        repo.get_configuration.return_value = _make_config(
-            product_id="ABCDEFGHIJKLMNOP"
-        )
+        config = _make_config(product_id="ABCDEFGHIJKLMNOP")
+        repo.get_configuration.return_value = config
         query = GetFinTSConfigurationQuery(config_repository=repo)
 
         result = await query.execute()
@@ -74,6 +73,10 @@ class TestGetFinTSConfigurationQuery:
         assert result is not None
         assert result.product_id_masked == "ABCD...MNOP"
         assert result.csv_institute_count == 100
+        assert result.csv_file_size_bytes == config.csv_file_size_bytes
+        assert result.csv_upload_timestamp == config.csv_upload_timestamp
+        assert result.last_updated == config.updated_at
+        assert result.last_updated_by == str(TEST_ADMIN_ID)
 
     @pytest.mark.asyncio
     async def test_masks_short_product_id(self):

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.infrastructure.banking.geldstrom_api.config_repository import (
     GeldstromApiConfigRepository,
@@ -14,15 +15,16 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass(frozen=True)
-class GeldstromApiConfigDTO:
+class GeldstromApiConfigDTO(BaseModel):
     """DTO for Geldstrom API configuration response."""
+
+    model_config = ConfigDict(frozen=True)
 
     api_key_masked: str
     endpoint_url: str
     is_active: bool
-    updated_at: Optional[datetime]
-    updated_by_id: Optional[str]
+    last_updated: datetime
+    last_updated_by: str
 
 
 class GetGeldstromApiConfigQuery:
@@ -53,8 +55,8 @@ class GetGeldstromApiConfigQuery:
             api_key_masked=self._mask_api_key(config.api_key),
             endpoint_url=config.endpoint_url,
             is_active=config.is_active,
-            updated_at=config.updated_at,
-            updated_by_id=config.updated_by_id,
+            last_updated=config.updated_at,
+            last_updated_by=config.updated_by_id,
         )
 
     @staticmethod

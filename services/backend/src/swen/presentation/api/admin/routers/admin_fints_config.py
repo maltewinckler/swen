@@ -49,13 +49,7 @@ async def get_local_fints_configuration(
             detail="Local FinTS configuration not set",
         )
 
-    return FinTSConfigResponse(
-        product_id_masked=config.product_id_masked,
-        csv_institute_count=config.csv_institute_count,
-        csv_file_size_kb=config.csv_file_size_bytes // 1024,
-        last_updated=config.updated_at,
-        last_updated_by=config.updated_by_id,
-    )
+    return FinTSConfigResponse.model_validate(config)
 
 
 @router.post(
@@ -130,7 +124,4 @@ async def get_local_fints_configuration_status(
     query = GetFinTSConfigurationStatusQuery.from_factory(factory)
     result = await query.execute()
 
-    return ConfigStatusResponse(
-        is_configured=result.is_configured,
-        message=result.message,
-    )
+    return ConfigStatusResponse.model_validate(result)

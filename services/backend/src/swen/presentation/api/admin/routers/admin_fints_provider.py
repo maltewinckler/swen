@@ -48,13 +48,7 @@ async def get_provider_status(
     query = GetFintsProviderStatusQuery.from_factory(factory)
     result = await query.execute()
 
-    return FintsProviderStatusResponse(
-        local_configured=result.local_configured,
-        local_active=result.local_active,
-        api_configured=result.api_configured,
-        api_active=result.api_active,
-        active_provider=result.active_provider,
-    )
+    return FintsProviderStatusResponse.model_validate(result)
 
 
 @router.get(
@@ -80,13 +74,7 @@ async def get_geldstrom_api_config(
             detail="Geldstrom API not configured",
         )
 
-    return GeldstromApiConfigResponse(
-        api_key_masked=config.api_key_masked,
-        endpoint_url=config.endpoint_url,
-        is_active=config.is_active,
-        last_updated=config.updated_at,
-        last_updated_by=config.updated_by_id,
-    )
+    return GeldstromApiConfigResponse.model_validate(config)
 
 
 @router.put(
