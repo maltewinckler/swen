@@ -9,6 +9,7 @@ from swen.application.accounting.commands import (
     ParentAction,
     UpdateAccountCommand,
 )
+from swen.application.accounting.dtos import CreateAccountDTO, UpdateAccountDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -92,10 +93,12 @@ class TestCreateAccountCommand:
         """Test creating account without parent."""
         # Act
         account = await create_command.execute(
-            name="Groceries",
-            account_type="expense",
-            account_number="4010",
-            description="Food purchases",
+            CreateAccountDTO(
+                name="Groceries",
+                account_type="expense",
+                account_number="4010",
+                description="Food purchases",
+            ),
         )
 
         # Assert
@@ -110,17 +113,21 @@ class TestCreateAccountCommand:
         """Test creating sub-account with parent."""
         # Arrange - Create parent first
         parent = await create_command.execute(
-            name="Food & Drink",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Food & Drink",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act - Create child
         child = await create_command.execute(
-            name="Groceries",
-            account_type="expense",
-            account_number="4010",
-            parent_id=parent.id,
+            CreateAccountDTO(
+                name="Groceries",
+                account_type="expense",
+                account_number="4010",
+                parent_id=parent.id,
+            ),
         )
 
         # Assert
@@ -134,10 +141,12 @@ class TestCreateAccountCommand:
         non_existent_id = uuid4()
         with pytest.raises(AccountNotFoundError):
             await create_command.execute(
-                name="Child",
-                account_type="expense",
-                account_number="4010",
-                parent_id=non_existent_id,
+                CreateAccountDTO(
+                    name="Child",
+                    account_type="expense",
+                    account_number="4010",
+                    parent_id=non_existent_id,
+                ),
             )
 
     @pytest.mark.asyncio
@@ -149,9 +158,11 @@ class TestCreateAccountCommand:
         """Test that child must have same type as parent."""
         # Arrange - Create expense parent
         parent = await create_command.execute(
-            name="Expenses",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Expenses",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert - Try to create asset child
@@ -176,14 +187,18 @@ class TestCreateAccountCommand:
         """Test that circular references are prevented."""
         # Arrange - Create two accounts
         account_a = await create_command.execute(
-            name="Account A",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Account A",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         account_b = await create_command.execute(
-            name="Account B",
-            account_type="expense",
-            account_number="4010",
+            CreateAccountDTO(
+                name="Account B",
+                account_type="expense",
+                account_number="4010",
+            ),
         )
 
         # Make A child of B
@@ -199,30 +214,38 @@ class TestCreateAccountCommand:
         """Test that maximum depth is enforced."""
         # Arrange - Create 3-level hierarchy
         level_0 = await create_command.execute(
-            name="Root",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Root",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         level_1 = await create_command.execute(
-            name="Level 1",
-            account_type="expense",
-            account_number="4010",
-            parent_id=level_0.id,
+            CreateAccountDTO(
+                name="Level 1",
+                account_type="expense",
+                account_number="4010",
+                parent_id=level_0.id,
+            ),
         )
         level_2 = await create_command.execute(
-            name="Level 2",
-            account_type="expense",
-            account_number="4020",
-            parent_id=level_1.id,
+            CreateAccountDTO(
+                name="Level 2",
+                account_type="expense",
+                account_number="4020",
+                parent_id=level_1.id,
+            ),
         )
 
         # Act & Assert - Try to create level 3 (would exceed max depth)
         with pytest.raises(ValidationError, match="Maximum hierarchy depth"):
             await create_command.execute(
-                name="Level 3",
-                account_type="expense",
-                account_number="4030",
-                parent_id=level_2.id,
+                CreateAccountDTO(
+                    name="Level 3",
+                    account_type="expense",
+                    account_number="4030",
+                    parent_id=level_2.id,
+                ),
             )
 
     @pytest.mark.asyncio
@@ -230,21 +253,27 @@ class TestCreateAccountCommand:
         """Test that exactly 3 levels is allowed."""
         # Arrange & Act - Create 3-level hierarchy
         level_0 = await create_command.execute(
-            name="Root",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Root",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         level_1 = await create_command.execute(
-            name="Level 1",
-            account_type="expense",
-            account_number="4010",
-            parent_id=level_0.id,
+            CreateAccountDTO(
+                name="Level 1",
+                account_type="expense",
+                account_number="4010",
+                parent_id=level_0.id,
+            ),
         )
         level_2 = await create_command.execute(
-            name="Level 2",
-            account_type="expense",
-            account_number="4020",
-            parent_id=level_1.id,
+            CreateAccountDTO(
+                name="Level 2",
+                account_type="expense",
+                account_number="4020",
+                parent_id=level_1.id,
+            ),
         )
 
         # Assert - All should be created successfully
@@ -257,17 +286,21 @@ class TestCreateAccountCommand:
         """Test that duplicate account numbers are rejected."""
         # Arrange - Create first account
         await create_command.execute(
-            name="First",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="First",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert - Try to create duplicate
         with pytest.raises(AccountAlreadyExistsError):
             await create_command.execute(
-                name="Second",
-                account_type="expense",
-                account_number="4000",  # Duplicate
+                CreateAccountDTO(
+                    name="Second",
+                    account_type="expense",
+                    account_number="4000",  # Duplicate
+                ),
             )
 
     @pytest.mark.asyncio
@@ -275,17 +308,21 @@ class TestCreateAccountCommand:
         """Test that duplicate names are rejected."""
         # Arrange
         await create_command.execute(
-            name="Groceries",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Groceries",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert
         with pytest.raises(AccountAlreadyExistsError):
             await create_command.execute(
-                name="Groceries",  # Duplicate
-                account_type="expense",
-                account_number="4010",
+                CreateAccountDTO(
+                    name="Groceries",  # Duplicate
+                    account_type="expense",
+                    account_number="4010",
+                ),
             )
 
     @pytest.mark.asyncio
@@ -294,9 +331,11 @@ class TestCreateAccountCommand:
         # Act & Assert
         with pytest.raises(InvalidAccountTypeError):
             await create_command.execute(
-                name="Test",
-                account_type="invalid_type",
-                account_number="4000",
+                CreateAccountDTO(
+                    name="Test",
+                    account_type="invalid_type",
+                    account_number="4000",
+                ),
             )
 
     @pytest.mark.asyncio
@@ -305,10 +344,12 @@ class TestCreateAccountCommand:
         # Act & Assert
         with pytest.raises(InvalidCurrencyError) as exc_info:
             await create_command.execute(
-                name="Test",
-                account_type="expense",
-                account_number="4000",
-                currency="INVALID",
+                CreateAccountDTO(
+                    name="Test",
+                    account_type="expense",
+                    account_number="4000",
+                    currency="INVALID",
+                ),
             )
 
         # Verify error details
@@ -330,23 +371,29 @@ class TestUpdateAccountParentAction:
         """Test that parent_action=KEEP doesn't change the parent."""
         # Arrange - Create parent and child
         parent = await create_command.execute(
-            name="Parent",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Parent",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         child = await create_command.execute(
-            name="Child",
-            account_type="expense",
-            account_number="4010",
-            parent_id=parent.id,
+            CreateAccountDTO(
+                name="Child",
+                account_type="expense",
+                account_number="4010",
+                parent_id=parent.id,
+            ),
         )
         assert child.parent_id == parent.id
 
         # Act - Update name only with KEEP (default)
         updated = await update_command.execute(
-            account_id=child.id,
-            name="Renamed Child",
-            parent_action=ParentAction.KEEP,
+            UpdateAccountDTO(
+                account_id=child.id,
+                name="Renamed Child",
+                parent_action=ParentAction.KEEP,
+            ),
         )
 
         # Assert - Parent should be unchanged
@@ -362,22 +409,28 @@ class TestUpdateAccountParentAction:
         """Test that parent_action defaults to KEEP."""
         # Arrange - Create parent and child
         parent = await create_command.execute(
-            name="Parent",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Parent",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         child = await create_command.execute(
-            name="Child",
-            account_type="expense",
-            account_number="4010",
-            parent_id=parent.id,
+            CreateAccountDTO(
+                name="Child",
+                account_type="expense",
+                account_number="4010",
+                parent_id=parent.id,
+            ),
         )
 
         # Act - Update without specifying parent_action
         updated = await update_command.execute(
-            account_id=child.id,
-            name="Renamed Child",
-            # parent_action not specified - should default to KEEP
+            UpdateAccountDTO(
+                account_id=child.id,
+                name="Renamed Child",
+                # parent_action not specified - should default to KEEP
+            ),
         )
 
         # Assert - Parent should be unchanged
@@ -392,28 +445,36 @@ class TestUpdateAccountParentAction:
         """Test that parent_action=SET changes the parent."""
         # Arrange - Create accounts
         old_parent = await create_command.execute(
-            name="Old Parent",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Old Parent",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         new_parent = await create_command.execute(
-            name="New Parent",
-            account_type="expense",
-            account_number="4001",
+            CreateAccountDTO(
+                name="New Parent",
+                account_type="expense",
+                account_number="4001",
+            ),
         )
         child = await create_command.execute(
-            name="Child",
-            account_type="expense",
-            account_number="4010",
-            parent_id=old_parent.id,
+            CreateAccountDTO(
+                name="Child",
+                account_type="expense",
+                account_number="4010",
+                parent_id=old_parent.id,
+            ),
         )
         assert child.parent_id == old_parent.id
 
         # Act - Change parent with SET
         updated = await update_command.execute(
-            account_id=child.id,
-            parent_id=new_parent.id,
-            parent_action=ParentAction.SET,
+            UpdateAccountDTO(
+                account_id=child.id,
+                parent_id=new_parent.id,
+                parent_action=ParentAction.SET,
+            ),
         )
 
         # Assert - Parent should be changed
@@ -428,17 +489,21 @@ class TestUpdateAccountParentAction:
         """Test that parent_action=SET requires parent_id."""
         # Arrange
         account = await create_command.execute(
-            name="Account",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Account",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert - SET without parent_id should raise
         with pytest.raises(ValueError, match="parent_id is required"):
             await update_command.execute(
-                account_id=account.id,
-                parent_action=ParentAction.SET,
-                # parent_id not provided
+                UpdateAccountDTO(
+                    account_id=account.id,
+                    parent_action=ParentAction.SET,
+                    # parent_id not provided
+                ),
             )
 
     @pytest.mark.asyncio
@@ -450,22 +515,28 @@ class TestUpdateAccountParentAction:
         """Test that parent_action=REMOVE makes account top-level."""
         # Arrange - Create parent and child
         parent = await create_command.execute(
-            name="Parent",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Parent",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         child = await create_command.execute(
-            name="Child",
-            account_type="expense",
-            account_number="4010",
-            parent_id=parent.id,
+            CreateAccountDTO(
+                name="Child",
+                account_type="expense",
+                account_number="4010",
+                parent_id=parent.id,
+            ),
         )
         assert child.parent_id == parent.id
 
         # Act - Remove parent
         updated = await update_command.execute(
-            account_id=child.id,
-            parent_action=ParentAction.REMOVE,
+            UpdateAccountDTO(
+                account_id=child.id,
+                parent_action=ParentAction.REMOVE,
+            ),
         )
 
         # Assert - Should be top-level now
@@ -480,16 +551,20 @@ class TestUpdateAccountParentAction:
         """Test that REMOVE on already top-level account is safe."""
         # Arrange - Create top-level account
         account = await create_command.execute(
-            name="Top Level",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Top Level",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         assert account.parent_id is None
 
         # Act - Remove parent (already None)
         updated = await update_command.execute(
-            account_id=account.id,
-            parent_action=ParentAction.REMOVE,
+            UpdateAccountDTO(
+                account_id=account.id,
+                parent_action=ParentAction.REMOVE,
+            ),
         )
 
         # Assert - Still top-level, no error
@@ -504,23 +579,29 @@ class TestUpdateAccountParentAction:
         """Test that SET validates hierarchy constraints."""
         # Arrange - Create child and would-be parent
         child = await create_command.execute(
-            name="Child",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Child",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         # Create asset account (different type)
         asset_account = await create_command.execute(
-            name="Asset",
-            account_type="asset",
-            account_number="1000",
+            CreateAccountDTO(
+                name="Asset",
+                account_type="asset",
+                account_number="1000",
+            ),
         )
 
         # Act & Assert - Can't set parent of different type
         with pytest.raises(Exception):  # ValidationError from domain
             await update_command.execute(
-                account_id=child.id,
-                parent_id=asset_account.id,
-                parent_action=ParentAction.SET,
+                UpdateAccountDTO(
+                    account_id=child.id,
+                    parent_id=asset_account.id,
+                    parent_action=ParentAction.SET,
+                ),
             )
 
 
@@ -536,16 +617,20 @@ class TestUpdateAccountNumber:
         """Test successfully changing an account number."""
         # Arrange
         account = await create_command.execute(
-            name="Groceries",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Groceries",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         assert account.account_number == "4000"
 
         # Act
         updated = await update_command.execute(
-            account_id=account.id,
-            account_number="4100",
+            UpdateAccountDTO(
+                account_id=account.id,
+                account_number="4100",
+            ),
         )
 
         # Assert
@@ -561,21 +646,27 @@ class TestUpdateAccountNumber:
         """Test that changing to an existing account number raises error."""
         # Arrange - Create two accounts
         account1 = await create_command.execute(
-            name="Account 1",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Account 1",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
         account2 = await create_command.execute(
-            name="Account 2",
-            account_type="expense",
-            account_number="4100",
+            CreateAccountDTO(
+                name="Account 2",
+                account_type="expense",
+                account_number="4100",
+            ),
         )
 
         # Act & Assert - Try to change account2's number to account1's
         with pytest.raises(AccountAlreadyExistsError):
             await update_command.execute(
-                account_id=account2.id,
-                account_number="4000",  # Duplicate
+                UpdateAccountDTO(
+                    account_id=account2.id,
+                    account_number="4000",  # Duplicate
+                ),
             )
 
     @pytest.mark.asyncio
@@ -587,15 +678,19 @@ class TestUpdateAccountNumber:
         """Test that updating with same account number doesn't raise error."""
         # Arrange
         account = await create_command.execute(
-            name="Test",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Test",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act - Update with same number (no-op)
         updated = await update_command.execute(
-            account_id=account.id,
-            account_number="4000",  # Same as current
+            UpdateAccountDTO(
+                account_id=account.id,
+                account_number="4000",  # Same as current
+            ),
         )
 
         # Assert - Should succeed
@@ -610,16 +705,20 @@ class TestUpdateAccountNumber:
         """Test that empty account number raises ValidationError."""
         # Arrange
         account = await create_command.execute(
-            name="Test",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Test",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert
         with pytest.raises(ValidationError, match="cannot be empty"):
             await update_command.execute(
-                account_id=account.id,
-                account_number="",
+                UpdateAccountDTO(
+                    account_id=account.id,
+                    account_number="",
+                ),
             )
 
     @pytest.mark.asyncio
@@ -631,16 +730,20 @@ class TestUpdateAccountNumber:
         """Test that whitespace-only account number raises ValidationError."""
         # Arrange
         account = await create_command.execute(
-            name="Test",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Test",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act & Assert
         with pytest.raises(ValidationError, match="cannot be empty"):
             await update_command.execute(
-                account_id=account.id,
-                account_number="   ",
+                UpdateAccountDTO(
+                    account_id=account.id,
+                    account_number="   ",
+                ),
             )
 
     @pytest.mark.asyncio
@@ -652,16 +755,20 @@ class TestUpdateAccountNumber:
         """Test updating account number and name in a single call."""
         # Arrange
         account = await create_command.execute(
-            name="Old Name",
-            account_type="expense",
-            account_number="4000",
+            CreateAccountDTO(
+                name="Old Name",
+                account_type="expense",
+                account_number="4000",
+            ),
         )
 
         # Act
         updated = await update_command.execute(
-            account_id=account.id,
-            name="New Name",
-            account_number="4100",
+            UpdateAccountDTO(
+                account_id=account.id,
+                name="New Name",
+                account_number="4100",
+            ),
         )
 
         # Assert

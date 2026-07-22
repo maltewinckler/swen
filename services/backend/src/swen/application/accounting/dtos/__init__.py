@@ -7,6 +7,9 @@ from swen.application.accounting.dtos.chart_of_accounts_dto import (
     AccountSummaryDTO,
     BankAccountDTO,
     ChartOfAccountsDTO,
+    CreateAccountDTO,
+    ParentAction,
+    UpdateAccountDTO,
 )
 from swen.application.accounting.dtos.reclassify_dto import (
     ReclassifiedTransactionDetail,
@@ -18,6 +21,7 @@ from swen.application.accounting.dtos.reclassify_dto import (
     ReclassifyTransactionEvent,
 )
 from swen.application.accounting.dtos.transaction_list_dto import (
+    TransactionListFilterDTO,
     TransactionListItemDTO,
     TransactionListResultDTO,
 )
@@ -35,8 +39,10 @@ __all__ = [
     "AccountSummaryDTO",
     "BankAccountDTO",
     "ChartOfAccountsDTO",
+    "CreateAccountDTO",
     "JournalEntryDTO",
     "JournalEntryToCreateDTO",
+    "ParentAction",
     "ReclassifiedTransactionDetail",
     "ReclassifyCompletedEvent",
     "ReclassifyFailedEvent",
@@ -46,8 +52,10 @@ __all__ = [
     "ReclassifyTransactionEvent",
     "SimpleTransactionToCreateDTO",
     "TransactionDTO",
+    "TransactionListFilterDTO",
     "TransactionListItemDTO",
     "TransactionListResultDTO",
     "TransactionToEditDTO",
     "TransactionToCreateDTO",
+    "UpdateAccountDTO",
 ]

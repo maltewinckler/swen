@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from swen.application.integration.commands import CreateExternalAccountCommand
+from swen.application.integration.dtos import CreateExternalAccountDTO
 from swen.application.integration.queries import (
     ListAccountMappingsQuery,
 )
@@ -122,13 +123,11 @@ async def create_external_account_mapping(
     )
 
     try:
-        result = await command.execute(
-            iban=request.iban,
-            name=request.name,
-            currency=request.currency,
+        dto = CreateExternalAccountDTO(
+            **request.model_dump(exclude={"account_type"}),
             account_type=domain_account_type,
-            reconcile=request.reconcile,
         )
+        result = await command.execute(dto)
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()

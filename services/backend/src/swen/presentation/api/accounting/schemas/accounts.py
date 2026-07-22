@@ -6,11 +6,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from swen.application.accounting.commands import ParentAction
 from swen.application.accounting.dtos import (
     AccountStatsDTO,
     AccountSummaryDTO,
     BankAccountDTO,
+    ParentAction,
 )
 from swen.application.accounting.queries import AccountListDTO
 

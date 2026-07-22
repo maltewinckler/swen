@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from swen.domain.accounting.entities import AccountType
+
 
 class AccountMappingDTO(BaseModel):
     """DTO for a single account mapping with resolved account info.
@@ -38,6 +40,16 @@ class AccountMappingListDTO(BaseModel):
 
     mappings: list[AccountMappingDTO]
     count: int
+
+
+class CreateExternalAccountDTO(BaseModel):
+    """Input for creating or finding an external account mapping."""
+
+    iban: str
+    name: str
+    currency: str = "EUR"
+    account_type: AccountType = AccountType.ASSET
+    reconcile: bool = True
 
 
 class ExternalAccountCreatedDTO(BaseModel):

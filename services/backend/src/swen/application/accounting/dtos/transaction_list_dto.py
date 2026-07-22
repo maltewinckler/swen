@@ -62,6 +62,17 @@ class TransactionListItemDTO(BaseModel):
         )
 
 
+class TransactionListFilterDTO(BaseModel):
+    """Filter and pagination parameters for listing transactions."""
+
+    page: int = 1
+    page_size: int = 50
+    status_filter: Optional[str] = None
+    iban_filter: Optional[str] = None
+    show_drafts: bool = True
+    exclude_transfers: Optional[bool] = None
+
+
 class TransactionListResultDTO(BaseModel):
     """Result of listing transactions."""
 

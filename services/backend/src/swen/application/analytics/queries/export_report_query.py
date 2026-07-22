@@ -14,6 +14,7 @@ from swen.application.analytics.dtos.export_report_dto import (
     AccountBalanceSummaryDTO,
     DashboardSummaryDTO,
     ExportReportDataDTO,
+    ExportReportFilterDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
 )
@@ -57,33 +58,28 @@ class ExportReportQuery:
 
     async def execute(
         self,
-        *,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        days: int | None = None,
-        month: str | None = None,
-        include_drafts: bool = True,
+        filters: ExportReportFilterDTO,
     ) -> ExportReportDataDTO:
         """Execute query to gather all report data."""
         effective_start, effective_end, period_label = self._resolve_date_range(
-            start_date=start_date,
-            end_date=end_date,
-            days=days,
-            month=month,
+            start_date=filters.start_date,
+            end_date=filters.end_date,
+            days=filters.days,
+            month=filters.month,
         )
 
         summary = await self._build_summary(
             start_date=effective_start,
             end_date=effective_end,
             period_label=period_label,
-            month=month,
-            include_drafts=include_drafts,
+            month=filters.month,
+            include_drafts=filters.include_drafts,
         )
 
         transactions = await self._fetch_transactions(
             start_date=effective_start,
             end_date=effective_end,
-            include_drafts=include_drafts,
+            include_drafts=filters.include_drafts,
         )
 
         accounts = await self._fetch_accounts()

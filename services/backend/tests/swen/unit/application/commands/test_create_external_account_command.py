@@ -6,7 +6,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from swen.application.integration.commands import CreateExternalAccountCommand
-from swen.application.integration.dtos import ExternalAccountCreatedDTO
+from swen.application.integration.dtos import (
+    CreateExternalAccountDTO,
+    ExternalAccountCreatedDTO,
+)
 from swen.domain.accounting.entities import AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.domain.integration.services import ExternalAccountManagementService
@@ -71,11 +74,13 @@ class TestCreateExternalAccountCommand:
 
         # Act
         result = await command.execute(
-            iban=TEST_IBAN,
-            name="Test Account",
-            currency="EUR",
-            account_type=AccountType.ASSET,
-            reconcile=True,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="Test Account",
+                currency="EUR",
+                account_type=AccountType.ASSET,
+                reconcile=True,
+            ),
         )
 
         # Assert
@@ -117,11 +122,13 @@ class TestCreateExternalAccountCommand:
         )
 
         result = await command.execute(
-            iban=TEST_IBAN,
-            name="Test",
-            currency="EUR",
-            account_type=AccountType.ASSET,
-            reconcile=True,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="Test",
+                currency="EUR",
+                account_type=AccountType.ASSET,
+                reconcile=True,
+            ),
         )
 
         assert result.mapping.iban == TEST_IBAN
@@ -159,11 +166,13 @@ class TestCreateExternalAccountCommand:
 
         # Act - reconcile=False
         await command.execute(
-            iban=TEST_IBAN,
-            name="Test",
-            currency="EUR",
-            account_type=AccountType.ASSET,
-            reconcile=False,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="Test",
+                currency="EUR",
+                account_type=AccountType.ASSET,
+                reconcile=False,
+            ),
         )
 
         # Assert
@@ -202,11 +211,13 @@ class TestCreateExternalAccountCommandLiability:
 
         # Act
         await command.execute(
-            iban=TEST_IBAN,
-            name="Credit Card",
-            currency="EUR",
-            account_type=AccountType.LIABILITY,
-            reconcile=True,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="Credit Card",
+                currency="EUR",
+                account_type=AccountType.LIABILITY,
+                reconcile=True,
+            ),
         )
 
         # Assert
@@ -279,11 +290,13 @@ class TestCreateExternalAccountCommandDTOMapping:
         )
 
         result = await command.execute(
-            iban=TEST_IBAN,
-            name="Test",
-            currency="EUR",
-            account_type=AccountType.ASSET,
-            reconcile=False,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="Test",
+                currency="EUR",
+                account_type=AccountType.ASSET,
+                reconcile=False,
+            ),
         )
 
         assert result.mapping.created_at is None
@@ -315,11 +328,13 @@ class TestCreateExternalAccountCommandDTOMapping:
         )
 
         await command.execute(
-            iban=TEST_IBAN,
-            name="US Account",
-            currency="USD",
-            account_type=AccountType.ASSET,
-            reconcile=False,
+            CreateExternalAccountDTO(
+                iban=TEST_IBAN,
+                name="US Account",
+                currency="USD",
+                account_type=AccountType.ASSET,
+                reconcile=False,
+            ),
         )
 
         call_args = mgmt_service.create_or_find_external_account.call_args

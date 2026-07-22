@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 from swen.application.integration.dtos import (
     AccountMappingDTO,
+    CreateExternalAccountDTO,
     ExternalAccountCreatedDTO,
 )
-from swen.domain.accounting.entities import AccountType
 from swen.domain.integration.services import ExternalAccountManagementService
 
 if TYPE_CHECKING:
@@ -46,14 +46,7 @@ class CreateExternalAccountCommand:
             ),
         )
 
-    async def execute(
-        self,
-        iban: str,
-        name: str,
-        currency: str = "EUR",
-        account_type: AccountType = AccountType.ASSET,
-        reconcile: bool = True,
-    ) -> ExternalAccountCreatedDTO:
+    async def execute(self, dto: CreateExternalAccountDTO) -> ExternalAccountCreatedDTO:
         """Execute the command.
 
         Validates inputs, delegates to the domain service, and maps
@@ -65,11 +58,11 @@ class CreateExternalAccountCommand:
         """
         # Delegate to domain service
         result = await self._management_service.create_or_find_external_account(
-            iban=iban,
-            name=name,
-            currency=currency,
-            account_type=account_type,
-            reconcile=reconcile,
+            iban=dto.iban,
+            name=dto.name,
+            currency=dto.currency,
+            account_type=dto.account_type,
+            reconcile=dto.reconcile,
         )
 
         # Map to DTO

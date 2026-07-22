@@ -5,13 +5,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen.infrastructure.banking.local_fints.models.config import UpdateConfigResult
+from pydantic import BaseModel, ConfigDict
+
 from swen.infrastructure.banking.local_fints.services.configuration_service import (
     FinTSConfigurationService,
 )
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+
+
+class UpdateConfigResultDTO(BaseModel):
+    """Result of a local FinTS configuration update."""
+
+    model_config = ConfigDict(frozen=True)
+
+    institute_count: int | None = None
+    file_size_bytes: int | None = None
 
 
 class UpdateLocalFinTSConfigCommand:
@@ -49,10 +59,14 @@ class UpdateLocalFinTSConfigCommand:
         self,
         product_id: str | None = None,
         csv_content: bytes | None = None,
-    ) -> UpdateConfigResult:
+    ) -> UpdateConfigResultDTO:
         """Upsert configuration and repopulate bank tables if CSV was provided."""
-        return await self._service.update_configuration(
+        result = await self._service.update_configuration(
             admin_user_id=self._admin_user_id,
             product_id=product_id,
             csv_content=csv_content,
+        )
+        return UpdateConfigResultDTO(
+            institute_count=result.institute_count,
+            file_size_bytes=result.file_size_bytes,
         )

@@ -22,6 +22,7 @@ from swen.application.accounting.commands import (
 from swen.application.accounting.dtos import (
     ReclassifyResultDTO,
     SimpleTransactionToCreateDTO,
+    TransactionListFilterDTO,
     TransactionToCreateDTO,
     TransactionToEditDTO,
 )
@@ -100,7 +101,7 @@ async def list_transactions(
         account_repository=factory.account_repository(),
     )
 
-    result = await query.execute(
+    filters = TransactionListFilterDTO(
         page=page,
         page_size=_PAGE_SIZE,
         status_filter=status_filter,
@@ -108,13 +109,8 @@ async def list_transactions(
         exclude_transfers=exclude_transfers,
     )
 
-    dto_result = await query.get_transaction_list(
-        page=page,
-        page_size=_PAGE_SIZE,
-        status_filter=status_filter,
-        iban_filter=account_number,
-        exclude_transfers=exclude_transfers,
-    )
+    result = await query.execute(filters)
+    dto_result = await query.get_transaction_list(filters)
 
     total_pages = (result.filtered_count + _PAGE_SIZE - 1) // _PAGE_SIZE
 

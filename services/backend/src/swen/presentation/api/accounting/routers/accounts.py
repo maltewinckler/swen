@@ -8,11 +8,14 @@ from swen.application.accounting.commands import (
     CreateAccountCommand,
     DeactivateAccountCommand,
     DeleteAccountCommand,
-    ParentAction,
     ReactivateAccountCommand,
     UpdateAccountCommand,
 )
-from swen.application.accounting.dtos import AccountSummaryDTO
+from swen.application.accounting.dtos import (
+    AccountSummaryDTO,
+    CreateAccountDTO,
+    UpdateAccountDTO,
+)
 from swen.application.accounting.queries import (
     AccountStatsQuery,
     ListAccountsQuery,
@@ -103,14 +106,7 @@ async def create_account(
     command = CreateAccountCommand.from_factory(factory, ml_client=ml_client)
 
     try:
-        account = await command.execute(
-            name=request.name,
-            account_type=request.account_type,
-            account_number=request.account_number,
-            currency=request.currency,
-            description=request.description,
-            parent_id=request.parent_id,
-        )
+        account = await command.execute(CreateAccountDTO(**request.model_dump()))
         await factory.session.commit()
     except Exception:
         await factory.session.rollback()
@@ -215,17 +211,9 @@ async def update_account(
     """
     command = UpdateAccountCommand.from_factory(factory, ml_client=ml_client)
 
-    # Map API enum to application enum (same values, ensures decoupling)
-    parent_action = ParentAction(request.parent_action.value)
-
     try:
         account = await command.execute(
-            account_id=account_id,
-            name=request.name,
-            account_number=request.account_number,
-            description=request.description,
-            parent_id=request.parent_id,
-            parent_action=parent_action,
+            UpdateAccountDTO(account_id=account_id, **request.model_dump()),
         )
         await factory.session.commit()
     except Exception:

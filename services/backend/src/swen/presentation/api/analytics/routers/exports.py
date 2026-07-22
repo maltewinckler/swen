@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
+from swen.application.analytics.dtos.export_report_dto import ExportReportFilterDTO
 from swen.application.analytics.queries import ExportDataQuery
 from swen.application.analytics.queries.export_report_query import ExportReportQuery
 from swen.domain.shared.time import utc_now
@@ -210,13 +211,14 @@ async def export_excel_report(  # noqa: PLR0913
 
     # Execute query with date parameters
     # days=0 means "not specified" (use other params or all time)
-    data = await query.execute(
+    filters = ExportReportFilterDTO(
         start_date=start_date,
         end_date=end_date,
         days=days if days > 0 else None,
         month=month,
         include_drafts=include_drafts,
     )
+    data = await query.execute(filters)
 
     # Generate Excel file
     generator = ExcelReportGenerator()

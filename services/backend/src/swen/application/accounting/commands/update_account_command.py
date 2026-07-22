@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from swen_ml_contracts import AccountOption
 
+from swen.application.accounting.dtos.chart_of_accounts_dto import (
+    ParentAction,
+    UpdateAccountDTO,
+)
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -24,14 +27,6 @@ if TYPE_CHECKING:
     from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
-
-
-class ParentAction(str, Enum):
-    """Action to take on the account's parent relationship."""
-
-    KEEP = "keep"
-    SET = "set"
-    REMOVE = "remove"
 
 
 class UpdateAccountCommand:
@@ -62,27 +57,19 @@ class UpdateAccountCommand:
             ml_client=ml_client,
         )
 
-    async def execute(  # noqa: PLR0913
-        self,
-        account_id: UUID,
-        name: str | None = None,
-        account_number: str | None = None,
-        description: str | None = None,
-        parent_id: UUID | None = None,
-        parent_action: ParentAction = ParentAction.KEEP,
-    ) -> Account:
-        account = await self._get_account(account_id)
+    async def execute(self, dto: UpdateAccountDTO) -> Account:
+        account = await self._get_account(dto.account_id)
 
-        if name is not None:
-            await self._update_name(account, name)
+        if dto.name is not None:
+            await self._update_name(account, dto.name)
 
-        if account_number is not None:
-            await self._update_account_number(account, account_number)
+        if dto.account_number is not None:
+            await self._update_account_number(account, dto.account_number)
 
-        if description is not None:
-            account.set_description(description)
+        if dto.description is not None:
+            account.set_description(dto.description)
 
-        await self._handle_parent_action(account, parent_id, parent_action)
+        await self._handle_parent_action(account, dto.parent_id, dto.parent_action)
 
         await self._account_repo.save(account)
 

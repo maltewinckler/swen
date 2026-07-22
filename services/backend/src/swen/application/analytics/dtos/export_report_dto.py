@@ -16,6 +16,16 @@ from swen.application.analytics.dtos.export_dto import (
 )
 
 
+class ExportReportFilterDTO(BaseModel):
+    """Date-range and content filters for Excel report generation."""
+
+    start_date: date | None = None
+    end_date: date | None = None
+    days: int | None = None
+    month: str | None = None
+    include_drafts: bool = True
+
+
 class AccountBalanceSummaryDTO(BaseModel):
     """Account balance for dashboard overview."""
 
