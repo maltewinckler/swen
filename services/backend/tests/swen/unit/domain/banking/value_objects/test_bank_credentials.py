@@ -1,8 +1,5 @@
 """Unit tests for BankCredentials value object."""
 
-import os
-from unittest.mock import patch
-
 import pytest
 from pydantic import ValidationError
 
@@ -192,51 +189,6 @@ class TestBankCredentialsImmutability:
         assert creds.blz == "12345678"
         assert creds.username.get_value() == "user"
         assert creds.pin.get_value() == "1234"
-
-
-class TestBankCredentialsFromEnv:
-    """Test from_env factory method."""
-
-    def test_from_env_with_valid_variables(self):
-        """Should load from environment variables."""
-        env_vars = {
-            "FINTS_USERNAME": "test_user",
-            "FINTS_PIN": "test_pin",
-        }
-
-        with patch.dict(os.environ, env_vars):
-            creds = BankCredentials.from_env(
-                blz="12345678",
-            )
-
-            assert creds.username.get_value() == "test_user"
-            assert creds.pin.get_value() == "test_pin"
-
-    def test_from_env_with_missing_username(self):
-        """Should raise error if FINTS_USERNAME not set."""
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            pytest.raises(
-                ValueError,
-                match="not found",
-            ),
-        ):
-            BankCredentials.from_env(
-                blz="12345678",
-            )
-
-    def test_from_env_with_missing_pin(self):
-        """Should raise error if FINTS_PIN not set."""
-        with (
-            patch.dict(os.environ, {"FINTS_USERNAME": "user"}, clear=True),
-            pytest.raises(
-                ValueError,
-                match="not found",
-            ),
-        ):
-            BankCredentials.from_env(
-                blz="12345678",
-            )
 
 
 class TestBankCredentialsRealWorld:

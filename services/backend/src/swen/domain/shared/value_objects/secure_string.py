@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -78,19 +77,6 @@ class SecureString:
     def is_empty(self) -> bool:
         """Check if empty without exposing value."""
         return len(self._value) == 0
-
-    @classmethod
-    def from_env(cls, env_var_name: str) -> "SecureString":
-        """
-        Create SecureString from environment variable.
-
-        Raises ValueError if not found.
-        """
-        value = os.getenv(env_var_name)
-        if value is None:
-            msg = f"Environment variable {env_var_name} not found"
-            raise ValueError(msg)
-        return cls(value)
 
     @classmethod
     def __get_pydantic_core_schema__(
