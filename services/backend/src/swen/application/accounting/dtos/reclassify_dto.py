@@ -77,7 +77,7 @@ class ReclassifyFailedEvent(SyncProgressEvent):
     )
 
 
-class ReclassifiedTransactionDetail(BaseModel):
+class ReclassifiedTransactionDetailDTO(BaseModel):
     """Detail of a single reclassified transaction."""
 
     model_config = ConfigDict(frozen=True)
@@ -99,4 +99,4 @@ class ReclassifyResultDTO(BaseModel):
     reclassified_count: int
     unchanged_count: int
     failed_count: int
-    details: tuple[ReclassifiedTransactionDetail, ...] = ()
+    details: tuple[ReclassifiedTransactionDetailDTO, ...] = ()

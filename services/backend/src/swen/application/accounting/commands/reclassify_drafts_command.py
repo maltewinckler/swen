@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 from swen.application.accounting.dtos import (
-    ReclassifiedTransactionDetail,
+    ReclassifiedTransactionDetailDTO,
     ReclassifyCompletedEvent,
     ReclassifyFailedEvent,
     ReclassifyProgressEvent,
@@ -64,7 +64,7 @@ class _ReclassificationSummary:
     reclassified: int
     unchanged: int
     failed: int
-    details: tuple[ReclassifiedTransactionDetail, ...]
+    details: tuple[ReclassifiedTransactionDetailDTO, ...]
 
 
 class ReclassifyDraftsCommand:
@@ -166,9 +166,7 @@ class ReclassifyDraftsCommand:
 
         for batch_start in range(0, total, self.BATCH_SIZE):
             batch = inputs[batch_start : batch_start + self.BATCH_SIZE]
-            resolved = await self._batch_service.resolve_batch(
-                cast(list, batch),
-            )
+            resolved = await self._batch_service.resolve_batch(cast(list, batch))
             all_resolved.update(resolved)
             yield ReclassifyProgressEvent(
                 current=min(batch_start + len(batch), total),
@@ -283,7 +281,7 @@ class ReclassifyDraftsCommand:
         reclassified = 0
         unchanged = 0
         failed = 0
-        details: list[ReclassifiedTransactionDetail] = []
+        details: list[ReclassifiedTransactionDetailDTO] = []
 
         for index, txn in enumerate(drafts, 1):
             resolved_item = resolved.get(txn.id)
@@ -326,7 +324,7 @@ class ReclassifyDraftsCommand:
         self,
         txn: Transaction,
         resolved_item: ResolvedCounterAccount,
-    ) -> ReclassifiedTransactionDetail | None:
+    ) -> ReclassifiedTransactionDetailDTO | None:
         """Apply classification to a draft, returning detail if changed."""
         new_account = resolved_item.account
 
@@ -349,7 +347,7 @@ class ReclassifyDraftsCommand:
 
         await self._transaction_repo.save(txn)
 
-        return ReclassifiedTransactionDetail(
+        return ReclassifiedTransactionDetailDTO(
             transaction_id=txn.id,
             old_account_number=old_account.account_number if old_account else "",
             old_account_name=old_account.name if old_account else "",

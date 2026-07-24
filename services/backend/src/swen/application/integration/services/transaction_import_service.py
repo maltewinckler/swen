@@ -55,8 +55,12 @@ if TYPE_CHECKING:
     from swen.domain.shared.current_user import CurrentUser
 
 
-class TransactionImportResult(BaseModel):
-    """Result of a single transaction import attempt."""
+class TransactionImportOutcome(BaseModel):
+    """Result of a single transaction import attempt.
+
+    Deliberately *not* a DTO: it carries domain objects and is passed between
+    application services only (import -> sync). It must never reach presentation.
+    """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
@@ -150,7 +154,7 @@ class TransactionImportService:
         source_iban: str,
         resolved: dict[UUID, ResolvedCounterAccount],
         auto_post: bool = False,
-    ) -> list[TransactionImportResult]:
+    ) -> list[TransactionImportOutcome]:
         """Import a batch of transactions with pre-resolved counter-accounts.
 
         Parameters
@@ -167,10 +171,10 @@ class TransactionImportService:
 
         Returns
         -------
-        list[TransactionImportResult]
+        list[TransactionImportOutcome]
             One result per input transaction.
         """
-        results: list[TransactionImportResult] = []
+        results: list[TransactionImportOutcome] = []
         logger.debug(
             "import_batch: %d txns, %d resolved",
             len(stored_transactions),
@@ -193,12 +197,12 @@ class TransactionImportService:
         source_iban: str,
         resolved_item: ResolvedCounterAccount,
         auto_post: bool = False,
-    ) -> TransactionImportResult:
+    ) -> TransactionImportOutcome:
         """Import a single stored transaction with a resolved counter-account."""
         bank_transaction = stored.transaction
 
         if await self._is_already_imported(stored.id):
-            return TransactionImportResult(
+            return TransactionImportOutcome(
                 bank_transaction=bank_transaction,
                 status=ImportStatus.DUPLICATE,
                 error_message="Transaction already imported",
@@ -233,7 +237,7 @@ class TransactionImportService:
         import_record: TransactionImport,
         resolved_item: ResolvedCounterAccount,
         auto_post: bool,
-    ) -> TransactionImportResult:
+    ) -> TransactionImportOutcome:
         """Process a single import.
 
         Uses the pre-resolved counter-account, creates accounting
@@ -284,7 +288,7 @@ class TransactionImportService:
             ob_adjustment=ob_adjustment,
         )
 
-        return TransactionImportResult(
+        return TransactionImportOutcome(
             bank_transaction=bank_transaction,
             status=ImportStatus.SUCCESS,
             accounting_transaction=accounting_tx,
@@ -294,7 +298,7 @@ class TransactionImportService:
         self,
         bank_transaction: BankTransaction,
         import_record: TransactionImport,
-    ) -> TransactionImportResult | None:
+    ) -> TransactionImportOutcome | None:
         skip_reason = None
 
         if bank_transaction.amount == 0:
@@ -305,7 +309,7 @@ class TransactionImportService:
         if skip_reason:
             import_record.mark_as_skipped(skip_reason)
             await self._import_repo.save(import_record)
-            return TransactionImportResult(
+            return TransactionImportOutcome(
                 bank_transaction=bank_transaction,
                 status=ImportStatus.SKIPPED,
                 error_message=skip_reason,
@@ -326,7 +330,7 @@ class TransactionImportService:
         counterparty_iban: str,
         asset_account: Account,
         import_record: TransactionImport,
-    ) -> TransactionImportResult | None:
+    ) -> TransactionImportOutcome | None:
         existing = await self._transfer_service.find_matching_transfer(
             bank_transaction=bank_transaction,
             source_iban=source_iban,
@@ -343,7 +347,7 @@ class TransactionImportService:
                 "Transfer already imported from other account: %s",
                 existing.id,
             )
-            return TransactionImportResult(
+            return TransactionImportOutcome(
                 bank_transaction=bank_transaction,
                 status=ImportStatus.DUPLICATE,
                 accounting_transaction=existing,
@@ -361,7 +365,7 @@ class TransactionImportService:
             "Reconciled existing transaction %s as internal transfer",
             existing.id,
         )
-        return TransactionImportResult(
+        return TransactionImportOutcome(
             bank_transaction=bank_transaction,
             status=ImportStatus.SUCCESS,
             accounting_transaction=existing,
@@ -374,12 +378,12 @@ class TransactionImportService:
         bank_transaction: BankTransaction,
         import_record: TransactionImport,
         error: Exception,
-    ) -> TransactionImportResult:
+    ) -> TransactionImportOutcome:
         error_msg = f"Import failed: {error!s}"
         import_record.mark_as_failed(error_msg)
         await self._import_repo.save(import_record)
 
-        return TransactionImportResult(
+        return TransactionImportOutcome(
             bank_transaction=bank_transaction,
             status=ImportStatus.FAILED,
             error_message=error_msg,
@@ -420,7 +424,7 @@ class TransactionImportService:
 
     @staticmethod
     def compute_stats(
-        import_results: list[TransactionImportResult],
+        import_results: list[TransactionImportOutcome],
     ) -> tuple[int, int, int]:
         imported = skipped = failed = 0
         for result in import_results:

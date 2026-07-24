@@ -2,8 +2,8 @@
 
 from swen.application.system.queries.database_integrity_query import (
     DatabaseIntegrityQuery,
-    IntegrityCheckResult,
-    IntegrityIssue,
+    IntegrityCheckResultDTO,
+    IntegrityIssueDTO,
     IssueSeverity,
     IssueType,
 )
@@ -34,8 +34,8 @@ __all__ = [
     "GetFinTSConfigurationStatusQuery",
     "GetFintsProviderStatusQuery",
     "GetGeldstromApiConfigQuery",
-    "IntegrityCheckResult",
-    "IntegrityIssue",
+    "IntegrityCheckResultDTO",
+    "IntegrityIssueDTO",
     "IssueSeverity",
     "IssueType",
 ]
