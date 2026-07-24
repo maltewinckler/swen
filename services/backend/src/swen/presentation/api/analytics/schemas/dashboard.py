@@ -1,104 +1,25 @@
 """Dashboard schemas for API request/response models."""
 
-from datetime import datetime
 from decimal import Decimal
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, computed_field
 
-
-class AccountBalanceResponse(BaseModel):
-    """Response schema for account balance."""
-
-    id: UUID = Field(..., description="Account unique identifier")
-    name: str = Field(..., description="Account display name")
-    balance: Decimal = Field(..., description="Current calculated balance")
-    currency: str = Field(..., description="ISO 4217 currency code")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "name": "DKB Checking Account",
-                "balance": "2543.67",
-                "currency": "EUR",
-            },
-        },
-    )
+from swen.application.analytics.dtos import (
+    AccountBalanceDTO,
+    CategorySpendingDTO,
+    DashboardSummaryDTO,
+)
 
 
-class CategorySpendingResponse(BaseModel):
-    """Response schema for spending by category (expense account)."""
-
-    category: str = Field(..., description="Expense account name")
-    amount: Decimal = Field(..., description="Total spending amount in this category")
-    currency: str = Field(default="EUR", description="ISO 4217 currency code")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "category": "Groceries",
-                "amount": "345.67",
-                "currency": "EUR",
-            },
-        },
-    )
-
-
-class RecentTransactionResponse(BaseModel):
-    """Response schema for recent transaction in dashboard (simplified view)."""
-
-    id: UUID = Field(..., description="Transaction unique identifier")
-    date: datetime = Field(..., description="Transaction date")
-    description: str = Field(..., description="Transaction description")
-    amount: Decimal = Field(..., description="Transaction amount (always positive)")
-    currency: str = Field(..., description="ISO 4217 currency code")
-    is_income: bool = Field(
-        ...,
-        description="Direction: True = income, False = expense",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "date": "2024-12-05T14:30:00Z",
-                "description": "REWE Supermarket",
-                "amount": "45.99",
-                "currency": "EUR",
-                "is_income": False,
-            },
-        },
-    )
-
-
-class DashboardSummaryResponse(BaseModel):
+class DashboardSummaryResponse(DashboardSummaryDTO):
     """Comprehensive financial dashboard summary.
 
     Provides a complete overview of financial status including
     income/expenses, balances, spending breakdown, and recent activity.
     """
 
-    period_label: str = Field(..., description="Readable (e.g. December 2024)")
-    total_income: Decimal = Field(..., description="Total income for the period")
-    total_expenses: Decimal = Field(..., description="Total expenses for the period")
-    net_income: Decimal = Field(..., description="Net income (income - expenses)")
-    account_balances: list[AccountBalanceResponse] = Field(
-        ...,
-        description="Current balances of all asset accounts",
-    )
-    category_spending: list[CategorySpendingResponse] = Field(
-        ...,
-        description="Spending breakdown by expense category (sorted by amount)",
-    )
-    recent_transactions: list[RecentTransactionResponse] = Field(
-        ...,
-        description="Most recent transactions (up to 10)",
-    )
-    draft_count: int = Field(..., description="Transactions pending review")
-    posted_count: int = Field(..., description="Finalized transactions in period")
-
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "period_label": "December 2024",
@@ -159,7 +80,7 @@ class SpendingBreakdownResponse(BaseModel):
 
     period_label: str
     total_spending: Decimal
-    categories: list[CategorySpendingResponse]
+    categories: list[CategorySpendingDTO]
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -185,11 +106,13 @@ class SpendingBreakdownResponse(BaseModel):
 class BalancesResponse(BaseModel):
     """Current balances for all asset accounts."""
 
-    balances: list[AccountBalanceResponse] = Field(
-        ...,
-        description="Individual account balances",
-    )
-    total_assets: Decimal = Field(..., description="Sum of all asset account balances")
+    balances: list[AccountBalanceDTO]
+
+    @computed_field
+    @property
+    def total_assets(self) -> Decimal:
+        """Calculate total assets from individual account balances."""
+        return sum((b.balance for b in self.balances), Decimal(0))
 
     model_config = ConfigDict(
         json_schema_extra={

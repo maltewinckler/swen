@@ -12,7 +12,7 @@ from swen.application.analytics.dtos.export_dto import (
 )
 from swen.application.analytics.dtos.export_report_dto import (
     AccountBalanceSummaryDTO,
-    DashboardSummaryDTO,
+    ExportDashboardSummaryDTO,
     ExportReportDataDTO,
     ExportReportFilterDTO,
     MappingExportRowDTO,
@@ -134,7 +134,7 @@ class ExportReportQuery:
         period_label: str,
         month: str | None,
         include_drafts: bool,
-    ) -> DashboardSummaryDTO:
+    ) -> ExportDashboardSummaryDTO:
         """Build the dashboard summary from analytics data."""
         now = utc_now()
         spending = await self._analytics.spending_breakdown(
@@ -184,7 +184,7 @@ class ExportReportQuery:
         all_transactions = await self._transaction_repo.find_all()
         posted = [t for t in all_transactions if t.is_posted]
 
-        return DashboardSummaryDTO(
+        return ExportDashboardSummaryDTO(
             report_title="SWEN Financial Report",
             period_label=period_label,
             start_date=start_date,

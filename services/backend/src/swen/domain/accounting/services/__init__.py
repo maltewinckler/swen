@@ -9,6 +9,9 @@ from swen.domain.accounting.services.account_hierarchy_service import (
 from swen.domain.accounting.services.classification_rules import (
     ClassificationRules,
 )
+from swen.domain.accounting.services.financial_summary_service import (
+    FinancialSummaryService,
+)
 from swen.domain.accounting.services.opening_balance import (
     OpeningBalanceCalculator,
     OpeningBalanceService,
@@ -23,6 +26,7 @@ __all__ = [
     "AccountBalanceService",
     "AccountHierarchyService",
     "ClassificationRules",
+    "FinancialSummaryService",
     "MetadataKeys",
     "OpeningBalanceCalculator",
     "OpeningBalanceService",

@@ -19,7 +19,7 @@ from swen.application.analytics.dtos import (
 from swen.application.analytics.dtos.export_dto import AccountExportDTO
 from swen.application.analytics.dtos.export_report_dto import (
     AccountBalanceSummaryDTO,
-    DashboardSummaryDTO,
+    ExportDashboardSummaryDTO,
     ExportReportDataDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
@@ -36,9 +36,9 @@ class TestExcelReportGenerator:
         return ExcelReportGenerator()
 
     @pytest.fixture
-    def sample_summary(self) -> DashboardSummaryDTO:
+    def sample_summary(self) -> ExportDashboardSummaryDTO:
         """Create sample dashboard summary data."""
-        return DashboardSummaryDTO(
+        return ExportDashboardSummaryDTO(
             report_title="SWEN Financial Report",
             period_label="December 2024",
             start_date=date(2024, 12, 1),
@@ -348,7 +348,7 @@ class TestExcelReportGenerator:
 
     def test_generate_with_empty_data(self, generator):
         """Test that generator handles empty data gracefully."""
-        empty_summary = DashboardSummaryDTO(
+        empty_summary = ExportDashboardSummaryDTO(
             report_title="Empty Report",
             period_label="No Data",
             start_date=None,

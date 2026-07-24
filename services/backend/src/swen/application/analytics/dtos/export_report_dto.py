@@ -109,7 +109,7 @@ class TransactionExportRowDTO(BaseModel):
         ]
 
 
-class DashboardSummaryDTO(BaseModel):
+class ExportDashboardSummaryDTO(BaseModel):
     """Summary data for the dashboard overview sheet."""
 
     report_title: str
@@ -167,7 +167,7 @@ class MappingExportRowDTO(BaseModel):
 class ExportReportDataDTO(BaseModel):
     """Complete data structure for Excel report generation."""
 
-    summary: DashboardSummaryDTO
+    summary: ExportDashboardSummaryDTO
     transactions: list[TransactionExportRowDTO]
     accounts: list[AccountExportDTO]
     mappings: list[MappingExportRowDTO]
