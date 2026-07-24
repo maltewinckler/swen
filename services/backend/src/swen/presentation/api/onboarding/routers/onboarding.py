@@ -3,9 +3,12 @@
 import logging
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from swen.application.system.queries.onboarding import OnboardingStatusQuery
+from swen.application.system.queries.onboarding.onboarding_status_query import (
+    OnboardingStatusDTO,
+)
 from swen.presentation.api.dependencies import RepoFactory
 
 logger = logging.getLogger(__name__)
@@ -13,19 +16,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class CompletedStepsResponse(BaseModel):
-    """Individual onboarding steps completion status."""
-
-    accounts_initialized: bool
-    first_bank_connected: bool
-    has_transactions: bool
-
-
-class OnboardingStatusResponse(BaseModel):
+class OnboardingStatusResponse(OnboardingStatusDTO):
     """Onboarding status response."""
 
-    needs_onboarding: bool
-    completed_steps: CompletedStepsResponse
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get(
@@ -35,9 +29,7 @@ class OnboardingStatusResponse(BaseModel):
         200: {"description": "Onboarding status for the current user"},
     },
 )
-async def get_onboarding_status(
-    factory: RepoFactory,
-) -> OnboardingStatusResponse:
+async def get_onboarding_status(factory: RepoFactory) -> OnboardingStatusResponse:
     """
     Get the onboarding status for the current user.
 
@@ -52,11 +44,4 @@ async def get_onboarding_status(
     query = OnboardingStatusQuery.from_factory(factory)
     status = await query.execute()
 
-    return OnboardingStatusResponse(
-        needs_onboarding=status.needs_onboarding,
-        completed_steps=CompletedStepsResponse(
-            accounts_initialized=status.completed_steps.accounts_initialized,
-            first_bank_connected=status.completed_steps.first_bank_connected,
-            has_transactions=status.completed_steps.has_transactions,
-        ),
-    )
+    return OnboardingStatusResponse.model_validate(status)

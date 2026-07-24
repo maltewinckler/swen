@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.infrastructure.banking.geldstrom_api.config_repository import (
     GeldstromApiConfigRepository,
@@ -16,15 +17,16 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass(frozen=True)
-class FintsProviderStatusDTO:
+class FintsProviderStatusDTO(BaseModel):
     """DTO for overall FinTS provider status."""
+
+    model_config = ConfigDict(frozen=True)
 
     local_configured: bool
     local_active: bool
     api_configured: bool
     api_active: bool
-    active_provider: str | None  # "local", "api", or None
+    active_provider: str | None = None  # "local", "api", or None
 
 
 class GetFintsProviderStatusQuery:

@@ -9,6 +9,7 @@ from swen.application.accounting.commands import (
     UpdateAccountCommand,
 )
 from swen.application.accounting.commands.update_account_command import ParentAction
+from swen.application.accounting.dtos import UpdateAccountDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -92,8 +93,10 @@ class TestUpdateAccountCommand:
 
         # Act
         updated = await update_command.execute(
-            account_id=account.id,
-            name="New Name",
+            UpdateAccountDTO(
+                account_id=account.id,
+                name="New Name",
+            ),
         )
 
         # Assert
@@ -114,8 +117,10 @@ class TestUpdateAccountCommand:
 
         # Act
         updated = await update_command.execute(
-            account_id=account.id,
-            description="New description",
+            UpdateAccountDTO(
+                account_id=account.id,
+                description="New description",
+            ),
         )
 
         # Assert
@@ -132,9 +137,11 @@ class TestUpdateAccountCommand:
 
         # Act
         updated = await update_command.execute(
-            account_id=child.id,
-            parent_id=parent.id,
-            parent_action=ParentAction.SET,
+            UpdateAccountDTO(
+                account_id=child.id,
+                parent_id=parent.id,
+                parent_action=ParentAction.SET,
+            ),
         )
 
         # Assert
@@ -157,9 +164,11 @@ class TestUpdateAccountCommand:
 
         # Act
         updated = await update_command.execute(
-            account_id=child.id,
-            parent_id=new_parent.id,
-            parent_action=ParentAction.SET,
+            UpdateAccountDTO(
+                account_id=child.id,
+                parent_id=new_parent.id,
+                parent_action=ParentAction.SET,
+            ),
         )
 
         # Assert
@@ -181,8 +190,10 @@ class TestUpdateAccountCommand:
 
         # Act - Use ParentAction.REMOVE to remove parent
         updated = await update_command.execute(
-            account_id=child.id,
-            parent_action=ParentAction.REMOVE,
+            UpdateAccountDTO(
+                account_id=child.id,
+                parent_action=ParentAction.REMOVE,
+            ),
         )
 
         # Assert
@@ -213,9 +224,11 @@ class TestUpdateAccountCommand:
         # Act & Assert - Try to set level_3 as child of level_2 (would exceed depth)
         with pytest.raises(ValidationError, match="Maximum hierarchy depth"):
             await update_command.execute(
-                account_id=level_3.id,
-                parent_id=level_2.id,
-                parent_action=ParentAction.SET,
+                UpdateAccountDTO(
+                    account_id=level_3.id,
+                    parent_id=level_2.id,
+                    parent_action=ParentAction.SET,
+                ),
             )
 
     @pytest.mark.asyncio
@@ -239,9 +252,11 @@ class TestUpdateAccountCommand:
         # Act & Assert - Try to make A child of B (would create cycle)
         with pytest.raises(ValidationError, match="circular reference"):
             await update_command.execute(
-                account_id=account_a.id,
-                parent_id=account_b.id,
-                parent_action=ParentAction.SET,
+                UpdateAccountDTO(
+                    account_id=account_a.id,
+                    parent_id=account_b.id,
+                    parent_action=ParentAction.SET,
+                ),
             )
 
     @pytest.mark.asyncio
@@ -261,8 +276,10 @@ class TestUpdateAccountCommand:
         # Act & Assert
         with pytest.raises(AccountAlreadyExistsError):
             await update_command.execute(
-                account_id=account2.id,
-                name="Account 1",  # Duplicate
+                UpdateAccountDTO(
+                    account_id=account2.id,
+                    name="Account 1",  # Duplicate
+                ),
             )
 
     @pytest.mark.asyncio
@@ -272,8 +289,10 @@ class TestUpdateAccountCommand:
         non_existent_id = uuid4()
         with pytest.raises(AccountNotFoundError):
             await update_command.execute(
-                account_id=non_existent_id,
-                name="New Name",
+                UpdateAccountDTO(
+                    account_id=non_existent_id,
+                    name="New Name",
+                ),
             )
 
     @pytest.mark.asyncio
@@ -292,9 +311,11 @@ class TestUpdateAccountCommand:
         non_existent_parent_id = uuid4()
         with pytest.raises(AccountNotFoundError):
             await update_command.execute(
-                account_id=account.id,
-                parent_id=non_existent_parent_id,
-                parent_action=ParentAction.SET,
+                UpdateAccountDTO(
+                    account_id=account.id,
+                    parent_id=non_existent_parent_id,
+                    parent_action=ParentAction.SET,
+                ),
             )
 
 

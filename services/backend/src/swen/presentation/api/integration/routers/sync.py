@@ -200,11 +200,4 @@ async def get_sync_status(
     query = SyncStatusQuery.from_factory(factory)
     result = await query.execute()
 
-    return SyncStatusResponse(
-        success_count=result.success_count,
-        failed_count=result.failed_count,
-        pending_count=result.pending_count,
-        duplicate_count=result.duplicate_count,
-        skipped_count=result.skipped_count,
-        total_count=result.total_count,
-    )
+    return SyncStatusResponse.model_validate(result)

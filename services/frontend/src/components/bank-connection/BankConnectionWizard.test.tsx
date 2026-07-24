@@ -139,7 +139,7 @@ describe('BankConnectionWizard', () => {
     it('shows bank name', () => {
       const connection = createMockConnection({
         step: 'credentials',
-        bankLookup: { name: 'Deutsche Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Deutsche Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} />)
 
@@ -149,7 +149,7 @@ describe('BankConnectionWizard', () => {
     it('shows username and PIN inputs', () => {
       const connection = createMockConnection({
         step: 'credentials',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} />)
 
@@ -160,7 +160,7 @@ describe('BankConnectionWizard', () => {
     it('shows back button', () => {
       const connection = createMockConnection({
         step: 'credentials',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} />)
 
@@ -171,7 +171,7 @@ describe('BankConnectionWizard', () => {
       const setStep = vi.fn()
       const connection = createMockConnection({
         step: 'credentials',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         setStep,
       })
       const user = userEvent.setup()
@@ -185,7 +185,7 @@ describe('BankConnectionWizard', () => {
     it('shows TAN discovery error', () => {
       const connection = createMockConnection({
         step: 'credentials',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         tanDiscoveryError: 'Invalid credentials',
       })
       render(<BankConnectionWizard connection={connection} />)
@@ -213,7 +213,7 @@ describe('BankConnectionWizard', () => {
       const connection = createMockConnection({
         step: 'tan_discovery',
         isDiscoveringAccounts: true,
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} />)
 
@@ -225,7 +225,7 @@ describe('BankConnectionWizard', () => {
     it('shows discovered accounts', () => {
       const connection = createMockConnection({
         step: 'review_accounts',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         discoveredAccounts: [
           { iban: 'DE89370400440532013000', default_name: 'Girokonto', balance: '2500.00', currency: 'EUR' },
         ],
@@ -240,7 +240,7 @@ describe('BankConnectionWizard', () => {
     it('shows balance for accounts', () => {
       const connection = createMockConnection({
         step: 'review_accounts',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         discoveredAccounts: [
           { iban: 'DE89370400440532013000', default_name: 'Girokonto', balance: '2500.00', currency: 'EUR' },
         ],
@@ -254,7 +254,7 @@ describe('BankConnectionWizard', () => {
     it('shows import button', () => {
       const connection = createMockConnection({
         step: 'review_accounts',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         discoveredAccounts: [],
         accountNames: {},
       })
@@ -268,7 +268,7 @@ describe('BankConnectionWizard', () => {
     it('shows connecting message', () => {
       const connection = createMockConnection({
         step: 'connecting',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} />)
 
@@ -280,7 +280,7 @@ describe('BankConnectionWizard', () => {
     it('shows success message', () => {
       const connection = createMockConnection({
         step: 'initial_sync',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         connectionResult: {
           blz: '12345678',
           success: true,
@@ -298,7 +298,7 @@ describe('BankConnectionWizard', () => {
     it('shows sync days options', () => {
       const connection = createMockConnection({
         step: 'initial_sync',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         connectionResult: {
           blz: '12345678',
           success: true,
@@ -318,7 +318,7 @@ describe('BankConnectionWizard', () => {
     it('shows skip and sync buttons', () => {
       const connection = createMockConnection({
         step: 'initial_sync',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         connectionResult: {
           blz: '12345678',
           success: true,
@@ -338,7 +338,7 @@ describe('BankConnectionWizard', () => {
     it('shows success message without sync result', () => {
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         connectionResult: {
           blz: '12345678',
           success: true,
@@ -356,7 +356,7 @@ describe('BankConnectionWizard', () => {
     it('shows sync stats when sync result is available', () => {
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         syncResult: {
           event_type: 'result',
           success: true,
@@ -375,7 +375,7 @@ describe('BankConnectionWizard', () => {
     it('shows done button when onDone is provided', () => {
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(<BankConnectionWizard connection={connection} onDone={vi.fn()} />)
 
@@ -385,7 +385,7 @@ describe('BankConnectionWizard', () => {
     it('shows add another button when showAddAnother is true', () => {
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(
         <BankConnectionWizard
@@ -404,7 +404,7 @@ describe('BankConnectionWizard', () => {
       const onAddAnother = vi.fn()
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
         reset,
       })
       const user = userEvent.setup()
@@ -478,7 +478,7 @@ describe('BankConnectionWizard', () => {
     it('uses custom done button label', () => {
       const connection = createMockConnection({
         step: 'success',
-        bankLookup: { name: 'Test Bank', blz: '12345678', fints_url: 'https://test.de' },
+        bankLookup: { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true },
       })
       render(
         <BankConnectionWizard

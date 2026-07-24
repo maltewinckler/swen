@@ -9,6 +9,7 @@ from swen.application.settings.commands import (
     ResetUserSettingsCommand,
     UpdateUserSettingsCommand,
 )
+from swen.application.settings.dtos import UserSettingsUpdateDTO
 from swen.domain.settings import UserSettings
 
 TEST_USER_ID = uuid4()
@@ -37,9 +38,11 @@ class TestUpdateUserSettingsCommand:
         """Can update a single setting."""
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
-        result = await command.execute(auto_post_transactions=True)
+        result = await command.execute(
+            UserSettingsUpdateDTO(auto_post_transactions=True)
+        )
 
-        assert result.sync.auto_post_transactions is True
+        assert result.sync_settings.auto_post_transactions is True
         mock_settings_repo.save.assert_called_once_with(mock_settings)
 
     @pytest.mark.asyncio
@@ -48,16 +51,18 @@ class TestUpdateUserSettingsCommand:
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
         result = await command.execute(
-            auto_post_transactions=True,
-            show_draft_transactions=False,
-            default_currency="USD",
-            default_date_range_days=60,
+            UserSettingsUpdateDTO(
+                auto_post_transactions=True,
+                show_draft_transactions=False,
+                default_currency="USD",
+                default_date_range_days=60,
+            )
         )
 
-        assert result.sync.auto_post_transactions is True
-        assert result.sync.default_currency == "USD"
-        assert result.display.show_draft_transactions is False
-        assert result.display.default_date_range_days == 60
+        assert result.sync_settings.auto_post_transactions is True
+        assert result.sync_settings.default_currency == "USD"
+        assert result.display_settings.show_draft_transactions is False
+        assert result.display_settings.default_date_range_days == 60
 
     @pytest.mark.asyncio
     async def test_no_updates_raises_error(self, mock_settings_repo):
@@ -65,7 +70,7 @@ class TestUpdateUserSettingsCommand:
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
         with pytest.raises(ValueError, match="At least one setting"):
-            await command.execute()
+            await command.execute(UserSettingsUpdateDTO())
 
     @pytest.mark.asyncio
     async def test_update_dashboard_widgets(self, mock_settings_repo, mock_settings):
@@ -73,10 +78,13 @@ class TestUpdateUserSettingsCommand:
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
         result = await command.execute(
-            enabled_widgets=["summary-cards", "net-worth"],
+            UserSettingsUpdateDTO(enabled_widgets=["summary-cards", "net-worth"]),
         )
 
-        assert list(result.dashboard.enabled_widgets) == ["summary-cards", "net-worth"]
+        assert result.dashboard_settings.enabled_widgets == [
+            "summary-cards",
+            "net-worth",
+        ]
 
     @pytest.mark.asyncio
     async def test_update_ai_settings(self, mock_settings_repo, mock_settings):
@@ -84,12 +92,11 @@ class TestUpdateUserSettingsCommand:
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
         result = await command.execute(
-            ai_enabled=False,
-            ai_min_confidence=0.9,
+            UserSettingsUpdateDTO(ai_enabled=False, ai_min_confidence=0.9),
         )
 
-        assert result.ai.enabled is False
-        assert result.ai.min_confidence == 0.9
+        assert result.ai_settings.enabled is False
+        assert result.ai_settings.min_confidence == 0.9
 
     @pytest.mark.asyncio
     async def test_invalid_widget_raises_error(self, mock_settings_repo):
@@ -97,7 +104,9 @@ class TestUpdateUserSettingsCommand:
         command = UpdateUserSettingsCommand(mock_settings_repo)
 
         with pytest.raises(ValueError, match="Invalid widget IDs"):
-            await command.execute(enabled_widgets=["invalid-widget"])
+            await command.execute(
+                UserSettingsUpdateDTO(enabled_widgets=["invalid-widget"])
+            )
 
 
 class TestResetUserSettingsCommand:
@@ -114,8 +123,8 @@ class TestResetUserSettingsCommand:
         result = await command.execute()
 
         # Should be back to defaults
-        assert result.sync.auto_post_transactions is False
-        assert result.sync.default_currency == "EUR"
+        assert result.sync_settings.auto_post_transactions is False
+        assert result.sync_settings.default_currency == "EUR"
         mock_settings_repo.save.assert_called_once()
 
     @pytest.mark.asyncio

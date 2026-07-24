@@ -3,6 +3,7 @@
 from swen.application.integration.dtos.account_mapping_dto import (
     AccountMappingDTO,
     AccountMappingListDTO,
+    CreateExternalAccountDTO,
     ExternalAccountCreatedDTO,
 )
 from swen.application.integration.dtos.bank_connection_details_dto import (
@@ -24,6 +25,7 @@ __all__ = [
     "AccountReconciliationDTO",
     "BankAccountDetailDTO",
     "BankConnectionDetailsDTO",
+    "CreateExternalAccountDTO",
     "ExternalAccountCreatedDTO",
     "ImportedTransactionDTO",
     "ImportedTransactionsListDTO",

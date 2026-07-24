@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.domain.settings import UserSettings, UserSettingsRepository
+from swen.application.settings.dtos import UserSettingsDTO
+from swen.domain.settings import UserSettingsRepository
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
@@ -20,5 +21,6 @@ class GetUserSettingsQuery:
     def from_factory(cls, factory: RepositoryFactory) -> GetUserSettingsQuery:
         return cls(settings_repo=factory.user_settings_repository())
 
-    async def execute(self) -> UserSettings:
-        return await self._settings_repo.get_or_create()
+    async def execute(self) -> UserSettingsDTO:
+        settings = await self._settings_repo.get_or_create()
+        return UserSettingsDTO.from_user_settings(settings)

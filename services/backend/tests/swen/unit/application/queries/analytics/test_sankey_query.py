@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from swen.application.analytics.dtos import (
-    BreakdownItem,
-    IncomeBreakdownResult,
-    SankeyData,
-    SpendingBreakdownResult,
+    BreakdownItemDTO,
+    IncomeBreakdownResultDTO,
+    SankeyDataDTO,
+    SpendingBreakdownResultDTO,
 )
 from swen.application.analytics.queries import SankeyQuery
 
@@ -23,16 +23,16 @@ class TestSankeyQuery:
         port = AsyncMock()
 
         # Mock income breakdown
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Salary",
                     amount=Decimal("3500"),
                     percentage=Decimal("87.5"),
                     account_id="income-1",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Dividends",
                     amount=Decimal("500"),
                     percentage=Decimal("12.5"),
@@ -44,22 +44,22 @@ class TestSankeyQuery:
         )
 
         # Mock spending breakdown
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Rent",
                     amount=Decimal("1200"),
                     percentage=Decimal("60"),
                     account_id="expense-1",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Food",
                     amount=Decimal("600"),
                     percentage=Decimal("30"),
                     account_id="expense-2",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Transport",
                     amount=Decimal("200"),
                     percentage=Decimal("10"),
@@ -75,7 +75,7 @@ class TestSankeyQuery:
         result = await query.execute(month="2024-12", include_drafts=True)
 
         # Verify structure
-        assert isinstance(result, SankeyData)
+        assert isinstance(result, SankeyDataDTO)
         assert result.currency == "EUR"
         assert result.period_label == "December 2024"
         assert result.total_income == Decimal("4000")
@@ -123,10 +123,10 @@ class TestSankeyQuery:
         """Test that no savings node is created when expenses >= income."""
         port = AsyncMock()
 
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Salary",
                     amount=Decimal("2000"),
                     percentage=Decimal("100"),
@@ -137,22 +137,22 @@ class TestSankeyQuery:
             currency="EUR",
         )
 
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Rent",
                     amount=Decimal("1500"),
                     percentage=Decimal("60"),
                     account_id="expense-1",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Food",
                     amount=Decimal("700"),
                     percentage=Decimal("28"),
                     account_id="expense-2",
                 ),
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Entertainment",
                     amount=Decimal("300"),
                     percentage=Decimal("12"),
@@ -183,14 +183,14 @@ class TestSankeyQuery:
         """Test that empty data returns at least the total node."""
         port = AsyncMock()
 
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[],
             total=Decimal("0"),
             currency="EUR",
         )
 
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[],
             total=Decimal("0"),
@@ -219,13 +219,13 @@ class TestSankeyQuery:
         """Test that query parameters are passed correctly to the analytics port."""
         port = AsyncMock()
 
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="Last 30 days",
             items=[],
             total=Decimal("0"),
             currency="EUR",
         )
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="Last 30 days",
             items=[],
             total=Decimal("0"),
@@ -253,10 +253,10 @@ class TestSankeyQuery:
         """Test that all nodes have colors assigned."""
         port = AsyncMock()
 
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Salary",
                     amount=Decimal("3000"),
                     percentage=Decimal("100"),
@@ -267,10 +267,10 @@ class TestSankeyQuery:
             currency="EUR",
         )
 
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Rent",
                     amount=Decimal("1000"),
                     percentage=Decimal("100"),

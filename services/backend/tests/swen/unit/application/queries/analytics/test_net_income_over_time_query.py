@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.analytics.dtos import TimeSeriesResult
+from swen.application.analytics.dtos import TimeSeriesResultDTO
 from swen.application.analytics.queries import NetIncomeOverTimeQuery
 
 
@@ -13,7 +13,7 @@ class TestNetIncomeOverTimeQuery:
     @pytest.mark.asyncio
     async def test_execute_delegates_to_port(self):
         port = AsyncMock()
-        expected = TimeSeriesResult(
+        expected = TimeSeriesResultDTO(
             data_points=[],
             currency="EUR",
             total=Decimal("0"),

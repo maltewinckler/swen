@@ -4,10 +4,14 @@ Schemas for bank account to ledger account mappings.
 """
 
 from enum import Enum
-from typing import Optional
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from swen.application.integration.dtos import (
+    AccountMappingDTO,
+    AccountMappingListDTO,
+    ExternalAccountCreatedDTO,
+)
 
 
 class ExternalAccountType(str, Enum):
@@ -21,19 +25,10 @@ class ExternalAccountType(str, Enum):
     LIABILITY = "liability"
 
 
-class AccountMappingResponse(BaseModel):
+class AccountMappingResponse(AccountMappingDTO):
     """Response schema for a bank account mapping."""
 
-    id: UUID
-    iban: str
-    account_name: str
-    accounting_account_id: UUID
-    accounting_account_name: Optional[str] = None
-    accounting_account_number: Optional[str] = None
-    created_at: Optional[str] = None
-
     model_config = ConfigDict(
-        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -48,14 +43,10 @@ class AccountMappingResponse(BaseModel):
     )
 
 
-class AccountMappingListResponse(BaseModel):
+class AccountMappingListResponse(AccountMappingListDTO):
     """Response for listing bank account mappings."""
 
-    mappings: list[AccountMappingResponse]
-    count: int
-
     model_config = ConfigDict(
-        from_attributes=True,
         json_schema_extra={
             "example": {
                 "mappings": [],
@@ -114,15 +105,10 @@ class ExternalAccountCreateRequest(BaseModel):
     )
 
 
-class ExternalAccountCreateResponse(BaseModel):
+class ExternalAccountCreateResponse(ExternalAccountCreatedDTO):
     """Response after creating an external account mapping."""
 
-    mapping: AccountMappingResponse
-    transactions_reconciled: int
-    already_existed: bool
-
     model_config = ConfigDict(
-        from_attributes=True,
         json_schema_extra={
             "example": {
                 "mapping": {

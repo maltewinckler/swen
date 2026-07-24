@@ -12,15 +12,16 @@ from uuid import uuid4
 import pytest
 
 from swen.application.analytics.dtos import (
-    BreakdownItem,
-    CategoryTimeSeriesDataPoint,
-    CategoryTimeSeriesResult,
-    IncomeBreakdownResult,
-    MonthComparisonResult,
-    SpendingBreakdownResult,
-    TimeSeriesDataPoint,
-    TimeSeriesResult,
+    BreakdownItemDTO,
+    CategoryTimeSeriesDataPointDTO,
+    CategoryTimeSeriesResultDTO,
+    IncomeBreakdownResultDTO,
+    MonthComparisonResultDTO,
+    SpendingBreakdownResultDTO,
+    TimeSeriesDataPointDTO,
+    TimeSeriesResultDTO,
 )
+from swen.application.analytics.dtos.export_report_dto import ExportReportFilterDTO
 from swen.application.analytics.queries.export_report_query import ExportReportQuery
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
@@ -37,10 +38,10 @@ class TestExportReportQuery:
         port = AsyncMock()
 
         # Spending breakdown
-        port.spending_breakdown.return_value = SpendingBreakdownResult(
+        port.spending_breakdown.return_value = SpendingBreakdownResultDTO(
             period_label="December 2024",
             items=[
-                BreakdownItem(
+                BreakdownItemDTO(
                     category="Groceries",
                     amount=Decimal("500.00"),
                     percentage=Decimal("50.0"),
@@ -53,7 +54,7 @@ class TestExportReportQuery:
         )
 
         # Income breakdown
-        port.income_breakdown.return_value = IncomeBreakdownResult(
+        port.income_breakdown.return_value = IncomeBreakdownResultDTO(
             period_label="December 2024",
             items=[],
             total=Decimal("3000.00"),
@@ -61,9 +62,9 @@ class TestExportReportQuery:
         )
 
         # Net worth over time
-        port.net_worth_over_time.return_value = TimeSeriesResult(
+        port.net_worth_over_time.return_value = TimeSeriesResultDTO(
             data_points=[
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period="2024-12",
                     period_label="December 2024",
                     value=Decimal("25000.00"),
@@ -75,7 +76,7 @@ class TestExportReportQuery:
         )
 
         # Month comparison
-        port.month_comparison.return_value = MonthComparisonResult(
+        port.month_comparison.return_value = MonthComparisonResultDTO(
             current_month="December 2024",
             previous_month="November 2024",
             currency="EUR",
@@ -95,9 +96,9 @@ class TestExportReportQuery:
         )
 
         # Balance history
-        port.balance_history_over_time.return_value = CategoryTimeSeriesResult(
+        port.balance_history_over_time.return_value = CategoryTimeSeriesResultDTO(
             data_points=[
-                CategoryTimeSeriesDataPoint(
+                CategoryTimeSeriesDataPointDTO(
                     period="2024-12",
                     period_label="December 2024",
                     categories={"DKB Checking": Decimal("5000.00")},
@@ -168,8 +169,8 @@ class TestExportReportQuery:
 
     @pytest.mark.asyncio
     async def test_execute_returns_export_report_data(self, query):
-        """Test that execute() returns ExportReportData with all sections."""
-        result = await query.execute()
+        """Test that execute() returns ExportReportDataDTO with all sections."""
+        result = await query.execute(ExportReportFilterDTO())
 
         assert result is not None
         assert result.summary is not None
@@ -184,7 +185,7 @@ class TestExportReportQuery:
         mock_analytics_port,
     ):
         """Test that days parameter affects date range calculation."""
-        result = await query.execute(days=30)
+        result = await query.execute(ExportReportFilterDTO(days=30))
 
         # Should calculate date range for last 30 days
         assert result.summary.period_label == "Last 30 days"
@@ -196,7 +197,7 @@ class TestExportReportQuery:
         mock_analytics_port,
     ):
         """Test that month parameter sets correct period."""
-        result = await query.execute(month="2024-12")
+        result = await query.execute(ExportReportFilterDTO(month="2024-12"))
 
         assert "December 2024" in result.summary.period_label
 
@@ -206,7 +207,9 @@ class TestExportReportQuery:
         start = date(2024, 1, 1)
         end = date(2024, 6, 30)
 
-        result = await query.execute(start_date=start, end_date=end)
+        result = await query.execute(
+            ExportReportFilterDTO(start_date=start, end_date=end)
+        )
 
         assert start.strftime("%d %b %Y") in result.summary.period_label
         assert end.strftime("%d %b %Y") in result.summary.period_label
@@ -214,7 +217,7 @@ class TestExportReportQuery:
     @pytest.mark.asyncio
     async def test_execute_all_time_label(self, query):
         """Test that no date params gives 'All Time' label."""
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert result.summary.period_label == "All Time"
 
@@ -225,7 +228,7 @@ class TestExportReportQuery:
         mock_analytics_port,
     ):
         """Test that summary includes calculated income and expenses."""
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert result.summary.total_income == Decimal("3000.00")
         assert result.summary.total_expenses == Decimal("1000.00")
@@ -234,14 +237,14 @@ class TestExportReportQuery:
     @pytest.mark.asyncio
     async def test_summary_includes_net_worth(self, query):
         """Test that summary includes net worth from latest data point."""
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert result.summary.net_worth == Decimal("25000.00")
 
     @pytest.mark.asyncio
     async def test_summary_includes_savings_rate(self, query):
         """Test that savings rate is calculated correctly."""
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         # Savings rate = (income - expenses) / income * 100
         # = (3000 - 1000) / 3000 * 100 = 66.67%
@@ -255,7 +258,7 @@ class TestExportReportQuery:
         mock_account_repo,
     ):
         """Test that accounts are converted to AccountExportDTO."""
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert len(result.accounts) == 2
         account_names = [a.name for a in result.accounts]
@@ -283,7 +286,7 @@ class TestExportReportQuery:
         )
         mock_mapping_repo.find_all.return_value = [mapping]
 
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert len(result.mappings) == 1
         mapping_dto = result.mappings[0]
@@ -311,7 +314,7 @@ class TestExportReportQuery:
         )
         mock_mapping_repo.find_all.return_value = [mapping]
 
-        result = await query.execute()
+        result = await query.execute(ExportReportFilterDTO())
 
         assert len(result.mappings) == 1
         # Should fallback to UUID string
@@ -325,13 +328,13 @@ class TestExportReportQuery:
     ):
         """Test that include_drafts parameter affects transaction fetching."""
         # With include_drafts=True
-        await query.execute(include_drafts=True)
+        await query.execute(ExportReportFilterDTO(include_drafts=True))
         mock_transaction_repo.find_all.assert_awaited()
 
         mock_transaction_repo.reset_mock()
 
         # With include_drafts=False
-        await query.execute(include_drafts=False)
+        await query.execute(ExportReportFilterDTO(include_drafts=False))
         mock_transaction_repo.find_posted_transactions.assert_awaited()
 
 

@@ -13,15 +13,18 @@ from uuid import UUID
 
 import pytest
 
+from swen.application.accounting.dtos import TransactionDTO
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
-from swen.presentation.api.accounting.routers.transactions import (
-    _transaction_to_response,
-)
+from swen.presentation.api.accounting.schemas.transactions import TransactionResponse
 
 # Fixed UUID for testing
 TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
+
+
+def _transaction_to_response(txn: Transaction) -> TransactionResponse:
+    return TransactionResponse.model_validate(TransactionDTO.from_transaction(txn))
 
 
 class TestJournalEntrySerialization:

@@ -75,6 +75,8 @@ presentation ──► application ──► domain
 - Commands are constructed via DI in routers and call `await command.execute(...)`.
 - Validation: structural in Pydantic schemas (presentation), invariants in domain, business rules in commands. Don't `try/except ValueError` over raw Enum casts in routers — raise typed domain errors.
 - Long orchestrators (>~300 LOC) are a smell — split into focused services. The current `transaction_import_service.py` is the example *not* to follow further.
+- **`execute(...)` inputs**: up to 4 scalar params directly in the signature. Beyond that, bundle them into an input DTO instead of growing the param list further (as `UpdateUserSettingsCommand` now does with `PreferencesUpdateDTO`). `update_account_command`/`create_account_command`/`list_transactions_query`/`create_external_account_command`/`export_report_query` (5–6 params) are pre-existing exceptions — don't add new ones.
+- **`execute(...)` output**: always a DTO (see naming rule below), never a domain entity or a bare `dict`. The only exception is a genuine primitive (`bool`, `int`, `None`). `GenerateDefaultAccountsCommand` returning a raw `dict` is a pre-existing exception, not a pattern to copy.
 
 ### Repository pattern (multi-tenant)
 Every repository is constructed by `RepositoryFactory` and is **automatically scoped to `current_user.user_id`**. This is the project's main auth boundary.
@@ -102,7 +104,72 @@ When adding a repository:
 - **Crypto**: use `cryptography.fernet` via the existing `ENCRYPTION_KEY` setting for stored bank credentials. Never roll your own. For randomness in security-sensitive paths use `secrets`, not `random`.
 - **JWT**: `HS256`, hardcoded algorithm list — keep it that way (alg confusion mitigation).
 - **SQL**: parameterized only. `text(":param")` + `params={}` is fine. f-strings into `text(...)` are forbidden.
-- **Repository-factory pattern**: All `commands` and `queries` in the `application/` layer must implement a `from_repo_factory` classmethod such that we can instantiate it directly from the factory that is defined as a dependency in our FastAPI app.
+- **Repository-factory pattern**: All `commands` and `queries` in the `application/` layer must implement a `from_factory` classmethod such that we can instantiate it directly from the factory that is defined as a dependency in our FastAPI app.
+
+  ```python
+  @classmethod
+  def from_factory(cls, factory: RepositoryFactory) -> "MyQuery":
+      return cls(repo=factory.some_repository())
+  ```
+
+  (`application/system/queries/database_integrity_query.py` is the single current exception — it takes a port directly and has no `from_factory` yet.)
+
+### Naming: `DTO` / `Response` / `Request` suffixes
+
+- Every application-layer data holder returned by a command/query is a `*DTO` (e.g. `AccountSummaryDTO`) — no bare `*Result`/`*Details`/etc. Remaining pre-existing exceptions, all still plain `@dataclass`: `TransactionListResult` (`accounting/queries/list_transactions_query.py`), `DashboardSummary` (`analytics/queries/dashboard_summary_query.py`), `IntegrityCheckResult` (`system/queries/database_integrity_query.py`). Don't add new ones; rename and migrate them to `BaseModel` opportunistically when you touch them, not in a blanket pass. `TransactionImportResult` is already a `BaseModel` but keeps its `*Result` name — rename it when you next touch the import service.
+- A presentation schema that mostly just re-exposes a DTO (per the inheritance pattern below) is named after that DTO with the suffix swapped for what the schema is used for: `AccountSummaryDTO` → `AccountSummaryResponse` (output) or `...Request` (input) — not an unrelated name like `AccountResponse`.
+- Every such schema should carry a `json_schema_extra` example. Response classes built via `.model_validate(dto)` additionally need `from_attributes=True` (see below) — plain `Request` schemas parsed from a JSON body normally don't.
+
+### Presentation schemas: inherit from DTOs, don't duplicate fields
+
+A `presentation/.../schemas/` response class should inherit directly from its application-layer DTO instead of hand-declaring the same fields a second time.
+
+```python
+# application/.../dtos/x_dto.py
+class XDTO(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    id: UUID
+    amount: Decimal
+
+# presentation/.../schemas/x.py
+class XResponse(XDTO):
+    """..."""
+    model_config = ConfigDict(
+        from_attributes=True,  # required if the DTO itself doesn't already set it
+        json_schema_extra={"example": {...}},
+    )
+```
+
+- **Prefer native types over primitive round-trips.** `UUID`, `Decimal`, and `datetime` are all first-class pydantic/FastAPI types — verified against this repo's pinned versions (pydantic 2.12, FastAPI 0.128): a `Decimal` field serializes over HTTP as an exact-precision JSON *string* (`"12.30"`, never a lossy float), `datetime` as ISO-8601, `UUID` as its string form — and all three get a *stricter* OpenAPI schema (`format: uuid` / `format: date-time` / a numeric `pattern`) than a hand-declared `str` field would. So DTOs should carry these types straight from the domain (`id: UUID`, `amount: Decimal`), not pre-convert to `str` "for JSON safety" — that conversion is unneeded, throws away schema precision, and forces the exact same cast back in every Response subclass (domain `UUID` → DTO `str` → Response `UUID` is pure waste). Two known holdouts that predate this rule and are *intentionally* deferred (not opportunistic): the CSV/`export_dto.py` DTOs (`TransactionExportDTO`/`AccountExportDTO`, `str`/`float` throughout — verify the exporter doesn't rely on the string form before changing), and `DiscoveredAccountDTO.balance`/`.balance_date` (`str` — crosses the discover→setup request contract, so it needs frontend coordination).
+- Override a field only for a *real* divergence: a stricter validation constraint (`Literal[...]`, `pattern`), or genuinely different business content. If a DTO field's optionality or type looks wrong for what you're building (e.g. marked `Optional` only "to be safe" but never actually null), fix the DTO at the source instead of overriding it in every Response subclass. Leave a one-line comment saying why when you do override.
+- If every field already matches the DTO, don't create a wrapper class at all: reference the DTO type directly, including as a nested field inside another response (`accounts: list[XDTO]`). Only keep a dedicated `XResponse` if it's also returned standalone from some endpoint.
+- `model_config` merges up the inheritance chain — if the DTO already sets `from_attributes=True`, the subclass doesn't need to repeat it; if it doesn't, and the router builds the response via `.model_validate(dto)`, add `from_attributes=True` on the subclass.
+- Once a response inherits from its DTO with matching native types, construct it in the router with `XResponse.model_validate(dto)`, not field-by-field kwargs — this cascades recursively through nested DTO/response pairs, and (once fields aren't secretly mismatched primitives) needs no special-casing.
+- Schemas live next to their DTO's true domain owner, not necessarily next to the router that happens to consume them — e.g. `integration/routers/` legitimately imports schemas from both `accounting/schemas/` and `banking/schemas/`, since integration is the layer that bridges them (see §1). If a router imports schemas that live in one specific *other* single domain and nothing about the endpoint is cross-domain, that's a sign the router itself is filed in the wrong package — move the router, not the schema.
+- **Don't force this pattern** when:
+  - The DTO requires a field the request body doesn't have (e.g. `blz`/`iban` comes from the URL path, not the JSON body) — inheriting would leak the path param into the body schema.
+  - The DTO is a plain `@dataclass`, not a Pydantic model — migrate it to `BaseModel` first (see "Migrating a dataclass DTO to Pydantic" below) rather than inheriting from a dataclass.
+  - The DTO lacks validation constraints the request schema exists to enforce (`min_length`, `pattern`, etc.) — re-declaring every field to restore them defeats the point; a request schema with no boilerplate savings should just stay a plain `BaseModel`.
+
+### Migrating a dataclass DTO to Pydantic
+
+The accounting/analytics/events DTOs have all been migrated. Use this when converting one of the
+remaining `@dataclass` holdouts listed above.
+
+| Dataclass | Pydantic |
+|---|---|
+| `@dataclass(frozen=True)` | `class X(BaseModel):` + `model_config = ConfigDict(frozen=True)` |
+| `field(default_factory=list)` | `field_name: list[T] = []` — Pydantic deep-copies defaults, so this is safe (verified: two instances do **not** share the list) |
+| `dataclasses.asdict(self)` / `self.to_dict()` | `self.model_dump()` |
+| a hand-rolled `_to_jsonable(...)` helper | `self.model_dump(mode="json")` |
+
+- **Migrate the parent first** when a class inherits from another dataclass (the `SyncProgressEvent` event hierarchy was the common case).
+- `from_entity` / `from_transaction` style factories stay `@classmethod` and work unchanged.
+- Computed values: a bare `@property` stays out of `model_dump()`; add `@computed_field` above it when the value *should* be serialized.
+- `model_dump()` returns native Python types; `model_dump(mode="json")` returns JSON-ready ones — `UUID` → `str`, `datetime` → ISO-8601 `str`, and `Decimal` → an **exact-precision `str`** (`"12.30"`), never a float. Use `mode="json"` for SSE payloads. (Verified against the pinned pydantic 2.12.)
+- `frozen=True` is not optional — it preserves the immutability the dataclass had. Pydantic models are mutable by default.
+- Keep `from __future__ import annotations`; forward refs in this codebase still need it.
+- Beware `Field(..., init=False)`: on a `BaseModel` it is accepted but does **not** actually exclude the field from `__init__` (verified — the kwarg is still accepted). It only has that effect on pydantic dataclasses. Use it for the default value only, and don't rely on it for enforcement.
 
 ### Tests
 - Layout mirrors source: `tests/swen/unit/<layer>/...`, `tests/swen/integration/...`.
@@ -149,8 +216,8 @@ These are tracked weak spots; if you touch them, fix don't paper over.
 - `swen.application.commands.integration.transaction_sync_command` imports infrastructure dispatcher / ML client directly.
 - `swen.application.factories.repository_factory` imports concrete `FinTSConfigRepository` / `GeldstromApiConfigRepository` from `swen.infrastructure` — should be ports.
 - `swen_identity.domain.user.aggregates.user` imports `swen.domain.shared.time.utc_now` (cross-BC).
-- `swen.application.queries.user.get_current_user_query` imports `swen_identity.domain` directly (no ACL yet).
-- `swen.presentation.api.routers.{auth,admin,sync}` instantiate SQLAlchemy repos / call `session.commit()` directly.
+- `swen.presentation.api.dependencies.get_current_user` imports `swen_identity.domain` directly and instantiates `UserRepositorySQLAlchemy(session)` in-place (no ACL yet; the FastAPI dependency is where "get current user" lives — there is no `application/queries/user/` module).
+- `swen.presentation.api.{auth/routers/auth, admin/routers/admin}` instantiate SQLAlchemy repos and call `session.commit()` directly; `settings/routers/preferences` also calls `factory.session.commit()` directly (4 sites). (The `integration/routers/sync` router is clean — do not re-add it here.)
 - `Transaction` aggregate carries ML classification fields (`merchant`, `is_recurring`, `recurring_pattern`) that should be a separate VO.
 - `ml_service_url` and similar external URLs lack validation.
 - Encryption key rotation: `encryption_version` field exists, rotation logic does not.
@@ -181,10 +248,11 @@ RUN_INTEGRATION=1 ENCRYPTION_KEY=… JWT_SECRET_KEY=… POSTGRES_PASSWORD=… \
 Frontend:
 ```bash
 cd services/frontend
-npm dev          # dev server
-npm test         # vitest
-npm typecheck
-npm lint
+npm run dev          # dev server
+npm test             # vitest (add -- --run for a single non-watch pass)
+npm run lint         # eslint
+npx tsc --noEmit     # typecheck (there is no `typecheck` script)
+npm run build        # vite production build
 ```
 
 Stack:
@@ -195,4 +263,4 @@ make help                       # see project shortcuts
 
 ---
 
-*Last updated: 2026-04-30. Update this file when you change a convention — don't let it rot.*
+*Last updated: 2026-07-24. Update this file when you change a convention — don't let it rot.*

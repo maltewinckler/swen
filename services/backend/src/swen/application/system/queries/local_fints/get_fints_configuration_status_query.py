@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.infrastructure.banking.local_fints.repositories.config_repository import (
     FinTSConfigRepository,
@@ -13,9 +14,10 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass(frozen=True)
-class FinTSConfigStatusDTO:
+class FinTSConfigStatusDTO(BaseModel):
     """DTO for configuration status."""
+
+    model_config = ConfigDict(frozen=True)
 
     is_configured: bool
     message: str

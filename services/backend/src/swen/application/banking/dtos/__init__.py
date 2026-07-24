@@ -17,6 +17,10 @@ from swen.application.banking.dtos.setup_banks_dto import (
     SetupBankRequestDTO,
     SetupBankResponseDTO,
 )
+from swen.application.banking.dtos.tan_method_dtos import (
+    TANMethodInfoDTO,
+    TANMethodsResultDTO,
+)
 
 __all__ = [
     "BankInfoDTO",
@@ -29,5 +33,7 @@ __all__ = [
     "SetupBankRequestDTO",
     "SetupBankResponseDTO",
     "ImportedBankAccountDTO",
+    "TANMethodInfoDTO",
+    "TANMethodsResultDTO",
     "UpdateCredentialsDTO",
 ]

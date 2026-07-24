@@ -46,7 +46,7 @@ class ListAccountMappingsQuery:
             accounting_account_id=id_,
             accounting_account_name=account_name,
             accounting_account_number=account_number,
-            created_at=mapping.created_at.isoformat(),
+            created_at=mapping.created_at,
         )
 
     async def execute(self) -> AccountMappingListDTO:

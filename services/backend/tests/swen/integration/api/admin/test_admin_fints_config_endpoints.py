@@ -183,7 +183,9 @@ class TestGetFinTSConfiguration:
         data = response.json()
         assert "product_id_masked" in data
         assert data["csv_institute_count"] == 2
-        assert data["csv_file_size_kb"] >= 0
+        assert data["csv_file_size_bytes"] >= 0
+        assert data["csv_file_size_kb"] == data["csv_file_size_bytes"] // 1024
+        assert "csv_upload_timestamp" in data
         assert "last_updated" in data
         assert "last_updated_by" in data
 

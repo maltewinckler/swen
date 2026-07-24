@@ -158,9 +158,13 @@ class BankAccountImportService:
         iban: str,
         new_name: str,
     ) -> tuple[Account, AccountMapping]:
-        mapping = await self._mapping_repo.find_by_iban(iban)
+        normalized_iban = normalize_iban(iban)
+        if normalized_iban is None:
+            msg = f"Invalid IBAN format: {iban}"
+            raise ValueError(msg)
+        mapping = await self._mapping_repo.find_by_iban(normalized_iban)
         if mapping is None:
-            msg = f"No account mapping found for IBAN: {iban}"
+            msg = f"No account mapping found for IBAN: {normalized_iban}"
             raise ValueError(msg)
 
         account = await self._account_repo.find_by_id(mapping.accounting_account_id)

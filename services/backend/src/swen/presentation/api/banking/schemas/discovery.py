@@ -4,21 +4,18 @@ It is sent back to the frontend via API response to give the user the option
 to rename the accounts. Then, it is sent back to the persistence command.
 """
 
-from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field
+
+from swen.application.banking.dtos import (
+    BankDiscoveryResultDTO,
+    BankInfoDTO,
+)
 
 
 class TanMethodQueryRequest(BaseModel):
     """Request schema for querying available TAN methods (credentials read from DB)."""
 
-    blz: str = Field(
-        ...,
-        min_length=8,
-        max_length=8,
-        pattern=r"^\d{8}$",
-        description="Bank code (BLZ) - exactly 8 digits",
-    )
+    blz: str = Field(..., min_length=8, max_length=8, pattern=r"^\d{8}$")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -29,42 +26,43 @@ class TanMethodQueryRequest(BaseModel):
     )
 
 
-class BankInfo(BaseModel):
-    """Bank Info Fast API Schema."""
+class BankInfoResponse(BankInfoDTO):
+    """Response schema for bank lookup by BLZ."""
 
-    model_config = ConfigDict(frozen=True, from_attributes=True)
-
-    blz: str
-    name: str
-    bic: Optional[str]
-    organization: Optional[str] = None
-    is_fints_capable: bool = True
-
-
-class DiscoveredAccount(BaseModel):
-    """Full bank account data from discovery."""
-
-    model_config = ConfigDict(frozen=True, from_attributes=True)
-
-    # Display info
-    iban: str
-    default_name: str
-
-    account_number: str
-    account_holder: str
-    account_type: str
-    blz: str
-    bic: Optional[str]
-    bank_name: Optional[str]
-    currency: str = "EUR"
-    balance: Optional[str] = None
-    balance_date: Optional[str] = None
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "blz": "50031000",
+                "name": "Triodos Bank N.V. Deutschland",
+                "bic": "TRODDEF1",
+                "organization": None,
+                "is_fints_capable": True,
+            },
+        },
+    )
 
 
-class BankDiscoveryResult(BaseModel):
+class BankDiscoveryResultResponse(BankDiscoveryResultDTO):
     """Collection of discovered accounts for a bank."""
 
-    model_config = ConfigDict(frozen=True, from_attributes=True)
-
-    blz: str
-    accounts: list[DiscoveredAccount]
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "blz": "12030000",
+                "accounts": [
+                    {
+                        "iban": "DE89370400440532013000",
+                        "default_name": "DKB - Girokonto",
+                        "account_number": "0532013000",
+                        "account_holder": "Max Mustermann",
+                        "account_type": "Girokonto",
+                        "blz": "12030000",
+                        "bank_name": "DKB",
+                        "currency": "EUR",
+                        "balance": "1250.00",
+                    },
+                ],
+            },
+        },
+    )

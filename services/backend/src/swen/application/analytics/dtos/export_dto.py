@@ -126,7 +126,7 @@ class MappingExportDTO(BaseModel):
         )
 
 
-class ExportResult(BaseModel):
+class ExportResultDTO(BaseModel):
     """Result containing exported data as DTOs."""
 
     transactions: list[TransactionExportDTO] = []

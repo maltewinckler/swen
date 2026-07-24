@@ -1,25 +1,25 @@
 """DTOs for local FinTS configuration API endpoints."""
 
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, computed_field
 
-from pydantic import BaseModel
+from swen.application.system.queries import FinTSConfigDTO, FinTSConfigStatusDTO
 
 
-class FinTSConfigResponse(BaseModel):
+class FinTSConfigResponse(FinTSConfigDTO):
     """Local FinTS configuration details."""
 
-    product_id_masked: str
-    csv_institute_count: int
-    csv_file_size_kb: int
-    last_updated: datetime
-    last_updated_by: str
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def csv_file_size_kb(self) -> int:
+        return self.csv_file_size_bytes // 1024
 
 
-class ConfigStatusResponse(BaseModel):
+class ConfigStatusResponse(FinTSConfigStatusDTO):
     """Local FinTS configuration status."""
 
-    is_configured: bool
-    message: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateLocalFinTSConfigResponse(BaseModel):

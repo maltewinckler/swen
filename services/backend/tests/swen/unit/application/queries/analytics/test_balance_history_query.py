@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from swen.application.analytics.dtos import CategoryTimeSeriesResult
+from swen.application.analytics.dtos import CategoryTimeSeriesResultDTO
 from swen.application.analytics.queries import BalanceHistoryQuery
 
 
@@ -12,7 +12,7 @@ class TestBalanceHistoryQuery:
     @pytest.mark.asyncio
     async def test_execute_delegates_to_port(self):
         port = AsyncMock()
-        expected = CategoryTimeSeriesResult(
+        expected = CategoryTimeSeriesResultDTO(
             data_points=[],
             categories=[],
             currency="EUR",

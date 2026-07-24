@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict
 
 from swen.infrastructure.banking.local_fints.repositories.config_repository import (
     FinTSConfigRepository,
@@ -14,16 +15,17 @@ if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
 
 
-@dataclass(frozen=True)
-class FinTSConfigDTO:
+class FinTSConfigDTO(BaseModel):
     """DTO for FinTS configuration response."""
+
+    model_config = ConfigDict(frozen=True)
 
     product_id_masked: str
     csv_institute_count: int
     csv_file_size_bytes: int
     csv_upload_timestamp: datetime
-    updated_at: datetime
-    updated_by_id: str
+    last_updated: datetime
+    last_updated_by: str
 
 
 class GetFinTSConfigurationQuery:
@@ -56,8 +58,8 @@ class GetFinTSConfigurationQuery:
             csv_institute_count=config.csv_institute_count,
             csv_file_size_bytes=config.csv_file_size_bytes,
             csv_upload_timestamp=config.csv_upload_timestamp,
-            updated_at=config.updated_at,
-            updated_by_id=config.updated_by_id,
+            last_updated=config.updated_at,
+            last_updated_by=config.updated_by_id,
         )
 
     @staticmethod

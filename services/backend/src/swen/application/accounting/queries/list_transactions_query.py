@@ -8,6 +8,7 @@ from uuid import UUID
 
 from swen.application.accounting.dtos import (
     TransactionDTO,
+    TransactionListFilterDTO,
     TransactionListItemDTO,
     TransactionListResultDTO,
 )
@@ -49,22 +50,19 @@ class ListTransactionsQuery:
             account_repository=factory.account_repository(),
         )
 
-    async def execute(  # NOQA: PLR0913
+    async def execute(
         self,
-        page: int = 1,
-        page_size: int = 50,
-        status_filter: Optional[str] = None,
-        iban_filter: Optional[str] = None,
-        show_drafts: bool = True,
-        exclude_transfers: Optional[bool] = None,
+        filters: TransactionListFilterDTO,
     ) -> TransactionListResult:
-        status = status_filter
-        if status is None and not show_drafts:
+        status = filters.status_filter
+        if status is None and not filters.show_drafts:
             status = "posted"
 
         account_id = None
-        if iban_filter:
-            account = await self._account_repo.find_by_account_number(iban_filter)
+        if filters.iban_filter:
+            account = await self._account_repo.find_by_account_number(
+                filters.iban_filter
+            )
             if account:
                 account_id = account.id
             else:
@@ -77,22 +75,22 @@ class ListTransactionsQuery:
                     posted_count=counts["posted"],
                 )
 
-        should_exclude_transfers = exclude_transfers
+        should_exclude_transfers = filters.exclude_transfers
         if should_exclude_transfers is None:
-            should_exclude_transfers = iban_filter is None
+            should_exclude_transfers = filters.iban_filter is None
 
-        filters = TransactionFilters(
+        txn_filters = TransactionFilters(
             status=status,
             account_id=account_id,
             exclude_internal_transfers=should_exclude_transfers,
         )
-        pagination = Pagination(page=page, page_size=page_size)
+        pagination = Pagination(page=filters.page, page_size=filters.page_size)
 
         filtered = await self._transaction_repo.find_with_filters(
-            filters=filters,
+            filters=txn_filters,
             pagination=pagination,
         )
-        filtered_count = await self._transaction_repo.count_with_filters(filters)
+        filtered_count = await self._transaction_repo.count_with_filters(txn_filters)
         counts = await self._transaction_repo.count_by_status()
 
         return TransactionListResult(
@@ -131,23 +129,11 @@ class ListTransactionsQuery:
         except ValueError:
             return await self.find_by_partial_id(transaction_id)
 
-    async def get_transaction_list(  # NOQA: PLR0913
+    async def get_transaction_list(
         self,
-        page: int = 1,
-        page_size: int = 50,
-        status_filter: Optional[str] = None,
-        iban_filter: Optional[str] = None,
-        show_drafts: bool = True,
-        exclude_transfers: Optional[bool] = None,
+        filters: TransactionListFilterDTO,
     ) -> TransactionListResultDTO:
-        res = await self.execute(
-            page=page,
-            page_size=page_size,
-            status_filter=status_filter,
-            iban_filter=iban_filter,
-            show_drafts=show_drafts,
-            exclude_transfers=exclude_transfers,
-        )
+        res = await self.execute(filters)
 
         items = [TransactionListItemDTO.from_transaction(t) for t in res.transactions]
         return TransactionListResultDTO(

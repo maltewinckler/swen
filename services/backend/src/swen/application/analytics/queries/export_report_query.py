@@ -1,4 +1,4 @@
-"""Export report query - orchestrates data fetching for Excel reports."""
+"""Export report query (orchestrates data fetching for Excel reports)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ from swen.application.analytics.dtos.export_dto import (
     AccountExportDTO,
 )
 from swen.application.analytics.dtos.export_report_dto import (
-    AccountBalanceSummary,
+    AccountBalanceSummaryDTO,
     DashboardSummaryDTO,
-    ExportReportData,
+    ExportReportDataDTO,
+    ExportReportFilterDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
 )
@@ -57,39 +58,34 @@ class ExportReportQuery:
 
     async def execute(
         self,
-        *,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        days: int | None = None,
-        month: str | None = None,
-        include_drafts: bool = True,
-    ) -> ExportReportData:
+        filters: ExportReportFilterDTO,
+    ) -> ExportReportDataDTO:
         """Execute query to gather all report data."""
         effective_start, effective_end, period_label = self._resolve_date_range(
-            start_date=start_date,
-            end_date=end_date,
-            days=days,
-            month=month,
+            start_date=filters.start_date,
+            end_date=filters.end_date,
+            days=filters.days,
+            month=filters.month,
         )
 
         summary = await self._build_summary(
             start_date=effective_start,
             end_date=effective_end,
             period_label=period_label,
-            month=month,
-            include_drafts=include_drafts,
+            month=filters.month,
+            include_drafts=filters.include_drafts,
         )
 
         transactions = await self._fetch_transactions(
             start_date=effective_start,
             end_date=effective_end,
-            include_drafts=include_drafts,
+            include_drafts=filters.include_drafts,
         )
 
         accounts = await self._fetch_accounts()
         mappings = await self._fetch_mappings()
 
-        return ExportReportData(
+        return ExportReportDataDTO(
             summary=summary,
             transactions=transactions,
             accounts=accounts,
@@ -217,7 +213,7 @@ class ExportReportQuery:
     async def _fetch_account_balances(
         self,
         include_drafts: bool,
-    ) -> list[AccountBalanceSummary]:
+    ) -> list[AccountBalanceSummaryDTO]:
         balance_history = await self._analytics.balance_history_over_time(
             months=1,
             include_drafts=include_drafts,
@@ -235,7 +231,7 @@ class ExportReportQuery:
             reverse=True,
         ):
             balances.append(
-                AccountBalanceSummary(
+                AccountBalanceSummaryDTO(
                     account_name=account_name,
                     account_number="",
                     balance=balance,

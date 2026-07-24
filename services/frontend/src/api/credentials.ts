@@ -12,12 +12,12 @@ export interface CredentialListResponse {
   total: number
 }
 
-export interface BankLookupResponse {
+export interface BankInfoResponse {
   blz: string
   name: string
   bic: string | null
-  city: string | null
-  endpoint_url: string
+  organization: string | null
+  is_fints_capable: boolean
 }
 
 export interface CredentialCreateRequest {
@@ -135,8 +135,8 @@ export async function listCredentials(): Promise<CredentialListResponse> {
 /**
  * Lookup bank information by BLZ
  */
-export async function lookupBank(blz: string): Promise<BankLookupResponse> {
-  return api.get<BankLookupResponse>(`/bank-connections/lookup/${blz}`)
+export async function lookupBank(blz: string): Promise<BankInfoResponse> {
+  return api.get<BankInfoResponse>(`/bank-connections/lookup/${blz}`)
 }
 
 /**

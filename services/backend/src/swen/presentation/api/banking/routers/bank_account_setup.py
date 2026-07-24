@@ -52,4 +52,4 @@ async def setup_bank_accounts(
         # Let the global exception handler process domain exceptions
         raise
 
-    return SetupBankResponse(**result.model_dump())
+    return SetupBankResponse.model_validate(result)

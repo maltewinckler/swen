@@ -25,19 +25,12 @@ from swen.application.analytics.queries import (
     TopExpensesQuery,
 )
 from swen.presentation.api.analytics.schemas.analytics import (
-    BreakdownItemResponse,
-    CategoryComparisonResponse,
-    CategoryDataResponse,
     CategoryTimeSeriesResponse,
     IncomeBreakdownResponse,
     MonthComparisonResponse,
-    SankeyLinkResponse,
-    SankeyNodeResponse,
     SankeyResponse,
     SpendingBreakdownResponse,
-    TimeSeriesDataPointResponse,
     TimeSeriesResponse,
-    TopExpenseItemResponse,
     TopExpensesResponse,
 )
 from swen.presentation.api.dependencies import RepoFactory
@@ -102,20 +95,7 @@ async def get_spending_over_time(
         include_drafts=include_drafts,
     )
 
-    return CategoryTimeSeriesResponse(
-        data_points=[
-            CategoryDataResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                categories=dp.categories,
-                total=dp.total,
-            )
-            for dp in result.data_points
-        ],
-        categories=result.categories,
-        currency=result.currency,
-        totals_by_category=result.totals_by_category,
-    )
+    return CategoryTimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -153,21 +133,7 @@ async def get_single_account_spending_over_time(
         include_drafts=include_drafts,
     )
 
-    return TimeSeriesResponse(
-        data_points=[
-            TimeSeriesDataPointResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                value=dp.value,
-            )
-            for dp in result.data_points
-        ],
-        currency=result.currency,
-        total=result.total,
-        average=result.average,
-        min_value=result.min_value,
-        max_value=result.max_value,
-    )
+    return TimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -203,21 +169,7 @@ async def get_spending_breakdown(
         include_drafts=include_drafts,
     )
 
-    return SpendingBreakdownResponse(
-        period_label=result.period_label,
-        items=[
-            BreakdownItemResponse(
-                category=item.category,
-                amount=item.amount,
-                percentage=item.percentage,
-                account_id=item.account_id,
-            )
-            for item in result.items
-        ],
-        total=result.total,
-        currency=result.currency,
-        category_count=result.category_count,
-    )
+    return SpendingBreakdownResponse.model_validate(result)
 
 
 @router.get(
@@ -252,24 +204,7 @@ async def get_top_expenses(
         include_drafts=include_drafts,
     )
 
-    return TopExpensesResponse(
-        period_label=result.period_label,
-        items=[
-            TopExpenseItemResponse(
-                rank=item.rank,
-                category=item.category,
-                account_id=item.account_id,
-                total_amount=item.total_amount,
-                monthly_average=item.monthly_average,
-                percentage_of_total=item.percentage_of_total,
-                transaction_count=item.transaction_count,
-            )
-            for item in result.items
-        ],
-        total_spending=result.total_spending,
-        currency=result.currency,
-        months_analyzed=result.months_analyzed,
-    )
+    return TopExpensesResponse.model_validate(result)
 
 
 @router.get(
@@ -300,21 +235,7 @@ async def get_income_over_time(
         include_drafts=include_drafts,
     )
 
-    return TimeSeriesResponse(
-        data_points=[
-            TimeSeriesDataPointResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                value=dp.value,
-            )
-            for dp in result.data_points
-        ],
-        currency=result.currency,
-        total=result.total,
-        average=result.average,
-        min_value=result.min_value,
-        max_value=result.max_value,
-    )
+    return TimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -347,20 +268,7 @@ async def get_income_breakdown(
         include_drafts=include_drafts,
     )
 
-    return IncomeBreakdownResponse(
-        period_label=result.period_label,
-        items=[
-            BreakdownItemResponse(
-                category=item.category,
-                amount=item.amount,
-                percentage=item.percentage,
-                account_id=item.account_id,
-            )
-            for item in result.items
-        ],
-        total=result.total,
-        currency=result.currency,
-    )
+    return IncomeBreakdownResponse.model_validate(result)
 
 
 @router.get(
@@ -393,21 +301,7 @@ async def get_net_income_over_time(
         include_drafts=include_drafts,
     )
 
-    return TimeSeriesResponse(
-        data_points=[
-            TimeSeriesDataPointResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                value=dp.value,
-            )
-            for dp in result.data_points
-        ],
-        currency=result.currency,
-        total=result.total,
-        average=result.average,
-        min_value=result.min_value,
-        max_value=result.max_value,
-    )
+    return TimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -442,21 +336,7 @@ async def get_savings_rate_over_time(
         include_drafts=include_drafts,
     )
 
-    return TimeSeriesResponse(
-        data_points=[
-            TimeSeriesDataPointResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                value=dp.value,
-            )
-            for dp in result.data_points
-        ],
-        currency=result.currency,
-        total=result.total,
-        average=result.average,
-        min_value=result.min_value,
-        max_value=result.max_value,
-    )
+    return TimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -488,21 +368,7 @@ async def get_net_worth_over_time(
         include_drafts=include_drafts,
     )
 
-    return TimeSeriesResponse(
-        data_points=[
-            TimeSeriesDataPointResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                value=dp.value,
-            )
-            for dp in result.data_points
-        ],
-        currency=result.currency,
-        total=result.total,
-        average=result.average,
-        min_value=result.min_value,
-        max_value=result.max_value,
-    )
+    return TimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -535,20 +401,7 @@ async def get_balances_over_time(
         include_drafts=include_drafts,
     )
 
-    return CategoryTimeSeriesResponse(
-        data_points=[
-            CategoryDataResponse(
-                period=dp.period,
-                period_label=dp.period_label,
-                categories=dp.categories,
-                total=dp.total,
-            )
-            for dp in result.data_points
-        ],
-        categories=result.categories,
-        currency=result.currency,
-        totals_by_category=result.totals_by_category,
-    )
+    return CategoryTimeSeriesResponse.model_validate(result)
 
 
 @router.get(
@@ -579,33 +432,7 @@ async def get_month_comparison(
         include_drafts=include_drafts,
     )
 
-    return MonthComparisonResponse(
-        current_month=result.current_month,
-        previous_month=result.previous_month,
-        currency=result.currency,
-        current_income=result.current_income,
-        previous_income=result.previous_income,
-        income_change=result.income_change,
-        income_change_percentage=result.income_change_percentage,
-        current_spending=result.current_spending,
-        previous_spending=result.previous_spending,
-        spending_change=result.spending_change,
-        spending_change_percentage=result.spending_change_percentage,
-        current_net=result.current_net,
-        previous_net=result.previous_net,
-        net_change=result.net_change,
-        net_change_percentage=result.net_change_percentage,
-        category_comparisons=[
-            CategoryComparisonResponse(
-                category=cc.category,
-                current_amount=cc.current_amount,
-                previous_amount=cc.previous_amount,
-                change_amount=cc.change_amount,
-                change_percentage=cc.change_percentage,
-            )
-            for cc in result.category_comparisons
-        ],
-    )
+    return MonthComparisonResponse.model_validate(result)
 
 
 @router.get(
@@ -647,27 +474,4 @@ async def get_sankey_data(
         include_drafts=include_drafts,
     )
 
-    return SankeyResponse(
-        nodes=[
-            SankeyNodeResponse(
-                id=node.id,
-                label=node.label,
-                category=node.category,
-                color=node.color,
-            )
-            for node in result.nodes
-        ],
-        links=[
-            SankeyLinkResponse(
-                source=link.source,
-                target=link.target,
-                value=link.value,
-            )
-            for link in result.links
-        ],
-        currency=result.currency,
-        period_label=result.period_label,
-        total_income=result.total_income,
-        total_expenses=result.total_expenses,
-        net_savings=result.net_savings,
-    )
+    return SankeyResponse.model_validate(result)

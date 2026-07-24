@@ -7,6 +7,7 @@ from uuid import UUID
 
 from swen.application.accounting.dtos.transactions_dto import (
     JournalEntryToCreateDTO,
+    TransactionDTO,
     TransactionToEditDTO,
 )
 from swen.domain.accounting.aggregates import Transaction
@@ -79,7 +80,7 @@ class EditTransactionCommand:
     async def execute(
         self,
         dto: TransactionToEditDTO,
-    ) -> Transaction:
+    ) -> TransactionDTO:
         # Validate mutually exclusive parameters
         if dto.entries is not None and dto.counter_account_id is not None:
             msg = (
@@ -112,7 +113,7 @@ class EditTransactionCommand:
 
         # Persist changes
         await self._transaction_repo.save(transaction)
-        return transaction
+        return TransactionDTO.from_transaction(transaction)
 
     async def _load_transaction(self, transaction_id: UUID) -> Transaction:
         transaction = await self._transaction_repo.find_by_id(transaction_id)

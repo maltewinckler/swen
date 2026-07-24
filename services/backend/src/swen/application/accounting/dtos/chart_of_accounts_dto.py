@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 if TYPE_CHECKING:
     from swen.domain.accounting.entities import Account
     from swen.domain.integration.entities import AccountMapping
+
+
+class ParentAction(str, Enum):
+    """Action to take on the account's parent relationship."""
+
+    KEEP = "keep"
+    SET = "set"
+    REMOVE = "remove"
 
 
 class AccountSummaryDTO(BaseModel):
@@ -17,7 +27,7 @@ class AccountSummaryDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     name: str
     account_number: str
     account_type: str
@@ -25,13 +35,13 @@ class AccountSummaryDTO(BaseModel):
     is_active: bool
     description: Optional[str] = None
     iban: Optional[str] = None
-    created_at: Optional[datetime] = None
-    parent_id: Optional[str] = None
+    created_at: datetime
+    parent_id: Optional[UUID] = None
 
     @classmethod
     def from_entity(cls, account: Account) -> AccountSummaryDTO:
         return cls(
-            id=str(account.id),
+            id=account.id,
             name=account.name,
             account_number=account.account_number or "",
             account_type=account.account_type.value,
@@ -40,8 +50,30 @@ class AccountSummaryDTO(BaseModel):
             description=account.description,
             iban=account.iban,
             created_at=account.created_at,
-            parent_id=str(account.parent_id) if account.parent_id else None,
+            parent_id=account.parent_id,
         )
+
+
+class CreateAccountDTO(BaseModel):
+    """Input for creating a new account."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    account_type: str
+    account_number: str = Field(..., min_length=1, max_length=50)
+    currency: str = "EUR"
+    description: Optional[str] = Field(default=None, max_length=500)
+    parent_id: Optional[UUID] = None
+
+
+class UpdateAccountDTO(BaseModel):
+    """Input for updating an existing account."""
+
+    account_id: UUID
+    name: Optional[str] = None
+    account_number: Optional[str] = None
+    description: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    parent_action: ParentAction = ParentAction.KEEP
 
 
 class BankAccountDTO(BaseModel):
@@ -49,7 +81,7 @@ class BankAccountDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    id: str
+    id: UUID
     name: str
     account_number: str
     iban: str
@@ -63,7 +95,7 @@ class BankAccountDTO(BaseModel):
         mapping: AccountMapping,
     ) -> BankAccountDTO:
         return cls(
-            id=str(account.id),
+            id=account.id,
             name=account.name,
             account_number=account.account_number or "",
             iban=mapping.iban,

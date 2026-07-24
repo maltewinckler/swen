@@ -6,8 +6,8 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from swen.application.accounting.dtos.transactions_dto import TransactionDTO
 from swen.application.integration.services.ml_example_service import MLExampleService
-from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.exceptions import (
     TransactionAlreadyDraftError,
     TransactionAlreadyPostedError,
@@ -45,7 +45,7 @@ class PostTransactionCommand:
             ml_port=ml_port,
         )
 
-    async def execute(self, transaction_id: UUID) -> Transaction:
+    async def execute(self, transaction_id: UUID) -> TransactionDTO:
         transaction = await self._transaction_repo.find_by_id(transaction_id)
         if not transaction:
             raise TransactionNotFoundError(transaction_id)
@@ -59,7 +59,7 @@ class PostTransactionCommand:
         # Submit as training example (fire-and-forget)
         self._ml_example_service.submit_example(transaction)
 
-        return transaction
+        return TransactionDTO.from_transaction(transaction)
 
 
 class UnpostTransactionCommand:
@@ -72,7 +72,7 @@ class UnpostTransactionCommand:
     def from_factory(cls, factory: RepositoryFactory) -> UnpostTransactionCommand:
         return cls(transaction_repository=factory.transaction_repository())
 
-    async def execute(self, transaction_id: UUID) -> Transaction:
+    async def execute(self, transaction_id: UUID) -> TransactionDTO:
         transaction = await self._transaction_repo.find_by_id(transaction_id)
         if not transaction:
             raise TransactionNotFoundError(transaction_id)
@@ -83,7 +83,7 @@ class UnpostTransactionCommand:
         transaction.unpost()
         await self._transaction_repo.save(transaction)
 
-        return transaction
+        return TransactionDTO.from_transaction(transaction)
 
 
 class BulkPostTransactionsCommand:
@@ -112,7 +112,7 @@ class BulkPostTransactionsCommand:
         self,
         transaction_ids: list[UUID] | None = None,
         post_all_drafts: bool = False,
-    ) -> list[Transaction]:
+    ) -> list[TransactionDTO]:
         if not transaction_ids and not post_all_drafts:
             msg = "Either specify transaction_ids or set post_all_drafts=True"
             raise ValidationError(msg)
@@ -135,4 +135,4 @@ class BulkPostTransactionsCommand:
                     self._ml_example_service.submit_example(txn)
                     posted.append(txn)
 
-        return posted
+        return [TransactionDTO.from_transaction(txn) for txn in posted]

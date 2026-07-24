@@ -23,17 +23,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from swen.application.analytics.dtos import (
-    BreakdownItem,
-    CategoryComparison,
-    CategoryTimeSeriesDataPoint,
-    CategoryTimeSeriesResult,
-    IncomeBreakdownResult,
-    MonthComparisonResult,
-    SpendingBreakdownResult,
-    TimeSeriesDataPoint,
-    TimeSeriesResult,
-    TopExpenseItem,
-    TopExpensesResult,
+    BreakdownItemDTO,
+    CategoryComparisonDTO,
+    CategoryTimeSeriesDataPointDTO,
+    CategoryTimeSeriesResultDTO,
+    IncomeBreakdownResultDTO,
+    MonthComparisonResultDTO,
+    SpendingBreakdownResultDTO,
+    TimeSeriesDataPointDTO,
+    TimeSeriesResultDTO,
+    TopExpenseItemDTO,
+    TopExpensesResultDTO,
 )
 from swen.application.ports.analytics import AnalyticsReadPort
 from swen.domain.accounting.entities import AccountType
@@ -83,7 +83,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -127,14 +127,14 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             all_categories.add(category_name)
 
         # Build data points for each month in range
-        data_points: list[CategoryTimeSeriesDataPoint] = []
+        data_points: list[CategoryTimeSeriesDataPointDTO] = []
         current = start_date
         while current <= end_date:
             month_key = _get_month_key(current.year, current.month)
             categories = dict(monthly_spending.get(month_key, {}))
             total = sum(categories.values(), Decimal("0"))
             data_points.append(
-                CategoryTimeSeriesDataPoint(
+                CategoryTimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     categories=categories,
@@ -149,7 +149,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             reverse=True,
         )
 
-        return CategoryTimeSeriesResult(
+        return CategoryTimeSeriesResultDTO(
             data_points=data_points,
             categories=sorted_categories,
             currency="EUR",
@@ -163,7 +163,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -201,13 +201,13 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             monthly_spending[month_key] += Decimal(debit_amount)
 
         # Build data points for each month in range
-        data_points: list[TimeSeriesDataPoint] = []
+        data_points: list[TimeSeriesDataPointDTO] = []
         current = start_date
         while current <= end_date:
             month_key = _get_month_key(current.year, current.month)
             value = monthly_spending.get(month_key, Decimal("0"))
             data_points.append(
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     value=value,
@@ -223,7 +223,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> SpendingBreakdownResult:
+    ) -> SpendingBreakdownResultDTO:
         start_date, end_date, period_label = self._calculate_breakdown_period(
             month,
             days,
@@ -262,7 +262,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
 
         total = sum(spending_by_category.values(), Decimal("0"))
 
-        items: list[BreakdownItem] = []
+        items: list[BreakdownItemDTO] = []
         for category, amount in sorted(
             spending_by_category.items(),
             key=lambda x: x[1],
@@ -270,7 +270,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         ):
             percentage = (amount / total * 100) if total > 0 else Decimal("0")
             items.append(
-                BreakdownItem(
+                BreakdownItemDTO(
                     category=category,
                     amount=amount,
                     percentage=percentage.quantize(Decimal("0.1")),
@@ -278,7 +278,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 ),
             )
 
-        return SpendingBreakdownResult(
+        return SpendingBreakdownResultDTO(
             period_label=period_label,
             items=items,
             total=total,
@@ -292,7 +292,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -326,13 +326,13 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             month_key = _get_month_key(txn_date.year, txn_date.month)
             monthly_income[month_key] += Decimal(credit_amount)
 
-        data_points: list[TimeSeriesDataPoint] = []
+        data_points: list[TimeSeriesDataPointDTO] = []
         current = start_date
         while current <= end_date:
             month_key = _get_month_key(current.year, current.month)
             value = monthly_income.get(month_key, Decimal("0"))
             data_points.append(
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     value=value,
@@ -348,7 +348,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> IncomeBreakdownResult:
+    ) -> IncomeBreakdownResultDTO:
         start_date, end_date, period_label = self._calculate_breakdown_period(
             month,
             days,
@@ -387,7 +387,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
 
         total = sum(income_by_source.values(), Decimal("0"))
 
-        items: list[BreakdownItem] = []
+        items: list[BreakdownItemDTO] = []
         for source, amount in sorted(
             income_by_source.items(),
             key=lambda x: x[1],
@@ -395,7 +395,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         ):
             percentage = (amount / total * 100) if total > 0 else Decimal("0")
             items.append(
-                BreakdownItem(
+                BreakdownItemDTO(
                     category=source,
                     amount=amount,
                     percentage=percentage.quantize(Decimal("0.1")),
@@ -403,7 +403,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 ),
             )
 
-        return IncomeBreakdownResult(
+        return IncomeBreakdownResultDTO(
             period_label=period_label,
             items=items,
             total=total,
@@ -416,7 +416,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -460,7 +460,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             ):
                 monthly_expenses[month_key] += Decimal(debit_amount)
 
-        data_points: list[TimeSeriesDataPoint] = []
+        data_points: list[TimeSeriesDataPointDTO] = []
         current = start_date
         while current <= end_date:
             month_key = _get_month_key(current.year, current.month)
@@ -468,7 +468,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             expenses = monthly_expenses.get(month_key, Decimal("0"))
             net = income - expenses
             data_points.append(
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     value=net,
@@ -484,7 +484,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -528,7 +528,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             ):
                 monthly_expenses[month_key] += Decimal(debit_amount)
 
-        data_points: list[TimeSeriesDataPoint] = []
+        data_points: list[TimeSeriesDataPointDTO] = []
         current = start_date
         while current <= end_date:
             month_key = _get_month_key(current.year, current.month)
@@ -542,7 +542,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 rate = Decimal("0") if expenses == 0 else Decimal("-100")
 
             data_points.append(
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     value=rate,
@@ -561,7 +561,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         min_value = min(values) if values else Decimal("0")
         max_value = max(values) if values else Decimal("0")
 
-        return TimeSeriesResult(
+        return TimeSeriesResultDTO(
             data_points=data_points,
             currency="%",
             total=total,
@@ -576,7 +576,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = True,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -719,9 +719,9 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         liability_ids: list[str],
         start_date: datetime,
         end_date: datetime,
-    ) -> list[TimeSeriesDataPoint]:
+    ) -> list[TimeSeriesDataPointDTO]:
         balances_by_id: dict[str, Decimal] = defaultdict(Decimal)
-        data_points: list[TimeSeriesDataPoint] = []
+        data_points: list[TimeSeriesDataPointDTO] = []
         idx = 0
         current = start_date
 
@@ -744,7 +744,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 liability_ids,
             )
             data_points.append(
-                TimeSeriesDataPoint(
+                TimeSeriesDataPointDTO(
                     period=_get_month_key(current.year, current.month),
                     period_label=_get_month_label(current.year, current.month),
                     value=net_worth,
@@ -779,11 +779,11 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
 
     def _build_time_series_result(
         self,
-        data_points: list[TimeSeriesDataPoint],
+        data_points: list[TimeSeriesDataPointDTO],
         *,
         use_sum_as_total: bool = False,
         currency: str = "EUR",
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         values = [dp.value for dp in data_points]
         total_sum = sum(values, Decimal("0"))
         latest = values[-1] if values else Decimal("0")
@@ -791,7 +791,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         min_value = min(values) if values else Decimal("0")
         max_value = max(values) if values else Decimal("0")
 
-        return TimeSeriesResult(
+        return TimeSeriesResultDTO(
             data_points=data_points,
             currency=currency,
             total=total_sum if use_sum_as_total else latest,
@@ -806,7 +806,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = True,
-    ) -> CategoryTimeSeriesResult:
+    ) -> CategoryTimeSeriesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -856,7 +856,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         entry_rows = sorted(normalized_rows, key=lambda r: r[0])
         balances_by_id: dict[str, Decimal] = defaultdict(Decimal)
 
-        data_points: list[CategoryTimeSeriesDataPoint] = []
+        data_points: list[CategoryTimeSeriesDataPointDTO] = []
         totals_by_account: dict[str, Decimal] = {}
         all_account_names: set[str] = set()
 
@@ -885,7 +885,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 totals_by_account[name] = bal
 
             data_points.append(
-                CategoryTimeSeriesDataPoint(
+                CategoryTimeSeriesDataPointDTO(
                     period=month_key,
                     period_label=_get_month_label(current.year, current.month),
                     categories=categories,
@@ -900,7 +900,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             reverse=True,
         )
 
-        return CategoryTimeSeriesResult(
+        return CategoryTimeSeriesResultDTO(
             data_points=data_points,
             categories=sorted_accounts,
             currency="EUR",
@@ -914,7 +914,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         top_n: int = 10,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TopExpensesResult:
+    ) -> TopExpensesResultDTO:
         start_date, end_date = self._calculate_date_range(months, end_month)
         end_exclusive = _next_month(end_date)
 
@@ -964,12 +964,12 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
             reverse=True,
         )[:top_n]
 
-        items: list[TopExpenseItem] = []
+        items: list[TopExpenseItemDTO] = []
         for rank, (category, total) in enumerate(sorted_categories, start=1):
             monthly_avg = total / months if months > 0 else total
             pct = (total / total_spending * 100) if total_spending > 0 else Decimal("0")
             items.append(
-                TopExpenseItem(
+                TopExpenseItemDTO(
                     rank=rank,
                     category=category,
                     account_id=account_ids.get(category, ""),
@@ -980,7 +980,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
                 ),
             )
 
-        return TopExpensesResult(
+        return TopExpensesResultDTO(
             period_label=period_label,
             items=items,
             total_spending=total_spending,
@@ -993,7 +993,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         *,
         month: str | None = None,
         include_drafts: bool = False,
-    ) -> MonthComparisonResult:
+    ) -> MonthComparisonResultDTO:
         periods = self._calculate_comparison_periods(month)
         rows = await self._query_comparison_entries(periods, include_drafts)
         aggregated = self._aggregate_comparison_data(rows, periods)
@@ -1135,18 +1135,18 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         self,
         current_by_category: dict[str, Decimal],
         previous_by_category: dict[str, Decimal],
-    ) -> list[CategoryComparison]:
+    ) -> list[CategoryComparisonDTO]:
         """Build sorted category comparison list."""
         all_categories = set(current_by_category.keys()) | set(
             previous_by_category.keys(),
         )
-        comparisons: list[CategoryComparison] = []
+        comparisons: list[CategoryComparisonDTO] = []
 
         for category in all_categories:
             curr = current_by_category.get(category, Decimal("0"))
             prev = previous_by_category.get(category, Decimal("0"))
             comparisons.append(
-                CategoryComparison(
+                CategoryComparisonDTO(
                     category=category,
                     current_amount=curr,
                     previous_amount=prev,
@@ -1162,7 +1162,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         self,
         data: dict,
         periods: dict,
-    ) -> MonthComparisonResult:
+    ) -> MonthComparisonResultDTO:
         """Build the final comparison result."""
         current_income = data["current_income"]
         current_spending = data["current_spending"]
@@ -1172,7 +1172,7 @@ class SqlAlchemyAnalyticsReadAdapter(AnalyticsReadPort):
         current_net = current_income - current_spending
         previous_net = previous_income - previous_spending
 
-        return MonthComparisonResult(
+        return MonthComparisonResultDTO(
             current_month=periods["current_label"],
             previous_month=periods["previous_label"],
             currency="EUR",

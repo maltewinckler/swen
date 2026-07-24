@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
-class AccountStatsResult(BaseModel):
+class AccountStatsDTO(BaseModel):
     """Result of account statistics query."""
 
     model_config = ConfigDict(frozen=True)

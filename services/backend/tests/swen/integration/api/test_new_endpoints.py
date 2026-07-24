@@ -213,6 +213,50 @@ class TestInitChartOfAccounts:
 class TestExports:
     """Tests for GET /api/v1/exports/*."""
 
+    def _create_transaction(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ) -> dict:
+        """Create an expense/asset pair and a posted transaction between them."""
+        expense = test_client.post(
+            f"{api_v1_prefix}/accounts",
+            headers=auth_headers,
+            json={
+                "name": "Groceries",
+                "account_number": "6001",
+                "account_type": "expense",
+                "currency": "EUR",
+            },
+        ).json()
+        asset = test_client.post(
+            f"{api_v1_prefix}/accounts",
+            headers=auth_headers,
+            json={
+                "name": "Checking",
+                "account_number": "1001",
+                "account_type": "asset",
+                "currency": "EUR",
+            },
+        ).json()
+        response = test_client.post(
+            f"{api_v1_prefix}/transactions",
+            headers=auth_headers,
+            json={
+                "date": datetime.now(tz=timezone.utc).isoformat(),
+                "description": "REWE Supermarket",
+                "entries": [
+                    {"account_id": expense["id"], "debit": "50.00", "credit": "0"},
+                    {"account_id": asset["id"], "debit": "0", "credit": "50.00"},
+                ],
+                "counterparty": "REWE",
+                "auto_post": True,
+            },
+        )
+        assert response.status_code == 201
+        return response.json()
+
     def test_export_transactions_empty(
         self,
         test_client: TestClient,
@@ -229,6 +273,47 @@ class TestExports:
         data = response.json()
         assert data["transactions"] == []
         assert data["count"] == 0
+
+    def test_export_transactions_with_data(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Export serializes a real transaction (regression: DTO/response mismatch)."""
+        self._create_transaction(test_client, auth_headers, api_v1_prefix)
+
+        response = test_client.get(
+            f"{api_v1_prefix}/exports/transactions",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        exported = data["transactions"][0]
+        assert exported["description"] == "REWE Supermarket"
+        assert exported["counterparty"] == "REWE"
+        assert exported["status"] == "posted"
+
+    def test_export_full_with_data(
+        self,
+        test_client: TestClient,
+        auth_headers: dict,
+        api_v1_prefix: str,
+    ):
+        """Full export serializes a real transaction (regression coverage)."""
+        self._create_transaction(test_client, auth_headers, api_v1_prefix)
+
+        response = test_client.get(
+            f"{api_v1_prefix}/exports/full",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["transaction_count"] == 1
+        assert len(data["transactions"]) == 1
 
     def test_export_transactions_with_filters(
         self,

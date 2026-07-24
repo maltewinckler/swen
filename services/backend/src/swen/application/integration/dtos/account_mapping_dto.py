@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+from swen.domain.accounting.entities import AccountType
 
 
 class AccountMappingDTO(BaseModel):
@@ -23,7 +26,7 @@ class AccountMappingDTO(BaseModel):
     accounting_account_id: UUID
     accounting_account_name: Optional[str] = None
     accounting_account_number: Optional[str] = None
-    created_at: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class AccountMappingListDTO(BaseModel):
@@ -37,6 +40,16 @@ class AccountMappingListDTO(BaseModel):
 
     mappings: list[AccountMappingDTO]
     count: int
+
+
+class CreateExternalAccountDTO(BaseModel):
+    """Input for creating or finding an external account mapping."""
+
+    iban: str
+    name: str
+    currency: str = "EUR"
+    account_type: AccountType = AccountType.ASSET
+    reconcile: bool = True
 
 
 class ExternalAccountCreatedDTO(BaseModel):

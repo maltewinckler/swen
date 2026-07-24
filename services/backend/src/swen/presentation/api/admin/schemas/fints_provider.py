@@ -1,9 +1,11 @@
 """Schemas for FinTS provider management endpoints."""
 
-from datetime import datetime
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 
-from pydantic import BaseModel, Field
+from swen.application.system.queries import (
+    FintsProviderStatusDTO,
+    GeldstromApiConfigDTO,
+)
 
 
 class SaveGeldstromApiConfigRequest(BaseModel):
@@ -33,21 +35,13 @@ class ActivateProviderRequest(BaseModel):
     )
 
 
-class GeldstromApiConfigResponse(BaseModel):
+class GeldstromApiConfigResponse(GeldstromApiConfigDTO):
     """Geldstrom API configuration details."""
 
-    api_key_masked: str
-    endpoint_url: str
-    is_active: bool
-    last_updated: Optional[datetime] = None
-    last_updated_by: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
-class FintsProviderStatusResponse(BaseModel):
+class FintsProviderStatusResponse(FintsProviderStatusDTO):
     """Overall FinTS provider status."""
 
-    local_configured: bool
-    local_active: bool
-    api_configured: bool
-    api_active: bool
-    active_provider: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)

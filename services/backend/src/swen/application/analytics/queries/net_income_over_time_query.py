@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import TimeSeriesResult
+from swen.application.analytics.dtos import TimeSeriesResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ class NetIncomeOverTimeQuery:
         months: int = 12,
         end_month: str | None = None,
         include_drafts: bool = False,
-    ) -> TimeSeriesResult:
+    ) -> TimeSeriesResultDTO:
         return await self._analytics.net_income_over_time(
             months=months,
             end_month=end_month,

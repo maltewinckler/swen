@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from fastapi import APIRouter
 
@@ -26,9 +25,7 @@ router = APIRouter()
         200: {"description": "List of bank accounts with mappings"},
     },
 )
-async def list_bank_accounts(
-    factory: RepoFactory,
-) -> BankAccountListResponse:
+async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
     """
     List all imported bank accounts with their mapping information.
 
@@ -38,18 +35,7 @@ async def list_bank_accounts(
     dtos = await query.list_bank_accounts()
 
     return BankAccountListResponse(
-        accounts=[
-            BankAccountResponse(
-                id=UUID(dto.id),
-                name=dto.name,
-                account_number=dto.account_number,
-                iban=dto.iban,
-                currency=dto.currency,
-                is_active=dto.is_active,
-            )
-            for dto in dtos
-        ],
-        total=len(dtos),
+        accounts=[BankAccountResponse.model_validate(dto) for dto in dtos],
     )
 
 
@@ -71,14 +57,11 @@ async def rename_bank_account(
 
     Updates both the accounting account name and the account mapping.
     """
-    import_service = RenameBankAccountCommand.from_factory(factory)
-
-    # Normalize IBAN (presentation concern - input sanitization)
-    normalized_iban = iban.replace(" ", "").upper()
+    rename_bank_account_command = RenameBankAccountCommand.from_factory(factory)
 
     try:
-        dto = await import_service.execute(
-            iban=normalized_iban,
+        dto = await rename_bank_account_command.execute(
+            iban=iban,
             new_name=request.name,
         )
         await factory.session.commit()
@@ -87,13 +70,6 @@ async def rename_bank_account(
         # Let the global exception handler process domain exceptions
         raise
 
-    logger.info("Bank account renamed: %s -> %s", normalized_iban, request.name)
+    logger.info("Bank account renamed: %s -> %s", iban, request.name)
 
-    return BankAccountResponse(
-        id=UUID(dto.id),
-        name=dto.name,
-        account_number=dto.account_number,
-        iban=dto.iban,
-        currency=dto.currency,
-        is_active=dto.is_active,
-    )
+    return BankAccountResponse.model_validate(dto)

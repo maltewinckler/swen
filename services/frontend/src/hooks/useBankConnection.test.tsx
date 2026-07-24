@@ -138,7 +138,7 @@ describe('useBankConnection', () => {
     })
 
     it('calls lookupBank API with valid BLZ', async () => {
-      const mockBankData = { name: 'Test Bank', blz: '12345678', fints_url: 'https://fints.test.de' }
+      const mockBankData = { name: 'Test Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true }
       vi.mocked(api.lookupBank).mockResolvedValue(mockBankData)
 
       const { result } = renderHook(() => useBankConnection(), {
@@ -202,7 +202,7 @@ describe('useBankConnection', () => {
 
       // Resolve and wait
       await act(async () => {
-        resolvePromise!({ name: 'Bank', blz: '12345678', fints_url: 'https://test.de' })
+        resolvePromise!({ name: 'Bank', blz: '12345678', bic: null, organization: null, is_fints_capable: true })
         await lookupPromise
       })
 
@@ -461,7 +461,7 @@ describe('useBankConnection', () => {
       vi.mocked(api.lookupBank).mockResolvedValue({
         name: 'Test Bank',
         blz: '12345678',
-        fints_url: 'https://test.de',
+        bic: null, organization: null, is_fints_capable: true,
       })
 
       const { result } = renderHook(() => useBankConnection(), {

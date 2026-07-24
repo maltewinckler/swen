@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Optional
 
 from swen.application.analytics.dtos.export_dto import (
     AccountExportDTO,
-    ExportResult,
+    ExportResultDTO,
     MappingExportDTO,
     TransactionExportDTO,
 )
@@ -59,16 +59,16 @@ class ExportDataQuery:
         self,
         days: int = 0,
         status: Optional[str] = None,
-    ) -> ExportResult:
+    ) -> ExportResultDTO:
         transactions = await self.get_transactions(days=days, status=status)
         all_accounts = await self._account_repo.find_all()
 
-        return ExportResult(
+        return ExportResultDTO(
             transactions=transactions,
             accounts=[AccountExportDTO.from_account(a) for a in all_accounts],
         )
 
-    async def execute_full_export(self, days: int = 0) -> ExportResult:
+    async def execute_full_export(self, days: int = 0) -> ExportResultDTO:
         transactions = await self.get_transactions(days=days, status="all")
         accounts = await self.get_accounts(include_inactive=True)
 
@@ -78,7 +78,7 @@ class ExportDataQuery:
             all_mappings = await self._mapping_repo.find_all()
             mappings = [MappingExportDTO.from_mapping(m) for m in all_mappings]
 
-        return ExportResult(
+        return ExportResultDTO(
             transactions=transactions,
             accounts=accounts,
             mappings=mappings,

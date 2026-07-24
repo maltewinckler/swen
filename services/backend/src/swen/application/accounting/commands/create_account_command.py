@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from swen_ml_contracts import AccountOption
 
+from swen.application.accounting.dtos.chart_of_accounts_dto import CreateAccountDTO
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -56,59 +56,51 @@ class CreateAccountCommand:
             ml_client=ml_client,
         )
 
-    async def execute(  # noqa: PLR0913
-        self,
-        name: str,
-        account_type: str,
-        account_number: str,
-        currency: str = "EUR",
-        description: str | None = None,
-        parent_id: UUID | None = None,
-    ) -> Account:
+    async def execute(self, dto: CreateAccountDTO) -> Account:
         try:
-            acc_type = AccountType(account_type.lower())
+            acc_type = AccountType(dto.account_type.lower())
         except ValueError as e:
             valid_types = [t.value for t in AccountType]
-            raise InvalidAccountTypeError(account_type, valid_types) from e
+            raise InvalidAccountTypeError(dto.account_type, valid_types) from e
 
         # Validate currency
         try:
-            curr = Currency(currency.upper())
+            curr = Currency(dto.currency.upper())
         except ValueError as e:
             valid_currencies = sorted(SUPPORTED_CURRENCIES)
-            raise InvalidCurrencyError(currency, valid_currencies) from e
+            raise InvalidCurrencyError(dto.currency, valid_currencies) from e
 
         # Check for existing account with same number (repository is user-scoped)
-        existing = await self._account_repo.find_by_account_number(account_number)
+        existing = await self._account_repo.find_by_account_number(dto.account_number)
         if existing:
             raise AccountAlreadyExistsError(
-                account_number=account_number,
-                message=f"Account with number '{account_number}' already exists",
+                account_number=dto.account_number,
+                message=f"Account with number '{dto.account_number}' already exists",
             )
 
         # Check for existing account with same name
-        existing_name = await self._account_repo.find_by_name(name)
+        existing_name = await self._account_repo.find_by_name(dto.name)
         if existing_name:
             raise AccountAlreadyExistsError(
-                account_name=name,
-                message=f"Account with name '{name}' already exists",
+                account_name=dto.name,
+                message=f"Account with name '{dto.name}' already exists",
             )
 
         # Create account with user_id from context
         account = Account(
-            name=name,
+            name=dto.name,
             account_type=acc_type,
-            account_number=account_number,
+            account_number=dto.account_number,
             default_currency=curr,
             user_id=self._user_id,
-            description=description,
+            description=dto.description,
         )
 
         # Validate and set parent with business rules
-        if parent_id:
-            parent = await self._account_repo.find_by_id(parent_id)
+        if dto.parent_id:
+            parent = await self._account_repo.find_by_id(dto.parent_id)
             if not parent:
-                raise AccountNotFoundError(account_id=parent_id)
+                raise AccountNotFoundError(account_id=dto.parent_id)
 
             # Use domain method (with validation)
             account.set_parent(parent)

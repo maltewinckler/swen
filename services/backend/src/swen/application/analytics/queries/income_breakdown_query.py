@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import IncomeBreakdownResult
+from swen.application.analytics.dtos import IncomeBreakdownResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ class IncomeBreakdownQuery:
         month: str | None = None,
         days: int | None = None,
         include_drafts: bool = False,
-    ) -> IncomeBreakdownResult:
+    ) -> IncomeBreakdownResultDTO:
         return await self._analytics.income_breakdown(
             month=month,
             days=days,

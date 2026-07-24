@@ -12,7 +12,7 @@ import {
   ApiRequestError,
 } from '@/api'
 import type {
-  BankLookupResponse,
+  BankInfoResponse,
   TANMethod,
   DiscoveredAccount,
   BankAccountToImport,
@@ -74,7 +74,7 @@ interface BankConnectionState {
   syncDays: number
 
   // Lookup results
-  bankLookup: BankLookupResponse | null
+  bankLookup: BankInfoResponse | null
   discoveredTanMethods: TANMethod[]
   discoveredAccounts: DiscoveredAccount[]
   connectionResult: SetupBankResponse | null
@@ -137,7 +137,7 @@ type BankConnectionAction =
 
   // Bank lookup
   | { type: 'LOOKUP_START' }
-  | { type: 'LOOKUP_SUCCESS'; payload: BankLookupResponse }
+  | { type: 'LOOKUP_SUCCESS'; payload: BankInfoResponse }
   | { type: 'LOOKUP_ERROR'; payload: string }
 
   // TAN discovery
@@ -270,7 +270,7 @@ export interface UseBankConnectionReturn {
   /** Current wizard state */
   state: {
     step: BankConnectionStep
-    bankLookup: BankLookupResponse | null
+    bankLookup: BankInfoResponse | null
     discoveredTanMethods: TANMethod[]
     discoveredAccounts: DiscoveredAccount[]
     connectionResult: SetupBankResponse | null
@@ -327,7 +327,7 @@ export interface UseBankConnectionReturn {
   // Legacy flat access (for backward compatibility)
   step: BankConnectionStep
   bankForm: BankForm
-  bankLookup: BankLookupResponse | null
+  bankLookup: BankInfoResponse | null
   bankLookupError: string
   bankError: string
   isLookingUp: boolean

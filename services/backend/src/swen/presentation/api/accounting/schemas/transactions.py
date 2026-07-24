@@ -2,60 +2,23 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class JournalEntryResponse(BaseModel):
-    """Response schema for a journal entry (one side of double-entry).
-
-    In double-entry bookkeeping, each transaction has at least two entries
-    that balance (total debits = total credits).
-    """
-
-    account_id: UUID
-    account_name: str
-    account_type: str
-    debit: Optional[Decimal] = None
-    credit: Optional[Decimal] = None
-    currency: str
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "account_id": "550e8400-e29b-41d4-a716-446655440000",
-                "account_name": "DKB Checking Account",
-                "account_type": "asset",
-                "debit": None,
-                "credit": "45.99",
-                "currency": "EUR",
-            },
-        },
-    )
+from swen.application.accounting.dtos import (
+    TransactionDTO,
+    TransactionListItemDTO,
+)
 
 
-class TransactionResponse(BaseModel):
+class TransactionResponse(TransactionDTO):
     """Response schema for full transaction data with journal entries.
 
     Each transaction contains balanced journal entries following
     double-entry bookkeeping principles.
     """
-
-    id: UUID
-    date: datetime
-    description: str
-    counterparty: Optional[str] = None
-    counterparty_iban: Optional[str] = None
-    source: str
-    source_iban: Optional[str] = None
-    is_posted: bool
-    is_internal_transfer: bool
-    created_at: datetime
-    entries: list[JournalEntryResponse]
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -66,6 +29,7 @@ class TransactionResponse(BaseModel):
                 "description": "REWE Supermarket",
                 "counterparty": "REWE",
                 "counterparty_iban": "DE89370400440532013000",
+                "bank_reference": None,
                 "source": "bank_import",
                 "source_iban": "DE75512108001245126199",
                 "is_posted": True,
@@ -102,22 +66,8 @@ class TransactionResponse(BaseModel):
     )
 
 
-class TransactionListItemResponse(BaseModel):
+class TransactionListItemResponse(TransactionListItemDTO):
     """Response schema for transaction in list view (simplified for display)."""
-
-    id: UUID
-    short_id: str
-    date: datetime
-    description: str
-    counterparty: Optional[str] = None
-    counter_account: Optional[str] = None
-    debit_account: Optional[str] = None
-    credit_account: Optional[str] = None
-    amount: Decimal
-    currency: str
-    is_income: bool
-    is_posted: bool
-    is_internal_transfer: bool
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -193,12 +143,6 @@ class TransactionListResponse(BaseModel):
             },
         },
     )
-
-
-class TransactionPostRequest(BaseModel):
-    """Request schema for posting a transaction."""
-
-    # No body needed, just the ID in path
 
 
 class JournalEntryCreateRequest(BaseModel):
@@ -370,17 +314,6 @@ class TransactionUpdateRequest(BaseModel):
     )
 
 
-class TransactionFilterParams(BaseModel):
-    """Query parameters for transaction filtering."""
-
-    days: int = Field(default=30, ge=1, le=365)
-    limit: int = Field(default=50, ge=1, le=500)
-    status: Optional[str] = None
-    account_number: Optional[str] = None
-    exclude_transfers: Optional[bool] = None
-    source: Optional[str] = None
-
-
 # ═══════════════════════════════════════════════════════════════
 #           Reclassify / Bulk-Post schemas
 # ═══════════════════════════════════════════════════════════════
@@ -456,12 +389,11 @@ class BulkPostResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "days": 30,
-                "limit": 50,
-                "status": "posted",
-                "account_number": None,
-                "exclude_transfers": True,
-                "source": None,
+                "posted_count": 2,
+                "transaction_ids": [
+                    "550e8400-e29b-41d4-a716-446655440000",
+                    "660e8400-e29b-41d4-a716-446655440001",
+                ],
             },
         },
     )

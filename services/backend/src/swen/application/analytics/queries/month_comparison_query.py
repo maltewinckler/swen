@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen.application.analytics.dtos import MonthComparisonResult
+from swen.application.analytics.dtos import MonthComparisonResultDTO
 from swen.application.ports.analytics import AnalyticsReadPort
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class MonthComparisonQuery:
         self,
         month: str | None = None,
         include_drafts: bool = False,
-    ) -> MonthComparisonResult:
+    ) -> MonthComparisonResultDTO:
         return await self._analytics.month_comparison(
             month=month,
             include_drafts=include_drafts,
