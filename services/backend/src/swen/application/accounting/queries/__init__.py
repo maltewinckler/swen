@@ -9,7 +9,6 @@ from swen.application.accounting.queries.list_accounts_query import (
 )
 from swen.application.accounting.queries.list_transactions_query import (
     ListTransactionsQuery,
-    TransactionListResult,
 )
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "AccountStatsQuery",
     "ListAccountsQuery",
     "ListTransactionsQuery",
-    "TransactionListResult",
 ]

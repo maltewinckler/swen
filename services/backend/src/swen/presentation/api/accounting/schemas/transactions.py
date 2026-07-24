@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from swen.application.accounting.dtos import (
     TransactionDTO,
-    TransactionListItemDTO,
+    TransactionListResultDTO,
 )
 
 
@@ -66,42 +66,8 @@ class TransactionResponse(TransactionDTO):
     )
 
 
-class TransactionListItemResponse(TransactionListItemDTO):
-    """Response schema for transaction in list view (simplified for display)."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "short_id": "550e8400",
-                "date": "2024-12-05T14:30:00Z",
-                "description": "REWE Supermarket",
-                "counterparty": "REWE",
-                "counter_account": "Groceries",
-                "debit_account": "Groceries",
-                "credit_account": "DKB Girokonto",
-                "amount": "45.99",
-                "currency": "EUR",
-                "is_income": False,
-                "is_posted": True,
-                "is_internal_transfer": False,
-            },
-        },
-    )
-
-
-class TransactionListResponse(BaseModel):
+class TransactionListResponse(TransactionListResultDTO):
     """Response schema for transaction listing with pagination and summary counts."""
-
-    transactions: list[TransactionListItemResponse]
-    total: int
-    filtered_count: int
-    draft_count: int
-    posted_count: int
-    page: int
-    page_size: int
-    total_pages: int
 
     model_config = ConfigDict(
         from_attributes=True,

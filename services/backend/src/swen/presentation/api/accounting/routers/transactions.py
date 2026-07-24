@@ -38,7 +38,6 @@ from swen.presentation.api.accounting.schemas.transactions import (
     ReclassifyDraftsRequest,
     SimpleTransactionToCreateRequest,
     TransactionCreateRequest,
-    TransactionListItemResponse,
     TransactionListResponse,
     TransactionResponse,
     TransactionUpdateRequest,
@@ -110,23 +109,8 @@ async def list_transactions(
     )
 
     result = await query.execute(filters)
-    dto_result = await query.get_transaction_list(filters)
 
-    total_pages = (result.filtered_count + _PAGE_SIZE - 1) // _PAGE_SIZE
-
-    return TransactionListResponse(
-        transactions=[
-            TransactionListItemResponse.model_validate(dto)
-            for dto in dto_result.transactions
-        ],
-        total=result.total_count,
-        filtered_count=result.filtered_count,
-        draft_count=result.draft_count,
-        posted_count=result.posted_count,
-        page=page,
-        page_size=_PAGE_SIZE,
-        total_pages=total_pages,
-    )
+    return TransactionListResponse.model_validate(result)
 
 
 @router.post(

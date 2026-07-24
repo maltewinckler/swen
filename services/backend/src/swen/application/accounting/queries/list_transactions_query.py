@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -19,17 +18,6 @@ from swen.domain.shared.value_objects import Pagination
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-
-
-@dataclass
-class TransactionListResult:
-    """Result of listing transactions (returns domain objects)."""
-
-    transactions: list[Transaction]
-    total_count: int
-    filtered_count: int
-    draft_count: int
-    posted_count: int
 
 
 class ListTransactionsQuery:
@@ -53,7 +41,7 @@ class ListTransactionsQuery:
     async def execute(
         self,
         filters: TransactionListFilterDTO,
-    ) -> TransactionListResult:
+    ) -> TransactionListResultDTO:
         status = filters.status_filter
         if status is None and not filters.show_drafts:
             status = "posted"
@@ -67,12 +55,14 @@ class ListTransactionsQuery:
                 account_id = account.id
             else:
                 counts = await self._transaction_repo.count_by_status()
-                return TransactionListResult(
+                return TransactionListResultDTO(
                     transactions=[],
-                    total_count=counts["total"],
+                    total=counts["total"],
                     filtered_count=0,
                     draft_count=counts["draft"],
                     posted_count=counts["posted"],
+                    page=filters.page,
+                    page_size=filters.page_size,
                 )
 
         should_exclude_transfers = filters.exclude_transfers
@@ -93,12 +83,16 @@ class ListTransactionsQuery:
         filtered_count = await self._transaction_repo.count_with_filters(txn_filters)
         counts = await self._transaction_repo.count_by_status()
 
-        return TransactionListResult(
-            transactions=filtered,
-            total_count=counts["total"],
+        return TransactionListResultDTO(
+            transactions=[
+                TransactionListItemDTO.from_transaction(txn) for txn in filtered
+            ],
+            total=counts["total"],
             filtered_count=filtered_count,
             draft_count=counts["draft"],
             posted_count=counts["posted"],
+            page=filters.page,
+            page_size=filters.page_size,
         )
 
     async def find_by_id(
@@ -128,18 +122,6 @@ class ListTransactionsQuery:
             return await self.find_by_id(txn_uuid)
         except ValueError:
             return await self.find_by_partial_id(transaction_id)
-
-    async def get_transaction_list(
-        self,
-        filters: TransactionListFilterDTO,
-    ) -> TransactionListResultDTO:
-        res = await self.execute(filters)
-
-        items = [TransactionListItemDTO.from_transaction(t) for t in res.transactions]
-        return TransactionListResultDTO(
-            transactions=items,
-            total_count=res.total_count,
-        )
 
     async def get_transaction_detail(
         self,
