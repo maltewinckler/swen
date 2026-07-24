@@ -6,44 +6,35 @@ keeping the CLI layer focused on presentation only.
 
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from swen.domain.accounting.aggregates import Transaction
-from swen.domain.accounting.entities import Account, AccountType
+from swen.application.analytics.dtos import (
+    AccountBalanceDTO,
+    CategorySpendingDTO,
+    DashboardSummaryDTO,
+    RecentTransactionDTO,
+)
 from swen.domain.accounting.repositories import (
     AccountRepository,
     TransactionRepository,
 )
-from swen.domain.accounting.services import AccountBalanceService
+from swen.domain.accounting.services import (
+    AccountBalanceService,
+    FinancialSummaryService,
+)
 from swen.domain.settings.repositories import UserSettingsRepository
 from swen.domain.shared.time import ensure_tz_aware, utc_now
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.domain.accounting.entities import Account
 
 
 def _date_in_range(dt: datetime, start: datetime, end: datetime) -> bool:
     """Check if datetime is in range, handling timezone-naive/aware mismatches."""
     return ensure_tz_aware(start) <= ensure_tz_aware(dt) < ensure_tz_aware(end)
-
-
-@dataclass
-class DashboardSummary:
-    """Dashboard summary data."""
-
-    period_label: str
-    account_balances: dict[Account, Decimal]
-    total_income: Decimal
-    total_expenses: Decimal
-    category_spending: dict[str, Decimal]
-    recent_transactions: list[Transaction]
-    all_accounts: list[Account]
-    draft_count: int
-    posted_count: int
 
 
 class DashboardSummaryQuery:
@@ -105,51 +96,39 @@ class DashboardSummaryQuery:
             return datetime(year + 1, 1, 1, tzinfo=timezone.utc)
         return datetime(year, month + 1, 1, tzinfo=timezone.utc)
 
-    def _calculate_account_balances(
+    def _assemble_account_balance_dtos(
         self,
-        accounts: list[Account],
-        transactions: list[Transaction],
-    ) -> dict[Account, Decimal]:
-        balances: dict[Account, Decimal] = {}
-        for account in accounts:
-            if account.account_type == AccountType.ASSET:
-                account_txns = [t for t in transactions if t.involves_account(account)]
-                balance = self._balance_service.calculate_balance(
-                    account=account,
-                    transactions=account_txns,
-                    include_drafts=True,
-                )
-                balances[account] = balance.amount
-        return balances
+        balances: list[tuple[Account, Decimal]],
+    ) -> list[AccountBalanceDTO]:
+        return [
+            AccountBalanceDTO(
+                id=account.id,
+                name=account.name,
+                balance=balance,
+                currency=account.default_currency.code,
+            )
+            for account, balance in balances
+        ]
 
-    def _calculate_income_expenses(
+    def _assemble_category_spending_dtos(
         self,
-        transactions: list[Transaction],
-    ) -> tuple[Decimal, Decimal, dict[str, Decimal]]:
-        total_income = Decimal("0")
-        total_expenses = Decimal("0")
-        category_spending: dict[str, Decimal] = defaultdict(Decimal)
-
-        for txn in transactions:
-            for entry in txn.entries:
-                if entry.account.account_type == AccountType.INCOME:
-                    if not entry.is_debit():
-                        total_income += entry.credit.amount
-                elif (
-                    entry.account.account_type == AccountType.EXPENSE
-                    and entry.is_debit()
-                ):
-                    total_expenses += entry.debit.amount
-                    category_spending[entry.account.name] += entry.debit.amount
-
-        return (total_income, total_expenses, dict(category_spending))
+        category_spending: dict[str, Decimal],
+    ) -> list[CategorySpendingDTO]:
+        return [
+            CategorySpendingDTO(category=category, amount=amount)
+            for category, amount in sorted(
+                category_spending.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        ]
 
     async def execute(
         self,
         days: Optional[int] = None,
         month: Optional[str] = None,
         show_drafts: Optional[bool] = None,
-    ) -> DashboardSummary:
+    ) -> DashboardSummaryDTO:
         if show_drafts is None:
             show_drafts = await self._get_show_drafts_preference()
 
@@ -168,15 +147,12 @@ class DashboardSummaryQuery:
         draft_count = sum(1 for t in all_transactions if not t.is_posted)
         posted_count = sum(1 for t in all_transactions if t.is_posted)
 
-        account_balances = self._calculate_account_balances(
+        balances = FinancialSummaryService.asset_balances(
             all_accounts,
             all_transactions,
+            balance_service=self._balance_service,
         )
-        (
-            total_income,
-            total_expenses,
-            category_spending,
-        ) = self._calculate_income_expenses(period_transactions)
+        totals = FinancialSummaryService.period_totals(period_transactions)
 
         recent_transactions = sorted(
             all_transactions,
@@ -184,14 +160,19 @@ class DashboardSummaryQuery:
             reverse=True,
         )[:10]
 
-        return DashboardSummary(
+        return DashboardSummaryDTO(
             period_label=period_label,
-            account_balances=account_balances,
-            total_income=total_income,
-            total_expenses=total_expenses,
-            category_spending=category_spending,
-            recent_transactions=recent_transactions,
-            all_accounts=all_accounts,
+            total_income=totals.total_income,
+            total_expenses=totals.total_expenses,
+            net_income=totals.net_income,
+            account_balances=self._assemble_account_balance_dtos(balances),
+            category_spending=self._assemble_category_spending_dtos(
+                totals.category_spending
+            ),
+            recent_transactions=[
+                RecentTransactionDTO.from_transaction(txn)
+                for txn in recent_transactions
+            ],
             draft_count=draft_count,
             posted_count=posted_count,
         )

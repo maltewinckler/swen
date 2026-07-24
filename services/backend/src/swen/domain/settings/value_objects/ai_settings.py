@@ -1,11 +1,12 @@
 """AI settings value object."""
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass(frozen=True)
-class AISettings:
+class AISettings(BaseModel):
     """User's AI classification preferences."""
+
+    model_config = ConfigDict(frozen=True, validate_assignment=True)
 
     enabled: bool = True
     model_name: str = "qwen2.5:3b"

@@ -13,6 +13,12 @@ from swen.application.analytics.dtos.analytics_dto import (
     TopExpenseItemDTO,
     TopExpensesResultDTO,
 )
+from swen.application.analytics.dtos.dashboard_dto import (
+    AccountBalanceDTO,
+    CategorySpendingDTO,
+    DashboardSummaryDTO,
+    RecentTransactionDTO,
+)
 from swen.application.analytics.dtos.export_dto import (
     AccountExportDTO,
     ExportResultDTO,
@@ -29,8 +35,12 @@ from swen.application.analytics.dtos.sankey_dto import (
 )
 
 __all__ = [
+    "AccountBalanceDTO",
     "BreakdownItemDTO",
     "CategoryComparisonDTO",
+    "CategorySpendingDTO",
+    "DashboardSummaryDTO",
+    "RecentTransactionDTO",
     "CategoryTimeSeriesDataPointDTO",
     "CategoryTimeSeriesResultDTO",
     "IncomeBreakdownResultDTO",

@@ -1,8 +1,9 @@
 """UserSettings aggregate for application preferences for a user."""
 
-from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from swen.domain.settings.value_objects import (
     AISettings,
@@ -12,19 +13,16 @@ from swen.domain.settings.value_objects import (
 )
 
 
-@dataclass
-class UserSettings:
-    """User application settings aggregate.
+class UserSettings(BaseModel):
+    """User application settings aggregate. This aggregate is keyed by user_id."""
 
-    This aggregate is keyed by user_id (not a generated ID).
-    It represents the consistency boundary for all user preferences.
-    """
+    model_config = ConfigDict(validate_assignment=True)
 
     user_id: UUID
-    sync: SyncSettings = field(default_factory=SyncSettings.default)
-    display: DisplaySettings = field(default_factory=DisplaySettings.default)
-    dashboard: DashboardSettings = field(default_factory=DashboardSettings.default)
-    ai: AISettings = field(default_factory=AISettings.default)
+    sync: SyncSettings = Field(default_factory=SyncSettings.default)
+    display: DisplaySettings = Field(default_factory=DisplaySettings.default)
+    dashboard: DashboardSettings = Field(default_factory=DashboardSettings.default)
+    ai: AISettings = Field(default_factory=AISettings.default)
 
     @classmethod
     def default(cls, user_id: UUID) -> "UserSettings":

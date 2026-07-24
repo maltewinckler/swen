@@ -1,7 +1,8 @@
 """Database integrity query. Check for data integrity issues."""
 
-from dataclasses import dataclass, field
 from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from swen.application.ports.system import DatabaseIntegrityPort
 from swen.domain.accounting.value_objects import MetadataKeys
@@ -24,42 +25,50 @@ class IssueType(str, Enum):
     UNBALANCED_TRANSACTIONS = "unbalanced_transactions"
 
 
-@dataclass(frozen=True)
-class IntegrityIssue:
+class IntegrityIssueDTO(BaseModel):
     """Represents a database integrity issue."""
+
+    model_config = ConfigDict(frozen=True)
 
     issue_type: IssueType
     severity: IssueSeverity
     description: str
-    affected_ids: tuple[str, ...] = field(default_factory=tuple)
+    affected_ids: tuple[str, ...] = ()
 
+    @computed_field
     @property
     def count(self) -> int:
         return len(self.affected_ids)
 
 
-@dataclass(frozen=True)
-class IntegrityCheckResult:
+class IntegrityCheckResultDTO(BaseModel):
     """Result of database integrity check."""
 
-    issues: tuple[IntegrityIssue, ...] = field(default_factory=tuple)
+    model_config = ConfigDict(frozen=True)
 
+    issues: tuple[IntegrityIssueDTO, ...] = ()
+
+    @computed_field
     @property
     def has_errors(self) -> bool:
         return any(i.severity == IssueSeverity.ERROR for i in self.issues)
 
+    @computed_field
     @property
     def has_warnings(self) -> bool:
         return any(i.severity == IssueSeverity.WARNING for i in self.issues)
 
+    @computed_field
     @property
     def is_healthy(self) -> bool:
         return len(self.issues) == 0
 
+    @computed_field
     @property
     def error_count(self) -> int:
         return sum(1 for i in self.issues if i.severity == IssueSeverity.ERROR)
 
+    @computed_field
     @property
     def warning_count(self) -> int:
         return sum(1 for i in self.issues if i.severity == IssueSeverity.WARNING)
@@ -71,8 +80,8 @@ class DatabaseIntegrityQuery:
     def __init__(self, integrity_port: DatabaseIntegrityPort):
         self._port = integrity_port
 
-    async def execute(self) -> IntegrityCheckResult:
-        issues: list[IntegrityIssue] = []
+    async def execute(self) -> IntegrityCheckResultDTO:
+        issues: list[IntegrityIssueDTO] = []
 
         if issue := await self._check_orphan_transactions():
             issues.append(issue)
@@ -86,9 +95,9 @@ class DatabaseIntegrityQuery:
         if issue := await self._check_unbalanced_transactions():
             issues.append(issue)
 
-        return IntegrityCheckResult(issues=tuple(issues))
+        return IntegrityCheckResultDTO(issues=tuple(issues))
 
-    async def _check_orphan_transactions(self) -> IntegrityIssue | None:
+    async def _check_orphan_transactions(self) -> IntegrityIssueDTO | None:
         orphan_ids = await self._port.find_orphan_transaction_ids(
             opening_balance_metadata_key=MetadataKeys.IS_OPENING_BALANCE,
             source_metadata_key=MetadataKeys.SOURCE,
@@ -97,7 +106,7 @@ class DatabaseIntegrityQuery:
         if not orphan_ids:
             return None
 
-        return IntegrityIssue(
+        return IntegrityIssueDTO(
             issue_type=IssueType.ORPHAN_TRANSACTIONS,
             severity=IssueSeverity.WARNING,
             description=(
@@ -108,13 +117,13 @@ class DatabaseIntegrityQuery:
             affected_ids=orphan_ids,
         )
 
-    async def _check_duplicate_transactions(self) -> IntegrityIssue | None:
+    async def _check_duplicate_transactions(self) -> IntegrityIssueDTO | None:
         duplicate_ids = await self._port.find_duplicate_transaction_ids()
 
         if not duplicate_ids:
             return None
 
-        return IntegrityIssue(
+        return IntegrityIssueDTO(
             issue_type=IssueType.DUPLICATE_TRANSACTIONS,
             severity=IssueSeverity.ERROR,
             description=(
@@ -123,13 +132,13 @@ class DatabaseIntegrityQuery:
             affected_ids=duplicate_ids,
         )
 
-    async def _check_orphan_imports(self) -> IntegrityIssue | None:
+    async def _check_orphan_imports(self) -> IntegrityIssueDTO | None:
         orphan_ids = await self._port.find_orphan_import_ids()
 
         if not orphan_ids:
             return None
 
-        return IntegrityIssue(
+        return IntegrityIssueDTO(
             issue_type=IssueType.ORPHAN_IMPORTS,
             severity=IssueSeverity.WARNING,
             description=(
@@ -139,13 +148,13 @@ class DatabaseIntegrityQuery:
             affected_ids=orphan_ids,
         )
 
-    async def _check_unbalanced_transactions(self) -> IntegrityIssue | None:
+    async def _check_unbalanced_transactions(self) -> IntegrityIssueDTO | None:
         unbalanced_ids = await self._port.find_unbalanced_transaction_ids()
 
         if not unbalanced_ids:
             return None
 
-        return IntegrityIssue(
+        return IntegrityIssueDTO(
             issue_type=IssueType.UNBALANCED_TRANSACTIONS,
             severity=IssueSeverity.ERROR,
             description=(

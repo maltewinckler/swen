@@ -74,12 +74,23 @@ class TransactionListFilterDTO(BaseModel):
 
 
 class TransactionListResultDTO(BaseModel):
-    """Result of listing transactions."""
+    """Result of listing transactions, with pagination and summary counts.
+
+    ``total`` is the unfiltered transaction count for the user; ``filtered_count``
+    is the count matching the active filters (and drives ``total_pages``).
+    """
 
     transactions: list[TransactionListItemDTO] = []
-    total_count: int = 0
+    total: int = 0
+    filtered_count: int = 0
+    draft_count: int = 0
+    posted_count: int = 0
+    page: int = 1
+    page_size: int = 50
 
     @computed_field
     @property
-    def is_empty(self) -> bool:
-        return len(self.transactions) == 0
+    def total_pages(self) -> int:
+        if self.page_size <= 0:
+            return 0
+        return (self.filtered_count + self.page_size - 1) // self.page_size

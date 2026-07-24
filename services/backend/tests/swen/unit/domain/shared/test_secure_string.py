@@ -1,8 +1,5 @@
 """Unit tests for SecureString value object."""
 
-import os
-from unittest.mock import patch
-
 import pytest
 
 from swen.domain.shared.value_objects.secure_string import SecureString
@@ -131,28 +128,6 @@ class TestSecureStringHelpers:
         """is_empty() should always be False (validated on creation)."""
         secure = SecureString("value")
         assert not secure.is_empty()
-
-
-class TestSecureStringFromEnv:
-    """Test factory method from environment variables."""
-
-    def test_from_env_with_existing_var(self):
-        """Should create SecureString from environment variable."""
-        with patch.dict(os.environ, {"TEST_SECRET": "secret_value"}):
-            secure = SecureString.from_env("TEST_SECRET")
-            assert secure.get_value() == "secret_value"
-
-    def test_from_env_with_missing_var(self):
-        """Should raise ValueError if environment variable not found."""
-        with patch.dict(os.environ, {}, clear=True):  # NOQA: SIM117
-            with pytest.raises(ValueError, match="not found"):
-                SecureString.from_env("NONEXISTENT_VAR")
-
-    def test_from_env_with_empty_var(self):
-        """Should raise ValueError if environment variable is empty."""
-        with patch.dict(os.environ, {"EMPTY_VAR": ""}):  # NOQA: SIM117
-            with pytest.raises(ValueError, match="cannot be empty"):
-                SecureString.from_env("EMPTY_VAR")
 
 
 class TestSecureStringImmutability:

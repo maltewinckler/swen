@@ -16,7 +16,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from swen.application.analytics.dtos.analytics_dto import MonthComparisonResultDTO
 from swen.application.analytics.dtos.export_dto import AccountExportDTO
 from swen.application.analytics.dtos.export_report_dto import (
-    DashboardSummaryDTO,
+    ExportDashboardSummaryDTO,
     ExportReportDataDTO,
     MappingExportRowDTO,
     TransactionExportRowDTO,
@@ -123,7 +123,7 @@ class ExcelReportGenerator:
     def _create_dashboard_sheet(
         self,
         wb: Workbook,
-        summary: DashboardSummaryDTO,
+        summary: ExportDashboardSummaryDTO,
     ) -> None:
         ws = wb.create_sheet(title="Dashboard")
         row = 1
@@ -149,7 +149,7 @@ class ExcelReportGenerator:
         self,
         ws: Worksheet,
         row: int,
-        summary: DashboardSummaryDTO,
+        summary: ExportDashboardSummaryDTO,
     ) -> int:
         """Add title and metadata header to dashboard."""
         ws.merge_cells(f"A{row}:F{row}")
@@ -172,7 +172,7 @@ class ExcelReportGenerator:
         self,
         ws: Worksheet,
         row: int,
-        summary: DashboardSummaryDTO,
+        summary: ExportDashboardSummaryDTO,
     ) -> int:
         """Add primary and secondary metrics grid."""
         row = self._add_section_header(ws, row, "SUMMARY")

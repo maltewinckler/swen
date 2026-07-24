@@ -13,7 +13,6 @@ from swen.application.analytics.queries.balance_history_query import (
     BalanceHistoryQuery,
 )
 from swen.application.analytics.queries.dashboard_summary_query import (
-    DashboardSummary,
     DashboardSummaryQuery,
 )
 from swen.application.analytics.queries.export_data_query import ExportDataQuery
@@ -72,7 +71,6 @@ __all__ = [
     "TopExpenseItemDTO",
     "TopExpensesQuery",
     "TopExpensesResultDTO",
-    "DashboardSummary",
     "DashboardSummaryQuery",
     "ExportDataQuery",
     "ExportReportQuery",

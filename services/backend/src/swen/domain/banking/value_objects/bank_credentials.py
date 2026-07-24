@@ -56,12 +56,3 @@ class BankCredentials(BaseModel):
             username=SecureString(username),
             pin=SecureString(pin),
         )
-
-    @classmethod
-    def from_env(cls, blz: str) -> "BankCredentials":
-        """Create BankCredentials from environment variables (testing)."""
-        return cls(
-            blz=blz,
-            username=SecureString.from_env("FINTS_USERNAME"),
-            pin=SecureString.from_env("FINTS_PIN"),
-        )

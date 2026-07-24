@@ -12,7 +12,7 @@ from swen.application.accounting.dtos.chart_of_accounts_dto import (
     UpdateAccountDTO,
 )
 from swen.application.accounting.dtos.reclassify_dto import (
-    ReclassifiedTransactionDetail,
+    ReclassifiedTransactionDetailDTO,
     ReclassifyCompletedEvent,
     ReclassifyFailedEvent,
     ReclassifyProgressEvent,
@@ -43,7 +43,7 @@ __all__ = [
     "JournalEntryDTO",
     "JournalEntryToCreateDTO",
     "ParentAction",
-    "ReclassifiedTransactionDetail",
+    "ReclassifiedTransactionDetailDTO",
     "ReclassifyCompletedEvent",
     "ReclassifyFailedEvent",
     "ReclassifyProgressEvent",
