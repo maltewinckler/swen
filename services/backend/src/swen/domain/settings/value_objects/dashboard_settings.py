@@ -3,8 +3,9 @@
 Controls which widgets are displayed on the dashboard and their configuration.
 """
 
-from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 # Widget registry - defines all available widgets and their metadata
 AVAILABLE_WIDGETS: dict[str, dict[str, Any]] = {
@@ -95,14 +96,16 @@ DEFAULT_ENABLED_WIDGETS: tuple[str, ...] = (
 )
 
 
-@dataclass(frozen=True)
-class DashboardSettings:
+class DashboardSettings(BaseModel):
     """Settings controlling dashboard widget display and configuration."""
 
-    enabled_widgets: tuple[str, ...] = DEFAULT_ENABLED_WIDGETS
-    widget_settings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    model_config = ConfigDict(frozen=True, validate_assignment=True)
 
-    def __post_init__(self):
+    enabled_widgets: tuple[str, ...] = DEFAULT_ENABLED_WIDGETS
+    widget_settings: dict[str, dict[str, Any]] = {}
+
+    @model_validator(mode="after")
+    def _validate_widget_ids(self) -> "DashboardSettings":
         # Validate all enabled widgets exist
         invalid_widgets = set(self.enabled_widgets) - set(AVAILABLE_WIDGETS.keys())
         if invalid_widgets:
@@ -116,6 +119,7 @@ class DashboardSettings:
         if invalid_settings:
             msg = f"Widget settings reference unknown widgets: {invalid_settings}"
             raise ValueError(msg)
+        return self
 
     @classmethod
     def default(cls) -> "DashboardSettings":

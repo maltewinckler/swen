@@ -4,24 +4,18 @@ Controls how transactions are imported and processed during bank sync
 and manual transaction entry.
 """
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field
+
+CURRENCY_CODE_LENGTH = 3
 
 
-@dataclass(frozen=True)
-class SyncSettings:
+class SyncSettings(BaseModel):
     """Settings controlling transaction sync behavior."""
 
+    model_config = ConfigDict(frozen=True, validate_assignment=True)
+
     auto_post_transactions: bool = False
-    default_currency: str = "EUR"
-
-    def __post_init__(self) -> None:
-        if not self.default_currency:
-            msg = "default_currency cannot be empty"
-            raise ValueError(msg)
-
-        if len(self.default_currency) != 3:
-            msg = f"default_currency must be 3 characters, got: {self.default_currency}"
-            raise ValueError(msg)
+    default_currency: str = Field(default="EUR", min_length=3, max_length=3)
 
     @classmethod
     def default(cls) -> "SyncSettings":

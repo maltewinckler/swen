@@ -1,26 +1,15 @@
 """Display settings value object."""
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field
 
 
-@dataclass(frozen=True)
-class DisplaySettings:
+class DisplaySettings(BaseModel):
     """Settings controlling data display and presentation."""
 
+    model_config = ConfigDict(frozen=True, validate_assignment=True)
+
     show_draft_transactions: bool = True
-    default_date_range_days: int = 30
-
-    def __post_init__(self):
-        if self.default_date_range_days < 1:
-            msg = (
-                "default_date_range_days must be positive, "
-                f"got: {self.default_date_range_days}"
-            )
-            raise ValueError(msg)
-
-        if self.default_date_range_days > 3650:  # 10 years
-            msg = f"default_date_range_days too large: {self.default_date_range_days}"
-            raise ValueError(msg)
+    default_date_range_days: int = Field(default=30, ge=1, le=3650)
 
     @classmethod
     def default(cls) -> "DisplaySettings":
