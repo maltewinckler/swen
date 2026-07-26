@@ -62,21 +62,60 @@ presentation ──► application ──► domain
 - ❌ `from swen.infrastructure...` inside `application/` (commands, services, factories). Define a Protocol port instead.
 - ❌ Direct repository instantiation (`UserRepositorySQLAlchemy(session)`) inside routers. Always go through the factory.
 - ❌ `await factory.session.commit()` inside a router. Commits belong to the application layer / Unit of Work.
+- ❌ `self._session.commit()` / `self._session.rollback()` anywhere inside a repository method. See "Unit of Work / transaction boundaries" below — repositories persist, only the `UnitOfWork` commits or rolls back.
 - ❌ `from swen_identity.domain...` in `swen.application` (anti-corruption layer pending). New code: depend on `swen.application.ports.identity` only.
 - ❌ Putting ML/classification fields directly on the `Transaction` aggregate — model them as a separate value object/aggregate.
 
 ### Aggregates / Entities
 - Aggregates expose **methods** that enforce invariants. No public mutable attributes. No setter-only "anemic" entities.
-- Value objects are **frozen** Pydantic models: `model_config = ConfigDict(frozen=True, validate_assignment=True)`.
+- Value objects are **frozen** Pydantic models: `model_config = ConfigDict(frozen=True, validate_assignment=True)`. Prefer declarative constraints (`Field(ge=1)`) over hand-rolled `__post_init__` validation.
+- **Value object vs. service-local carrier** — not every small frozen class is a value object, and the distinction decides where it lives:
+  - A **value object / aggregate** is a shared domain concept with meaning beyond one call site (`Money`, `Currency`, `SyncPeriod`). It lives in `domain/<domain>/value_objects/`, is exported from that package's `__init__`, and **must** be a frozen Pydantic model.
+  - A **service-local carrier** just ferries one service's output to its caller. It may hold domain objects, is never serialized, and is produced/consumed inside a single layer. Declare it **in the same module as its service**, export it from **no** `__init__`, and leave it a plain frozen `dataclass`. See `ExternalAccountResult` (`domain/integration/services/external_account_management_service.py`) and `TransactionImportOutcome` (`application/integration/services/transaction_import_service.py`).
+  - Putting a carrier in `value_objects/` is a real error, not a style nit: it advertises a shared concept that doesn't exist and pollutes the domain's public surface. When unsure, ask "would a second, unrelated call site want this type?" — if no, it's a carrier.
 - Time: use `swen.domain.shared.time.utc_now()` inside `swen`. **Do not** import it from `swen_identity` (and vice versa) — duplicate it per context to keep BCs decoupled.
 
 ### Application layer
 - One **Command** (write) or **Query** (read) per use case. Keep them small.
 - Commands are constructed via DI in routers and call `await command.execute(...)`.
+- **Commands/Queries are leaf use-case handlers, reached only from `presentation/` routers** (or an equivalent entry point — e.g. a scheduled job — if one is ever added), and each router endpoint calls at most one. A Command/Query must never construct or call another Command/Query's `execute()`. `CreateSimpleTransactionCommand` wrapping `CreateTransactionCommand.execute()` (`application/accounting/commands/create_simple_transaction_command.py`) is a pre-existing exception, not a pattern to copy — if two commands need the same logic, pull it into a domain service both call directly instead of nesting commands. Composing several **domain services** inside one command/service is fine and is the intended shape (`BankAccountSyncService` composing `OpeningBalanceService` + `BankFetchService` + `BankBalanceService` is the example to follow).
 - Validation: structural in Pydantic schemas (presentation), invariants in domain, business rules in commands. Don't `try/except ValueError` over raw Enum casts in routers — raise typed domain errors.
 - Long orchestrators (>~300 LOC) are a smell — split into focused services. The current `transaction_import_service.py` is the example *not* to follow further.
 - **`execute(...)` inputs**: up to 4 scalar params directly in the signature. Beyond that, bundle them into an input DTO instead of growing the param list further (as `UpdateUserSettingsCommand` now does with `PreferencesUpdateDTO`). `update_account_command`/`create_account_command`/`list_transactions_query`/`create_external_account_command`/`export_report_query` (5–6 params) are pre-existing exceptions — don't add new ones.
 - **`execute(...)` output**: always a DTO (see naming rule below), never a domain entity or a bare `dict`. The only exception is a genuine primitive (`bool`, `int`, `None`). `GenerateDefaultAccountsCommand` returning a raw `dict` is a pre-existing exception, not a pattern to copy.
+
+### Unit of Work / transaction boundaries
+A **logical operation is one `execute()` call, and one `execute()` call has exactly one commit.** The transaction boundary belongs to the command/service that owns the use case, never to the repository underneath it.
+
+- **Repositories never call `self._session.commit()` or `.rollback()`.** A repository method may `add()`/`flush()`/`execute()` statements, but the session's fate (commit vs. rollback) is not its decision — it doesn't know whether it's the only write in the operation. `find_*`/read methods obviously never commit either.
+- **Commands/services acquire a `UnitOfWork` from the factory and wrap the whole use case in it**, the same shape as `StoreCredentialsCommand`/`UpdateCredentialsCommand` (`application/banking/commands/credentials/`):
+
+  ```python
+  class SomeCommand:
+      def __init__(self, some_repository: SomeRepository, uow: UnitOfWork):
+          self._repo = some_repository
+          self._uow = uow
+
+      @classmethod
+      def from_factory(cls, factory: RepositoryFactory) -> SomeCommand:
+          return cls(
+              some_repository=factory.some_repository(),
+              uow=factory.unit_of_work(),
+          )
+
+      async def execute(self, ...) -> SomeDTO:
+          async with self._uow:
+              # every read/write for this use case happens in here,
+              # across as many repositories as needed.
+              ...
+  ```
+
+  `UnitOfWork.__aexit__` commits on clean exit and rolls back on exception (`application/ports/unit_of_work.py`, `infrastructure/persistence/sqlalchemy/unit_of_work.py`) — that is the **only** place a commit happens.
+- **If a use case touches several repositories, that's still one `uow` block**, not one commit per repository call. Don't reach for a "helper that commits for me" inside a repository as a shortcut — inject the repositories the command/service needs and do it all inside its own `async with self._uow:`.
+- **A command that composes several domain services/repositories for one use case is still one `uow` block** (e.g. a sync service that fetches, stores transactions, updates credential metadata, and processes an import batch — see `BankAccountSyncService.sync_account()`). If you can't tell from reading the command alone "did this fully succeed or partially?", the boundary is wrong — trace-into-each-repo-to-find-the-commit is the failure mode this rule exists to prevent. This never means reaching for another Command to do part of the work (see Application layer above) — compose domain services instead.
+- **When a command loops over independent units of work**, each iteration gets its own `uow`, not one shared across the whole loop. `SyncBankAccountsCommand` iterating account mappings and catching/logging per-mapping failures so one account's failure doesn't undo another's already-committed sync is the example — the `uow` boundary belongs inside `sync_account()` (one per mapping), not wrapped around the `for mapping in mappings:` loop.
+- **Sub-atomic grouping inside one `uow`** (e.g. two writes across two repositories that must land together, but are part of a bigger operation) uses savepoint-if-nested / begin-if-top-level, but **never commits itself** — it only groups; the enclosing `UnitOfWork` still owns the commit. `TransactionImportRepositorySQLAlchemy._atomic_scope()` has the right grouping logic but currently commits at the end of `save_complete_import`/`mark_reconciled_as_internal_transfer` too — that trailing commit is the anti-pattern, not something to copy. When touching this code, promote the grouping logic (not the commit) to a shared helper, or make `UnitOfWorkSQLAlchemy` itself savepoint-aware so it nests safely when composed.
+- New repository methods: if you're about to write `await self._session.commit()`, stop — add a `uow: UnitOfWork` parameter to the calling command/service instead.
 
 ### Repository pattern (multi-tenant)
 Every repository is constructed by `RepositoryFactory` and is **automatically scoped to `current_user.user_id`**. This is the project's main auth boundary.
@@ -116,7 +155,8 @@ When adding a repository:
 
 ### Naming: `DTO` / `Response` / `Request` suffixes
 
-- Every application-layer data holder returned by a command/query is a `*DTO` (e.g. `AccountSummaryDTO`) — no bare `*Result`/`*Details`/etc. Remaining pre-existing exceptions, all still plain `@dataclass`: `TransactionListResult` (`accounting/queries/list_transactions_query.py`), `DashboardSummary` (`analytics/queries/dashboard_summary_query.py`), `IntegrityCheckResult` (`system/queries/database_integrity_query.py`). Don't add new ones; rename and migrate them to `BaseModel` opportunistically when you touch them, not in a blanket pass. `TransactionImportResult` is already a `BaseModel` but keeps its `*Result` name — rename it when you next touch the import service.
+- Every application-layer data holder returned by a command/query is a `*DTO` (e.g. `AccountSummaryDTO`) — no bare `*Result`/`*Details`/etc. There are **no remaining exceptions**; keep it that way. A query must never hand domain entities to presentation, directly or nested inside its result — map to DTOs inside `execute()` so the router is just `XResponse.model_validate(dto)`. `ListTransactionsQuery` and `DashboardSummaryQuery` are the worked examples.
+- **Not everything in `application/` is a DTO.** Results passed *between* application services that never reach presentation, and that legitimately carry domain objects, are **not** DTOs — don't give them a `*DTO` suffix and don't move them into `dtos/`. Name them `*Outcome` and declare them next to the service that produces them. The reference example is `TransactionImportOutcome` (`integration/services/transaction_import_service.py`): it holds `BankTransaction`/`Transaction` behind `arbitrary_types_allowed=True`, flows import → sync, and is consumed only by `compute_stats`. Slapping `*DTO` on such a type is worse than leaving it unsuffixed — it invites someone to serialize it or return it from an endpoint, which is exactly the domain-entity leak the DTO rule exists to prevent. (Corollary of the `application/dtos/` location rule in §3: if it doesn't live there, it probably isn't a DTO.)
 - A presentation schema that mostly just re-exposes a DTO (per the inheritance pattern below) is named after that DTO with the suffix swapped for what the schema is used for: `AccountSummaryDTO` → `AccountSummaryResponse` (output) or `...Request` (input) — not an unrelated name like `AccountResponse`.
 - Every such schema should carry a `json_schema_extra` example. Response classes built via `.model_validate(dto)` additionally need `from_attributes=True` (see below) — plain `Request` schemas parsed from a JSON body normally don't.
 

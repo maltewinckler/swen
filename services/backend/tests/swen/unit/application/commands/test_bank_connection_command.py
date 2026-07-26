@@ -38,7 +38,7 @@ class TestSetupBankCommand:
     """Test suite for SetupBankCommand."""
 
     @pytest.mark.asyncio
-    async def test_successful_import_returns_dto_with_accounting_ids(self):
+    async def test_successful_import_returns_dto_with_accounting_ids(self, mock_uow):
         """Importing accounts returns SetupBankResponseDTO with accounting_account_id set."""
         accounting_acct = Account(
             name="Test Bank - Girokonto",
@@ -63,6 +63,7 @@ class TestSetupBankCommand:
             bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
             credential_repo=AsyncMock(),
+            uow=mock_uow,
         )
         request_dto = SetupBankRequestDTO(
             blz="37040044",
@@ -78,7 +79,7 @@ class TestSetupBankCommand:
         assert result.imported_accounts[0].accounting_account_id == accounting_acct.id
 
     @pytest.mark.asyncio
-    async def test_custom_name_is_forwarded_to_import_service(self):
+    async def test_custom_name_is_forwarded_to_import_service(self, mock_uow):
         """custom_name from the DTO is passed through to BankAccountImportService."""
         accounting_acct = Account(
             name="Mein Konto",
@@ -97,6 +98,7 @@ class TestSetupBankCommand:
             bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
             credential_repo=AsyncMock(),
+            uow=mock_uow,
         )
         request_dto = SetupBankRequestDTO(
             blz="37040044",
@@ -109,7 +111,7 @@ class TestSetupBankCommand:
         assert call_kwargs["custom_name"] == "Mein Konto"
 
     @pytest.mark.asyncio
-    async def test_multiple_accounts_all_imported(self):
+    async def test_multiple_accounts_all_imported(self, mock_uow):
         """All accounts in the request are imported and returned."""
         mock_import_service = AsyncMock()
         mock_import_service.import_bank_account.side_effect = [
@@ -130,6 +132,7 @@ class TestSetupBankCommand:
             bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
             credential_repo=AsyncMock(),
+            uow=mock_uow,
         )
         accounts = [
             _make_account_to_import_dto(iban=f"DE{i:020d}") for i in range(1, 4)
@@ -143,7 +146,7 @@ class TestSetupBankCommand:
         assert mock_import_service.import_bank_account.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_import_service_exception_propagates(self):
+    async def test_import_service_exception_propagates(self, mock_uow):
         """Exceptions from the import service bubble up so the router can rollback."""
         mock_import_service = AsyncMock()
         mock_import_service.import_bank_account.side_effect = ValueError(
@@ -154,6 +157,7 @@ class TestSetupBankCommand:
             bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
             credential_repo=AsyncMock(),
+            uow=mock_uow,
         )
         request_dto = SetupBankRequestDTO(
             blz="37040044",
@@ -164,7 +168,7 @@ class TestSetupBankCommand:
             await command.execute(request_dto)
 
     @pytest.mark.asyncio
-    async def test_result_is_serializable_as_dict(self):
+    async def test_result_is_serializable_as_dict(self, mock_uow):
         """SetupBankResponseDTO can be round-tripped via model_dump (used by router)."""
         accounting_acct = Account(
             name="Test Bank - Girokonto",
@@ -183,6 +187,7 @@ class TestSetupBankCommand:
             bank_fetch_service=AsyncMock(),
             import_service=mock_import_service,
             credential_repo=AsyncMock(),
+            uow=mock_uow,
         )
         request_dto = SetupBankRequestDTO(
             blz="37040044",

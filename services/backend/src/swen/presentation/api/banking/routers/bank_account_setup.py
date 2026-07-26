@@ -43,13 +43,7 @@ async def setup_bank_accounts(
 
     # SetupBankCommand handles credential loading, TAN settings, and import
     command = SetupBankCommand.from_factory(factory)
-    try:
-        setup_bank_request_dto = SetupBankRequestDTO(blz=blz, **request.model_dump())
-        result = await command.execute(setup_bank_request_dto)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    setup_bank_request_dto = SetupBankRequestDTO(blz=blz, **request.model_dump())
+    result = await command.execute(setup_bank_request_dto)
 
     return SetupBankResponse.model_validate(result)

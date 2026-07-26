@@ -61,7 +61,13 @@ class TestRenameBankAccountCommand:
             current_user=self.current_user,
             bank_account_repository=self.mock_bank_account_repo,
         )
-        self.command = RenameBankAccountCommand(import_service=self.import_service)
+        self.uow = AsyncMock()
+        self.uow.__aenter__ = AsyncMock(return_value=self.uow)
+        self.uow.__aexit__ = AsyncMock(return_value=None)
+        self.command = RenameBankAccountCommand(
+            import_service=self.import_service,
+            uow=self.uow,
+        )
 
     @pytest.mark.asyncio
     async def test_execute_renames_account_and_returns_dto(self) -> None:

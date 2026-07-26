@@ -48,11 +48,12 @@ class TestDeleteTransactionCommand:
         self,
         mock_transaction_repo,
         draft_transaction,
+        mock_uow,
     ):
         """Can delete a draft transaction without force."""
         mock_transaction_repo.find_by_id.return_value = draft_transaction
 
-        command = DeleteTransactionCommand(mock_transaction_repo)
+        command = DeleteTransactionCommand(mock_transaction_repo, mock_uow)
         await command.execute(transaction_id=draft_transaction.id)
 
         mock_transaction_repo.delete.assert_called_once_with(draft_transaction.id)
@@ -64,11 +65,12 @@ class TestDeleteTransactionCommand:
         self,
         mock_transaction_repo,
         posted_transaction,
+        mock_uow,
     ):
         """Raises error when deleting posted transaction without force."""
         mock_transaction_repo.find_by_id.return_value = posted_transaction
 
-        command = DeleteTransactionCommand(mock_transaction_repo)
+        command = DeleteTransactionCommand(mock_transaction_repo, mock_uow)
 
         with pytest.raises(BusinessRuleViolation, match="Cannot delete posted"):
             await command.execute(transaction_id=posted_transaction.id, force=False)
@@ -80,11 +82,12 @@ class TestDeleteTransactionCommand:
         self,
         mock_transaction_repo,
         posted_transaction,
+        mock_uow,
     ):
         """Can delete posted transaction when force=True."""
         mock_transaction_repo.find_by_id.return_value = posted_transaction
 
-        command = DeleteTransactionCommand(mock_transaction_repo)
+        command = DeleteTransactionCommand(mock_transaction_repo, mock_uow)
         await command.execute(transaction_id=posted_transaction.id, force=True)
 
         # Should unpost first
@@ -95,12 +98,14 @@ class TestDeleteTransactionCommand:
         mock_transaction_repo.delete.assert_called_once_with(posted_transaction.id)
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_transaction_raises(self, mock_transaction_repo):
+    async def test_delete_nonexistent_transaction_raises(
+        self, mock_transaction_repo, mock_uow
+    ):
         """Raises error when transaction not found."""
         mock_transaction_repo.find_by_id.return_value = None
         transaction_id = uuid4()
 
-        command = DeleteTransactionCommand(mock_transaction_repo)
+        command = DeleteTransactionCommand(mock_transaction_repo, mock_uow)
 
         with pytest.raises(TransactionNotFoundError):
             await command.execute(transaction_id=transaction_id)
@@ -112,11 +117,12 @@ class TestDeleteTransactionCommand:
         self,
         mock_transaction_repo,
         draft_transaction,
+        mock_uow,
     ):
         """Force flag on draft transaction doesn't attempt unpost."""
         mock_transaction_repo.find_by_id.return_value = draft_transaction
 
-        command = DeleteTransactionCommand(mock_transaction_repo)
+        command = DeleteTransactionCommand(mock_transaction_repo, mock_uow)
         await command.execute(transaction_id=draft_transaction.id, force=True)
 
         # Should not unpost draft (it's already unposted)

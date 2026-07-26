@@ -23,6 +23,14 @@ TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
 TEST_IBAN = "DE51120700700756557355"
 
 
+def _make_uow() -> AsyncMock:
+    """No-op UnitOfWork for unit tests (no DB session needed)."""
+    uow = AsyncMock()
+    uow.__aenter__ = AsyncMock(return_value=uow)
+    uow.__aexit__ = AsyncMock(return_value=None)
+    return uow
+
+
 def _make_command() -> tuple[
     CreateExternalAccountCommand,
     AsyncMock,
@@ -37,6 +45,7 @@ def _make_command() -> tuple[
 
     command = CreateExternalAccountCommand(
         external_account_management_service=management_service,
+        uow=_make_uow(),
     )
 
     return command, management_service, account_repo, mapping_repo

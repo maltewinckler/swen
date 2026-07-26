@@ -64,7 +64,6 @@ async def init_chart_of_accounts(
 
     command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
     result = await command.execute(template=template)
-    await factory.session.commit()
 
     if result.get("skipped"):
         logger.info("Chart of accounts already exists for user, skipped initialization")
@@ -123,7 +122,6 @@ async def init_essential_accounts(
     """
     command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
     result = await command.execute_essentials()
-    await factory.session.commit()
 
     if result["skipped"]:
         logger.info("Essential accounts already exist, skipped initialization")

@@ -12,6 +12,7 @@ from swen.application.accounting.dtos.chart_of_accounts_dto import (
     ParentAction,
     UpdateAccountDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import (
     AccountAlreadyExistsError,
@@ -37,11 +38,13 @@ class UpdateAccountCommand:
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
+        uow: UnitOfWork,
         ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
+        self._uow = uow
         self._ml_client = ml_client
 
     @classmethod
@@ -54,24 +57,26 @@ class UpdateAccountCommand:
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
             ml_client=ml_client,
         )
 
     async def execute(self, dto: UpdateAccountDTO) -> Account:
-        account = await self._get_account(dto.account_id)
+        async with self._uow:
+            account = await self._get_account(dto.account_id)
 
-        if dto.name is not None:
-            await self._update_name(account, dto.name)
+            if dto.name is not None:
+                await self._update_name(account, dto.name)
 
-        if dto.account_number is not None:
-            await self._update_account_number(account, dto.account_number)
+            if dto.account_number is not None:
+                await self._update_account_number(account, dto.account_number)
 
-        if dto.description is not None:
-            account.set_description(dto.description)
+            if dto.description is not None:
+                account.set_description(dto.description)
 
-        await self._handle_parent_action(account, dto.parent_id, dto.parent_action)
+            await self._handle_parent_action(account, dto.parent_id, dto.parent_action)
 
-        await self._account_repo.save(account)
+            await self._account_repo.save(account)
 
         # Trigger ML account embedding update (fire-and-forget)
         # Only for expense/income accounts (used for classification)
@@ -162,11 +167,13 @@ class DeactivateAccountCommand:
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
+        uow: UnitOfWork,
         ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
+        self._uow = uow
         self._ml_client = ml_client
 
     @classmethod
@@ -179,18 +186,20 @@ class DeactivateAccountCommand:
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
             ml_client=ml_client,
         )
 
     async def execute(self, account_id: UUID) -> Account:
-        account = await self._account_repo.find_by_id(account_id)
-        if account is None:
-            raise AccountNotFoundError(account_id=account_id)
+        async with self._uow:
+            account = await self._account_repo.find_by_id(account_id)
+            if account is None:
+                raise AccountNotFoundError(account_id=account_id)
 
-        if not await self._account_hierarchy_service.can_delete(account):
-            raise AccountCannotBeDeactivatedError(account.name)
-        account.deactivate()
-        await self._account_repo.save(account)
+            if not await self._account_hierarchy_service.can_delete(account):
+                raise AccountCannotBeDeactivatedError(account.name)
+            account.deactivate()
+            await self._account_repo.save(account)
 
         # Delete ML anchor for this account (fire-and-forget)
         if account.account_type.value.lower() in ("expense", "income"):
@@ -213,10 +222,12 @@ class ReactivateAccountCommand:
         self,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        uow: UnitOfWork,
         ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
+        self._uow = uow
         self._ml_client = ml_client
 
     @classmethod
@@ -228,16 +239,18 @@ class ReactivateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
             ml_client=ml_client,
         )
 
     async def execute(self, account_id: UUID) -> Account:
-        account = await self._account_repo.find_by_id(account_id)
-        if account is None:
-            raise AccountNotFoundError(account_id=account_id)
+        async with self._uow:
+            account = await self._account_repo.find_by_id(account_id)
+            if account is None:
+                raise AccountNotFoundError(account_id=account_id)
 
-        account.activate()
-        await self._account_repo.save(account)
+            account.activate()
+            await self._account_repo.save(account)
 
         # Re-embed ML anchor for this account (fire-and-forget)
         if account.account_type.value.lower() in ("expense", "income"):
@@ -270,11 +283,13 @@ class DeleteAccountCommand:
         account_repository: AccountRepository,
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
+        uow: UnitOfWork,
         ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
+        self._uow = uow
         self._ml_client = ml_client
 
     @classmethod
@@ -287,23 +302,25 @@ class DeleteAccountCommand:
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
             ml_client=ml_client,
         )
 
     async def execute(self, account_id: UUID) -> None:
-        account = await self._account_repo.find_by_id(account_id)
-        if account is None:
-            raise AccountNotFoundError(account_id=account_id)
+        async with self._uow:
+            account = await self._account_repo.find_by_id(account_id)
+            if account is None:
+                raise AccountNotFoundError(account_id=account_id)
 
-        if not await self._account_hierarchy_service.can_delete(account):
-            raise AccountCannotBeDeactivatedError(account.name)
+            if not await self._account_hierarchy_service.can_delete(account):
+                raise AccountCannotBeDeactivatedError(account.name)
 
-        was_classification_account = account.account_type.value.lower() in (
-            "expense",
-            "income",
-        )
+            was_classification_account = account.account_type.value.lower() in (
+                "expense",
+                "income",
+            )
 
-        await self._account_repo.delete(account_id)
+            await self._account_repo.delete(account_id)
 
         # Delete ML anchor for this account (fire-and-forget)
         if was_classification_account:

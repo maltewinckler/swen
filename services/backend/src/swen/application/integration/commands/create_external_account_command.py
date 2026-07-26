@@ -9,6 +9,7 @@ from swen.application.integration.dtos import (
     CreateExternalAccountDTO,
     ExternalAccountCreatedDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.integration.services import ExternalAccountManagementService
 
 if TYPE_CHECKING:
@@ -29,8 +30,10 @@ class CreateExternalAccountCommand:
     def __init__(
         self,
         external_account_management_service: ExternalAccountManagementService,
+        uow: UnitOfWork,
     ):
         self._management_service = external_account_management_service
+        self._uow = uow
 
     @classmethod
     def from_factory(
@@ -44,6 +47,7 @@ class CreateExternalAccountCommand:
                 transaction_repository=factory.transaction_repository(),
                 current_user=factory.current_user,
             ),
+            uow=factory.unit_of_work(),
         )
 
     async def execute(self, dto: CreateExternalAccountDTO) -> ExternalAccountCreatedDTO:
@@ -56,17 +60,18 @@ class CreateExternalAccountCommand:
         -------
             ExternalAccountCreatedDTO with the result.
         """
-        # Delegate to domain service
-        result = await self._management_service.create_or_find_external_account(
-            iban=dto.iban,
-            name=dto.name,
-            currency=dto.currency,
-            account_type=dto.account_type,
-            reconcile=dto.reconcile,
-        )
+        async with self._uow:
+            # Delegate to domain service
+            result = await self._management_service.create_or_find_external_account(
+                iban=dto.iban,
+                name=dto.name,
+                currency=dto.currency,
+                account_type=dto.account_type,
+                reconcile=dto.reconcile,
+            )
 
-        # Map to DTO
-        return self._build_dto(result)
+            # Map to DTO
+            return self._build_dto(result)
 
     def _build_dto(self, result: ExternalAccountResult) -> ExternalAccountCreatedDTO:
         """Map domain result to application DTO."""

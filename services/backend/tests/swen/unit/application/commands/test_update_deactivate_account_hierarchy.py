@@ -65,15 +65,17 @@ def hierarchy_service(mock_repo):
 
 
 @pytest.fixture
-def update_command(mock_repo, hierarchy_service, current_user):
+def update_command(mock_repo, hierarchy_service, current_user, mock_uow):
     """Create update command."""
-    return UpdateAccountCommand(mock_repo, hierarchy_service, current_user)
+    return UpdateAccountCommand(mock_repo, hierarchy_service, current_user, mock_uow)
 
 
 @pytest.fixture
-def deactivate_command(mock_repo, hierarchy_service, current_user):
+def deactivate_command(mock_repo, hierarchy_service, current_user, mock_uow):
     """Create deactivate command."""
-    return DeactivateAccountCommand(mock_repo, hierarchy_service, current_user)
+    return DeactivateAccountCommand(
+        mock_repo, hierarchy_service, current_user, mock_uow
+    )
 
 
 class TestUpdateAccountCommand:

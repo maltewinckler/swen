@@ -13,6 +13,7 @@ from swen.application.banking.dtos import (
     SetupBankRequestDTO,
     SetupBankResponseDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.banking.repositories import (
     BankCredentialRepository,
 )
@@ -40,10 +41,12 @@ class SetupBankCommand:
         bank_fetch_service: BankFetchService,
         import_service: BankAccountImportService,
         credential_repo: BankCredentialRepository,
+        uow: UnitOfWork,
     ):
         self._bank_fetch_service = bank_fetch_service
         self._import_service = import_service
         self._credential_repo = credential_repo
+        self._uow = uow
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> SetupBankCommand:
@@ -58,6 +61,7 @@ class SetupBankCommand:
                 bank_account_repository=factory.bank_account_repository(),
             ),
             credential_repo=factory.credential_repository(),
+            uow=factory.unit_of_work(),
         )
 
     async def execute(
@@ -67,9 +71,10 @@ class SetupBankCommand:
         blz = setup_bank_request.blz
 
         imported_accounts = []
-        for account in setup_bank_request.accounts:
-            imported_bank_account = await self._import_single_account(account)
-            imported_accounts.append(imported_bank_account)
+        async with self._uow:
+            for account in setup_bank_request.accounts:
+                imported_bank_account = await self._import_single_account(account)
+                imported_accounts.append(imported_bank_account)
 
         n = len(imported_accounts)
         logger.info("Bank setup successful for BLZ %s: %d accounts imported", blz, n)

@@ -126,15 +126,11 @@ async def update_preferences(
 
     try:
         preferences = await command.execute(request)
-        await factory.session.commit()
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
-    except Exception:
-        await factory.session.rollback()
-        raise
 
     logger.info("User preferences updated")
     return UserSettingsResponse.model_validate(preferences)
@@ -153,7 +149,6 @@ async def reset_preferences(
     """Reset all user preferences to default values."""
     command = ResetUserSettingsCommand.from_factory(factory)
     preferences = await command.execute()
-    await factory.session.commit()
 
     logger.info("User preferences reset to defaults")
     return UserSettingsResponse.model_validate(preferences)
@@ -203,15 +198,11 @@ async def update_dashboard_settings(
                 widget_settings=request.widget_settings,
             ),
         )
-        await factory.session.commit()
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
-    except Exception:
-        await factory.session.rollback()
-        raise
 
     logger.info("Dashboard settings updated")
     return DashboardSettingsResponse.model_validate(preferences.dashboard_settings)
@@ -231,7 +222,6 @@ async def reset_dashboard_settings(
     # Reset all settings, then return just dashboard
     command = ResetUserSettingsCommand.from_factory(factory)
     preferences = await command.execute()
-    await factory.session.commit()
 
     logger.info("Dashboard settings reset to defaults")
     return DashboardSettingsResponse.model_validate(preferences.dashboard_settings)

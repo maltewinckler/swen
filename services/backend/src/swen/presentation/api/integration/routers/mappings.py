@@ -122,16 +122,11 @@ async def create_external_account_mapping(
         else AccountType.ASSET
     )
 
-    try:
-        dto = CreateExternalAccountDTO(
-            **request.model_dump(exclude={"account_type"}),
-            account_type=domain_account_type,
-        )
-        result = await command.execute(dto)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        raise
+    dto = CreateExternalAccountDTO(
+        **request.model_dump(exclude={"account_type"}),
+        account_type=domain_account_type,
+    )
+    result = await command.execute(dto)
 
     logger.info(
         "External account mapping created: %s -> %s (reconciled %d transactions)",

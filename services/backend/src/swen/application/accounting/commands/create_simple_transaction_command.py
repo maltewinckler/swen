@@ -14,6 +14,7 @@ from swen.application.accounting.dtos.transactions_dto import (
     TransactionDTO,
     TransactionToCreateDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.exceptions import (
     AccountNotFoundError,
     InvalidAccountTypeError,
@@ -39,6 +40,7 @@ class CreateSimpleTransactionCommand:
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        uow: UnitOfWork,
     ):
         self._account_repo = account_repository
         self._current_user = current_user
@@ -48,6 +50,7 @@ class CreateSimpleTransactionCommand:
             transaction_repository=transaction_repository,
             account_repository=account_repository,
             current_user=current_user,
+            uow=uow,
         )
 
     @classmethod
@@ -59,6 +62,7 @@ class CreateSimpleTransactionCommand:
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
         )
 
     async def execute(self, dto: SimpleTransactionToCreateDTO) -> TransactionDTO:
