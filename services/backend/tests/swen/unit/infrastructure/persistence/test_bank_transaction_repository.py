@@ -89,6 +89,51 @@ class TestBankTransactionRepositorySQLAlchemy:
         assert retrieved.purpose == transaction.purpose
 
     @pytest.mark.asyncio
+    async def test_find_by_id_does_not_leak_across_users(
+        self,
+        async_session,
+        test_account,
+    ):
+        """find_by_id must not return another user's transaction."""
+        owner = create_current_user("00000000-0000-0000-0000-000000000001")
+        other = create_current_user("00000000-0000-0000-0000-000000000002")
+
+        owner_repo = BankTransactionRepositorySQLAlchemy(async_session, owner)
+        other_repo = BankTransactionRepositorySQLAlchemy(async_session, other)
+
+        transaction_id = await owner_repo.save(
+            create_test_transaction(),
+            test_account.iban,
+        )
+
+        assert await owner_repo.find_by_id(transaction_id) is not None
+        assert await other_repo.find_by_id(transaction_id) is None
+
+    @pytest.mark.asyncio
+    async def test_mark_as_imported_does_not_affect_other_users_transaction(
+        self,
+        async_session,
+        test_account,
+    ):
+        """mark_as_imported must be a no-op for another user's transaction."""
+        owner = create_current_user("00000000-0000-0000-0000-000000000001")
+        other = create_current_user("00000000-0000-0000-0000-000000000002")
+
+        owner_repo = BankTransactionRepositorySQLAlchemy(async_session, owner)
+        other_repo = BankTransactionRepositorySQLAlchemy(async_session, other)
+
+        results = await owner_repo.save_batch_with_deduplication(
+            [create_test_transaction()],
+            test_account.iban,
+        )
+        transaction_id = results[0].id
+
+        await other_repo.mark_as_imported(transaction_id)
+
+        unimported = await owner_repo.find_unimported(test_account.iban)
+        assert any(stored.id == transaction_id for stored in unimported)
+
+    @pytest.mark.asyncio
     async def test_save_transaction_with_hash_and_sequence(
         self,
         async_session,

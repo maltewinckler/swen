@@ -176,8 +176,16 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
         ]
 
     async def mark_as_imported(self, transaction_id: UUID) -> None:
-        stmt = select(BankTransactionModel).where(
-            BankTransactionModel.id == transaction_id,
+        stmt = (
+            select(BankTransactionModel)
+            .join(
+                BankAccountModel,
+                BankTransactionModel.account_id == BankAccountModel.id,
+            )
+            .where(
+                BankTransactionModel.id == transaction_id,
+                BankAccountModel.user_id == self._current_user.user_id,
+            )
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -188,8 +196,16 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
             await self._session.commit()
 
     async def find_by_id(self, transaction_id: UUID) -> Optional[BankTransaction]:
-        stmt = select(BankTransactionModel).where(
-            BankTransactionModel.id == transaction_id,
+        stmt = (
+            select(BankTransactionModel)
+            .join(
+                BankAccountModel,
+                BankTransactionModel.account_id == BankAccountModel.id,
+            )
+            .where(
+                BankTransactionModel.id == transaction_id,
+                BankAccountModel.user_id == self._current_user.user_id,
+            )
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()

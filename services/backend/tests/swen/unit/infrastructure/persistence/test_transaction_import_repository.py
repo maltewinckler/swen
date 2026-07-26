@@ -26,6 +26,10 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     TransactionImportRepositorySQLAlchemy,
 )
 from tests.shared.fixtures.database import TEST_USER_ID
+from tests.swen.unit.infrastructure.persistence.conftest import (
+    TEST_USER_ID_2,
+    MockCurrentUser,
+)
 
 # Module-level list to store pre-created bank transaction IDs for each test
 _bank_tx_ids: list[UUID] = []
@@ -151,6 +155,43 @@ class TestTransactionImportRepositorySQLAlchemy:
         assert updated_model is not None
         assert updated_model.status == ImportStatus.SUCCESS
         assert updated_model.accounting_transaction_id == accounting_txn_id
+
+    async def test_save_does_not_take_over_another_users_import_on_id_collision(
+        self,
+        async_session,
+        current_user,
+    ):
+        """save() must never treat another user's row as "existing".
+
+        In practice TransactionImport ids are uuid5(user_id + bank_transaction_id),
+        so a genuine cross-user collision can't happen — but the repository's
+        own existence check must not rely on that as its only protection.
+        """
+        other_user = MockCurrentUser(user_id=TEST_USER_ID_2)
+        alice_repo = TransactionImportRepositorySQLAlchemy(async_session, current_user)
+        bob_repo = TransactionImportRepositorySQLAlchemy(async_session, other_user)
+
+        alice_import = create_test_import()
+        await alice_repo.save(alice_import)
+        await async_session.commit()
+
+        # Force an id collision (bypassing the domain's own hash scheme) to
+        # exercise the repository's guard directly.
+        bob_import = create_test_import(
+            user_id=TEST_USER_ID_2,
+            error_message="Bob's failed import",
+        )
+        bob_import._id = alice_import.id
+
+        with pytest.raises(IntegrityError):
+            await bob_repo.save(bob_import)
+        await async_session.rollback()
+
+        # Alice's row must be completely untouched.
+        still_alice = await alice_repo.find_by_id(alice_import.id)
+        assert still_alice is not None
+        assert still_alice.error_message is None
+        assert still_alice.status == ImportStatus.PENDING
 
     async def test_find_by_id(self, async_session, current_user):
         """Test finding an import by ID."""
