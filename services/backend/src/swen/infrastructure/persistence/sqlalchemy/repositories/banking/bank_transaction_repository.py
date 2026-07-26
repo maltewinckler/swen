@@ -137,7 +137,6 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
                 account_iban,
             )
 
-        await self._session.commit()
         return results
 
     async def find_unimported(self, account_iban: str) -> list[StoredBankTransaction]:
@@ -193,7 +192,6 @@ class BankTransactionRepositorySQLAlchemy(BankTransactionRepository):
         if model:
             model.is_imported = True
             await self._session.flush()
-            await self._session.commit()
 
     async def find_by_id(self, transaction_id: UUID) -> Optional[BankTransaction]:
         stmt = (

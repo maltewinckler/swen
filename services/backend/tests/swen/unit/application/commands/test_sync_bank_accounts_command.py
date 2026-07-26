@@ -50,6 +50,14 @@ def _make_period() -> SyncPeriod:
     return SyncPeriod(start_date=_TODAY, end_date=_TODAY, adaptive=False)
 
 
+def _make_uow() -> AsyncMock:
+    """No-op UnitOfWork for unit tests (no DB session needed)."""
+    uow = AsyncMock()
+    uow.__aenter__ = AsyncMock(return_value=uow)
+    uow.__aexit__ = AsyncMock(return_value=None)
+    return uow
+
+
 def _make_command(
     *,
     mappings: list,
@@ -72,6 +80,7 @@ def _make_command(
         mapping_repo=mapping_repo,
         settings_repo=settings_repo,
         notifier=notifier,
+        uow=_make_uow(),
     )
 
 

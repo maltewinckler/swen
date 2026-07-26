@@ -50,7 +50,6 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
 
     async def save(self, transaction_import: TransactionImport):
         await self._save_no_commit(transaction_import)
-        await self._session.commit()
 
     async def _save_no_commit(self, transaction_import: TransactionImport) -> None:
         # Check if import exists
@@ -254,7 +253,6 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
 
         await self._session.delete(model)
         await self._session.flush()
-        await self._session.commit()
         return True
 
     def _model_to_domain(self, model: TransactionImportModel) -> TransactionImport:
@@ -285,9 +283,6 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
             await self._save_no_commit(import_record)
             if ob_adjustment is not None:
                 await transaction_repo._save_no_commit(ob_adjustment)
-
-        if self._session.in_transaction():
-            await self._session.commit()
 
     async def mark_reconciled_as_internal_transfer(
         self,
@@ -323,9 +318,6 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
         async with self._atomic_scope():
             await transaction_repo._save_no_commit(existing_transaction)
             await self._save_no_commit(import_record)
-
-        if self._session.in_transaction():
-            await self._session.commit()
 
     def _get_transaction_repository(self) -> TransactionRepositorySQLAlchemy:
         if self._transaction_repo is None:

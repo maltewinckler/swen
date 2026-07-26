@@ -55,7 +55,6 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
 
     async def save(self, transaction: Transaction) -> None:
         await self._save_no_commit(transaction)
-        await self._session.commit()
 
     async def _save_no_commit(self, transaction: Transaction) -> None:
         # Check if transaction already exists
@@ -121,7 +120,6 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
         if model:
             await self._session.delete(model)
             await self._session.flush()
-            await self._session.commit()
             logger.info("Transaction deleted: %s", transaction_id)
 
     async def find_by_counterparty(self, counterparty: str) -> List[Transaction]:

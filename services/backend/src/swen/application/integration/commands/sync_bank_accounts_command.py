@@ -21,6 +21,7 @@ from swen.application.integration.services.bank_account_sync import (
 from swen.application.integration.services.sync_notification_service import (
     SyncNotificationService,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.integration.repositories import AccountMappingRepository
 from swen.domain.settings.repositories import UserSettingsRepository
 
@@ -46,11 +47,13 @@ class SyncBankAccountsCommand:
         mapping_repo: AccountMappingRepository,
         settings_repo: UserSettingsRepository,
         notifier: SyncNotificationService,
+        uow: UnitOfWork,
     ) -> None:
         self._sync_service = sync_service
         self._mapping_repo = mapping_repo
         self._settings_repo = settings_repo
         self._notifier = notifier
+        self._uow = uow
 
     @classmethod
     async def from_factory(
@@ -70,6 +73,7 @@ class SyncBankAccountsCommand:
             mapping_repo=factory.account_mapping_repository(),
             settings_repo=factory.user_settings_repository(),
             notifier=notifier,
+            uow=factory.unit_of_work(),
         )
 
     async def execute(
@@ -97,11 +101,12 @@ class SyncBankAccountsCommand:
                     account_name=mapping.account_name,
                 )
 
-                imported, skipped, failed = await self._sync_service.sync_account(
-                    mapping=mapping,
-                    days=days,
-                    auto_post=auto_post,
-                )
+                async with self._uow:
+                    imported, skipped, failed = await self._sync_service.sync_account(
+                        mapping=mapping,
+                        days=days,
+                        auto_post=auto_post,
+                    )
                 await self._notifier.emit_account_sync_completed_event(
                     imported, skipped, failed
                 )
