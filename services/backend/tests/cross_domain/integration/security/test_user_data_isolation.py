@@ -16,7 +16,7 @@ that ensure repositories keep enforcing user-level scoping.
 Uses Testcontainers PostgreSQL for isolated, ephemeral database instances.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -25,7 +25,11 @@ from cryptography.fernet import Fernet
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency, Money
-from swen.domain.banking.value_objects import BankCredentials
+from swen.domain.banking.value_objects import (
+    BankAccount,
+    BankCredentials,
+    BankTransaction,
+)
 from swen.domain.integration.entities import AccountMapping
 from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
@@ -33,7 +37,9 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.accounting import (
     TransactionRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.banking import (
+    BankAccountRepositorySQLAlchemy,
     BankCredentialRepositorySQLAlchemy,
+    BankTransactionRepositorySQLAlchemy,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories.integration import (
     AccountMappingRepositorySQLAlchemy,
@@ -826,3 +832,59 @@ class TestRepositoryFilteringGuards:
         assert await bob_mapping_repo.find_by_id(alice_mapping.id) is None
         assert await alice_transaction_repo.find_by_id(bob_txn.id) is None
         assert await bob_transaction_repo.find_by_id(alice_txn.id) is None
+
+    @pytest.mark.asyncio
+    async def test_bank_transaction_find_by_id_should_filter_by_user(
+        self,
+        db_session,
+    ):
+        """
+        BankTransactionRepository.find_by_id must not return another
+        user's bank transaction, and mark_as_imported must not mutate it.
+        """
+        alice_bank_account_repo = BankAccountRepositorySQLAlchemy(
+            db_session,
+            ALICE_CONTEXT,
+        )
+        alice_bank_txn_repo = BankTransactionRepositorySQLAlchemy(
+            db_session,
+            ALICE_CONTEXT,
+        )
+        bob_bank_txn_repo = BankTransactionRepositorySQLAlchemy(
+            db_session,
+            BOB_CONTEXT,
+        )
+
+        alice_bank_account = BankAccount(
+            iban="DE55555555555555555555",
+            account_number="ALICE-BANK-001",
+            blz="37040044",
+            account_holder="Alice",
+            account_type="Girokonto",
+            currency="EUR",
+        )
+        await alice_bank_account_repo.save(alice_bank_account)
+        await db_session.commit()
+
+        alice_bank_txn = BankTransaction(
+            booking_date=date(2025, 10, 30),
+            value_date=date(2025, 10, 30),
+            amount=Decimal("-50.00"),
+            currency="EUR",
+            purpose="Alice Guarded Bank Txn",
+            bank_reference="GUARD-REF-001",
+        )
+        alice_stored_id = await alice_bank_txn_repo.save(
+            alice_bank_txn,
+            alice_bank_account.iban,
+        )
+        await db_session.commit()
+
+        # Bob cannot look it up, even though he can't name Alice's account either.
+        assert await bob_bank_txn_repo.find_by_id(alice_stored_id) is None
+        assert await alice_bank_txn_repo.find_by_id(alice_stored_id) is not None
+
+        # Bob marking it "imported" must be a no-op — Alice's copy stays unimported.
+        await bob_bank_txn_repo.mark_as_imported(alice_stored_id)
+        unimported = await alice_bank_txn_repo.find_unimported(alice_bank_account.iban)
+        assert any(stored.id == alice_stored_id for stored in unimported)

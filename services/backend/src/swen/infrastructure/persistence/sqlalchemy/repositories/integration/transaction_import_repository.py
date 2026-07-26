@@ -56,6 +56,7 @@ class TransactionImportRepositorySQLAlchemy(TransactionImportRepository):
         # Check if import exists
         stmt = select(TransactionImportModel).where(
             TransactionImportModel.id == transaction_import.id,
+            TransactionImportModel.user_id == self._user_id,
         )
         result = await self._session.execute(stmt)
         existing = result.scalar_one_or_none()

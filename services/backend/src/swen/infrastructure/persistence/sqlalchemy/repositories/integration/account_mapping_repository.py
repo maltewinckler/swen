@@ -33,6 +33,7 @@ class AccountMappingRepositorySQLAlchemy(AccountMappingRepository):
         # Check if mapping exists
         stmt = select(AccountMappingModel).where(
             AccountMappingModel.id == mapping.id,
+            AccountMappingModel.user_id == self._user_id,
         )
         result = await self._session.execute(stmt)
         existing = result.scalar_one_or_none()

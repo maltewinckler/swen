@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from swen.domain.integration.entities import AccountMapping
 from swen.infrastructure.persistence.sqlalchemy.models.integration import (
@@ -17,6 +18,10 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     AccountMappingRepositorySQLAlchemy,
 )
 from tests.shared.fixtures.database import TEST_USER_ID
+from tests.swen.unit.infrastructure.persistence.conftest import (
+    TEST_USER_ID_2,
+    MockCurrentUser,
+)
 
 
 # Helper function to create test mapping
@@ -83,6 +88,45 @@ class TestAccountMappingRepositorySQLAlchemy:
 
         assert updated_model is not None
         assert updated_model.account_name == "Updated Account Name"
+
+    async def test_save_does_not_take_over_another_users_mapping_on_id_collision(
+        self,
+        async_session,
+        current_user,
+    ):
+        """save() must never treat another user's row as "existing".
+
+        In practice AccountMapping ids are uuid5(user_id + iban + account_id),
+        so a genuine cross-user collision can't happen — but the repository's
+        own existence check must not rely on that as its only protection.
+        """
+        other_user = MockCurrentUser(user_id=TEST_USER_ID_2)
+        alice_repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
+        bob_repo = AccountMappingRepositorySQLAlchemy(async_session, other_user)
+
+        alice_mapping = create_test_mapping(account_name="Alice's Mapping")
+        await alice_repo.save(alice_mapping)
+        await async_session.commit()
+
+        # Force an id collision (bypassing the domain's own hash scheme) to
+        # exercise the repository's guard directly.
+        bob_mapping = create_test_mapping(
+            iban="DE12500105170648489890",
+            account_name="Bob's Mapping",
+            accounting_account_id=uuid4(),
+            user_id=TEST_USER_ID_2,
+        )
+        bob_mapping._id = alice_mapping.id
+
+        with pytest.raises(IntegrityError):
+            await bob_repo.save(bob_mapping)
+        await async_session.rollback()
+
+        # Alice's row must be completely untouched.
+        still_alice = await alice_repo.find_by_id(alice_mapping.id)
+        assert still_alice is not None
+        assert still_alice.account_name == "Alice's Mapping"
+        assert still_alice.iban == alice_mapping.iban
 
     async def test_find_by_id(self, async_session, current_user):
         """Test finding a mapping by ID."""
