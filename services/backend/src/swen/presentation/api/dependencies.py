@@ -43,6 +43,9 @@ from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,
 )
+from swen_identity.infrastructure.persistence.sqlalchemy.factory import (
+    RepositoryFactorySQLAlchemy as IdentityRepositoryFactorySQLAlchemy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -351,6 +354,19 @@ async def get_repository_factory(
 
 # Type alias for injected repository factory
 RepoFactory = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
+
+
+async def get_identity_repository_factory(
+    session: AsyncSession = Depends(get_db_session),
+) -> IdentityRepositoryFactorySQLAlchemy:
+    """Get swen_identity's repository factory for the current request."""
+    return IdentityRepositoryFactorySQLAlchemy(session=session)
+
+
+# Type alias for injected swen_identity repository factory (e.g. admin user management)
+IdentityRepoFactory = Annotated[
+    IdentityRepositoryFactorySQLAlchemy, Depends(get_identity_repository_factory)
+]
 
 
 # -----------------------------------------------------------------------------

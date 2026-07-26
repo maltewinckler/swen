@@ -18,6 +18,7 @@ from swen.presentation.api.admin.schemas.admin import (
 from swen.presentation.api.dependencies import (
     AdminUser,
     DBSession,
+    IdentityRepoFactory,
     get_password_service,
 )
 from swen_identity import (
@@ -34,7 +35,6 @@ from swen_identity.application.commands import (
     UpdateUserRoleCommand,
 )
 from swen_identity.infrastructure.persistence.sqlalchemy import (
-    UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,
 )
 
@@ -91,7 +91,7 @@ async def list_users(
 async def create_user(
     request: CreateUserRequest,
     admin: AdminUser,
-    session: DBSession,
+    factory: IdentityRepoFactory,
     password_service: PasswordService,
 ) -> UserSummaryResponse:
     """Create a new user."""
@@ -103,14 +103,7 @@ async def create_user(
             detail=f"Invalid role: {request.role}. Must be 'user' or 'admin'",
         ) from e
 
-    user_repo = UserRepositorySQLAlchemy(session)
-    credential_repo = UserCredentialRepositorySQLAlchemy(session)
-
-    command = CreateUserCommand(
-        user_repository=user_repo,
-        credential_repository=credential_repo,
-        password_service=password_service,
-    )
+    command = CreateUserCommand.from_factory(factory, password_service)
 
     try:
         user = await command.execute(
@@ -118,22 +111,19 @@ async def create_user(
             password=request.password,
             role=role,
         )
-        await session.commit()
-
-        logger.info("Admin %s created user: %s", admin.email, request.email)
-        return UserSummaryResponse(
-            id=user.id,
-            email=user.email,
-            role=user.role.value,
-            created_at=user.created_at,
-        )
-
     except EmailAlreadyExistsError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email address is already registered",
         ) from e
+
+    logger.info("Admin %s created user: %s", admin.email, request.email)
+    return UserSummaryResponse(
+        id=user.id,
+        email=user.email,
+        role=user.role.value,
+        created_at=user.created_at,
+    )
 
 
 @router.delete(
@@ -150,29 +140,25 @@ async def create_user(
 async def delete_user(
     user_id: UUID,
     admin: AdminUser,
-    session: DBSession,
+    factory: IdentityRepoFactory,
 ) -> None:
     """Delete a user."""
-    user_repo = UserRepositorySQLAlchemy(session)
-    command = DeleteUserCommand(user_repository=user_repo)
+    command = DeleteUserCommand.from_factory(factory)
 
     try:
         await command.execute(user_id=user_id, requesting_admin_id=admin.id)
-        await session.commit()
-        logger.info("Admin %s deleted user: %s", admin.email, user_id)
-
     except CannotDeleteSelfError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete your own account",
         ) from e
     except UserNotFoundError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         ) from e
+
+    logger.info("Admin %s deleted user: %s", admin.email, user_id)
 
 
 @router.patch(
@@ -189,7 +175,7 @@ async def update_user_role(
     user_id: UUID,
     request: UpdateRoleRequest,
     admin: AdminUser,
-    session: DBSession,
+    factory: IdentityRepoFactory,
 ) -> UserSummaryResponse:
     """Update a user's role."""
     try:
@@ -200,8 +186,7 @@ async def update_user_role(
             detail=f"Invalid role: {request.role}. Must be 'user' or 'admin'",
         ) from e
 
-    user_repo = UserRepositorySQLAlchemy(session)
-    command = UpdateUserRoleCommand(user_repository=user_repo)
+    command = UpdateUserRoleCommand.from_factory(factory)
 
     try:
         user = await command.execute(
@@ -209,30 +194,26 @@ async def update_user_role(
             new_role=new_role,
             requesting_admin_id=admin.id,
         )
-        await session.commit()
-
-        logger.info(
-            "Admin %s changed role of %s to %s",
-            admin.email,
-            user_id,
-            new_role.value,
-        )
-        return UserSummaryResponse(
-            id=user.id,
-            email=user.email,
-            role=user.role.value,
-            created_at=user.created_at,
-        )
-
     except CannotDemoteSelfError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot demote yourself from admin",
         ) from e
     except UserNotFoundError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         ) from e
+
+    logger.info(
+        "Admin %s changed role of %s to %s",
+        admin.email,
+        user_id,
+        new_role.value,
+    )
+    return UserSummaryResponse(
+        id=user.id,
+        email=user.email,
+        role=user.role.value,
+        created_at=user.created_at,
+    )
