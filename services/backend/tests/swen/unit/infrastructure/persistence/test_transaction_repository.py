@@ -656,3 +656,45 @@ class TestJournalEntryDataIntegrity:
         assert len(credit_entries) == 1
         assert debit_entries[0].debit.amount == Decimal("100.00")
         assert credit_entries[0].credit.amount == Decimal("100.00")
+
+    @pytest.mark.asyncio
+    async def test_corrupted_entry_raises_instead_of_silently_dropping(
+        self,
+        async_session,
+        setup_test_data,
+    ):
+        """A corrupted row must fail the transaction load loudly, not
+        silently produce a transaction with a missing (and therefore
+        unbalanced) entry.
+
+        The DB's own CHECK constraint (see test_db_constraint_rejects_*
+        above) blocks this from ever being persisted, so the corrupted
+        model here is deliberately never flushed — this exercises the
+        repository's read-path defense-in-depth directly, for the case
+        of a row that predates the constraint or was edited manually.
+        """
+        from uuid import uuid4
+
+        setup = setup_test_data
+
+        account_repo = AccountRepositorySQLAlchemy(
+            async_session,
+            setup["current_user"],
+        )
+        transaction_repo = TransactionRepositorySQLAlchemy(
+            async_session,
+            account_repo,
+            setup["current_user"],
+        )
+
+        corrupted_entry = JournalEntryModel(
+            id=uuid4(),
+            transaction_id=setup["tx_id"],
+            account_id=setup["checking_id"],
+            debit_amount=Decimal("-100.00"),
+            credit_amount=Decimal("0.00"),
+            currency="EUR",
+        )
+
+        with pytest.raises(ValueError, match="Debit amount must be positive"):
+            await transaction_repo._reconstitute_journal_entry(corrupted_entry)

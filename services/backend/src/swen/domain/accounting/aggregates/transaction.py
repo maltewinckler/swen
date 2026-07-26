@@ -62,6 +62,11 @@ class Transaction:
         merchant: Optional[str] = None,
         is_recurring: bool = False,
         recurring_pattern: Optional[str] = None,
+        # For reconstitution from persistence:
+        id: Optional[UUID] = None,
+        entries: Optional[List[JournalEntry]] = None,
+        is_posted: bool = False,
+        created_at: Optional[datetime] = None,
     ):
         """
         Initialize a new transaction.
@@ -92,8 +97,19 @@ class Transaction:
             Whether ML detected this as a recurring transaction
         recurring_pattern
             Pattern type if recurring ("monthly" or "weekly")
+        id
+            Existing transaction id (reconstitution only; a new id is
+            generated otherwise)
+        entries
+            Pre-validated journal entries to attach (reconstitution only —
+            new transactions start empty and grow via add_entry)
+        is_posted
+            Posted status to restore (reconstitution only; new transactions
+            always start as drafts and are posted via post())
+        created_at
+            Original creation timestamp to restore (reconstitution only)
         """
-        self._id = uuid4()
+        self._id = id or uuid4()
         self._user_id = user_id
         self._description = description
         self._date = date or utc_now()
@@ -109,9 +125,55 @@ class Transaction:
         # Ensure metadata always has source synced with first-class field
         self._metadata: Dict[str, Any] = metadata.copy() if metadata else {}
         self._metadata["source"] = source.value
-        self._entries: List[JournalEntry] = []
-        self._is_posted = False
-        self._created_at = utc_now()
+        self._entries: List[JournalEntry] = list(entries) if entries else []
+        self._is_posted = is_posted
+        self._created_at = created_at or utc_now()
+
+    @classmethod
+    def reconstitute(  # NOQA: PLR0913
+        cls,
+        id: UUID,
+        user_id: UUID,
+        description: str,
+        date: datetime,
+        entries: List[JournalEntry],
+        is_posted: bool,
+        created_at: datetime,
+        counterparty: Optional[str] = None,
+        counterparty_iban: Optional[str] = None,
+        source: TransactionSource = TransactionSource.MANUAL,
+        source_iban: Optional[str] = None,
+        is_internal_transfer: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
+        merchant: Optional[str] = None,
+        is_recurring: bool = False,
+        recurring_pattern: Optional[str] = None,
+    ) -> "Transaction":
+        """Rebuild a Transaction from persisted state.
+
+        Each entry in *entries* must already be a validated JournalEntry
+        (see JournalEntry.reconstitute) — the entries are attached as-is,
+        not re-added via add_entry, since a stored transaction may already
+        be posted.
+        """
+        return cls(
+            description=description,
+            user_id=user_id,
+            date=date,
+            counterparty=counterparty,
+            counterparty_iban=counterparty_iban,
+            source=source,
+            source_iban=source_iban,
+            is_internal_transfer=is_internal_transfer,
+            metadata=metadata,
+            merchant=merchant,
+            is_recurring=is_recurring,
+            recurring_pattern=recurring_pattern,
+            id=id,
+            entries=entries,
+            is_posted=is_posted,
+            created_at=created_at,
+        )
 
     @property
     def id(self) -> UUID:
