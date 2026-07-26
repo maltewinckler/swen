@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from swen.domain.integration.entities import AccountMapping
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.persistence.sqlalchemy.models.integration import (
     AccountMappingModel,
 )
@@ -19,8 +20,8 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
 )
 from tests.shared.fixtures.database import TEST_USER_ID
 from tests.swen.unit.infrastructure.persistence.conftest import (
+    TEST_USER_EMAIL_2,
     TEST_USER_ID_2,
-    MockCurrentUser,
 )
 
 
@@ -100,7 +101,7 @@ class TestAccountMappingRepositorySQLAlchemy:
         so a genuine cross-user collision can't happen — but the repository's
         own existence check must not rely on that as its only protection.
         """
-        other_user = MockCurrentUser(user_id=TEST_USER_ID_2)
+        other_user = CurrentUser(user_id=TEST_USER_ID_2, email=TEST_USER_EMAIL_2)
         alice_repo = AccountMappingRepositorySQLAlchemy(async_session, current_user)
         bob_repo = AccountMappingRepositorySQLAlchemy(async_session, other_user)
 

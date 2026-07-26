@@ -404,31 +404,29 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
             model.entries.append(entry_model)
 
     async def _map_to_domain(self, model: TransactionModel) -> Optional[Transaction]:
-        # Reconstruct the transaction
-        transaction = Transaction.__new__(Transaction)
-        transaction._id = model.id
-        transaction._user_id = model.user_id
-        transaction._description = model.description
-        transaction._date = model.date
-        transaction._counterparty = model.counterparty
-        transaction._counterparty_iban = model.counterparty_iban
-        transaction._source = TransactionSource.from_string(model.source)
-        transaction._source_iban = model.source_iban
-        transaction._is_internal_transfer = model.is_internal_transfer
-        transaction._metadata = (
-            model.transaction_metadata.copy() if model.transaction_metadata else {}
-        )
-        transaction._is_posted = model.is_posted
-        transaction._created_at = model.created_at
-        transaction._entries = []
-
-        # Reconstruct journal entries with strict validation
+        entries: List[JournalEntry] = []
         for entry_model in model.entries:
             entry = await self._reconstitute_journal_entry(entry_model)
             if entry is not None:
-                transaction._entries.append(entry)
+                entries.append(entry)
 
-        return transaction
+        return Transaction.reconstitute(
+            id=model.id,
+            user_id=model.user_id,
+            description=model.description,
+            date=model.date,
+            entries=entries,
+            is_posted=model.is_posted,
+            created_at=model.created_at,
+            counterparty=model.counterparty,
+            counterparty_iban=model.counterparty_iban,
+            source=TransactionSource.from_string(model.source),
+            source_iban=model.source_iban,
+            is_internal_transfer=model.is_internal_transfer,
+            metadata=(
+                model.transaction_metadata.copy() if model.transaction_metadata else {}
+            ),
+        )
 
     async def _reconstitute_journal_entry(
         self,
@@ -445,70 +443,29 @@ class TransactionRepositorySQLAlchemy(TransactionRepository):
             )
             return None
 
-        # Validate XOR constraint: exactly one of debit/credit must be positive
-        debit_positive = entry_model.debit_amount > Decimal("0")
-        credit_positive = entry_model.credit_amount > Decimal("0")
-
-        if debit_positive and credit_positive:
-            logger.error(
-                "DATA INTEGRITY VIOLATION: Entry %s has both debit (%s) and "
-                "credit (%s) positive. Transaction: %s, Account: %s. "
-                "Skipping entry to prevent corruption spread.",
-                entry_model.id,
-                entry_model.debit_amount,
-                entry_model.credit_amount,
-                entry_model.transaction_id,
-                entry_model.account_id,
-            )
-            return None
-
-        if not debit_positive and not credit_positive:
-            logger.error(
-                "DATA INTEGRITY VIOLATION: Entry %s has both debit and credit "
-                "as zero. Transaction: %s, Account: %s. "
-                "Skipping entry to prevent corruption spread.",
-                entry_model.id,
-                entry_model.transaction_id,
-                entry_model.account_id,
-            )
-            return None
-
-        # Validate non-negative amounts
-        if entry_model.debit_amount < Decimal("0"):
-            logger.error(
-                "DATA INTEGRITY VIOLATION: Entry %s has negative debit (%s). "
-                "Transaction: %s, Account: %s. Skipping entry.",
-                entry_model.id,
-                entry_model.debit_amount,
-                entry_model.transaction_id,
-                entry_model.account_id,
-            )
-            return None
-
-        if entry_model.credit_amount < Decimal("0"):
-            logger.error(
-                "DATA INTEGRITY VIOLATION: Entry %s has negative credit (%s). "
-                "Transaction: %s, Account: %s. Skipping entry.",
-                entry_model.id,
-                entry_model.credit_amount,
-                entry_model.transaction_id,
-                entry_model.account_id,
-            )
-            return None
-
-        # Reconstruct journal entry (validation passed)
-        entry = JournalEntry.__new__(JournalEntry)
-        entry._id = entry_model.id
-        entry._account = account
-
         currency = Currency(entry_model.currency)
-        zero_amount = Money(Decimal("0"), currency)
+        debit = (
+            Money(entry_model.debit_amount, currency)
+            if entry_model.debit_amount != Decimal("0")
+            else None
+        )
+        credit = (
+            Money(entry_model.credit_amount, currency)
+            if entry_model.credit_amount != Decimal("0")
+            else None
+        )
 
-        if debit_positive:
-            entry._debit = Money(entry_model.debit_amount, currency)
-            entry._credit = zero_amount
-        else:
-            entry._debit = zero_amount
-            entry._credit = Money(entry_model.credit_amount, currency)
-
-        return entry
+        try:
+            return JournalEntry.reconstitute(
+                id=entry_model.id,
+                account=account,
+                debit=debit,
+                credit=credit,
+            )
+        except ValueError as e:
+            msg = (
+                f"DATA INTEGRITY VIOLATION: entry {entry_model.id} in "
+                f"transaction {entry_model.transaction_id} "
+                f"(account {entry_model.account_id}): {e}"
+            )
+            raise ValueError(msg) from e

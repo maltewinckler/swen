@@ -16,6 +16,8 @@ class JournalEntry:
         account: Account,
         debit: Optional[Money] = None,
         credit: Optional[Money] = None,
+        # For reconstitution from persistence:
+        id: Optional[UUID] = None,
     ):
         # Validate that exactly one of debit or credit is provided
         if (debit is None) == (credit is None):
@@ -31,10 +33,21 @@ class JournalEntry:
             msg = "Credit amount must be positive"
             raise ValueError(msg)
 
-        self._id = uuid4()
+        self._id = id or uuid4()
         self._account = account
         self._debit = debit or Money(Decimal(0))
         self._credit = credit or Money(Decimal(0))
+
+    @classmethod
+    def reconstitute(
+        cls,
+        id: UUID,
+        account: Account,
+        debit: Optional[Money] = None,
+        credit: Optional[Money] = None,
+    ) -> "JournalEntry":
+        """Rebuild a JournalEntry from persisted state, preserving its id."""
+        return cls(account, debit=debit, credit=credit, id=id)
 
     @property
     def id(self) -> UUID:
