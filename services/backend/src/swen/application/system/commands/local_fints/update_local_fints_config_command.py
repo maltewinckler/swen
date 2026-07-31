@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.infrastructure.banking.local_fints.services.configuration_service import (
     FinTSConfigurationService,
 )
@@ -32,16 +33,18 @@ class UpdateLocalFinTSConfigCommand:
     on an existing configuration only that field is patched.
 
     When `csv_content` is provided the `bank_information` and
-    `fints_endpoints` lookup tables are repopulated via the service dependency.
+    `fints_endpoints` lookup tables are repopulated.
     """
 
     def __init__(
         self,
         config_service: FinTSConfigurationService,
         admin_user_id: UUID,
+        uow: UnitOfWork,
     ):
         self._service = config_service
         self._admin_user_id = admin_user_id
+        self._uow = uow
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> UpdateLocalFinTSConfigCommand:
@@ -53,6 +56,7 @@ class UpdateLocalFinTSConfigCommand:
                 fints_endpoint_repo=factory.fints_endpoint_repository(),
             ),
             admin_user_id=factory.current_user.user_id,
+            uow=factory.unit_of_work(),
         )
 
     async def execute(
@@ -61,11 +65,12 @@ class UpdateLocalFinTSConfigCommand:
         csv_content: bytes | None = None,
     ) -> UpdateConfigResultDTO:
         """Upsert configuration and repopulate bank tables if CSV was provided."""
-        result = await self._service.update_configuration(
-            admin_user_id=self._admin_user_id,
-            product_id=product_id,
-            csv_content=csv_content,
-        )
+        async with self._uow:
+            result = await self._service.update_configuration(
+                admin_user_id=self._admin_user_id,
+                product_id=product_id,
+                csv_content=csv_content,
+            )
         return UpdateConfigResultDTO(
             institute_count=result.institute_count,
             file_size_bytes=result.file_size_bytes,

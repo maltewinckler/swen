@@ -8,6 +8,7 @@ from uuid import UUID
 
 import httpx
 
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.banking.value_objects.bank_info import BankInfo
 from swen.infrastructure.banking.geldstrom_api.config import (
     GeldstromApiConfig,
@@ -40,10 +41,12 @@ class SaveGeldstromApiConfigCommand:
         config_repository: GeldstromApiConfigRepository,
         admin_user_id: UUID,
         bank_info_repo: BankInfoRepository,
+        uow: UnitOfWork,
     ):
         self._repository = config_repository
         self._admin_user_id = admin_user_id
         self._bank_info_repo = bank_info_repo
+        self._uow = uow
 
     @classmethod
     def from_factory(
@@ -54,6 +57,7 @@ class SaveGeldstromApiConfigCommand:
             config_repository=factory.geldstrom_api_config_repository(),
             admin_user_id=factory.current_user.user_id,
             bank_info_repo=factory.bank_info_repository(),
+            uow=factory.unit_of_work(),
         )
 
     async def execute(
@@ -72,18 +76,16 @@ class SaveGeldstromApiConfigCommand:
             is_active=False,
             updated_by_id=str(self._admin_user_id),
         )
-        await self._repository.save_configuration(
-            config,
-            admin_user_id=self._admin_user_id,
-        )
 
-        logger.info(
-            "Geldstrom API config saved by admin %s",
-            self._admin_user_id,
-        )
+        async with self._uow:
+            await self._repository.save_configuration(
+                config=config,
+                admin_user_id=self._admin_user_id,
+            )
 
-        # Populate bank_information table from API bank directory
-        await self._populate_bank_info(endpoint_url, api_key)
+            logger.info("Geldstrom API config saved by admin %s", self._admin_user_id)
+            # Populate bank_information table from API bank directory
+            await self._populate_bank_info(endpoint_url, api_key)
 
     async def _populate_bank_info(
         self,

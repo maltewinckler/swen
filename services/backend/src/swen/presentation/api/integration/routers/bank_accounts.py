@@ -58,17 +58,10 @@ async def rename_bank_account(
     Updates both the accounting account name and the account mapping.
     """
     rename_bank_account_command = RenameBankAccountCommand.from_factory(factory)
-
-    try:
-        dto = await rename_bank_account_command.execute(
-            iban=iban,
-            new_name=request.name,
-        )
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    dto = await rename_bank_account_command.execute(
+        iban=iban,
+        new_name=request.name,
+    )
 
     logger.info("Bank account renamed: %s -> %s", iban, request.name)
 

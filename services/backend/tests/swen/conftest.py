@@ -5,6 +5,8 @@ This conftest provides fixtures specific to the swen domain
 (banking, accounting, integration contexts).
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from swen.domain.shared.current_user import CurrentUser
@@ -15,6 +17,15 @@ from tests.shared.fixtures.factories import TestUserFactory
 def current_user() -> CurrentUser:
     """Provide a CurrentUser for the default test user."""
     return TestUserFactory.default_current_user()
+
+
+@pytest.fixture
+def mock_uow() -> AsyncMock:
+    """No-op UnitOfWork for unit tests that mock out the session entirely."""
+    uow = AsyncMock()
+    uow.__aenter__ = AsyncMock(return_value=uow)
+    uow.__aexit__ = AsyncMock(return_value=None)
+    return uow
 
 
 @pytest.fixture

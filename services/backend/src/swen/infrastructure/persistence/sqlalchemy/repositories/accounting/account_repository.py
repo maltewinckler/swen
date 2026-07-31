@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -21,6 +22,36 @@ if TYPE_CHECKING:
     from swen.domain.shared.current_user import CurrentUser
 
 logger = logging.getLogger(__name__)
+
+# Postgres's SQLSTATE for unique_violation (SQL-standard code, not asyncpg-specific).
+_POSTGRES_UNIQUE_VIOLATION_SQLSTATE = "23505"
+
+
+def _is_unique_violation(exc: IntegrityError) -> bool:
+    """Detect a unique-constraint violation from driver-native structure."""
+    orig = exc.orig
+    if getattr(orig, "sqlstate", None) == _POSTGRES_UNIQUE_VIOLATION_SQLSTATE:
+        return True
+    return getattr(orig, "sqlite_errorcode", None) == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+
+
+def _unique_constraint_name(exc: IntegrityError) -> str | None:
+    """Identify which unique constraint fired, if determinable."""
+    orig = exc.orig
+    name = getattr(orig, "constraint_name", None) or getattr(
+        getattr(orig, "__cause__", None),
+        "constraint_name",
+        None,
+    )
+    if name:
+        return name
+
+    msg = str(orig)
+    if "accounting_accounts.user_id, accounting_accounts.account_number" in msg:
+        return "uq_accounts_user_account_number"
+    if "accounting_accounts.user_id, accounting_accounts.iban" in msg:
+        return "uq_accounts_user_iban"
+    return None
 
 
 class AccountRepositorySQLAlchemy(AccountRepository):
@@ -47,38 +78,30 @@ class AccountRepositorySQLAlchemy(AccountRepository):
         try:
             await self._session.flush()
         except IntegrityError as exc:
-            # Keep session usable after a failed flush
-            await self._session.rollback()
+            # Transaction-boundary decisions belong to the owning UnitOfWork, not
+            # this repository. Let the exception propagate so it can roll back.
+            if not _is_unique_violation(exc):
+                raise
 
-            msg = str(getattr(exc, "orig", exc))
-            # Check for duplicate account_number (supports SQLite and PostgreSQL)
-            if (
-                "accounting_accounts.user_id, accounting_accounts.account_number" in msg
-                or "uq_accounts_user_account_number" in msg
-            ):
+            constraint = _unique_constraint_name(exc)
+            if constraint == "uq_accounts_user_account_number":
                 raise AccountAlreadyExistsError(
                     account_number=account.account_number,
                     message=f"Account number '{account.account_number}' already exists",
                 ) from exc
-
-            # Check for duplicate IBAN (supports SQLite and PostgreSQL)
-            if (
-                "accounting_accounts.user_id, accounting_accounts.iban" in msg
-                or "uq_accounts_user_iban" in msg
-            ):
+            if constraint == "uq_accounts_user_iban":
                 raise AccountAlreadyExistsError(
                     account_number=account.iban,
                     message=f"IBAN '{account.iban}' is already mapped to an account",
                 ) from exc
 
-            error_msg = f"Failed to save account due to database constraint: {msg}"
-            raise ValueError(error_msg) from exc
+            # Unique violation on a constraint we don't recognize — don't guess.
+            raise
 
         logger.info("Account saved: %s (ID: %s)", account.name, account.id)
 
     async def find_by_id(self, account_id: UUID) -> Optional[Account]:
         model = await self._find_model_by_id(account_id)
-
         if not model:
             return None
 

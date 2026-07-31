@@ -104,14 +104,7 @@ async def create_account(
     Account types: asset, liability, equity, income, expense
     """
     command = CreateAccountCommand.from_factory(factory, ml_client=ml_client)
-
-    try:
-        account = await command.execute(CreateAccountDTO(**request.model_dump()))
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    account = await command.execute(CreateAccountDTO(**request.model_dump()))
 
     logger.info("Account created: %s (%s)", account.name, account.account_number)
 
@@ -210,16 +203,9 @@ async def update_account(
     - 'remove': Remove parent, make top-level
     """
     command = UpdateAccountCommand.from_factory(factory, ml_client=ml_client)
-
-    try:
-        account = await command.execute(
-            UpdateAccountDTO(account_id=account_id, **request.model_dump()),
-        )
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    account = await command.execute(
+        UpdateAccountDTO(account_id=account_id, **request.model_dump()),
+    )
 
     logger.info("Account updated: %s", account.id)
 
@@ -246,14 +232,7 @@ async def deactivate_account(
     The account is marked as inactive but not removed from the database.
     """
     command = DeactivateAccountCommand.from_factory(factory, ml_client=ml_client)
-
-    try:
-        await command.execute(account_id=account_id)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    await command.execute(account_id=account_id)
 
     logger.info("Account deactivated: %s", account_id)
 
@@ -277,13 +256,7 @@ async def reactivate_account(
     The account will become visible in account lists and usable again.
     """
     command = ReactivateAccountCommand.from_factory(factory, ml_client=ml_client)
-
-    try:
-        account = await command.execute(account_id=account_id)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        raise
+    account = await command.execute(account_id=account_id)
 
     logger.info("Account reactivated: %s", account_id)
 
@@ -315,12 +288,6 @@ async def delete_account(
     For accounts with data, use deactivate instead (soft delete).
     """
     command = DeleteAccountCommand.from_factory(factory, ml_client=ml_client)
-
-    try:
-        await command.execute(account_id=account_id)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        raise
+    await command.execute(account_id=account_id)
 
     logger.info("Account deleted permanently: %s", account_id)

@@ -21,6 +21,7 @@ from swen.application.accounting.dtos import (
 from swen.application.integration.services.counter_account_batch_service import (
     CounterAccountBatchService,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.value_objects import TransactionSource
 from swen.domain.integration.services import (
     CounterAccountResolutionService,
@@ -85,10 +86,12 @@ class ReclassifyDraftsCommand:
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
         batch_service: CounterAccountBatchService,
+        uow: UnitOfWork,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
         self._batch_service = batch_service
+        self._uow = uow
 
     @classmethod
     def from_factory(
@@ -103,6 +106,7 @@ class ReclassifyDraftsCommand:
                 factory=factory,
                 proposal_port=resolution_port,
             ),
+            uow=factory.unit_of_work(),
         )
 
     async def execute_streaming(
@@ -168,10 +172,8 @@ class ReclassifyDraftsCommand:
             batch = inputs[batch_start : batch_start + self.BATCH_SIZE]
             resolved = await self._batch_service.resolve_batch(cast(list, batch))
             all_resolved.update(resolved)
-            yield ReclassifyProgressEvent(
-                current=min(batch_start + len(batch), total),
-                total=total,
-            )
+            current = min(batch_start + len(batch), total)
+            yield ReclassifyProgressEvent(current=current, total=total)
 
         summary = None
         async for event in self._apply_classifications_streaming(
@@ -345,7 +347,8 @@ class ReclassifyDraftsCommand:
         txn.replace_unprotected_entries([(new_account, amount, is_debit)])
         txn.set_ml_classification()
 
-        await self._transaction_repo.save(txn)
+        async with self._uow:
+            await self._transaction_repo.save(txn)
 
         return ReclassifiedTransactionDetailDTO(
             transaction_id=txn.id,
@@ -357,6 +360,8 @@ class ReclassifyDraftsCommand:
         )
 
 
+# weird workaround but it simplifies a lot because we can put this into
+# import service that calls the ML.
 class _DraftAsStoredTransaction:
     """Adapter: make a Transaction look like a StoredBankTransaction.
 
@@ -381,6 +386,9 @@ class _DraftAsBankTransaction:
         self.amount = self._extract_amount(txn)
         self.applicant_name = txn.counterparty
         self.applicant_iban = txn.counterparty_iban
+
+    def is_debit(self) -> bool:
+        return self.amount < 0
 
     @staticmethod
     def _extract_amount(txn: Transaction) -> Decimal:

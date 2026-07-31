@@ -126,30 +126,32 @@ class TestGetFinTSConfigurationStatusQuery:
 class TestUpdateLocalFinTSConfigCommand:
     """Tests for UpdateLocalFinTSConfigCommand."""
 
-    def _make_command(self) -> UpdateLocalFinTSConfigCommand:
+    def _make_command(self, mock_uow) -> UpdateLocalFinTSConfigCommand:
         repo = _make_mock_repo()
         repo.exists.return_value = True
         service = FinTSConfigurationService(config_repository=repo)
         return UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
+            uow=mock_uow,
         )
 
     @pytest.mark.asyncio
-    async def test_execute_raises_when_no_args(self):
-        command = self._make_command()
+    async def test_execute_raises_when_no_args(self, mock_uow):
+        command = self._make_command(mock_uow)
 
         with pytest.raises(ValueError, match="At least one"):
             await command.execute()
 
     @pytest.mark.asyncio
-    async def test_execute_product_id_only_does_not_populate_tables(self):
+    async def test_execute_product_id_only_does_not_populate_tables(self, mock_uow):
         repo = _make_mock_repo()
         repo.exists.return_value = True
         service = FinTSConfigurationService(config_repository=repo)
         command = UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
+            uow=mock_uow,
         )
 
         with patch.object(
@@ -161,13 +163,14 @@ class TestUpdateLocalFinTSConfigCommand:
         repo.update_product_id.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_csv_only_calls_populate_bank_tables(self):
+    async def test_execute_csv_only_calls_populate_bank_tables(self, mock_uow):
         repo = _make_mock_repo()
         repo.exists.return_value = True
         service = FinTSConfigurationService(config_repository=repo)
         command = UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
+            uow=mock_uow,
         )
 
         with (
@@ -184,13 +187,14 @@ class TestUpdateLocalFinTSConfigCommand:
         mock_populate.assert_called_once_with(b"some csv bytes")
 
     @pytest.mark.asyncio
-    async def test_execute_both_args_calls_populate_bank_tables(self):
+    async def test_execute_both_args_calls_populate_bank_tables(self, mock_uow):
         repo = _make_mock_repo()
         repo.exists.return_value = True
         service = FinTSConfigurationService(config_repository=repo)
         command = UpdateLocalFinTSConfigCommand(
             config_service=service,
             admin_user_id=TEST_ADMIN_ID,
+            uow=mock_uow,
         )
 
         with (

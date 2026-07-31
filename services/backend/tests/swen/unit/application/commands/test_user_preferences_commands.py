@@ -34,9 +34,11 @@ class TestUpdateUserSettingsCommand:
     """Tests for UpdateUserSettingsCommand."""
 
     @pytest.mark.asyncio
-    async def test_update_single_setting(self, mock_settings_repo, mock_settings):
+    async def test_update_single_setting(
+        self, mock_settings_repo, mock_settings, mock_uow
+    ):
         """Can update a single setting."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         result = await command.execute(
             UserSettingsUpdateDTO(auto_post_transactions=True)
@@ -46,9 +48,11 @@ class TestUpdateUserSettingsCommand:
         mock_settings_repo.save.assert_called_once_with(mock_settings)
 
     @pytest.mark.asyncio
-    async def test_update_multiple_settings(self, mock_settings_repo, mock_settings):
+    async def test_update_multiple_settings(
+        self, mock_settings_repo, mock_settings, mock_uow
+    ):
         """Can update multiple settings at once."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         result = await command.execute(
             UserSettingsUpdateDTO(
@@ -65,17 +69,19 @@ class TestUpdateUserSettingsCommand:
         assert result.display_settings.default_date_range_days == 60
 
     @pytest.mark.asyncio
-    async def test_no_updates_raises_error(self, mock_settings_repo):
+    async def test_no_updates_raises_error(self, mock_settings_repo, mock_uow):
         """Raises ValueError if no updates provided."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         with pytest.raises(ValueError, match="At least one setting"):
             await command.execute(UserSettingsUpdateDTO())
 
     @pytest.mark.asyncio
-    async def test_update_dashboard_widgets(self, mock_settings_repo, mock_settings):
+    async def test_update_dashboard_widgets(
+        self, mock_settings_repo, mock_settings, mock_uow
+    ):
         """Can update dashboard widget settings."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         result = await command.execute(
             UserSettingsUpdateDTO(enabled_widgets=["summary-cards", "net-worth"]),
@@ -87,9 +93,11 @@ class TestUpdateUserSettingsCommand:
         ]
 
     @pytest.mark.asyncio
-    async def test_update_ai_settings(self, mock_settings_repo, mock_settings):
+    async def test_update_ai_settings(
+        self, mock_settings_repo, mock_settings, mock_uow
+    ):
         """Can update AI settings."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         result = await command.execute(
             UserSettingsUpdateDTO(ai_enabled=False, ai_min_confidence=0.9),
@@ -99,9 +107,9 @@ class TestUpdateUserSettingsCommand:
         assert result.ai_settings.min_confidence == 0.9
 
     @pytest.mark.asyncio
-    async def test_invalid_widget_raises_error(self, mock_settings_repo):
+    async def test_invalid_widget_raises_error(self, mock_settings_repo, mock_uow):
         """Raises ValueError for invalid widget IDs."""
-        command = UpdateUserSettingsCommand(mock_settings_repo)
+        command = UpdateUserSettingsCommand(mock_settings_repo, mock_uow)
 
         with pytest.raises(ValueError, match="Invalid widget IDs"):
             await command.execute(
@@ -113,12 +121,12 @@ class TestResetUserSettingsCommand:
     """Tests for ResetUserSettingsCommand."""
 
     @pytest.mark.asyncio
-    async def test_reset_to_defaults(self, mock_settings_repo, mock_settings):
+    async def test_reset_to_defaults(self, mock_settings_repo, mock_settings, mock_uow):
         """Resets all settings to defaults."""
         # First modify settings
         mock_settings.update_sync(auto_post_transactions=True, default_currency="USD")
 
-        command = ResetUserSettingsCommand(mock_settings_repo)
+        command = ResetUserSettingsCommand(mock_settings_repo, mock_uow)
 
         result = await command.execute()
 
@@ -128,9 +136,11 @@ class TestResetUserSettingsCommand:
         mock_settings_repo.save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_reset_creates_settings_if_missing(self, mock_settings_repo):
+    async def test_reset_creates_settings_if_missing(
+        self, mock_settings_repo, mock_uow
+    ):
         """Creates settings if they don't exist."""
-        command = ResetUserSettingsCommand(mock_settings_repo)
+        command = ResetUserSettingsCommand(mock_settings_repo, mock_uow)
 
         await command.execute()
 

@@ -92,7 +92,6 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
         model.is_active = False
         model.updated_at = utc_now()
         await self._session.flush()
-        await self._session.commit()
 
         return True
 
@@ -106,7 +105,6 @@ class StoredBankCredentialsRepositorySQLAlchemy(StoredBankCredentialsRepository)
         model.last_used_at = utc_now()
         model.updated_at = utc_now()
         await self._session.flush()
-        await self._session.commit()
 
     async def update(
         self,

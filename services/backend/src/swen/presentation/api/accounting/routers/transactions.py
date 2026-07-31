@@ -185,14 +185,7 @@ async def create_transaction(
     )
 
     command = CreateTransactionCommand.from_factory(factory)
-
-    try:
-        created = await command.execute(dto)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    created = await command.execute(dto)
 
     logger.info("Manual transaction created: %s", created.id)
     return TransactionResponse.model_validate(created)
@@ -249,13 +242,7 @@ async def create_simple_transaction(
     """
     dto = SimpleTransactionToCreateDTO.model_validate(request)
     command = CreateSimpleTransactionCommand.from_factory(factory)
-
-    try:
-        created = await command.execute(dto)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        raise
+    created = await command.execute(dto)
 
     logger.info("Simple transaction created: %s", created.id)
     return TransactionResponse.model_validate(created)
@@ -321,14 +308,7 @@ async def update_transaction(
     # Convert entries from request schema to domain value objects
     dto = TransactionToEditDTO(transaction_id=transaction_id, **request.model_dump())
     command = EditTransactionCommand.from_factory(factory)
-
-    try:
-        txn = await command.execute(dto)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    txn = await command.execute(dto)
 
     logger.info("Transaction updated: %s", transaction_id)
     return TransactionResponse.model_validate(txn)
@@ -354,14 +334,7 @@ async def post_transaction(
     Posting a transaction makes it permanent and affects account balances.
     """
     command = PostTransactionCommand.from_factory(factory, ml_port=ml_port)
-
-    try:
-        txn = await command.execute(transaction_id=transaction_id)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    txn = await command.execute(transaction_id=transaction_id)
 
     logger.info("Transaction posted: %s", transaction_id)
     return TransactionResponse.model_validate(txn)
@@ -386,14 +359,7 @@ async def unpost_transaction(
     This removes the transaction's effect on account balances.
     """
     command = UnpostTransactionCommand.from_factory(factory)
-
-    try:
-        txn = await command.execute(transaction_id=transaction_id)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    txn = await command.execute(transaction_id=transaction_id)
 
     logger.info("Transaction unposted: %s", transaction_id)
     return TransactionResponse.model_validate(txn)
@@ -424,14 +390,7 @@ async def delete_transaction(
     **Warning**: This action is permanent and cannot be undone.
     """
     command = DeleteTransactionCommand.from_factory(factory)
-
-    try:
-        await command.execute(transaction_id=transaction_id, force=force)
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        # Let the global exception handler process domain exceptions
-        raise
+    await command.execute(transaction_id=transaction_id, force=force)
 
     logger.info("Transaction deleted: %s", transaction_id)
 
@@ -521,8 +480,6 @@ async def reclassify_drafts_streaming(
                 elif isinstance(event, ReclassifyResultDTO):
                     result = event
 
-            await factory.session.commit()
-
             if result:
                 yield _format_sse_event(
                     "result",
@@ -535,14 +492,12 @@ async def reclassify_drafts_streaming(
                 )
 
         except DomainException as e:
-            await factory.session.rollback()
             logger.warning("Reclassification failed (domain): %s", e)
             yield _format_sse_event(
                 "reclassify_failed",
                 {"message": e.message, "code": e.code.value},
             )
         except Exception as e:
-            await factory.session.rollback()
             logger.exception("Reclassification failed (unexpected): %s", e)
             yield _format_sse_event(
                 "reclassify_failed",
@@ -592,16 +547,10 @@ async def bulk_post_transactions(
         )
 
     command = BulkPostTransactionsCommand.from_factory(factory, ml_port=ml_port)
-
-    try:
-        posted = await command.execute(
-            transaction_ids=request.transaction_ids,
-            post_all_drafts=request.post_all_drafts,
-        )
-        await factory.session.commit()
-    except Exception:
-        await factory.session.rollback()
-        raise
+    posted = await command.execute(
+        transaction_ids=request.transaction_ids,
+        post_all_drafts=request.post_all_drafts,
+    )
 
     logger.info("Bulk posted %d transactions", len(posted))
     return BulkPostResponse(

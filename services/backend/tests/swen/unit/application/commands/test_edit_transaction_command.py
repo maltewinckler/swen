@@ -148,12 +148,14 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Raises TransactionNotFoundError when transaction doesn't exist."""
         mock_transaction_repo.find_by_id.return_value = None
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         dto = TransactionToEditDTO(transaction_id=uuid4())
@@ -164,6 +166,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Transaction is unposted before edits if it was posted."""
         txn = mock_transaction_repo._transaction
@@ -172,6 +175,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         await command.execute(
@@ -187,6 +191,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Transaction is reposted after edits if it was posted and repost=True."""
         txn = mock_transaction_repo._transaction
@@ -195,6 +200,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         await command.execute(
@@ -212,6 +218,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Transaction is saved after edits."""
         txn = mock_transaction_repo._transaction
@@ -219,6 +226,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         await command.execute(
@@ -234,12 +242,14 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Cannot specify both entries and counter_account_id."""
         txn = mock_transaction_repo._transaction
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         with pytest.raises(ValueError) as exc_info:
@@ -270,6 +280,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Description is updated via transaction method."""
         txn = mock_transaction_repo._transaction
@@ -277,6 +288,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         await command.execute(
@@ -296,6 +308,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Counterparty is updated via transaction method."""
         txn = mock_transaction_repo._transaction
@@ -303,6 +316,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         await command.execute(
@@ -322,6 +336,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Metadata is updated via domain service."""
         txn = mock_transaction_repo._transaction
@@ -338,6 +353,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=mock_transaction_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             await command.execute(
@@ -354,6 +370,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Reserved metadata keys are rejected by domain service."""
         txn = mock_transaction_repo._transaction
@@ -361,6 +378,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         with pytest.raises(ValidationError) as exc_info:
@@ -381,6 +399,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Entries are replaced via domain service."""
         txn = mock_transaction_repo._transaction
@@ -397,6 +416,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=mock_transaction_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             entries = [
@@ -427,6 +447,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Multi-entry replacement works (split transaction)."""
         txn = mock_transaction_repo._transaction
@@ -442,6 +463,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=mock_transaction_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             entries = [
@@ -472,6 +494,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """At least 2 entries required - validated by domain service."""
         txn = mock_transaction_repo._transaction
@@ -479,6 +502,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         entries = [
@@ -502,6 +526,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Raises AccountNotFoundError for unknown account."""
         txn = mock_transaction_repo._transaction
@@ -510,6 +535,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         entries = [
@@ -533,6 +559,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Category change delegates to domain service."""
         txn = mock_transaction_repo._transaction
@@ -548,6 +575,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=mock_transaction_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             await command.execute(
@@ -563,6 +591,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
         mock_account,
     ):
         """Category change works when payment account is a liability (credit card)."""
@@ -623,6 +652,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=txn_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             # Execute category change - should NOT raise BusinessRuleViolation
@@ -641,6 +671,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Raises AccountNotFoundError for unknown category account."""
         txn = mock_transaction_repo._transaction
@@ -649,6 +680,7 @@ class TestEditTransactionCommand:
         command = EditTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
+            uow=mock_uow,
         )
 
         with pytest.raises(AccountNotFoundError):
@@ -683,6 +715,7 @@ class TestEditTransactionCommand:
         self,
         mock_transaction_repo,
         mock_account_repo,
+        mock_uow,
     ):
         """Can update description, counterparty, and entries in one call."""
         txn = mock_transaction_repo._transaction
@@ -698,6 +731,7 @@ class TestEditTransactionCommand:
             command = EditTransactionCommand(
                 transaction_repository=mock_transaction_repo,
                 account_repository=mock_account_repo,
+                uow=mock_uow,
             )
 
             entries = [

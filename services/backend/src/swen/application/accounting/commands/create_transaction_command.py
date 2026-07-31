@@ -10,6 +10,7 @@ from swen.application.accounting.dtos.transactions_dto import (
     TransactionDTO,
     TransactionToCreateDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import AccountNotFoundError
@@ -37,10 +38,12 @@ class CreateTransactionCommand:
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        uow: UnitOfWork,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
         self._current_user = current_user
+        self._uow = uow
 
     @classmethod
     def from_factory(
@@ -51,37 +54,39 @@ class CreateTransactionCommand:
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
         )
 
     async def execute(self, dto: TransactionToCreateDTO) -> TransactionDTO:
         """Execute the create transaction use case."""
-        accounts = await self._load_accounts(dto.entries)
+        async with self._uow:
+            accounts = await self._load_accounts(dto.entries)
 
-        transaction = Transaction(
-            description=dto.description,
-            user_id=self._current_user.user_id,
-            date=dto.date or utc_now(),
-            counterparty=dto.counterparty,
-            counterparty_iban=dto.counterparty_iban,
-            source=TransactionSource(dto.source),
-            source_iban=dto.source_iban,
-            is_internal_transfer=dto.is_internal_transfer,
-        )
+            transaction = Transaction(
+                description=dto.description,
+                user_id=self._current_user.user_id,
+                date=dto.date or utc_now(),
+                counterparty=dto.counterparty,
+                counterparty_iban=dto.counterparty_iban,
+                source=TransactionSource(dto.source),
+                source_iban=dto.source_iban,
+                is_internal_transfer=dto.is_internal_transfer,
+            )
 
-        metadata = TransactionMetadata(
-            source=TransactionSource(dto.source),
-            is_manual_entry=dto.is_manual_entry,
-        )
-        transaction.set_metadata(metadata)
+            metadata = TransactionMetadata(
+                source=TransactionSource(dto.source),
+                is_manual_entry=dto.is_manual_entry,
+            )
+            transaction.set_metadata(metadata)
 
-        self._add_entries(transaction, dto.entries, accounts)
+            self._add_entries(transaction, dto.entries, accounts)
 
-        if dto.auto_post:
-            transaction.post()
+            if dto.auto_post:
+                transaction.post()
 
-        await self._transaction_repo.save(transaction)
+            await self._transaction_repo.save(transaction)
 
-        return self._to_dto(transaction)
+            return self._to_dto(transaction)
 
     async def _load_accounts(
         self,

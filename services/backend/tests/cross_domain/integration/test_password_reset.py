@@ -23,13 +23,24 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def mock_email_service():
-    """Mock email service to capture sent emails."""
-    with patch(
-        "swen.presentation.api.auth.routers.auth.EmailService"
-    ) as mock_email_class:
+    """Mock email service to capture sent emails.
+
+    EmailService is constructed inside ForgotPasswordCommand/ResetPasswordCommand's
+    from_factory (application layer), not the router, so both command modules'
+    bound names need patching.
+    """
+    with (
+        patch(
+            "swen_identity.application.commands.forgot_password_command.EmailService"
+        ) as mock_forgot_email_class,
+        patch(
+            "swen_identity.application.commands.reset_password_command.EmailService"
+        ) as mock_reset_email_class,
+    ):
         email_instance = MagicMock()
         email_instance.send_password_reset_email = MagicMock()
-        mock_email_class.return_value = email_instance
+        mock_forgot_email_class.return_value = email_instance
+        mock_reset_email_class.return_value = email_instance
         yield email_instance
 
 

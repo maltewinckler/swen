@@ -10,6 +10,7 @@ from swen.application.accounting.dtos.transactions_dto import (
     TransactionDTO,
     TransactionToEditDTO,
 )
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import JournalEntry
 from swen.domain.accounting.exceptions import (
@@ -32,15 +33,18 @@ class EditTransactionCommand:
         self,
         transaction_repository: TransactionRepository,
         account_repository: AccountRepository,
+        uow: UnitOfWork,
     ):
         self._transaction_repo = transaction_repository
         self._account_repo = account_repository
+        self._uow = uow
 
     @classmethod
     def from_factory(cls, factory: RepositoryFactory) -> EditTransactionCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),
             account_repository=factory.account_repository(),
+            uow=factory.unit_of_work(),
         )
 
     async def _update_with_new_entries(
@@ -90,30 +94,31 @@ class EditTransactionCommand:
             )
             raise ValueError(msg)
 
-        transaction = await self._load_transaction(dto.transaction_id)
-        was_posted = self._unpost_if_needed(transaction)  # to be able to edit
+        async with self._uow:
+            transaction = await self._load_transaction(dto.transaction_id)
+            was_posted = self._unpost_if_needed(transaction)  # to be able to edit
 
-        if dto.entries is not None:
-            await self._update_with_new_entries(transaction, dto.entries)
-        elif dto.counter_account_id is not None:
-            await self._update_with_new_counter_account(
-                transaction, dto.counter_account_id
-            )
+            if dto.entries is not None:
+                await self._update_with_new_entries(transaction, dto.entries)
+            elif dto.counter_account_id is not None:
+                await self._update_with_new_counter_account(
+                    transaction, dto.counter_account_id
+                )
 
-        if dto.description is not None:
-            transaction.update_description(dto.description)
-        if dto.counterparty is not None:
-            transaction.update_counterparty(dto.counterparty)
-        if dto.metadata is not None:
-            TransactionEditService.update_metadata(transaction, dto.metadata)
+            if dto.description is not None:
+                transaction.update_description(dto.description)
+            if dto.counterparty is not None:
+                transaction.update_counterparty(dto.counterparty)
+            if dto.metadata is not None:
+                TransactionEditService.update_metadata(transaction, dto.metadata)
 
-        # Repost if requested and was originally posted
-        if dto.repost and was_posted:
-            transaction.post()
+            # Repost if requested and was originally posted
+            if dto.repost and was_posted:
+                transaction.post()
 
-        # Persist changes
-        await self._transaction_repo.save(transaction)
-        return TransactionDTO.from_transaction(transaction)
+            # Persist changes
+            await self._transaction_repo.save(transaction)
+            return TransactionDTO.from_transaction(transaction)
 
     async def _load_transaction(self, transaction_id: UUID) -> Transaction:
         transaction = await self._transaction_repo.find_by_id(transaction_id)

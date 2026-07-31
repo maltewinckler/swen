@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from swen_ml_contracts import AccountOption
 
+from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.repositories import AccountRepository
 from swen.domain.accounting.value_objects import Currency
@@ -37,10 +38,12 @@ class GenerateDefaultAccountsCommand:
         self,
         account_repository: AccountRepository,
         current_user: CurrentUser,
+        uow: UnitOfWork,
         ml_client: MLServiceClient | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
+        self._uow = uow
         self._ml_client = ml_client
 
     @classmethod
@@ -52,6 +55,7 @@ class GenerateDefaultAccountsCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
+            uow=factory.unit_of_work(),
             ml_client=ml_client,
         )
 
@@ -67,15 +71,16 @@ class GenerateDefaultAccountsCommand:
             "EXPENSE": 0,
         }
 
-        existing_2000 = await self._account_repo.find_by_account_number("2000")
-        if existing_2000:
-            return {**accounts_created, "total": 0, "skipped": True}
+        async with self._uow:
+            existing_2000 = await self._account_repo.find_by_account_number("2000")
+            if existing_2000:
+                return {**accounts_created, "total": 0, "skipped": True}
 
-        default_accounts = self._get_minimal_accounts()
+            default_accounts = self._get_minimal_accounts()
 
-        for account in default_accounts:
-            await self._account_repo.save(account)
-            accounts_created[account.account_type.value.upper()] += 1
+            for account in default_accounts:
+                await self._account_repo.save(account)
+                accounts_created[account.account_type.value.upper()] += 1
 
         # Trigger ML embedding for expense/income accounts
         self._trigger_account_embeddings(default_accounts)
@@ -115,13 +120,15 @@ class GenerateDefaultAccountsCommand:
         essential_accounts = self._get_essential_accounts()
         created_count = 0
 
-        for account in essential_accounts:
-            existing = await self._account_repo.find_by_account_number(
-                account.account_number
-            )
-            if not existing:
-                await self._account_repo.save(account)
-                created_count += 1
+        async with self._uow:
+            for account in essential_accounts:
+                existing = await self._account_repo.find_by_account_number(
+                    account.account_number
+                )
+                if not existing:
+                    await self._account_repo.save(account)
+                    created_count += 1
+
         if created_count > 0:
             self._trigger_account_embeddings(essential_accounts)
 

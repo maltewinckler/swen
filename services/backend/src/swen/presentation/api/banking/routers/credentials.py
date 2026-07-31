@@ -130,7 +130,6 @@ async def update_credentials_tan(
     try:
         command = UpdateCredentialsCommand.from_factory(factory)
         await command.execute(dto)
-        await factory.session.commit()
         logger.info("TAN settings updated for BLZ %s", blz)
     except CredentialsNotFoundError as e:
         raise HTTPException(
@@ -173,5 +172,4 @@ async def delete_credentials(
             detail=f"No credentials found for BLZ {blz}",
         )
 
-    await factory.session.commit()
     logger.info("Credentials deleted for BLZ %s", blz)

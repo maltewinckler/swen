@@ -37,6 +37,9 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.integration import 
     AccountMappingRepositorySQLAlchemy,
     TransactionImportRepositorySQLAlchemy,
 )
+from swen.infrastructure.persistence.sqlalchemy.unit_of_work import (
+    UnitOfWorkSQLAlchemy,
+)
 from tests.external.conftest import (
     InMemoryFinTSConfigRepository,
     InMemoryFinTSEndpointRepository,
@@ -228,6 +231,7 @@ async def integration_repositories(db_session, current_user):
     generate_accounts_cmd = GenerateDefaultAccountsCommand(
         account_repository=account_repo,
         current_user=current_user,
+        uow=UnitOfWorkSQLAlchemy(db_session),
     )
     await generate_accounts_cmd.execute()
 

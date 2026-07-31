@@ -17,7 +17,6 @@ from swen.presentation.api.admin.schemas.fints_config import (
 )
 from swen.presentation.api.dependencies import (
     AdminUser,
-    DBSession,
     RepoFactory,
 )
 
@@ -64,16 +63,11 @@ async def get_local_fints_configuration(
 )
 async def upsert_local_fints_configuration(
     _admin: AdminUser,
-    session: DBSession,
     factory: RepoFactory,
     product_id: Annotated[str | None, Form(min_length=1, max_length=100)] = None,
     file: UploadFile | None = None,
 ) -> UpdateLocalFinTSConfigResponse:
-    """Create or update local FinTS configuration (Product ID and/or CSV).
-
-    On first-time setup both ``product_id`` and ``file`` are required.
-    After that either field can be updated independently.
-    """
+    """Create or update local FinTS configuration (Product ID and/or CSV)."""
     if product_id is None and file is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,9 +86,7 @@ async def upsert_local_fints_configuration(
     try:
         command = UpdateLocalFinTSConfigCommand.from_factory(factory)
         result = await command.execute(product_id=product_id, csv_content=csv_content)
-        await session.commit()
     except ValueError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

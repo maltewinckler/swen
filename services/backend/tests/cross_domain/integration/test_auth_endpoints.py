@@ -26,8 +26,8 @@ class TestAuthRegister:
         assert "role" in data["user"]  # Role should be present
 
         assert "access_token" in data
-        # refresh_token is now sent via HttpOnly cookie, not in body
-        assert data["refresh_token"] is None
+        # refresh_token is only ever sent via HttpOnly cookie now
+        assert "refresh_token" not in data
         assert data["token_type"] == "bearer"
         assert data["expires_in"] > 0
 
@@ -113,8 +113,8 @@ class TestAuthLogin:
         assert "user" in data
         assert data["user"]["email"] == registered_user_data["email"]
         assert "access_token" in data
-        # refresh_token is now sent via HttpOnly cookie, not in body
-        assert data["refresh_token"] is None
+        # refresh_token is only ever sent via HttpOnly cookie now
+        assert "refresh_token" not in data
 
         # Verify refresh token cookie is set
         assert "swen_refresh_token" in response.cookies
@@ -183,44 +183,20 @@ class TestAuthRefresh:
         data = response.json()
 
         assert "access_token" in data
-        # refresh_token is now sent via HttpOnly cookie, not in body
-        assert data["refresh_token"] is None
+        # refresh_token is only ever sent via HttpOnly cookie now
+        assert "refresh_token" not in data
         assert data["token_type"] == "bearer"
 
         # Verify new refresh token cookie is set (rotation)
         assert "swen_refresh_token" in response.cookies
 
-    def test_refresh_success_via_body(
-        self,
-        test_client: TestClient,
-        registered_user_data: dict,
-        api_v1_prefix: str,
-    ):
-        """Successfully refresh tokens using body (backward compatibility)."""
-        # Register and get refresh token from cookie
-        register_response = test_client.post(
-            f"{api_v1_prefix}/auth/register",
-            json=registered_user_data,
-        )
-        refresh_token = register_response.cookies.get("swen_refresh_token")
-
-        # Clear cookies on the test client to simulate body-only refresh
-        test_client.cookies.clear()
-
-        # Refresh using body (no cookie)
-        response = test_client.post(
-            f"{api_v1_prefix}/auth/refresh",
-            json={"refresh_token": refresh_token},
-        )
-
-        assert response.status_code == 200
-        assert "access_token" in response.json()
-
     def test_refresh_invalid_token(self, test_client: TestClient, api_v1_prefix: str):
         """Cannot refresh with invalid token."""
+        test_client.cookies.set("swen_refresh_token", "invalid-token")
+
         response = test_client.post(
             f"{api_v1_prefix}/auth/refresh",
-            json={"refresh_token": "invalid-token"},
+            json={},
         )
 
         assert response.status_code == 401
@@ -256,10 +232,11 @@ class TestAuthRefresh:
         )
         access_token = register_response.json()["access_token"]
 
-        # Try to refresh with access token in body
+        # Try to refresh with access token in the refresh cookie
+        test_client.cookies.set("swen_refresh_token", access_token)
         response = test_client.post(
             f"{api_v1_prefix}/auth/refresh",
-            json={"refresh_token": access_token},
+            json={},
         )
 
         assert response.status_code == 401
@@ -496,10 +473,11 @@ class TestTokenTypeSecurity:
         )
         access_token = register_response.json()["access_token"]
 
-        # Try to use access token for refresh
+        # Try to use access token for refresh via the refresh cookie
+        test_client.cookies.set("swen_refresh_token", access_token)
         response = test_client.post(
             f"{api_v1_prefix}/auth/refresh",
-            json={"refresh_token": access_token},
+            json={},
         )
 
         assert response.status_code == 401
@@ -644,8 +622,8 @@ class TestHttpOnlyCookieSecurity:
 
         data = response.json()
 
-        # refresh_token should be None in body (sent via cookie)
-        assert data.get("refresh_token") is None
+        # refresh_token is never present in the body (sent via cookie)
+        assert "refresh_token" not in data
 
         # But cookie should be set
         assert "swen_refresh_token" in response.cookies

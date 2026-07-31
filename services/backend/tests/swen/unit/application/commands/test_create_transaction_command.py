@@ -83,12 +83,14 @@ class TestCreateTransactionCommand:
         mock_transaction_repo,
         mock_account_repo,
         current_user,
+        mock_uow,
     ) -> CreateTransactionCommand:
         """Create command under test."""
         return CreateTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
             current_user=current_user,
+            uow=mock_uow,
         )
 
     async def test_create_simple_two_entry_transaction(

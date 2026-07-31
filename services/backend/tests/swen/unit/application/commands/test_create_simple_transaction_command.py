@@ -130,12 +130,14 @@ class TestCreateSimpleTransactionCommand:
         mock_transaction_repo,
         mock_account_repo,
         current_user,
+        mock_uow,
     ) -> CreateSimpleTransactionCommand:
         """Create command under test."""
         return CreateSimpleTransactionCommand(
             transaction_repository=mock_transaction_repo,
             account_repository=mock_account_repo,
             current_user=current_user,
+            uow=mock_uow,
         )
 
     async def test_create_expense_negative_amount(
@@ -386,6 +388,7 @@ class TestCreateSimpleTransactionCommand:
         self,
         mock_transaction_repo,
         current_user,
+        mock_uow,
     ):
         """Raises error when the payment account is not found."""
         # Empty account repo
@@ -396,6 +399,7 @@ class TestCreateSimpleTransactionCommand:
             transaction_repository=mock_transaction_repo,
             account_repository=empty_repo,
             current_user=current_user,
+            uow=mock_uow,
         )
 
         dto = SimpleTransactionToCreateDTO(
@@ -413,6 +417,7 @@ class TestCreateSimpleTransactionCommand:
         mock_transaction_repo,
         current_user,
         asset_account,
+        mock_uow,
     ):
         """Raises error when the category account is not found."""
         # Repo with only asset account
@@ -425,6 +430,7 @@ class TestCreateSimpleTransactionCommand:
             transaction_repository=mock_transaction_repo,
             account_repository=repo,
             current_user=current_user,
+            uow=mock_uow,
         )
 
         dto = SimpleTransactionToCreateDTO(

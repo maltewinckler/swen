@@ -23,7 +23,6 @@ from swen.presentation.api.admin.schemas.fints_provider import (
 )
 from swen.presentation.api.dependencies import (
     AdminUser,
-    DBSession,
     RepoFactory,
 )
 
@@ -89,7 +88,6 @@ async def get_geldstrom_api_config(
 async def save_geldstrom_api_config(
     request: SaveGeldstromApiConfigRequest,
     _admin: AdminUser,
-    session: DBSession,
     factory: RepoFactory,
 ) -> dict[str, str]:
     """Save Geldstrom API key and endpoint. Verifies endpoint health."""
@@ -99,9 +97,7 @@ async def save_geldstrom_api_config(
             api_key=request.api_key,
             endpoint_url=request.endpoint_url,
         )
-        await session.commit()
     except GeldstromApiVerificationError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -122,7 +118,6 @@ async def save_geldstrom_api_config(
 async def activate_provider(
     request: ActivateProviderRequest,
     _admin: AdminUser,
-    session: DBSession,
     factory: RepoFactory,
 ) -> dict[str, str]:
     """Activate the specified FinTS provider, deactivating the other."""
@@ -130,11 +125,9 @@ async def activate_provider(
         command = ActivateFintsProviderCommand.from_factory(factory)
         await command.execute(FintsProviderMode(request.mode))
     except ProviderNotConfiguredError as e:
-        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
 
-    await session.commit()
     return {"message": f"Provider '{request.mode}' activated successfully"}
