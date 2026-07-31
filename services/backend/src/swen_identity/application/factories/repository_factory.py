@@ -6,7 +6,10 @@ from typing import Protocol
 
 from swen_identity.application.ports.unit_of_work import UnitOfWork
 from swen_identity.domain.user.repositories import UserRepository
-from swen_identity.repositories import UserCredentialRepository
+from swen_identity.repositories import (
+    PasswordResetTokenRepository,
+    UserCredentialRepository,
+)
 
 
 class RepositoryFactory(Protocol):
@@ -22,4 +25,8 @@ class RepositoryFactory(Protocol):
 
     def user_credential_repository(self) -> UserCredentialRepository:
         """Get user credential repository."""
+        ...
+
+    def password_reset_token_repository(self) -> PasswordResetTokenRepository:
+        """Get password reset token repository."""
         ...

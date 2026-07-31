@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from swen.application.ports.ml_service import MLServicePort
-from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.adapters.identity import IdentityAdapter
 from swen.infrastructure.integration.ml import (
     MLServiceAdapter,
@@ -33,17 +32,15 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
 )
 from swen_config.settings import Settings, get_settings
 from swen_identity import (
-    AuthenticationService,
     InvalidTokenError,
     JWTService,
     PasswordHashingService,
     User,
 )
 from swen_identity.infrastructure.persistence.sqlalchemy import (
-    UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,
 )
-from swen_identity.infrastructure.persistence.sqlalchemy.factory import (
+from swen_identity.infrastructure.persistence.sqlalchemy.repository_factory import (
     RepositoryFactorySQLAlchemy as IdentityRepositoryFactorySQLAlchemy,
 )
 
@@ -156,10 +153,6 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Type alias for injected session
-DBSession = Annotated[AsyncSession, Depends(get_db_session)]
-
-
 def get_jwt_service(settings: Settings = Depends(get_settings)) -> JWTService:
     """Get JWT service configured with API settings."""
     return JWTService(
@@ -172,31 +165,6 @@ def get_jwt_service(settings: Settings = Depends(get_settings)) -> JWTService:
 def get_password_service() -> PasswordHashingService:
     """Get password hashing service."""
     return PasswordHashingService()
-
-
-async def get_authentication_service(
-    session: DBSession,
-    jwt_service: JWTService = Depends(get_jwt_service),
-    password_service: PasswordHashingService = Depends(get_password_service),
-) -> AuthenticationService:
-    """
-    Get authentication service with all dependencies.
-
-    This service orchestrates user registration, login, and token management.
-    """
-    user_repo = UserRepositorySQLAlchemy(session)
-    credential_repo = UserCredentialRepositorySQLAlchemy(session)
-
-    return AuthenticationService(
-        user_repository=user_repo,
-        credential_repository=credential_repo,
-        password_service=password_service,
-        jwt_service=jwt_service,
-    )
-
-
-# Type alias for injected auth service
-AuthService = Annotated[AuthenticationService, Depends(get_authentication_service)]
 
 
 # -----------------------------------------------------------------------------
@@ -279,34 +247,6 @@ async def get_current_user(
     return user
 
 
-# Type alias for injected authenticated user (from JWT)
-AuthenticatedUser = Annotated[User, Depends(get_current_user)]
-
-
-async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    session: AsyncSession = Depends(get_db_session),
-    jwt_service: JWTService = Depends(get_jwt_service),
-) -> User | None:
-    """
-    Optional authentication dependency.
-
-    Returns the current user if a valid token is provided, None otherwise.
-    Used for endpoints that work differently for authenticated users.
-    """
-    if credentials is None:
-        return None
-
-    try:
-        return await get_current_user(credentials, session, jwt_service)
-    except HTTPException:
-        return None
-
-
-# Type alias for optional current user
-OptionalCurrentUser = Annotated[User | None, Depends(get_current_user_optional)]
-
-
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     """Require admin user."""
     if not user.is_admin:
@@ -317,34 +257,19 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-# Type alias for admin user
-AdminUser = Annotated[User, Depends(require_admin)]
-
-
 # -----------------------------------------------------------------------------
 # User Context & Repository Factory
 # -----------------------------------------------------------------------------
 
 
-async def get_current_current_user(
-    user: User = Depends(get_current_user),
-) -> CurrentUser:
-    """Get CurrentUser for repository scoping."""
-    from swen_identity import UserContext  # noqa: PLC0415
-
-    current_user = UserContext.create(user)
-    return IdentityAdapter.to_current_user(current_user)
-
-
-# Type alias for injected current user context
-CurrentUserContext = Annotated[CurrentUser, Depends(get_current_current_user)]
-
-
 async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
-    current_user: CurrentUser = Depends(get_current_current_user),
+    user: User = Depends(get_current_user),
 ) -> SQLAlchemyRepositoryFactory:
     """Get repository factory for the current user."""
+    from swen_identity import UserContext  # noqa: PLC0415
+
+    current_user = IdentityAdapter.to_current_user(UserContext.create(user))
     return SQLAlchemyRepositoryFactory(
         session=session,
         current_user=current_user,
@@ -352,21 +277,11 @@ async def get_repository_factory(
     )
 
 
-# Type alias for injected repository factory
-RepoFactory = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
-
-
 async def get_identity_repository_factory(
     session: AsyncSession = Depends(get_db_session),
 ) -> IdentityRepositoryFactorySQLAlchemy:
     """Get swen_identity's repository factory for the current request."""
     return IdentityRepositoryFactorySQLAlchemy(session=session)
-
-
-# Type alias for injected swen_identity repository factory (e.g. admin user management)
-IdentityRepoFactory = Annotated[
-    IdentityRepositoryFactorySQLAlchemy, Depends(get_identity_repository_factory)
-]
 
 
 # -----------------------------------------------------------------------------
@@ -385,10 +300,6 @@ def get_ml_client() -> MLServiceClient:
     )
 
 
-# Type alias for injected ML client (for routers that need direct access)
-MLClient = Annotated[MLServiceClient, Depends(get_ml_client)]
-
-
 @lru_cache(maxsize=1)
 def get_ml_port() -> MLServicePort | None:
     """Get the ML service port for application layer (singleton)."""
@@ -398,18 +309,27 @@ def get_ml_port() -> MLServicePort | None:
     return MLServiceAdapter(client=get_ml_client())
 
 
-# Type alias for injected ML port (for commands)
+# DB session
+DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+# Settings Dependency
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+# Encryption and PW dependeicyues
+JWTServiceDep = Annotated[JWTService, Depends(get_jwt_service)]
+PasswordHashingServiceDep = Annotated[
+    PasswordHashingService,
+    Depends(get_password_service),
+]
+
+# User + Admin auth dependencies
+AuthenticatedUser = Annotated[User, Depends(get_current_user)]
+AdminUser = Annotated[User, Depends(require_admin)]
+
+# Repository factories
+RepoFactory = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
+IdentityRepoFactory = Annotated[
+    IdentityRepositoryFactorySQLAlchemy, Depends(get_identity_repository_factory)
+]
+
+# ML service dependencies TODO: Tihnk about unification of these two.
+MLClient = Annotated[MLServiceClient, Depends(get_ml_client)]
 MLPort = Annotated[MLServicePort | None, Depends(get_ml_port)]
-
-
-# -----------------------------------------------------------------------------
-# Application Queries & Services
-# -----------------------------------------------------------------------------
-# Application layer classes have from_factory() classmethods that encapsulate
-# their dependency knowledge. Use them directly in routers:
-#
-#   async def list_accounts(factory: RepoFactory, ...):
-#       query = ListAccountsQuery.from_factory(factory)  # NOQA: ERA001
-#
-# This avoids trivial wrapper functions and keeps the router explicit about
-# what it's using.

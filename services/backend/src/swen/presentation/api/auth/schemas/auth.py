@@ -9,13 +9,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class RegisterRequest(BaseModel):
     """Request schema for user registration."""
 
-    email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="Password (8-128 characters)",
-    )
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -38,27 +33,6 @@ class LoginRequest(BaseModel):
             "example": {
                 "email": "user@example.com",
                 "password": "securepassword123",
-            },
-        },
-    )
-
-
-class RefreshRequest(BaseModel):
-    """Request schema for token refresh.
-
-    The refresh_token field is optional - if not provided in the request body,
-    the server will read it from the HttpOnly cookie instead.
-    """
-
-    refresh_token: str | None = Field(
-        default=None,
-        description="Refresh token (optional - can also be sent via HttpOnly cookie)",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
             },
         },
     )
@@ -98,16 +72,10 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """Response schema for token data.
 
-    Note: refresh_token is deprecated in the response body.
-    It is now sent as an HttpOnly cookie for security.
-    The field remains for backward compatibility during migration.
+    The refresh token is sent as an HttpOnly cookie, never in the response body.
     """
 
     access_token: str
-    refresh_token: str | None = Field(
-        default=None,
-        description="Deprecated: refresh token is now in HttpOnly cookie",
-    )
     token_type: str = Field(default="bearer")
     expires_in: int
 
@@ -125,17 +93,11 @@ class TokenResponse(BaseModel):
 class AuthResponse(BaseModel):
     """Response schema for authentication (login/register).
 
-    Note: refresh_token is deprecated in the response body.
-    It is now sent as an HttpOnly cookie for security.
-    The field remains for backward compatibility during migration.
+    The refresh token is sent as an HttpOnly cookie.
     """
 
     user: UserResponse
     access_token: str
-    refresh_token: str | None = Field(
-        default=None,
-        description="Deprecated: refresh token is now in HttpOnly cookie",
-    )
     token_type: str = Field(default="bearer")
     expires_in: int
 

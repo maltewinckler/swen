@@ -25,7 +25,6 @@ export interface ResetPasswordRequest {
 export interface AuthResponse {
   user: UserInfo
   access_token: string
-  refresh_token: string | null  // Now sent as HttpOnly cookie, may be null in response
   expires_in: number
 }
 
