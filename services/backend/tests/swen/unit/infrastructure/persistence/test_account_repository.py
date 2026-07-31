@@ -4,14 +4,21 @@ Unit tests for AccountRepositorySQLAlchemy.
 These tests verify the persistence layer for accounting accounts.
 """
 
+import sqlite3
+
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.value_objects import Currency
 from swen.infrastructure.persistence.sqlalchemy.models import AccountModel
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     AccountRepositorySQLAlchemy,
+)
+from swen.infrastructure.persistence.sqlalchemy.repositories.accounting.account_repository import (  # NOQA: E501
+    _is_unique_violation,
+    _unique_constraint_name,
 )
 from tests.shared.fixtures.database import TEST_USER_ID
 
@@ -257,3 +264,92 @@ class TestAccountRepositorySQLAlchemy:
         assert model.created_at.replace(tzinfo=None) == account.created_at.replace(
             tzinfo=None,
         )
+
+
+class _FakeAsyncpgWrapperError(Exception):
+    """Mimics SQLAlchemy's asyncpg dialect wrapper: ``exc.orig`` in production.
+
+    The wrapper always copies ``sqlstate``/``pgcode`` from the original
+    asyncpg exception and chains it as ``__cause__`` (verified empirically
+    against a real Testcontainers Postgres — see the failing-then-fixed
+    duplicate-key tests below).
+    """
+
+    def __init__(self, sqlstate: str, cause: Exception | None = None):
+        super().__init__("boom")
+        self.sqlstate = sqlstate
+        self.pgcode = sqlstate
+        if cause is not None:
+            self.__cause__ = cause
+
+
+class _FakeAsyncpgOriginalError(Exception):
+    """Mimics the real asyncpg exception chained under the wrapper's __cause__."""
+
+    def __init__(self, constraint_name: str):
+        super().__init__("boom")
+        self.constraint_name = constraint_name
+
+
+class TestIsUniqueViolation:
+    """Tests for the driver-native unique-violation classifier."""
+
+    def test_true_for_asyncpg_unique_violation(self):
+        orig = _FakeAsyncpgWrapperError(sqlstate="23505")
+        exc = IntegrityError("stmt", {}, orig)
+        assert _is_unique_violation(exc) is True
+
+    def test_true_for_sqlite_unique_constraint(self):
+        orig = sqlite3.IntegrityError("UNIQUE constraint failed: t.x")
+        orig.sqlite_errorcode = sqlite3.SQLITE_CONSTRAINT_UNIQUE
+        exc = IntegrityError("stmt", {}, orig)
+        assert _is_unique_violation(exc) is True
+
+    def test_false_for_asyncpg_foreign_key_violation(self):
+        # 23503 = foreign_key_violation, a different SQLSTATE class entirely.
+        orig = _FakeAsyncpgWrapperError(sqlstate="23503")
+        exc = IntegrityError("stmt", {}, orig)
+        assert _is_unique_violation(exc) is False
+
+    def test_false_for_sqlite_not_null_violation(self):
+        orig = sqlite3.IntegrityError("NOT NULL constraint failed: t.x")
+        orig.sqlite_errorcode = sqlite3.SQLITE_CONSTRAINT_NOTNULL
+        exc = IntegrityError("stmt", {}, orig)
+        assert _is_unique_violation(exc) is False
+
+
+class TestUniqueConstraintName:
+    """Tests for identifying which unique constraint fired."""
+
+    def test_asyncpg_reads_constraint_name_from_chained_cause(self):
+        cause = _FakeAsyncpgOriginalError(constraint_name="uq_accounts_user_iban")
+        orig = _FakeAsyncpgWrapperError(sqlstate="23505", cause=cause)
+        exc = IntegrityError("stmt", {}, orig)
+        assert _unique_constraint_name(exc) == "uq_accounts_user_iban"
+
+    def test_reads_constraint_name_directly_when_present(self):
+        orig = _FakeAsyncpgWrapperError(sqlstate="23505")
+        orig.constraint_name = "uq_accounts_user_account_number"
+        exc = IntegrityError("stmt", {}, orig)
+        assert _unique_constraint_name(exc) == "uq_accounts_user_account_number"
+
+    def test_sqlite_falls_back_to_message_columns_for_account_number(self):
+        orig = sqlite3.IntegrityError(
+            "UNIQUE constraint failed: accounting_accounts.user_id, "
+            "accounting_accounts.account_number",
+        )
+        exc = IntegrityError("stmt", {}, orig)
+        assert _unique_constraint_name(exc) == "uq_accounts_user_account_number"
+
+    def test_sqlite_falls_back_to_message_columns_for_iban(self):
+        orig = sqlite3.IntegrityError(
+            "UNIQUE constraint failed: accounting_accounts.user_id, "
+            "accounting_accounts.iban",
+        )
+        exc = IntegrityError("stmt", {}, orig)
+        assert _unique_constraint_name(exc) == "uq_accounts_user_iban"
+
+    def test_unrecognized_constraint_returns_none(self):
+        orig = sqlite3.IntegrityError("UNIQUE constraint failed: some_other_table.x")
+        exc = IntegrityError("stmt", {}, orig)
+        assert _unique_constraint_name(exc) is None
