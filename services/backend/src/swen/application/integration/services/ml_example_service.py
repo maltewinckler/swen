@@ -5,7 +5,10 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from swen.application.ports.ml_service import MLServicePort, TransactionExample
+from swen.application.ports.account_classifier_training import (
+    AccountClassifierTrainingPort,
+    TransactionExample,
+)
 from swen.domain.accounting import WellKnownAccounts
 from swen.domain.accounting.aggregates import Transaction
 from swen.domain.accounting.entities import AccountType
@@ -16,7 +19,7 @@ logger = logging.getLogger(__name__)
 class MLExampleService:
     """Extracts transaction examples for ML training."""
 
-    def __init__(self, ml_port: MLServicePort | None):
+    def __init__(self, ml_port: AccountClassifierTrainingPort | None):
         self._ml_port = ml_port
 
     def submit_example(self, transaction: Transaction) -> None:

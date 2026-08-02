@@ -11,7 +11,7 @@ from swen.presentation.api.analytics.schemas.dashboard import (
     DashboardSummaryResponse,
     SpendingBreakdownResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ MonthFilter = Annotated[
     },
 )
 async def get_dashboard_summary(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: DaysFilter = None,
     month: MonthFilter = None,
 ) -> DashboardSummaryResponse:
@@ -74,7 +74,7 @@ async def get_dashboard_summary(
     },
 )
 async def get_spending_breakdown(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: DaysFilter = None,
     month: MonthFilter = None,
 ) -> SpendingBreakdownResponse:
@@ -109,7 +109,7 @@ async def get_spending_breakdown(
     },
 )
 async def get_balances(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> BalancesResponse:
     """
     Get current balances for all asset accounts.

@@ -22,8 +22,8 @@ from swen.presentation.api.admin.schemas.fints_provider import (
     SaveGeldstromApiConfigRequest,
 )
 from swen.presentation.api.dependencies import (
-    AdminUser,
-    RepoFactory,
+    AdminUserDep,
+    RepoFactoryDep,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,8 +40,8 @@ router = APIRouter(prefix="/fints_provider", tags=["admin-fints-provider"])
     },
 )
 async def get_provider_status(
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> FintsProviderStatusResponse:
     """Get which FinTS provider is active and configured."""
     query = GetFintsProviderStatusQuery.from_factory(factory)
@@ -60,8 +60,8 @@ async def get_provider_status(
     },
 )
 async def get_geldstrom_api_config(
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> GeldstromApiConfigResponse:
     """Get Geldstrom API configuration with masked API key."""
     query = GetGeldstromApiConfigQuery.from_factory(factory)
@@ -87,8 +87,8 @@ async def get_geldstrom_api_config(
 )
 async def save_geldstrom_api_config(
     request: SaveGeldstromApiConfigRequest,
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> dict[str, str]:
     """Save Geldstrom API key and endpoint. Verifies endpoint health."""
     try:
@@ -117,8 +117,8 @@ async def save_geldstrom_api_config(
 )
 async def activate_provider(
     request: ActivateProviderRequest,
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> dict[str, str]:
     """Activate the specified FinTS provider, deactivating the other."""
     try:

@@ -10,7 +10,7 @@ from swen.presentation.api.banking.schemas.bank_connections import (
     SetupBankRequest,
     SetupBankResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ router = APIRouter()
 )
 async def setup_bank_accounts(
     blz: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     request: SetupBankRequest,
 ) -> SetupBankResponse:
     """Import discovered bank accounts with user injected custom names."""

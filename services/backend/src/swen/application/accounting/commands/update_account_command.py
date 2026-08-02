@@ -6,12 +6,11 @@ import logging
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen_ml_contracts import AccountOption
-
 from swen.application.accounting.dtos.chart_of_accounts_dto import (
     ParentAction,
     UpdateAccountDTO,
 )
+from swen.application.ports.account_classifier_training import AccountForClassification
 from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.exceptions import (
@@ -24,8 +23,10 @@ from swen.domain.accounting.services import AccountHierarchyService
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.account_classifier_training import (
+        AccountClassifierTrainingPort,
+    )
     from swen.domain.shared.current_user import CurrentUser
-    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,26 +40,26 @@ class UpdateAccountCommand:
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
         uow: UnitOfWork,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
         self._uow = uow
-        self._ml_client = ml_client
+        self._ml_port = ml_port
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> UpdateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
-            ml_client=ml_client,
+            ml_port=ml_port,
         )
 
     async def execute(self, dto: UpdateAccountDTO) -> Account:
@@ -87,19 +88,19 @@ class UpdateAccountCommand:
 
     def _trigger_account_embedding(self, account: Account) -> None:
         """Trigger ML service to re-embed this account's anchor for classification."""
-        if not self._ml_client:
+        if not self._ml_port:
             return
 
         accounts = [
-            AccountOption(
+            AccountForClassification(
                 account_id=account.id,
                 account_number=account.account_number,
                 name=account.name,
-                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                account_type=account.account_type.value.lower(),
                 description=account.description,
             )
         ]
-        self._ml_client.embed_accounts_fire_and_forget(self._user_id, accounts)
+        self._ml_port.embed_accounts_fire_and_forget(self._user_id, accounts)
 
     async def _get_account(self, account_id: UUID) -> Account:
         account = await self._account_repo.find_by_id(account_id)
@@ -168,26 +169,26 @@ class DeactivateAccountCommand:
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
         uow: UnitOfWork,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
         self._uow = uow
-        self._ml_client = ml_client
+        self._ml_port = ml_port
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> DeactivateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
-            ml_client=ml_client,
+            ml_port=ml_port,
         )
 
     async def execute(self, account_id: UUID) -> Account:
@@ -209,8 +210,8 @@ class DeactivateAccountCommand:
 
     def _delete_account_anchor(self, account_id: UUID) -> None:
         """Delete ML anchor for this account."""
-        if self._ml_client:
-            self._ml_client.delete_account_anchor_fire_and_forget(
+        if self._ml_port:
+            self._ml_port.delete_account_anchor_fire_and_forget(
                 self._user_id, account_id
             )
 
@@ -223,24 +224,24 @@ class ReactivateAccountCommand:
         account_repository: AccountRepository,
         current_user: CurrentUser,
         uow: UnitOfWork,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
         self._uow = uow
-        self._ml_client = ml_client
+        self._ml_port = ml_port
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> ReactivateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
-            ml_client=ml_client,
+            ml_port=ml_port,
         )
 
     async def execute(self, account_id: UUID) -> Account:
@@ -260,19 +261,19 @@ class ReactivateAccountCommand:
 
     def _trigger_account_embedding(self, account: Account) -> None:
         """Trigger ML service to embed this account's anchor for classification."""
-        if not self._ml_client:
+        if not self._ml_port:
             return
 
         accounts = [
-            AccountOption(
+            AccountForClassification(
                 account_id=account.id,
                 account_number=account.account_number,
                 name=account.name,
-                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                account_type=account.account_type.value.lower(),
                 description=account.description,
             )
         ]
-        self._ml_client.embed_accounts_fire_and_forget(self._user_id, accounts)
+        self._ml_port.embed_accounts_fire_and_forget(self._user_id, accounts)
 
 
 class DeleteAccountCommand:
@@ -284,26 +285,26 @@ class DeleteAccountCommand:
         account_hierarchy_service: AccountHierarchyService,
         current_user: CurrentUser,
         uow: UnitOfWork,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._account_repo = account_repository
         self._account_hierarchy_service = account_hierarchy_service
         self._user_id = current_user.user_id
         self._uow = uow
-        self._ml_client = ml_client
+        self._ml_port = ml_port
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> DeleteAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
             account_hierarchy_service=AccountHierarchyService.from_factory(factory),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
-            ml_client=ml_client,
+            ml_port=ml_port,
         )
 
     async def execute(self, account_id: UUID) -> None:
@@ -328,7 +329,7 @@ class DeleteAccountCommand:
 
     def _delete_account_anchor(self, account_id: UUID) -> None:
         """Delete ML anchor for this account."""
-        if self._ml_client:
-            self._ml_client.delete_account_anchor_fire_and_forget(
+        if self._ml_port:
+            self._ml_port.delete_account_anchor_fire_and_forget(
                 self._user_id, account_id
             )

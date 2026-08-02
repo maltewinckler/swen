@@ -17,13 +17,10 @@ from swen.application.integration.queries import (
     SyncStatusQuery,
 )
 from swen.domain.shared.exceptions import DomainException, ErrorCode
-from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
-    MLCounterAccountAdapter,
-)
 from swen.infrastructure.integration.adapters.event_publisher import (
     SseSyncEventPublisher,
 )
-from swen.presentation.api.dependencies import MLClient, RepoFactory
+from swen.presentation.api.dependencies import CounterAccountPortDep, RepoFactoryDep
 from swen.presentation.api.integration.schemas.sync import (
     SyncRunRequest,
     SyncStatusResponse,
@@ -46,8 +43,8 @@ router = APIRouter()
     },
 )
 async def run_sync_streaming(
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    resolution_port: CounterAccountPortDep,
     request: Optional[SyncRunRequest] = None,
 ) -> StreamingResponse:
     """
@@ -113,7 +110,7 @@ async def run_sync_streaming(
         try:
             command = await SyncBankAccountsCommand.from_factory(
                 factory,
-                resolution_port=MLCounterAccountAdapter(ml_client),
+                resolution_port=resolution_port,
                 publisher=publisher,
             )
         except DomainException as e:
@@ -186,7 +183,7 @@ def _format_sse_event(event_type: str, data: dict) -> str:
     },
 )
 async def get_sync_status(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> SyncStatusResponse:
     """
     Get transaction sync status and statistics.

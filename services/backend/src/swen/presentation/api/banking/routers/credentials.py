@@ -24,7 +24,7 @@ from swen.presentation.api.banking.schemas.credentials import (
     CredentialToUpdate,
     StoredCredentialList,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ router = APIRouter()
         200: {"description": "List of stored credentials"},
     },
 )
-async def list_credentials(factory: RepoFactory) -> StoredCredentialList:
+async def list_credentials(factory: RepoFactoryDep) -> StoredCredentialList:
     """
     List all stored bank credentials for the current user.
 
@@ -63,7 +63,7 @@ async def list_credentials(factory: RepoFactory) -> StoredCredentialList:
 )
 async def store_credentials(
     request: CredentialToStore,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> None:
     """
     Store bank credentials securely for automated sync.
@@ -104,7 +104,7 @@ async def store_credentials(
 async def update_credentials_tan(
     blz: str,
     request: CredentialToUpdate,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> None:
     """
     Update the TAN method and medium for already-stored bank credentials.
@@ -149,7 +149,7 @@ async def update_credentials_tan(
 )
 async def delete_credentials(
     blz: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> None:
     """
     Delete stored credentials for a bank.

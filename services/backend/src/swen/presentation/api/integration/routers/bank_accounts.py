@@ -11,7 +11,7 @@ from swen.presentation.api.accounting.schemas.accounts import (
     BankAccountRenameRequest,
     BankAccountResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ router = APIRouter()
         200: {"description": "List of bank accounts with mappings"},
     },
 )
-async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
+async def list_bank_accounts(factory: RepoFactoryDep) -> BankAccountListResponse:
     """
     List all imported bank accounts with their mapping information.
 
@@ -50,7 +50,7 @@ async def list_bank_accounts(factory: RepoFactory) -> BankAccountListResponse:
 async def rename_bank_account(
     iban: str,
     request: BankAccountRenameRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> BankAccountResponse:
     """
     Rename an imported bank account.

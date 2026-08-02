@@ -8,7 +8,7 @@ from swen.application.integration.queries import (
     BankConnectionDetailsQuery,
     ReconciliationQuery,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 from swen.presentation.api.integration.schemas.reconciliation import (
     BankConnectionDetailsResponse,
     ReconciliationResponse,
@@ -26,7 +26,7 @@ router = APIRouter()
         200: {"description": "Reconciliation results"},
     },
 )
-async def get_reconciliation(factory: RepoFactory) -> ReconciliationResponse:
+async def get_reconciliation(factory: RepoFactoryDep) -> ReconciliationResponse:
     """
     Compare bank-reported balances with bookkeeping calculated balances.
 
@@ -54,7 +54,7 @@ async def get_reconciliation(factory: RepoFactory) -> ReconciliationResponse:
 )
 async def get_bank_connection_details(
     blz: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> BankConnectionDetailsResponse:
     """
     Get details for a bank connection including all accounts and reconciliation.

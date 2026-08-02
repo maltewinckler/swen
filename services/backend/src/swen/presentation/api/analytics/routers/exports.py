@@ -18,7 +18,7 @@ from swen.presentation.api.analytics.schemas.exports import (
     FullExportResponse,
     TransactionExportListResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ IncludeDraftsParam = Annotated[
     },
 )
 async def export_transactions(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: DaysFilter = 0,
     status: StatusFilter = None,
     iban: IbanFilter = None,
@@ -106,7 +106,7 @@ async def export_transactions(
     },
 )
 async def export_accounts(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     account_type: AccountTypeFilter = None,
     include_inactive: IncludeInactiveFilter = False,
 ) -> AccountExportListResponse:
@@ -136,7 +136,7 @@ async def export_accounts(
     },
 )
 async def export_full(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: DaysFilter = 0,
 ) -> FullExportResponse:
     """
@@ -179,7 +179,7 @@ async def export_full(
     },
 )
 async def export_excel_report(  # noqa: PLR0913
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     start_date: StartDateParam = None,
     end_date: EndDateParam = None,
     days: DaysFilter = 0,

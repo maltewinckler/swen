@@ -1,10 +1,11 @@
-"""ML Service port for application layer.
+"""Account classifier training port for application layer.
 
-This abstracts the ML service operations for training examples and
-account embeddings, allowing the application layer to remain independent
-of infrastructure details like HTTP clients and external API contracts.
+This abstracts feeding the counter-account classifier its training data:
+labeled transaction examples and per-account anchor embeddings. It keeps
+the application layer independent of infrastructure details like HTTP
+clients and external API contracts.
 
-Classification is handled separately via the domain-level
+Classification itself is handled separately via the domain-level
 CounterAccountProposalPort.
 """
 
@@ -40,12 +41,12 @@ class AccountForClassification:
     description: str | None = None
 
 
-class MLServicePort(ABC):
-    """Port interface for ML service operations (training + embeddings).
+class AccountClassifierTrainingPort(ABC):
+    """Port for supplying the counter-account classifier its training data.
 
     Classification is handled by ``CounterAccountProposalPort`` in the
-    integration domain — this port covers only example submission and
-    account embedding.
+    integration domain. This port covers example submission and account
+    anchor embedding/deletion.
     """
 
     @property
@@ -67,4 +68,23 @@ class MLServicePort(ABC):
 
         Called when accounts are created or updated.
         Returns True if successful.
+        """
+
+    @abstractmethod
+    def embed_accounts_fire_and_forget(
+        self,
+        user_id: UUID,
+        accounts: list[AccountForClassification],
+    ) -> None:
+        """Compute and store anchor embeddings for accounts (fire-and-forget)."""
+
+    @abstractmethod
+    def delete_account_anchor_fire_and_forget(
+        self,
+        user_id: UUID,
+        account_id: UUID,
+    ) -> None:
+        """Delete the anchor embedding for an account (fire-and-forget).
+
+        Called when an account is deactivated or deleted.
         """

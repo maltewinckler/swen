@@ -21,11 +21,17 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from swen.application.ports.ml_service import MLServicePort
+from swen.application.ports import AccountClassifierTrainingPort
+from swen.domain.integration.ports.counter_account_proposal_port import (
+    CounterAccountProposalPort,
+)
 from swen.infrastructure.adapters.identity import IdentityAdapter
-from swen.infrastructure.integration.ml import (
-    MLServiceAdapter,
+from swen.infrastructure.integration import (
+    MLAccountClassifierTrainingAdapter,
     MLServiceClient,
+)
+from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
+    MLCounterAccountAdapter,
 )
 from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
@@ -301,16 +307,22 @@ def get_ml_client() -> MLServiceClient:
 
 
 @lru_cache(maxsize=1)
-def get_ml_port() -> MLServicePort | None:
-    """Get the ML service port for application layer (singleton)."""
+def get_classifier_training_port() -> AccountClassifierTrainingPort | None:
+    """Get the account classifier training port (singleton)."""
     settings = get_settings()
     if not settings.ml_service_enabled:
         return None
-    return MLServiceAdapter(client=get_ml_client())
+    return MLAccountClassifierTrainingAdapter(client=get_ml_client())
+
+
+@lru_cache(maxsize=1)
+def get_counter_account_proposal_port() -> CounterAccountProposalPort:
+    """Get the counter-account proposal port (singleton)."""
+    return MLCounterAccountAdapter(ml_client=get_ml_client())
 
 
 # DB session
-DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 # Settings Dependency
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 # Encryption and PW dependeicyues
@@ -321,15 +333,22 @@ PasswordHashingServiceDep = Annotated[
 ]
 
 # User + Admin auth dependencies
-AuthenticatedUser = Annotated[User, Depends(get_current_user)]
-AdminUser = Annotated[User, Depends(require_admin)]
+AuthenticatedUserDep = Annotated[User, Depends(get_current_user)]
+AdminUserDep = Annotated[User, Depends(require_admin)]
 
 # Repository factories
-RepoFactory = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
-IdentityRepoFactory = Annotated[
-    IdentityRepositoryFactorySQLAlchemy, Depends(get_identity_repository_factory)
+RepoFactoryDep = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
+IdentityRepoFactoryDep = Annotated[
+    IdentityRepositoryFactorySQLAlchemy,
+    Depends(get_identity_repository_factory),
 ]
 
-# ML service dependencies TODO: Tihnk about unification of these two.
-MLClient = Annotated[MLServiceClient, Depends(get_ml_client)]
-MLPort = Annotated[MLServicePort | None, Depends(get_ml_port)]
+# ML service dependencies
+ClassifierTrainingPortDep = Annotated[
+    AccountClassifierTrainingPort | None,
+    Depends(get_classifier_training_port),
+]
+CounterAccountPortDep = Annotated[
+    CounterAccountProposalPort,
+    Depends(get_counter_account_proposal_port),
+]
