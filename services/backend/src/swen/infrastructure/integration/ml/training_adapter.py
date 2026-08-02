@@ -1,4 +1,4 @@
-"""ML Service adapter implementing the application port.
+"""ML-backed implementation of AccountClassifierTrainingPort.
 
 Handles example submission and account embeddings. Classification is
 handled separately by ``MLCounterAccountAdapter``.
@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 
 from swen_ml_contracts import AccountOption, StoreExampleRequest
 
-from swen.application.ports.ml_service import (
+from swen.application.ports.account_classifier_training import (
+    AccountClassifierTrainingPort,
     AccountForClassification,
-    MLServicePort,
     TransactionExample,
 )
 
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MLServiceAdapter(MLServicePort):
-    """Infrastructure adapter that implements MLServicePort.
+class MLAccountClassifierTrainingAdapter(AccountClassifierTrainingPort):
+    """Infrastructure adapter that implements AccountClassifierTrainingPort.
 
     Translates domain objects to ML contracts and delegates to the HTTP client.
     Covers example submission and account embeddings only.
@@ -71,16 +71,31 @@ class MLServiceAdapter(MLServicePort):
         if not self._client.enabled:
             return False
 
-        ml_accounts = [
-            AccountOption(
-                account_id=acc.account_id,
-                account_number=acc.account_number,
-                name=acc.name,
-                account_type=acc.account_type,
-                description=acc.description,
-            )
-            for acc in accounts
-        ]
+        ml_accounts = [AccountOption.model_validate(acc) for acc in accounts]
 
         result = await self._client.embed_accounts(user_id, ml_accounts)
         return result is not None and result.embedded > 0
+
+    def embed_accounts_fire_and_forget(
+        self,
+        user_id: UUID,
+        accounts: list[AccountForClassification],
+    ) -> None:
+        """Compute and store anchor embeddings for accounts (fire-and-forget)."""
+        if not self._client.enabled:
+            return
+
+        ml_accounts = [AccountOption.model_validate(acc) for acc in accounts]
+
+        self._client.embed_accounts_fire_and_forget(user_id, ml_accounts)
+
+    def delete_account_anchor_fire_and_forget(
+        self,
+        user_id: UUID,
+        account_id: UUID,
+    ) -> None:
+        """Delete the anchor embedding for an account (fire-and-forget)."""
+        if not self._client.enabled:
+            return
+
+        self._client.delete_account_anchor_fire_and_forget(user_id, account_id)

@@ -1,9 +1,11 @@
 """ML service integration for transaction classification."""
 
-from swen.infrastructure.integration.ml.adapter import MLServiceAdapter
 from swen.infrastructure.integration.ml.client import MLServiceClient
+from swen.infrastructure.integration.ml.training_adapter import (
+    MLAccountClassifierTrainingAdapter,
+)
 
 __all__ = [
-    "MLServiceAdapter",
+    "MLAccountClassifierTrainingAdapter",
     "MLServiceClient",
 ]

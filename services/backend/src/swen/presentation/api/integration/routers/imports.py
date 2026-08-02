@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from swen.application.integration.queries import ListImportsQuery
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 from swen.presentation.api.integration.schemas.imported_transactions import (
     ImportedTransactionsListResponse,
 )
@@ -30,7 +30,7 @@ IbanFilter = Annotated[str | None, Query(description="Filter by bank account IBA
     },
 )
 async def list_imports(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: DaysFilter = 30,
     limit: LimitFilter = 50,
     failed_only: FailedOnlyFilter = False,

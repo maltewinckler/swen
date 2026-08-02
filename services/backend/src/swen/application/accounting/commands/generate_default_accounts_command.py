@@ -6,8 +6,7 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from swen_ml_contracts import AccountOption
-
+from swen.application.ports.account_classifier_training import AccountForClassification
 from swen.application.ports.unit_of_work import UnitOfWork
 from swen.domain.accounting.entities import Account, AccountType
 from swen.domain.accounting.repositories import AccountRepository
@@ -15,8 +14,10 @@ from swen.domain.accounting.value_objects import Currency
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
+    from swen.application.ports.account_classifier_training import (
+        AccountClassifierTrainingPort,
+    )
     from swen.domain.shared.current_user import CurrentUser
-    from swen.infrastructure.integration.ml.client import MLServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,24 +40,24 @@ class GenerateDefaultAccountsCommand:
         account_repository: AccountRepository,
         current_user: CurrentUser,
         uow: UnitOfWork,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._account_repo = account_repository
         self._user_id = current_user.user_id
         self._uow = uow
-        self._ml_client = ml_client
+        self._ml_port = ml_port
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_client: MLServiceClient | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> GenerateDefaultAccountsCommand:
         return cls(
             account_repository=factory.account_repository(),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
-            ml_client=ml_client,
+            ml_port=ml_port,
         )
 
     async def execute(
@@ -95,15 +96,15 @@ class GenerateDefaultAccountsCommand:
 
     def _trigger_account_embeddings(self, accounts: list[Account]) -> None:
         """Trigger ML service to embed account anchors for classification."""
-        if not self._ml_client:
+        if not self._ml_port:
             return
 
         classification_accounts = [
-            AccountOption(
+            AccountForClassification(
                 account_id=account.id,
                 account_number=account.account_number,
                 name=account.name,
-                account_type=account.account_type.value.lower(),  # type: ignore[arg-type]
+                account_type=account.account_type.value.lower(),
                 description=account.description,
             )
             for account in accounts
@@ -111,7 +112,7 @@ class GenerateDefaultAccountsCommand:
         ]
 
         if classification_accounts:
-            self._ml_client.embed_accounts_fire_and_forget(
+            self._ml_port.embed_accounts_fire_and_forget(
                 self._user_id, classification_accounts
             )
 

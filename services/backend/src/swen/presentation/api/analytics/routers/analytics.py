@@ -33,7 +33,7 @@ from swen.presentation.api.analytics.schemas.analytics import (
     TimeSeriesResponse,
     TopExpensesResponse,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ TopNParam = Annotated[
     },
 )
 async def get_spending_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -107,7 +107,7 @@ async def get_spending_over_time(
 )
 async def get_single_account_spending_over_time(
     account_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -144,7 +144,7 @@ async def get_single_account_spending_over_time(
     },
 )
 async def get_spending_breakdown(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     month: MonthParam = None,
     days: DaysParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -180,7 +180,7 @@ async def get_spending_breakdown(
     },
 )
 async def get_top_expenses(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 3,
     top_n: TopNParam = 10,
     end_month: EndMonthParam = None,
@@ -215,7 +215,7 @@ async def get_top_expenses(
     },
 )
 async def get_income_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -246,7 +246,7 @@ async def get_income_over_time(
     },
 )
 async def get_income_breakdown(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     month: MonthParam = None,
     days: DaysParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -279,7 +279,7 @@ async def get_income_breakdown(
     },
 )
 async def get_net_income_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -312,7 +312,7 @@ async def get_net_income_over_time(
     },
 )
 async def get_savings_rate_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = False,
@@ -347,7 +347,7 @@ async def get_savings_rate_over_time(
     },
 )
 async def get_net_worth_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = True,
@@ -379,7 +379,7 @@ async def get_net_worth_over_time(
     },
 )
 async def get_balances_over_time(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     months: MonthsParam = 12,
     end_month: EndMonthParam = None,
     include_drafts: IncludeDraftsParam = True,
@@ -412,7 +412,7 @@ async def get_balances_over_time(
     },
 )
 async def get_month_comparison(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     month: MonthParam = None,
     include_drafts: IncludeDraftsParam = False,
 ) -> MonthComparisonResponse:
@@ -443,7 +443,7 @@ async def get_month_comparison(
     },
 )
 async def get_sankey_data(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     month: MonthParam = None,
     days: DaysParam = None,
     include_drafts: IncludeDraftsParam = False,

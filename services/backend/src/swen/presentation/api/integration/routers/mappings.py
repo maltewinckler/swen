@@ -10,7 +10,7 @@ from swen.application.integration.queries import (
     ListAccountMappingsQuery,
 )
 from swen.domain.accounting.entities import AccountType
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 from swen.presentation.api.integration.schemas.mappings import (
     AccountMappingListResponse,
     AccountMappingResponse,
@@ -31,7 +31,7 @@ router = APIRouter()
         200: {"description": "List of bank account mappings"},
     },
 )
-async def list_mappings(factory: RepoFactory) -> AccountMappingListResponse:
+async def list_mappings(factory: RepoFactoryDep) -> AccountMappingListResponse:
     """
     List all bank account to ledger account mappings.
 
@@ -58,7 +58,7 @@ async def list_mappings(factory: RepoFactory) -> AccountMappingListResponse:
 )
 async def get_mapping_by_iban(
     iban: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> AccountMappingResponse:
     """
     Get a specific bank account mapping by IBAN.
@@ -89,7 +89,7 @@ async def get_mapping_by_iban(
 )
 async def create_external_account_mapping(
     request: ExternalAccountCreateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> ExternalAccountCreateResponse:
     """
     Create an account mapping for an external bank account.

@@ -14,7 +14,7 @@ from swen.presentation.api.accounting.schemas.accounts import (
     InitChartResponse,
     InitEssentialsResponse,
 )
-from swen.presentation.api.dependencies import MLClient, RepoFactory
+from swen.presentation.api.dependencies import ClassifierTrainingPortDep, RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ router = APIRouter()
     },
 )
 async def init_chart_of_accounts(
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
     request: InitChartRequest | None = None,
 ) -> InitChartResponse:
     """
@@ -62,7 +62,7 @@ async def init_chart_of_accounts(
     # Convert API enum to domain enum
     template = ChartTemplate(template_enum.value)
 
-    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
+    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_port=ml_port)
     result = await command.execute(template=template)
 
     if result.get("skipped"):
@@ -105,8 +105,8 @@ async def init_chart_of_accounts(
     },
 )
 async def init_essential_accounts(
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> InitEssentialsResponse:
     """
     Initialize only the essential accounts required for basic operation.
@@ -120,7 +120,7 @@ async def init_essential_accounts(
     Use this when users choose manual account setup but you still need
     the essential accounts for cash transactions and fallback categorization.
     """
-    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_client=ml_client)
+    command = GenerateDefaultAccountsCommand.from_factory(factory, ml_port=ml_port)
     result = await command.execute_essentials()
 
     if result["skipped"]:

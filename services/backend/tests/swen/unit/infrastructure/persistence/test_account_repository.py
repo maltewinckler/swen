@@ -279,6 +279,7 @@ class _FakeAsyncpgWrapperError(Exception):
         super().__init__("boom")
         self.sqlstate = sqlstate
         self.pgcode = sqlstate
+        self.constraint_name: str | None = None
         if cause is not None:
             self.__cause__ = cause
 

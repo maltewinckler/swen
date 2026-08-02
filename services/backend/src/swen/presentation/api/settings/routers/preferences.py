@@ -19,7 +19,7 @@ from swen.application.settings.queries import (
     GetAvailableWidgetsQuery,
     GetUserSettingsQuery,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class AvailableWidgetsResponse(AvailableWidgetsDTO):
     },
 )
 async def get_preferences(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> UserSettingsResponse:
     """
     Get the current user's preferences.
@@ -115,7 +115,7 @@ async def get_preferences(
 )
 async def update_preferences(
     request: UserSettingsUpdateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> UserSettingsResponse:
     """
     Update user preferences.
@@ -144,7 +144,7 @@ async def update_preferences(
     },
 )
 async def reset_preferences(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> UserSettingsResponse:
     """Reset all user preferences to default values."""
     command = ResetUserSettingsCommand.from_factory(factory)
@@ -162,7 +162,7 @@ async def reset_preferences(
     },
 )
 async def get_dashboard_settings(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> DashboardSettingsResponse:
     """Get the current user's dashboard widget configuration."""
     query = GetUserSettingsQuery.from_factory(factory)
@@ -180,7 +180,7 @@ async def get_dashboard_settings(
 )
 async def update_dashboard_settings(
     request: UserSettingsUpdateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> DashboardSettingsResponse:
     """Update dashboard widget configuration."""
     if request.enabled_widgets is None and request.widget_settings is None:
@@ -216,7 +216,7 @@ async def update_dashboard_settings(
     },
 )
 async def reset_dashboard_settings(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> DashboardSettingsResponse:
     """Reset dashboard to default widget configuration."""
     # Reset all settings, then return just dashboard
@@ -235,7 +235,7 @@ async def reset_dashboard_settings(
     },
 )
 async def list_available_widgets(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> AvailableWidgetsResponse:
     """Get all available dashboard widgets with their metadata."""
     query = GetAvailableWidgetsQuery.from_factory(factory)

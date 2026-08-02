@@ -19,7 +19,9 @@ from swen.domain.shared.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from swen.application.factories import RepositoryFactory
-    from swen.application.ports.ml_service import MLServicePort
+    from swen.application.ports.account_classifier_training import (
+        AccountClassifierTrainingPort,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class PostTransactionCommand:
         self,
         transaction_repository: TransactionRepository,
         uow: UnitOfWork,
-        ml_port: MLServicePort | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._transaction_repo = transaction_repository
         self._uow = uow
@@ -41,7 +43,7 @@ class PostTransactionCommand:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_port: MLServicePort | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> PostTransactionCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),
@@ -103,7 +105,7 @@ class BulkPostTransactionsCommand:
         self,
         transaction_repository: TransactionRepository,
         uow: UnitOfWork,
-        ml_port: MLServicePort | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ):
         self._transaction_repo = transaction_repository
         self._uow = uow
@@ -113,7 +115,7 @@ class BulkPostTransactionsCommand:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        ml_port: MLServicePort | None = None,
+        ml_port: AccountClassifierTrainingPort | None = None,
     ) -> BulkPostTransactionsCommand:
         return cls(
             transaction_repository=factory.transaction_repository(),

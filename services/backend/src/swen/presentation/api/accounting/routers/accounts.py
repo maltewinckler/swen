@@ -27,7 +27,7 @@ from swen.presentation.api.accounting.schemas.accounts import (
     AccountSummaryResponse,
     AccountUpdateRequest,
 )
-from swen.presentation.api.dependencies import MLClient, RepoFactory
+from swen.presentation.api.dependencies import ClassifierTrainingPortDep, RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def _to_account_response(dto: AccountSummaryDTO) -> AccountSummaryResponse:
     },
 )
 async def list_accounts(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     account_type: AccountTypeFilter = None,
     active_only: ActiveOnlyFilter = True,
 ) -> AccountListResponse:
@@ -95,15 +95,15 @@ async def list_accounts(
 )
 async def create_account(
     request: AccountCreateRequest,
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> AccountSummaryResponse:
     """
     Create a new account in the chart of accounts.
 
     Account types: asset, liability, equity, income, expense
     """
-    command = CreateAccountCommand.from_factory(factory, ml_client=ml_client)
+    command = CreateAccountCommand.from_factory(factory, ml_port=ml_port)
     account = await command.execute(CreateAccountDTO(**request.model_dump()))
 
     logger.info("Account created: %s (%s)", account.name, account.account_number)
@@ -122,7 +122,7 @@ async def create_account(
 )
 async def get_account(
     account_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> AccountSummaryResponse:
     """Get a specific account by ID."""
     query = ListAccountsQuery.from_factory(factory)
@@ -147,7 +147,7 @@ async def get_account(
 )
 async def get_account_stats(
     account_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     days: StatsPeriodDays = None,
     include_drafts: StatsIncludeDrafts = True,
 ) -> AccountStatsResponse:
@@ -192,8 +192,8 @@ async def get_account_stats(
 async def update_account(
     account_id: UUID,
     request: AccountUpdateRequest,
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> AccountSummaryResponse:
     """Update an account (name, account_number, description, and/or parent).
 
@@ -202,7 +202,7 @@ async def update_account(
     - 'set': Set parent to parent_id (requires parent_id)
     - 'remove': Remove parent, make top-level
     """
-    command = UpdateAccountCommand.from_factory(factory, ml_client=ml_client)
+    command = UpdateAccountCommand.from_factory(factory, ml_port=ml_port)
     account = await command.execute(
         UpdateAccountDTO(account_id=account_id, **request.model_dump()),
     )
@@ -223,15 +223,15 @@ async def update_account(
 )
 async def deactivate_account(
     account_id: UUID,
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> None:
     """
     Deactivate an account (soft delete).
 
     The account is marked as inactive but not removed from the database.
     """
-    command = DeactivateAccountCommand.from_factory(factory, ml_client=ml_client)
+    command = DeactivateAccountCommand.from_factory(factory, ml_port=ml_port)
     await command.execute(account_id=account_id)
 
     logger.info("Account deactivated: %s", account_id)
@@ -247,15 +247,15 @@ async def deactivate_account(
 )
 async def reactivate_account(
     account_id: UUID,
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> AccountSummaryResponse:
     """
     Reactivate a previously deactivated account.
 
     The account will become visible in account lists and usable again.
     """
-    command = ReactivateAccountCommand.from_factory(factory, ml_client=ml_client)
+    command = ReactivateAccountCommand.from_factory(factory, ml_port=ml_port)
     account = await command.execute(account_id=account_id)
 
     logger.info("Account reactivated: %s", account_id)
@@ -277,8 +277,8 @@ async def reactivate_account(
 )
 async def delete_account(
     account_id: UUID,
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> None:
     """
     Permanently delete an account.
@@ -287,7 +287,7 @@ async def delete_account(
     Only accounts with no transactions and no child accounts can be deleted.
     For accounts with data, use deactivate instead (soft delete).
     """
-    command = DeleteAccountCommand.from_factory(factory, ml_client=ml_client)
+    command = DeleteAccountCommand.from_factory(factory, ml_port=ml_port)
     await command.execute(account_id=account_id)
 
     logger.info("Account deleted permanently: %s", account_id)

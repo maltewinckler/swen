@@ -9,7 +9,7 @@ from swen.application.system.queries.onboarding import OnboardingStatusQuery
 from swen.application.system.queries.onboarding.onboarding_status_query import (
     OnboardingStatusDTO,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class OnboardingStatusResponse(OnboardingStatusDTO):
         200: {"description": "Onboarding status for the current user"},
     },
 )
-async def get_onboarding_status(factory: RepoFactory) -> OnboardingStatusResponse:
+async def get_onboarding_status(factory: RepoFactoryDep) -> OnboardingStatusResponse:
     """
     Get the onboarding status for the current user.
 

@@ -29,9 +29,6 @@ from swen.application.accounting.dtos import (
 from swen.application.accounting.queries import ListTransactionsQuery
 from swen.application.events.base import SyncProgressEvent
 from swen.domain.shared.exceptions import DomainException, ErrorCode
-from swen.infrastructure.integration.adapters.counter_account_resolution.ml import (
-    MLCounterAccountAdapter,
-)
 from swen.presentation.api.accounting.schemas.transactions import (
     BulkPostRequest,
     BulkPostResponse,
@@ -42,7 +39,11 @@ from swen.presentation.api.accounting.schemas.transactions import (
     TransactionResponse,
     TransactionUpdateRequest,
 )
-from swen.presentation.api.dependencies import MLClient, MLPort, RepoFactory
+from swen.presentation.api.dependencies import (
+    ClassifierTrainingPortDep,
+    CounterAccountPortDep,
+    RepoFactoryDep,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ _PAGE_SIZE = 50  # Transactions per page
     },
 )
 async def list_transactions(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     page: PageFilter = 1,
     status_filter: StatusFilter = None,
     account_number: AccountNumberFilter = None,
@@ -125,7 +126,7 @@ async def list_transactions(
 )
 async def create_transaction(
     request: TransactionCreateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TransactionResponse:
     """
     Create a manual transaction with explicit journal entries.
@@ -202,7 +203,7 @@ async def create_transaction(
 )
 async def create_simple_transaction(
     request: SimpleTransactionToCreateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TransactionResponse:
     """
     Create a transaction with automatic account resolution.
@@ -258,7 +259,7 @@ async def create_simple_transaction(
 )
 async def get_transaction(
     transaction_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TransactionResponse:
     """Get detailed information about a specific transaction."""
     query = ListTransactionsQuery(
@@ -289,7 +290,7 @@ async def get_transaction(
 async def update_transaction(
     transaction_id: UUID,
     request: TransactionUpdateRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TransactionResponse:
     """
     Update an existing transaction.
@@ -325,8 +326,8 @@ async def update_transaction(
 )
 async def post_transaction(
     transaction_id: UUID,
-    factory: RepoFactory,
-    ml_port: MLPort,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
 ) -> TransactionResponse:
     """
     Post a draft transaction.
@@ -351,7 +352,7 @@ async def post_transaction(
 )
 async def unpost_transaction(
     transaction_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TransactionResponse:
     """
     Unpost a transaction (revert to draft).
@@ -377,7 +378,7 @@ async def unpost_transaction(
 )
 async def delete_transaction(
     transaction_id: UUID,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     force: ForceDeleteFilter = False,
 ) -> None:
     """
@@ -412,8 +413,8 @@ async def delete_transaction(
     },
 )
 async def reclassify_drafts_streaming(
-    factory: RepoFactory,
-    ml_client: MLClient,
+    factory: RepoFactoryDep,
+    resolution_port: CounterAccountPortDep,
     request: Optional[ReclassifyDraftsRequest] = None,
 ) -> StreamingResponse:
     """
@@ -454,9 +455,7 @@ async def reclassify_drafts_streaming(
 
     async def event_generator():
         try:
-            command = ReclassifyDraftsCommand.from_factory(
-                factory, MLCounterAccountAdapter(ml_client)
-            )
+            command = ReclassifyDraftsCommand.from_factory(factory, resolution_port)
         except Exception as e:
             logger.exception("Failed to create reclassify command: %s", e)
             yield _format_sse_event(
@@ -527,8 +526,8 @@ async def reclassify_drafts_streaming(
     },
 )
 async def bulk_post_transactions(
-    factory: RepoFactory,
-    ml_port: MLPort,
+    factory: RepoFactoryDep,
+    ml_port: ClassifierTrainingPortDep,
     request: BulkPostRequest,
 ) -> BulkPostResponse:
     """

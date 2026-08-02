@@ -16,8 +16,8 @@ from swen.presentation.api.admin.schemas.fints_config import (
     UpdateLocalFinTSConfigResponse,
 )
 from swen.presentation.api.dependencies import (
-    AdminUser,
-    RepoFactory,
+    AdminUserDep,
+    RepoFactoryDep,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,8 @@ router = APIRouter(prefix="/local_fints_configuration", tags=["admin-local-fints
     },
 )
 async def get_local_fints_configuration(
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> FinTSConfigResponse:
     """Get current local FinTS configuration (admin only)."""
     query = GetFinTSConfigurationQuery.from_factory(factory)
@@ -62,8 +62,8 @@ async def get_local_fints_configuration(
     },
 )
 async def upsert_local_fints_configuration(
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
     product_id: Annotated[str | None, Form(min_length=1, max_length=100)] = None,
     file: UploadFile | None = None,
 ) -> UpdateLocalFinTSConfigResponse:
@@ -109,8 +109,8 @@ async def upsert_local_fints_configuration(
     },
 )
 async def get_local_fints_configuration_status(
-    _admin: AdminUser,
-    factory: RepoFactory,
+    _admin: AdminUserDep,
+    factory: RepoFactoryDep,
 ) -> ConfigStatusResponse:
     """Check whether local FinTS is configured (admin only)."""
     query = GetFinTSConfigurationStatusQuery.from_factory(factory)

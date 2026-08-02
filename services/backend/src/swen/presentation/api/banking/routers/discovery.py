@@ -15,7 +15,7 @@ from swen.presentation.api.banking.schemas.discovery import (
     BankInfoResponse,
     TanMethodQueryRequest,
 )
-from swen.presentation.api.dependencies import RepoFactory
+from swen.presentation.api.dependencies import RepoFactoryDep
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ router = APIRouter()
 )
 async def lookup_bank(
     blz: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> BankInfoResponse:
     """Lookup bank information by BLZ."""
     # Validate BLZ format
@@ -68,7 +68,7 @@ async def lookup_bank(
 )
 async def discover_bank_accounts(
     blz: str,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> BankDiscoveryResultResponse:
     """
     Connect to bank and discover accounts without importing them.
@@ -127,7 +127,7 @@ async def discover_bank_accounts(
 )
 async def query_tan_methods(
     request: TanMethodQueryRequest,
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
 ) -> TANMethodsResponse:
     """
     Query available TAN methods from the bank.

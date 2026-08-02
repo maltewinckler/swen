@@ -16,8 +16,8 @@ from swen.presentation.api.auth.schemas.auth import (
     UserResponse,
 )
 from swen.presentation.api.dependencies import (
-    AuthenticatedUser,
-    IdentityRepoFactory,
+    AuthenticatedUserDep,
+    IdentityRepoFactoryDep,
     JWTServiceDep,
     PasswordHashingServiceDep,
     SettingsDep,
@@ -109,7 +109,7 @@ def _create_auth_response(
 async def register(  # NOQA: PLR0913
     request: RegisterRequest,
     response: Response,
-    factory: IdentityRepoFactory,
+    factory: IdentityRepoFactoryDep,
     jwt_service: JWTServiceDep,
     password_service: PasswordHashingServiceDep,
     settings: SettingsDep,
@@ -166,7 +166,7 @@ async def register(  # NOQA: PLR0913
 async def login(  # NOQA: PLR0913
     request: LoginRequest,
     response: Response,
-    factory: IdentityRepoFactory,
+    factory: IdentityRepoFactoryDep,
     jwt_service: JWTServiceDep,
     password_service: PasswordHashingServiceDep,
     settings: SettingsDep,
@@ -220,7 +220,7 @@ async def login(  # NOQA: PLR0913
 )
 async def refresh_token(  # NOQA: PLR0913
     response: Response,
-    factory: IdentityRepoFactory,
+    factory: IdentityRepoFactoryDep,
     jwt_service: JWTServiceDep,
     password_service: PasswordHashingServiceDep,
     settings: SettingsDep,
@@ -272,7 +272,7 @@ async def refresh_token(  # NOQA: PLR0913
         401: {"description": "Not authenticated"},
     },
 )
-async def get_me(user: AuthenticatedUser) -> UserResponse:
+async def get_me(user: AuthenticatedUserDep) -> UserResponse:
     """
     Get the current authenticated user's information.
 
@@ -298,8 +298,8 @@ async def get_me(user: AuthenticatedUser) -> UserResponse:
 )
 async def change_password(
     request: ChangePasswordRequest,
-    user: AuthenticatedUser,
-    factory: IdentityRepoFactory,
+    user: AuthenticatedUserDep,
+    factory: IdentityRepoFactoryDep,
     jwt_service: JWTServiceDep,
     password_service: PasswordHashingServiceDep,
 ) -> None:
@@ -365,7 +365,7 @@ async def logout(
 )
 async def forgot_password(
     request: ForgotPasswordRequest,
-    factory: IdentityRepoFactory,
+    factory: IdentityRepoFactoryDep,
     settings: SettingsDep,
     password_service: PasswordHashingServiceDep,
 ) -> dict:
@@ -387,7 +387,7 @@ async def forgot_password(
 )
 async def reset_password(
     request: ResetPasswordRequest,
-    factory: IdentityRepoFactory,
+    factory: IdentityRepoFactoryDep,
     settings: SettingsDep,
     password_service: PasswordHashingServiceDep,
 ) -> None:

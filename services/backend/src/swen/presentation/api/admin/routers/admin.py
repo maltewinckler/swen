@@ -16,9 +16,9 @@ from swen.presentation.api.admin.schemas.admin import (
     UserSummaryResponse,
 )
 from swen.presentation.api.dependencies import (
-    AdminUser,
-    DBSession,
-    IdentityRepoFactory,
+    AdminUserDep,
+    DBSessionDep,
+    IdentityRepoFactoryDep,
     get_password_service,
 )
 from swen_identity import (
@@ -60,8 +60,8 @@ router.include_router(fints_provider_router)
     },
 )
 async def list_users(
-    _admin: AdminUser,  # Used for authorization check
-    session: DBSession,
+    _admin: AdminUserDep,  # Used for authorization check
+    session: DBSessionDep,
 ) -> list[UserSummaryResponse]:
     """List all users."""
     user_repo = UserRepositorySQLAlchemy(session)
@@ -90,8 +90,8 @@ async def list_users(
 )
 async def create_user(
     request: CreateUserRequest,
-    admin: AdminUser,
-    factory: IdentityRepoFactory,
+    admin: AdminUserDep,
+    factory: IdentityRepoFactoryDep,
     password_service: PasswordService,
 ) -> UserSummaryResponse:
     """Create a new user."""
@@ -139,8 +139,8 @@ async def create_user(
 )
 async def delete_user(
     user_id: UUID,
-    admin: AdminUser,
-    factory: IdentityRepoFactory,
+    admin: AdminUserDep,
+    factory: IdentityRepoFactoryDep,
 ) -> None:
     """Delete a user."""
     command = DeleteUserCommand.from_factory(factory)
@@ -174,8 +174,8 @@ async def delete_user(
 async def update_user_role(
     user_id: UUID,
     request: UpdateRoleRequest,
-    admin: AdminUser,
-    factory: IdentityRepoFactory,
+    admin: AdminUserDep,
+    factory: IdentityRepoFactoryDep,
 ) -> UserSummaryResponse:
     """Update a user's role."""
     try:
