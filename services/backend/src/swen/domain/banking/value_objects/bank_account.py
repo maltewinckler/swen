@@ -71,7 +71,7 @@ class BankAccount(BaseModel):
     )
 
     model_config = ConfigDict(
-        frozen=True,  # Immutable like dataclass(frozen=True)
+        frozen=True,
         str_strip_whitespace=True,
         validate_assignment=True,
     )

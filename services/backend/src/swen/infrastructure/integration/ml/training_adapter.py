@@ -71,16 +71,7 @@ class MLAccountClassifierTrainingAdapter(AccountClassifierTrainingPort):
         if not self._client.enabled:
             return False
 
-        ml_accounts = [
-            AccountOption(
-                account_id=acc.account_id,
-                account_number=acc.account_number,
-                name=acc.name,
-                account_type=acc.account_type,
-                description=acc.description,
-            )
-            for acc in accounts
-        ]
+        ml_accounts = [AccountOption.model_validate(acc) for acc in accounts]
 
         result = await self._client.embed_accounts(user_id, ml_accounts)
         return result is not None and result.embedded > 0
@@ -94,16 +85,7 @@ class MLAccountClassifierTrainingAdapter(AccountClassifierTrainingPort):
         if not self._client.enabled:
             return
 
-        ml_accounts = [
-            AccountOption(
-                account_id=acc.account_id,
-                account_number=acc.account_number,
-                name=acc.name,
-                account_type=acc.account_type,
-                description=acc.description,
-            )
-            for acc in accounts
-        ]
+        ml_accounts = [AccountOption.model_validate(acc) for acc in accounts]
 
         self._client.embed_accounts_fire_and_forget(user_id, ml_accounts)
 

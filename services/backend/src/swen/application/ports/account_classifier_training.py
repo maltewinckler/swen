@@ -5,19 +5,21 @@ labeled transaction examples and per-account anchor embeddings. It keeps
 the application layer independent of infrastructure details like HTTP
 clients and external API contracts.
 
-Classification itself is handled separately via the domain-level
+Transaction Classification itself is handled separately via the domain-level
 CounterAccountProposalPort.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class TransactionExample:
-    """Domain representation of a transaction example for ML training."""
+
+class TransactionExample(BaseModel):
+    """Transaction example for ML training."""
+
+    model_config = ConfigDict(frozen=True)
 
     user_id: UUID
     account_id: UUID
@@ -30,9 +32,10 @@ class TransactionExample:
     counterparty_iban: str | None = None
 
 
-@dataclass(frozen=True)
-class AccountForClassification:
-    """Domain representation of an account option for embedding."""
+class AccountForClassification(BaseModel):
+    """Account represnetaiton for embedding."""
+
+    model_config = ConfigDict(frozen=True)
 
     account_id: UUID
     account_number: str
@@ -44,7 +47,7 @@ class AccountForClassification:
 class AccountClassifierTrainingPort(ABC):
     """Port for supplying the counter-account classifier its training data.
 
-    Classification is handled by ``CounterAccountProposalPort`` in the
+    Transaction Classification is handled by ``CounterAccountProposalPort`` in the
     integration domain. This port covers example submission and account
     anchor embedding/deletion.
     """

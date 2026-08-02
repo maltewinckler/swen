@@ -2,11 +2,13 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AccountOption(BaseModel):
     """Account available for classification."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     account_id: UUID
     account_number: str = Field(..., max_length=10)
