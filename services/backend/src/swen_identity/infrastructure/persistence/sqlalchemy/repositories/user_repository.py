@@ -36,7 +36,9 @@ class UserRepositorySQLAlchemy(UserRepository):
         return self._map_to_domain(model)
 
     async def find_by_email(self, email: Union[str, Email]) -> User | None:
-        email_value = email.value if isinstance(email, Email) else Email(email).value
+        email_value = (
+            email.value if isinstance(email, Email) else Email(value=email).value
+        )
 
         stmt = select(UserModel).where(UserModel.email == email_value)
         result = await self._session.execute(stmt)
@@ -70,7 +72,7 @@ class UserRepositorySQLAlchemy(UserRepository):
             raise
 
     async def get_or_create_by_email(self, email: Union[str, Email]) -> User:
-        email_obj = email if isinstance(email, Email) else Email(email)
+        email_obj = email if isinstance(email, Email) else Email(value=email)
         user = await self.find_by_email(email_obj)
 
         if user is not None:

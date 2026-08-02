@@ -1,8 +1,8 @@
 """AI Model information value objects."""
 
-from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class ModelStatus(Enum):
@@ -13,9 +13,10 @@ class ModelStatus(Enum):
     NOT_INSTALLED = "not_installed"
 
 
-@dataclass(frozen=True)
-class AIModelInfo:
+class AIModelInfo(BaseModel):
     """Information about an AI model."""
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     display_name: str
@@ -23,7 +24,7 @@ class AIModelInfo:
     size_bytes: int
     status: ModelStatus
     is_recommended: bool = True
-    download_progress: Optional[float] = None
+    download_progress: float | None = None
 
     @property
     def size_display(self) -> str:
@@ -37,42 +38,34 @@ class AIModelInfo:
         download_progress = (
             None if status != ModelStatus.DOWNLOADING else self.download_progress
         )
-        return AIModelInfo(
-            name=self.name,
-            display_name=self.display_name,
-            description=self.description,
-            size_bytes=self.size_bytes,
-            status=status,
-            is_recommended=self.is_recommended,
-            download_progress=download_progress,
+        return self.model_copy(
+            update={"status": status, "download_progress": download_progress}
         )
 
     def with_progress(self, progress: float) -> "AIModelInfo":
-        return AIModelInfo(
-            name=self.name,
-            display_name=self.display_name,
-            description=self.description,
-            size_bytes=self.size_bytes,
-            status=ModelStatus.DOWNLOADING,
-            is_recommended=self.is_recommended,
-            download_progress=max(0.0, min(1.0, progress)),
+        return self.model_copy(
+            update={
+                "status": ModelStatus.DOWNLOADING,
+                "download_progress": max(0.0, min(1.0, progress)),
+            }
         )
 
 
-@dataclass(frozen=True)
-class DownloadProgress:
+class DownloadProgress(BaseModel):
     """Progress update for a model download operation."""
+
+    model_config = ConfigDict(frozen=True)
 
     model_name: str
     status: str
     completed_bytes: int = 0
     total_bytes: int = 0
-    progress: Optional[float] = None
+    progress: float | None = None
     is_complete: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
-    def progress_percent(self) -> Optional[float]:
+    def progress_percent(self) -> float | None:
         if self.progress is not None:
             return self.progress * 100
         return None

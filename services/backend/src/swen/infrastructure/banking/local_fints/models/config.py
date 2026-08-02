@@ -1,16 +1,18 @@
 """Domain transfer objects for FinTS configuration."""
 
-from dataclasses import dataclass
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class FinTSConfig:
+
+class FinTSConfig(BaseModel):
     """Represents system-wide FinTS configuration.
 
     This is a simple DTO for transferring configuration data
     between infrastructure and application layers.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     product_id: str  # Decrypted
     csv_content: bytes
@@ -26,9 +28,10 @@ class FinTSConfig:
     updated_by_email: str | None = None  # Populated via join
 
 
-@dataclass(frozen=True)
-class FinTSConfigStatus:
+class FinTSConfigStatus(BaseModel):
     """Configuration status for display and validation."""
+
+    model_config = ConfigDict(frozen=True)
 
     is_configured: bool
     is_active: bool = False
@@ -37,17 +40,19 @@ class FinTSConfigStatus:
     institute_count: int = 0
 
 
-@dataclass(frozen=True)
-class ValidationResult:
+class ValidationResult(BaseModel):
     """Result of a validation operation."""
+
+    model_config = ConfigDict(frozen=True)
 
     is_valid: bool
     error: str | None = None
 
 
-@dataclass(frozen=True)
-class CSVValidationResult:
+class CSVValidationResult(BaseModel):
     """Result of CSV validation."""
+
+    model_config = ConfigDict(frozen=True)
 
     is_valid: bool
     institute_count: int = 0
@@ -55,9 +60,10 @@ class CSVValidationResult:
     error: str | None = None
 
 
-@dataclass(frozen=True)
-class UpdateConfigResult:
+class UpdateConfigResult(BaseModel):
     """Result of a local FinTS configuration update."""
+
+    model_config = ConfigDict(frozen=True)
 
     institute_count: int | None = None
     file_size_bytes: int | None = None

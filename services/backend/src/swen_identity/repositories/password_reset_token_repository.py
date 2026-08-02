@@ -1,14 +1,16 @@
 """Abstract repository interface for password reset tokens."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class PasswordResetTokenData:
+
+class PasswordResetTokenData(BaseModel):
     """Immutable password reset token data."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: UUID
     user_id: UUID

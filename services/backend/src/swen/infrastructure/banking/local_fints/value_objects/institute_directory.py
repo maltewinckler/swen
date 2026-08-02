@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import csv
 import logging
-from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+
+from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from swen.infrastructure.banking.local_fints.repositories.config_repository import (
@@ -26,9 +27,10 @@ COL_CITY = 4
 COL_PIN_TAN_URL = 24  # "PIN/TAN-Zugang URL"
 
 
-@dataclass(frozen=True)
-class FinTSInstituteInfo:
+class FinTSInstituteInfo(BaseModel):
     """Information about a FinTS-enabled bank institute."""
+
+    model_config = ConfigDict(frozen=True)
 
     blz: str
     bic: str

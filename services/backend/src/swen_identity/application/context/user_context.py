@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from swen_identity.domain.user import User
 
 
-@dataclass(frozen=True)
-class UserContext:
+class UserContext(BaseModel):
     """Immutable context for the current authenticated user."""
+
+    model_config = ConfigDict(frozen=True)
 
     user_id: UUID
     email: str
@@ -21,15 +23,6 @@ class UserContext:
     @classmethod
     def create(cls, user: User) -> UserContext:
         return cls(user_id=user.id, email=user.email, is_admin=user.is_admin)
-
-    @classmethod
-    def from_values(
-        cls,
-        user_id: UUID,
-        email: str,
-        is_admin: bool = False,
-    ) -> UserContext:
-        return cls(user_id=user_id, email=email, is_admin=is_admin)
 
     def __str__(self) -> str:
         return f"UserContext({self.email})"

@@ -5,18 +5,20 @@ Implementations can use SQLAlchemy, MongoDB, or any other storage.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class UserCredentialData:
+
+class UserCredentialData(BaseModel):
     """Immutable credential data returned by repository.
 
     This is a pure data transfer object that decouples the domain
     from persistence implementation details.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     user_id: str
     password_hash: str

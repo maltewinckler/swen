@@ -25,7 +25,7 @@ class User:
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
     ):
-        self._email = email if isinstance(email, Email) else Email(email)
+        self._email = email if isinstance(email, Email) else Email(value=email)
         self._id = id or uuid4()
         self._role = role if isinstance(role, UserRole) else UserRole(role)
         self._created_at = created_at or utc_now()

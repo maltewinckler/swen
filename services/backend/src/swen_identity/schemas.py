@@ -4,13 +4,13 @@ These are simple data classes used for transferring identity
 data between components.
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class TokenPayload:
+
+class TokenPayload(BaseModel):
     """Decoded JWT token payload.
 
     This represents the data extracted from a verified JWT token.
@@ -26,6 +26,8 @@ class TokenPayload:
     token_type
         Either "access" or "refresh"
     """
+
+    model_config = ConfigDict(frozen=True)
 
     user_id: UUID
     email: str

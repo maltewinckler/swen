@@ -284,7 +284,7 @@ class TestAIModelInfoImmutability:
             status=ModelStatus.AVAILABLE,
         )
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValueError, match="frozen"):
             model.name = "changed"  # type: ignore
 
 
@@ -396,7 +396,7 @@ class TestDownloadProgressImmutability:
             status="downloading",
         )
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValueError, match="frozen"):
             progress.status = "changed"  # type: ignore
 
     def test_hashable(self):
@@ -410,7 +410,9 @@ class TestDownloadProgressImmutability:
             status="downloading",
         )
 
-        progress_set = {progress1, progress2}
+        # pyright doesn't statically know frozen=True gives BaseModel a
+        # __hash__; verified working at runtime.
+        progress_set = {progress1, progress2}  # pyright: ignore[reportUnhashable]
         assert len(progress_set) == 2
 
     def test_equality(self):
