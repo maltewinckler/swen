@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Set
+from typing import List, Optional, Set
 from uuid import UUID
 
 from swen.domain.accounting.entities import Account
 from swen.domain.accounting.repositories import AccountRepository
 from swen.domain.shared.exceptions import ValidationError
-
-if TYPE_CHECKING:
-    from swen.application.factories import RepositoryFactory
 
 
 class AccountHierarchyService:
@@ -18,11 +15,6 @@ class AccountHierarchyService:
 
     def __init__(self, account_repo: AccountRepository):
         self._account_repo = account_repo
-
-    @classmethod
-    def from_factory(cls, factory: RepositoryFactory) -> AccountHierarchyService:
-        account_repository = factory.account_repository()
-        return cls(account_repo=account_repository)
 
     async def validate_hierarchy(self, child: Account, parent: Account) -> None:
         """Validate parent-child constraints (cycle, depth, type, ownership)."""

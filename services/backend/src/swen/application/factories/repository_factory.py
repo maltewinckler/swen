@@ -94,6 +94,10 @@ class RepositoryFactory(Protocol):
         """Get user settings repository."""
         ...
 
+    # Strictly speaking, this is a DDD violation because FinTS should be
+    # considered as infrastructure. But since it is so deeply integrated,
+    # we will ignore Fints and Geldstrom concerns for now and allow them
+    # in the application layer.
     def fints_config_repository(self) -> FinTSConfigRepository:
         """Get FinTS configuration repository (system-wide)."""
         ...
