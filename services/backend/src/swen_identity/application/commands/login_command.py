@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen_identity.application.services import AuthenticationService
 from swen_identity.domain import User
+from swen_identity.domain.services import AuthenticationService
 from swen_identity.exceptions import AccountLockedError, InvalidCredentialsError
 
 if TYPE_CHECKING:

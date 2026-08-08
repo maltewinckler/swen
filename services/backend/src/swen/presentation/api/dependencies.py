@@ -171,6 +171,7 @@ def get_identity_adapter_factory(
         jwt_secret_key=settings.jwt_secret_key.get_secret_value(),
         jwt_access_token_expire_hours=settings.jwt_access_token_expire_hours,
         jwt_refresh_token_expire_days=settings.jwt_refresh_token_expire_days,
+        settings=settings,
     )
 
 

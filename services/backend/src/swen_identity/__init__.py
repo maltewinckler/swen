@@ -13,10 +13,6 @@ keeping identity concerns separated.
 """
 
 from swen_identity.application.context import UserContext
-from swen_identity.application.services import (
-    AuthenticationService,
-    PasswordResetService,
-)
 from swen_identity.domain import (
     CannotDeleteSelfError,
     CannotDemoteSelfError,
@@ -33,7 +29,15 @@ from swen_identity.domain import (
     UserRepository,
     UserRole,
 )
-from swen_identity.domain.ports import PasswordHashingPort, TokenHandlingPort
+from swen_identity.domain.ports import (
+    EmailNotificationPort,
+    PasswordHashingPort,
+    TokenHandlingPort,
+)
+from swen_identity.domain.services import (
+    AuthenticationService,
+    PasswordResetService,
+)
 from swen_identity.exceptions import (
     AccountLockedError,
     AuthError,
@@ -73,11 +77,12 @@ __all__ = [
     "RefreshTokenExpiredError",
     "WeakPasswordError",
     # Ports
+    "EmailNotificationPort",
     "PasswordHashingPort",
     "TokenHandlingPort",
     # Application Context
     "UserContext",
-    # Application Services
+    # Domain Services
     "AuthenticationService",
     "PasswordResetService",
 ]

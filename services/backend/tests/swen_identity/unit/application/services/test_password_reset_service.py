@@ -8,13 +8,13 @@ import pytest
 
 from swen.domain.shared.time import utc_now
 from swen_identity import (
+    EmailNotificationPort,
     InvalidResetTokenError,
     PasswordHashingPort,
     PasswordResetToken,
     User,
 )
-from swen_identity.application.services import PasswordResetService
-from swen_identity.infrastructure.email import EmailService
+from swen_identity.domain.services import PasswordResetService
 
 TEST_EMAIL = "test@example.com"
 TEST_TOKEN = "test-token-abc123"
@@ -31,14 +31,14 @@ class TestPasswordResetServiceRequestReset:
         self.token_repo = AsyncMock()
         self.credential_repo = AsyncMock()
         self.password_service = Mock(spec=PasswordHashingPort)
-        self.email_service = Mock(spec=EmailService)
+        self.email_service = Mock(spec=EmailNotificationPort)
 
         self.service = PasswordResetService(
             user_repository=self.user_repo,
             token_repository=self.token_repo,
             credential_repository=self.credential_repo,
             password_hashing_port=self.password_service,
-            email_service=self.email_service,
+            email_notification_port=self.email_service,
             frontend_base_url=FRONTEND_URL,
         )
 
@@ -110,14 +110,14 @@ class TestPasswordResetServiceResetPassword:
         self.credential_repo = AsyncMock()
         self.password_service = Mock(spec=PasswordHashingPort)
         self.password_service.hash.return_value = "new_hash"
-        self.email_service = Mock(spec=EmailService)
+        self.email_service = Mock(spec=EmailNotificationPort)
 
         self.service = PasswordResetService(
             user_repository=self.user_repo,
             token_repository=self.token_repo,
             credential_repository=self.credential_repo,
             password_hashing_port=self.password_service,
-            email_service=self.email_service,
+            email_notification_port=self.email_service,
             frontend_base_url=FRONTEND_URL,
         )
 

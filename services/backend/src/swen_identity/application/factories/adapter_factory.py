@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from swen_identity.domain.ports import PasswordHashingPort, TokenHandlingPort
+from swen_identity.domain.ports import (
+    EmailNotificationPort,
+    PasswordHashingPort,
+    TokenHandlingPort,
+)
 
 
 class AdapterFactory(Protocol):
@@ -16,4 +20,8 @@ class AdapterFactory(Protocol):
 
     def password_hashing_port(self) -> PasswordHashingPort:
         """Get the password hashing adapter."""
+        ...
+
+    def email_notification_port(self) -> EmailNotificationPort:
+        """Get the email notification adapter."""
         ...

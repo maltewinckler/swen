@@ -7,9 +7,13 @@ from swen_identity.infrastructure.adapters.bcrypt_password_hashing_adapter impor
 from swen_identity.infrastructure.adapters.jwt_token_handling_adapter import (
     JWTTokenHandlingAdapter,
 )
+from swen_identity.infrastructure.adapters.smtp_email_notification_adapter import (
+    SmtpEmailNotificationAdapter,
+)
 
 __all__ = [
     "AdapterFactoryDefault",
     "BcryptPasswordHashingAdapter",
     "JWTTokenHandlingAdapter",
+    "SmtpEmailNotificationAdapter",
 ]

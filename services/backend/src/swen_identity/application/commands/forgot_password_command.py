@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen_identity.application.services import PasswordResetService
-from swen_identity.infrastructure.email import EmailService
+from swen_identity.domain.services import PasswordResetService
 
 if TYPE_CHECKING:
     from swen_config.settings import Settings
@@ -33,7 +32,7 @@ class ForgotPasswordCommand:
                 token_repository=factory.password_reset_token_repository(),
                 credential_repository=factory.user_credential_repository(),
                 password_hashing_port=adapter_factory.password_hashing_port(),
-                email_service=EmailService(settings),
+                email_notification_port=adapter_factory.email_notification_port(),
                 frontend_base_url=settings.frontend_base_url,
             ),
             uow=factory.unit_of_work(),
