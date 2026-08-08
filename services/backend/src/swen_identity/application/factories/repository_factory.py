@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Protocol
 
 from swen_identity.application.ports.unit_of_work import UnitOfWork
-from swen_identity.domain.user.repositories import UserRepository
-from swen_identity.repositories import (
+from swen_identity.domain.repositories import (
     PasswordResetTokenRepository,
     UserCredentialRepository,
+    UserRepository,
 )
 
 

@@ -45,7 +45,7 @@ class TestFinTSInstituteInfo:
             endpoint_url="https://example.com",
         )
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValueError, match="frozen"):
             info.blz = "12345678"  # type: ignore
 
     def test_str_representation(self):

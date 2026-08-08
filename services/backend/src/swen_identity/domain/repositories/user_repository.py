@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 from uuid import UUID
 
-from swen_identity.domain.user.aggregates.user import User
-from swen_identity.domain.user.value_objects.email import Email
+from swen_identity.domain.aggregates.user import User
+from swen_identity.domain.value_objects.email import Email
 
 
 class UserRepository(ABC):

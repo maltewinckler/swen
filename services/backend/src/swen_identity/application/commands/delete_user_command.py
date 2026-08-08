@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from swen_identity.application.ports.unit_of_work import UnitOfWork
-from swen_identity.domain.user import (
+from swen_identity.domain import (
     CannotDeleteSelfError,
     UserNotFoundError,
     UserRepository,

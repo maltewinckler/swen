@@ -7,10 +7,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from swen_identity.domain.aggregates import UserCredential
+from swen_identity.domain.repositories import UserCredentialRepository
 from swen_identity.infrastructure.persistence.sqlalchemy.models import (
     UserCredentialModel,
 )
-from swen_identity.repositories import UserCredentialData, UserCredentialRepository
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,8 @@ class UserCredentialRepositorySQLAlchemy(UserCredentialRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    def _to_data(self, model: UserCredentialModel) -> UserCredentialData:
-        return UserCredentialData(
+    def _to_data(self, model: UserCredentialModel) -> UserCredential:
+        return UserCredential(
             user_id=model.user_id,
             password_hash=model.password_hash,
             failed_login_attempts=model.failed_login_attempts,
@@ -42,7 +43,7 @@ class UserCredentialRepositorySQLAlchemy(UserCredentialRepository):
         self,
         user_id: UUID,
         password_hash: str,
-    ) -> UserCredentialData:
+    ) -> UserCredential:
         existing = await self._find_model_by_user_id(user_id)
 
         if existing:
@@ -61,7 +62,7 @@ class UserCredentialRepositorySQLAlchemy(UserCredentialRepository):
         logger.info("Created credentials for user: %s", user_id)
         return self._to_data(model)
 
-    async def find_by_user_id(self, user_id: UUID) -> UserCredentialData | None:
+    async def find_by_user_id(self, user_id: UUID) -> UserCredential | None:
         model = await self._find_model_by_user_id(user_id)
         return self._to_data(model) if model else None
 

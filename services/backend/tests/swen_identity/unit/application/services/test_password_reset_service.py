@@ -10,11 +10,11 @@ from swen.domain.shared.time import utc_now
 from swen_identity import (
     InvalidResetTokenError,
     PasswordHashingService,
+    PasswordResetToken,
     User,
 )
 from swen_identity.application.services import PasswordResetService
 from swen_identity.infrastructure.email import EmailService
-from swen_identity.repositories import PasswordResetTokenData
 
 TEST_EMAIL = "test@example.com"
 TEST_TOKEN = "test-token-abc123"
@@ -123,7 +123,7 @@ class TestPasswordResetServiceResetPassword:
 
     def _create_valid_token_data(self, user_id=None):
         """Create a valid token data object."""
-        return PasswordResetTokenData(
+        return PasswordResetToken(
             id=uuid4(),
             user_id=user_id or uuid4(),
             token_hash="hashed_token",
@@ -160,7 +160,7 @@ class TestPasswordResetServiceResetPassword:
     @pytest.mark.asyncio
     async def test_reset_password_expired_token(self):
         """Raises InvalidResetTokenError for expired token."""
-        token_data = PasswordResetTokenData(
+        token_data = PasswordResetToken(
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",
@@ -178,7 +178,7 @@ class TestPasswordResetServiceResetPassword:
     @pytest.mark.asyncio
     async def test_reset_password_already_used_token(self):
         """Raises InvalidResetTokenError for already used token."""
-        token_data = PasswordResetTokenData(
+        token_data = PasswordResetToken(
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",

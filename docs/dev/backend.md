@@ -31,21 +31,23 @@ The FastAPI application is created via `create_app()` in `swen/presentation/api/
 
 SWEN uses FastAPI's native `Depends()` for dependency injection. The `dependencies.py` module defines all shared dependencies:
 
+All type aliases are suffixed `Dep` for consistency.
+
 | Dependency | Type Alias | Purpose |
 |---|---|---|
-| `get_db_session` | `DBSession` | Async database session (per-request) |
-| `get_current_user` | `AuthenticatedUser` | Authenticated `User` from JWT bearer token |
-| `get_current_current_user` | `CurrentUserContext` | `CurrentUser` context for repository scoping |
-| `get_repository_factory` | `RepoFactory` | `SQLAlchemyRepositoryFactory` (auto-scoped to user) |
-| `get_ml_client` | `MLClient` | `MLServiceClient` instance |
-| `get_ml_port` | `MLPort` | `MLServicePort` for application layer |
+| `get_db_session` | `DBSessionDep` | Async database session (per-request) |
+| `get_current_user` | `AuthenticatedUserDep` | Authenticated `User` from JWT bearer token |
+| `require_admin` | `AdminUserDep` | Authenticated admin `User` |
+| `get_repository_factory` | `RepoFactoryDep` | `SQLAlchemyRepositoryFactory` (auto-scoped to user) |
+| `get_classifier_training_port` | `ClassifierTrainingPortDep` | `AccountClassifierTrainingPort` (example submission, account embeddings) |
+| `get_counter_account_proposal_port` | `CounterAccountPortDep` | `CounterAccountProposalPort` (batch classification) |
 
-Routers receive the repository factory via `factory: RepoFactory` and pass it to application layer classes through their `.from_factory()` classmethod. For example, from `services/backend/src/swen/presentation/api/accounting/routers/accounts.py`:
+Routers receive the repository factory via `factory: RepoFactoryDep` and pass it to application layer classes through their `.from_factory()` classmethod. For example, from `services/backend/src/swen/presentation/api/accounting/routers/accounts.py`:
 
 ```python
 @router.get("/accounts")
 async def list_accounts(
-    factory: RepoFactory,
+    factory: RepoFactoryDep,
     account_type: AccountTypeFilter = None,
 ) -> AccountListResponse:
     query = ListAccountsQuery.from_factory(factory)

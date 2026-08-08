@@ -50,7 +50,7 @@ from swen.infrastructure.persistence.sqlalchemy.repositories.security import (
 from swen.infrastructure.security.encryption_service_fernet import (
     FernetEncryptionService,
 )
-from swen_identity.domain.user import User
+from swen_identity.domain import User
 from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )

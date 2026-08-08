@@ -31,7 +31,7 @@ from swen.infrastructure.banking.local_fints.repositories.config_repository impo
 from swen.infrastructure.banking.local_fints.repositories.endpoint_repository import (
     FinTSEndpointRepository,
 )
-from swen_identity.domain.user.repositories import UserRepository
+from swen_identity.domain.repositories import UserRepository
 
 if TYPE_CHECKING:
     from swen.domain.shared.current_user import CurrentUser
