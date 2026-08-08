@@ -12,8 +12,8 @@ from swen_identity import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidTokenError,
-    JWTService,
-    PasswordHashingService,
+    PasswordHashingPort,
+    TokenHandlingPort,
     User,
     UserRole,
     WeakPasswordError,
@@ -31,14 +31,14 @@ class TestAuthenticationServiceRegister:
         """Set up test fixtures."""
         self.user_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
-        self.jwt_service = Mock(spec=JWTService)
+        self.password_service = Mock(spec=PasswordHashingPort)
+        self.jwt_service = Mock(spec=TokenHandlingPort)
 
         self.service = AuthenticationService(
             user_repository=self.user_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
-            jwt_service=self.jwt_service,
+            password_hashing_port=self.password_service,
+            token_handling_port=self.jwt_service,
         )
 
     @pytest.mark.asyncio
@@ -139,14 +139,14 @@ class TestAuthenticationServiceLogin:
         """Set up test fixtures."""
         self.user_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
-        self.jwt_service = Mock(spec=JWTService)
+        self.password_service = Mock(spec=PasswordHashingPort)
+        self.jwt_service = Mock(spec=TokenHandlingPort)
 
         self.service = AuthenticationService(
             user_repository=self.user_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
-            jwt_service=self.jwt_service,
+            password_hashing_port=self.password_service,
+            token_handling_port=self.jwt_service,
         )
 
     @pytest.mark.asyncio
@@ -230,14 +230,14 @@ class TestAuthenticationServiceRefreshToken:
         """Set up test fixtures."""
         self.user_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
-        self.jwt_service = Mock(spec=JWTService)
+        self.password_service = Mock(spec=PasswordHashingPort)
+        self.jwt_service = Mock(spec=TokenHandlingPort)
 
         self.service = AuthenticationService(
             user_repository=self.user_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
-            jwt_service=self.jwt_service,
+            password_hashing_port=self.password_service,
+            token_handling_port=self.jwt_service,
         )
 
     @pytest.mark.asyncio
@@ -299,14 +299,14 @@ class TestAuthenticationServiceChangePassword:
         """Set up test fixtures."""
         self.user_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
-        self.jwt_service = Mock(spec=JWTService)
+        self.password_service = Mock(spec=PasswordHashingPort)
+        self.jwt_service = Mock(spec=TokenHandlingPort)
 
         self.service = AuthenticationService(
             user_repository=self.user_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
-            jwt_service=self.jwt_service,
+            password_hashing_port=self.password_service,
+            token_handling_port=self.jwt_service,
         )
 
     @pytest.mark.asyncio

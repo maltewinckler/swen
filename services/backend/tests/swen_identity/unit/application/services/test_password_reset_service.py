@@ -9,7 +9,7 @@ import pytest
 from swen.domain.shared.time import utc_now
 from swen_identity import (
     InvalidResetTokenError,
-    PasswordHashingService,
+    PasswordHashingPort,
     PasswordResetToken,
     User,
 )
@@ -30,14 +30,14 @@ class TestPasswordResetServiceRequestReset:
         self.user_repo = AsyncMock()
         self.token_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
+        self.password_service = Mock(spec=PasswordHashingPort)
         self.email_service = Mock(spec=EmailService)
 
         self.service = PasswordResetService(
             user_repository=self.user_repo,
             token_repository=self.token_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
+            password_hashing_port=self.password_service,
             email_service=self.email_service,
             frontend_base_url=FRONTEND_URL,
         )
@@ -108,7 +108,7 @@ class TestPasswordResetServiceResetPassword:
         self.user_repo = AsyncMock()
         self.token_repo = AsyncMock()
         self.credential_repo = AsyncMock()
-        self.password_service = Mock(spec=PasswordHashingService)
+        self.password_service = Mock(spec=PasswordHashingPort)
         self.password_service.hash.return_value = "new_hash"
         self.email_service = Mock(spec=EmailService)
 
@@ -116,7 +116,7 @@ class TestPasswordResetServiceResetPassword:
             user_repository=self.user_repo,
             token_repository=self.token_repo,
             credential_repository=self.credential_repo,
-            password_service=self.password_service,
+            password_hashing_port=self.password_service,
             email_service=self.email_service,
             frontend_base_url=FRONTEND_URL,
         )

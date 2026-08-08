@@ -5,12 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from swen_identity.application.ports.unit_of_work import UnitOfWork
 from swen_identity.application.services import AuthenticationService
-from swen_identity.services import JWTService, PasswordHashingService
 
 if TYPE_CHECKING:
-    from swen_identity.application.factories import RepositoryFactory
+    from swen_identity.application.factories import AdapterFactory, RepositoryFactory
+    from swen_identity.application.ports.unit_of_work import UnitOfWork
 
 
 class ChangePasswordCommand:
@@ -24,15 +23,14 @@ class ChangePasswordCommand:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        jwt_service: JWTService,
-        password_service: PasswordHashingService,
+        adapter_factory: AdapterFactory,
     ) -> ChangePasswordCommand:
         return cls(
             auth_service=AuthenticationService(
                 user_repository=factory.user_repository(),
                 credential_repository=factory.user_credential_repository(),
-                password_service=password_service,
-                jwt_service=jwt_service,
+                password_hashing_port=adapter_factory.password_hashing_port(),
+                token_handling_port=adapter_factory.token_handling_port(),
             ),
             uow=factory.unit_of_work(),
         )

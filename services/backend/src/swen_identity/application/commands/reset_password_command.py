@@ -7,11 +7,10 @@ from typing import TYPE_CHECKING
 from swen_identity.application.ports.unit_of_work import UnitOfWork
 from swen_identity.application.services import PasswordResetService
 from swen_identity.infrastructure.email import EmailService
-from swen_identity.services import PasswordHashingService
 
 if TYPE_CHECKING:
     from swen_config.settings import Settings
-    from swen_identity.application.factories import RepositoryFactory
+    from swen_identity.application.factories import AdapterFactory, RepositoryFactory
 
 
 class ResetPasswordCommand:
@@ -25,7 +24,7 @@ class ResetPasswordCommand:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        password_service: PasswordHashingService,
+        adapter_factory: AdapterFactory,
         settings: Settings,
     ) -> ResetPasswordCommand:
         return cls(
@@ -33,7 +32,7 @@ class ResetPasswordCommand:
                 user_repository=factory.user_repository(),
                 token_repository=factory.password_reset_token_repository(),
                 credential_repository=factory.user_credential_repository(),
-                password_service=password_service,
+                password_hashing_port=adapter_factory.password_hashing_port(),
                 email_service=EmailService(settings),
                 frontend_base_url=settings.frontend_base_url,
             ),

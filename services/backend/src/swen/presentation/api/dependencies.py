@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from swen.application.factories import RepositoryFactory
 from swen.application.ports import AccountClassifierTrainingPort
 from swen.domain.integration.ports.counter_account_proposal_port import (
     CounterAccountProposalPort,
@@ -39,12 +40,15 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
 from swen_config.settings import Settings, get_settings
 from swen_identity import (
     InvalidTokenError,
-    JWTService,
-    PasswordHashingService,
     User,
 )
+from swen_identity.application.factories import AdapterFactory
+from swen_identity.application.factories import (
+    RepositoryFactory as IdentityRepositoryFactory,
+)
+from swen_identity.infrastructure.adapters import AdapterFactoryDefault
 from swen_identity.infrastructure.persistence.sqlalchemy import (
-    UserRepositorySQLAlchemy,
+    UserRepositorySQLAlchemy,  # necessary as repo factory is user scoped
 )
 from swen_identity.infrastructure.persistence.sqlalchemy.repository_factory import (
     RepositoryFactorySQLAlchemy as IdentityRepositoryFactorySQLAlchemy,
@@ -159,18 +163,15 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def get_jwt_service(settings: Settings = Depends(get_settings)) -> JWTService:
-    """Get JWT service configured with API settings."""
-    return JWTService(
-        secret_key=settings.jwt_secret_key.get_secret_value(),
-        access_token_expire_hours=settings.jwt_access_token_expire_hours,
-        refresh_token_expire_days=settings.jwt_refresh_token_expire_days,
+def get_identity_adapter_factory(
+    settings: Settings = Depends(get_settings),
+) -> AdapterFactory:
+    """Get swen_identity's adapter factory configured with API settings."""
+    return AdapterFactoryDefault(
+        jwt_secret_key=settings.jwt_secret_key.get_secret_value(),
+        jwt_access_token_expire_hours=settings.jwt_access_token_expire_hours,
+        jwt_refresh_token_expire_days=settings.jwt_refresh_token_expire_days,
     )
-
-
-def get_password_service() -> PasswordHashingService:
-    """Get password hashing service."""
-    return PasswordHashingService()
 
 
 # -----------------------------------------------------------------------------
@@ -181,7 +182,7 @@ def get_password_service() -> PasswordHashingService:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_db_session),
-    jwt_service: JWTService = Depends(get_jwt_service),
+    identity_adapter_factory: AdapterFactory = Depends(get_identity_adapter_factory),
 ) -> User:
     """
     FastAPI dependency to get the current authenticated user from JWT.
@@ -195,8 +196,8 @@ async def get_current_user(
         Bearer token from Authorization header
     session
         Database session
-    jwt_service
-        JWT service for token verification
+    identity_adapter_factory
+        Adapter factory providing the token handling port for verification
 
     Returns
     -------
@@ -217,7 +218,7 @@ async def get_current_user(
     token = credentials.credentials
 
     try:
-        payload = jwt_service.verify_token(token)
+        payload = identity_adapter_factory.token_handling_port().verify_token(token)
     except InvalidTokenError as e:
         logger.warning("Invalid token: %s", e)
         raise HTTPException(
@@ -271,7 +272,7 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
 async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
-) -> SQLAlchemyRepositoryFactory:
+) -> RepositoryFactory:
     """Get repository factory for the current user."""
     from swen_identity import UserContext  # noqa: PLC0415
 
@@ -285,7 +286,7 @@ async def get_repository_factory(
 
 async def get_identity_repository_factory(
     session: AsyncSession = Depends(get_db_session),
-) -> IdentityRepositoryFactorySQLAlchemy:
+) -> IdentityRepositoryFactory:
     """Get swen_identity's repository factory for the current request."""
     return IdentityRepositoryFactorySQLAlchemy(session=session)
 
@@ -325,11 +326,9 @@ def get_counter_account_proposal_port() -> CounterAccountProposalPort:
 DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 # Settings Dependency
 SettingsDep = Annotated[Settings, Depends(get_settings)]
-# Encryption and PW dependeicyues
-JWTServiceDep = Annotated[JWTService, Depends(get_jwt_service)]
-PasswordHashingServiceDep = Annotated[
-    PasswordHashingService,
-    Depends(get_password_service),
+# swen_identity adapters
+IdentityAdapterFactoryDep = Annotated[
+    AdapterFactory, Depends(get_identity_adapter_factory)
 ]
 
 # User + Admin auth dependencies
@@ -337,9 +336,9 @@ AuthenticatedUserDep = Annotated[User, Depends(get_current_user)]
 AdminUserDep = Annotated[User, Depends(require_admin)]
 
 # Repository factories
-RepoFactoryDep = Annotated[SQLAlchemyRepositoryFactory, Depends(get_repository_factory)]
+RepoFactoryDep = Annotated[RepositoryFactory, Depends(get_repository_factory)]
 IdentityRepoFactoryDep = Annotated[
-    IdentityRepositoryFactorySQLAlchemy,
+    IdentityRepositoryFactory,
     Depends(get_identity_repository_factory),
 ]
 

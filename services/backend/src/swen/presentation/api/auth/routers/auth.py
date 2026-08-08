@@ -17,9 +17,8 @@ from swen.presentation.api.auth.schemas.auth import (
 )
 from swen.presentation.api.dependencies import (
     AuthenticatedUserDep,
+    IdentityAdapterFactoryDep,
     IdentityRepoFactoryDep,
-    JWTServiceDep,
-    PasswordHashingServiceDep,
     SettingsDep,
 )
 from swen_config.settings import Settings
@@ -106,12 +105,11 @@ def _create_auth_response(
         409: {"description": "Email already registered"},
     },
 )
-async def register(  # NOQA: PLR0913
+async def register(
     request: RegisterRequest,
     response: Response,
     factory: IdentityRepoFactoryDep,
-    jwt_service: JWTServiceDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
     settings: SettingsDep,
 ) -> AuthResponse:
     """Register a new user account."""
@@ -124,7 +122,7 @@ async def register(  # NOQA: PLR0913
                 detail="Registration is disabled. Contact an administrator.",
             )
 
-    command = RegisterCommand.from_factory(factory, jwt_service, password_service)
+    command = RegisterCommand.from_factory(factory, identity_adapter_factory)
 
     try:
         user, access_token, new_refresh_token = await command.execute(
@@ -163,12 +161,11 @@ async def register(  # NOQA: PLR0913
         423: {"description": "Account locked"},
     },
 )
-async def login(  # NOQA: PLR0913
+async def login(
     request: LoginRequest,
     response: Response,
     factory: IdentityRepoFactoryDep,
-    jwt_service: JWTServiceDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
     settings: SettingsDep,
 ) -> AuthResponse:
     """
@@ -179,7 +176,7 @@ async def login(  # NOQA: PLR0913
 
     Account will be locked after multiple failed attempts.
     """
-    command = LoginCommand.from_factory(factory, jwt_service, password_service)
+    command = LoginCommand.from_factory(factory, identity_adapter_factory)
 
     try:
         user, access_token, new_refresh_token = await command.execute(
@@ -218,11 +215,10 @@ async def login(  # NOQA: PLR0913
         401: {"description": "Invalid or expired refresh token"},
     },
 )
-async def refresh_token(  # NOQA: PLR0913
+async def refresh_token(
     response: Response,
     factory: IdentityRepoFactoryDep,
-    jwt_service: JWTServiceDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
     settings: SettingsDep,
     refresh_token_cookie: Annotated[
         str | None,
@@ -243,7 +239,7 @@ async def refresh_token(  # NOQA: PLR0913
             detail="No refresh token provided",
         )
 
-    query = RefreshTokenQuery.from_factory(factory, jwt_service, password_service)
+    query = RefreshTokenQuery.from_factory(factory, identity_adapter_factory)
 
     try:
         access_token, new_refresh_token = await query.execute(refresh_token=token)
@@ -300,8 +296,7 @@ async def change_password(
     request: ChangePasswordRequest,
     user: AuthenticatedUserDep,
     factory: IdentityRepoFactoryDep,
-    jwt_service: JWTServiceDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
 ) -> None:
     """
     Change the current user's password.
@@ -309,7 +304,7 @@ async def change_password(
     Requires the current password for verification and a new password
     that meets the strength requirements.
     """
-    command = ChangePasswordCommand.from_factory(factory, jwt_service, password_service)
+    command = ChangePasswordCommand.from_factory(factory, identity_adapter_factory)
 
     try:
         await command.execute(
@@ -367,10 +362,14 @@ async def forgot_password(
     request: ForgotPasswordRequest,
     factory: IdentityRepoFactoryDep,
     settings: SettingsDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
 ) -> dict:
     """Request a password reset email."""
-    command = ForgotPasswordCommand.from_factory(factory, password_service, settings)
+    command = ForgotPasswordCommand.from_factory(
+        factory=factory,
+        adapter_factory=identity_adapter_factory,
+        settings=settings,
+    )
     await command.execute(request.email)
 
     return {"message": "If the email exists, a reset link has been sent."}
@@ -389,10 +388,14 @@ async def reset_password(
     request: ResetPasswordRequest,
     factory: IdentityRepoFactoryDep,
     settings: SettingsDep,
-    password_service: PasswordHashingServiceDep,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
 ) -> None:
     """Reset password with a token."""
-    command = ResetPasswordCommand.from_factory(factory, password_service, settings)
+    command = ResetPasswordCommand.from_factory(
+        factory=factory,
+        adapter_factory=identity_adapter_factory,
+        settings=settings,
+    )
 
     try:
         await command.execute(

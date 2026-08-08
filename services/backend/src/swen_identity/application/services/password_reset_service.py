@@ -9,9 +9,9 @@ from swen_identity.domain import (
     UserCredentialRepository,
     UserRepository,
 )
+from swen_identity.domain.ports import PasswordHashingPort
 from swen_identity.exceptions import InvalidResetTokenError
 from swen_identity.infrastructure.email import EmailService
-from swen_identity.services import PasswordHashingService
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,14 @@ class PasswordResetService:
         user_repository: UserRepository,
         token_repository: PasswordResetTokenRepository,
         credential_repository: UserCredentialRepository,
-        password_service: PasswordHashingService,
+        password_hashing_port: PasswordHashingPort,
         email_service: EmailService,
         frontend_base_url: str,
     ):
         self._user_repo = user_repository
         self._token_repo = token_repository
         self._credential_repo = credential_repository
-        self._password_service = password_service
+        self._password_hashing_port = password_hashing_port
         self._email_service = email_service
         self._frontend_base_url = frontend_base_url.rstrip("/")
 
@@ -91,7 +91,7 @@ class PasswordResetService:
             raise InvalidResetTokenError
 
         # Update password
-        new_hash = self._password_service.hash(new_password)
+        new_hash = self._password_hashing_port.hash(new_password)
         await self._credential_repo.save(
             user_id=reset_token.user_id,
             password_hash=new_hash,

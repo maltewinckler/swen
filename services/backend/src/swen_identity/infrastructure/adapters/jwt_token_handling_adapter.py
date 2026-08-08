@@ -1,28 +1,25 @@
-"""JWT token service.
-
-Provides JWT token creation and verification for authentication.
-"""
+"""JWT-backed implementation of TokenHandlingPort."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import jwt
 
-from swen_identity.domain.value_objects import TokenPayload
+from swen_identity.domain.ports.token_handling_port import TokenHandlingPort
+from swen_identity.domain.value_objects.token_payload import TokenPayload
 from swen_identity.exceptions import InvalidTokenError
 
 
-class JWTService:
-    """Service for JWT token creation and verification.
+class JWTTokenHandlingAdapter(TokenHandlingPort):
+    """Issues and verifies JSON Web Tokens for authentication.
 
-    Handles access tokens (short-lived) and refresh tokens (long-lived)
-    for user authentication.
+    Handles access tokens (short-lived) and refresh tokens (long-lived).
 
     Examples
     --------
-    >>> service = JWTService(secret_key="your-secret-key")
-    >>> token = service.create_access_token(user_id, "user@example.com")
-    >>> payload = service.verify_token(token)
+    >>> adapter = JWTTokenHandlingAdapter(secret_key="your-secret-key")
+    >>> token = adapter.create_access_token(user_id, "user@example.com")
+    >>> payload = adapter.verify_token(token)
     >>> print(payload.user_id)
     """
 
@@ -36,7 +33,7 @@ class JWTService:
         access_token_expire_hours: int = DEFAULT_ACCESS_EXPIRE_HOURS,
         refresh_token_expire_days: int = DEFAULT_REFRESH_EXPIRE_DAYS,
     ):
-        """Initialize the JWT service.
+        """Initialize the adapter.
 
         Parameters
         ----------
@@ -61,25 +58,11 @@ class JWTService:
         email: str,
         expires_delta: timedelta | None = None,
     ) -> str:
-        """Create a short-lived access token.
-
-        Parameters
-        ----------
-        user_id
-            The user's unique identifier
-        email
-            The user's email address
-        expires_delta
-            Custom expiration time (optional)
-
-        Returns
-        -------
-        The encoded JWT token string
-        """
+        """Create a short-lived access token."""
         return self._create_token(
             user_id=user_id,
             email=email,
-            token_type="access",
+            token_type="access",  # noqa: S106
             expires_delta=expires_delta or self._access_expire,
         )
 
@@ -89,42 +72,16 @@ class JWTService:
         email: str,
         expires_delta: timedelta | None = None,
     ) -> str:
-        """Create a long-lived refresh token.
-
-        Refresh tokens are used to obtain new access tokens without
-        requiring the user to log in again.
-
-        Parameters
-        ----------
-        user_id
-            The user's unique identifier
-        email
-            The user's email address
-        expires_delta
-            Custom expiration time (optional)
-
-        Returns
-        -------
-        The encoded JWT token string
-        """
+        """Create a long-lived refresh token."""
         return self._create_token(
             user_id=user_id,
             email=email,
-            token_type="refresh",
+            token_type="refresh",  # noqa: S106
             expires_delta=expires_delta or self._refresh_expire,
         )
 
     def verify_token(self, token: str) -> TokenPayload:
         """Verify and decode a JWT token.
-
-        Parameters
-        ----------
-        token
-            The JWT token string to verify
-
-        Returns
-        -------
-        TokenPayload containing the decoded data
 
         Raises
         ------
@@ -132,11 +89,7 @@ class JWTService:
             If token is invalid, expired, or malformed
         """
         try:
-            payload = jwt.decode(
-                token,
-                self._secret_key,
-                algorithms=[self.ALGORITHM],
-            )
+            payload = jwt.decode(token, self._secret_key, algorithms=[self.ALGORITHM])
 
             user_id = UUID(payload["sub"])
             email = payload["email"]
@@ -167,23 +120,6 @@ class JWTService:
         token_type: str,
         expires_delta: timedelta,
     ) -> str:
-        """Create a JWT token with the given parameters.
-
-        Parameters
-        ----------
-        user_id
-            The user's unique identifier
-        email
-            The user's email address
-        token_type
-            Either "access" or "refresh"
-        expires_delta
-            Time until token expires
-
-        Returns
-        -------
-        The encoded JWT token string
-        """
         now = datetime.now(tz=timezone.utc)
         expire = now + expires_delta
 

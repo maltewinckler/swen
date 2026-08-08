@@ -5,18 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from swen_identity.application.services import AuthenticationService
-from swen_identity.services import JWTService, PasswordHashingService
 
 if TYPE_CHECKING:
-    from swen_identity.application.factories import RepositoryFactory
+    from swen_identity.application.factories import AdapterFactory, RepositoryFactory
 
 
 class RefreshTokenQuery:
-    """Issue a new access/refresh token pair from a valid refresh token.
-
-    Read-only: verifies the token and looks up the user, no repository
-    writes — so unlike the auth Commands, this needs no UnitOfWork.
-    """
+    """Issue a new access/refresh token pair from a valid refresh token."""
 
     def __init__(self, auth_service: AuthenticationService):
         self._auth_service = auth_service
@@ -25,15 +20,14 @@ class RefreshTokenQuery:
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        jwt_service: JWTService,
-        password_service: PasswordHashingService,
+        adapter_factory: AdapterFactory,
     ) -> RefreshTokenQuery:
         return cls(
             auth_service=AuthenticationService(
                 user_repository=factory.user_repository(),
                 credential_repository=factory.user_credential_repository(),
-                password_service=password_service,
-                jwt_service=jwt_service,
+                password_hashing_port=adapter_factory.password_hashing_port(),
+                token_handling_port=adapter_factory.token_handling_port(),
             ),
         )
 
