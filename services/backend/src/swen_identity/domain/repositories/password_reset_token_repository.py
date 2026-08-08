@@ -4,28 +4,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
-
-
-class PasswordResetTokenData(BaseModel):
-    """Immutable password reset token data."""
-
-    model_config = ConfigDict(frozen=True)
-
-    id: UUID
-    user_id: UUID
-    token_hash: str
-    expires_at: datetime
-    used_at: datetime | None
-    created_at: datetime
-
-    def is_expired(self, now: datetime) -> bool:
-        """Check if the token has expired."""
-        return now > self.expires_at
-
-    def is_used(self) -> bool:
-        """Check if the token has been used."""
-        return self.used_at is not None
+from swen_identity.domain.aggregates.password_reset_token import (
+    PasswordResetToken,
+)
 
 
 class PasswordResetTokenRepository(ABC):
@@ -55,9 +36,7 @@ class PasswordResetTokenRepository(ABC):
         """
 
     @abstractmethod
-    async def find_valid_by_hash(
-        self, token_hash: str
-    ) -> PasswordResetTokenData | None:
+    async def find_valid_by_hash(self, token_hash: str) -> PasswordResetToken | None:
         """Find a valid (unused) token by its hash.
 
         Parameters

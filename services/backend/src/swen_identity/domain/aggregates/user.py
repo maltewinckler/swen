@@ -5,8 +5,8 @@ from typing import Union
 from uuid import UUID, uuid4
 
 from swen.domain.shared.time import utc_now
-from swen_identity.domain.user.value_objects import UserRole
-from swen_identity.domain.user.value_objects.email import Email
+from swen_identity.domain.value_objects import UserRole
+from swen_identity.domain.value_objects.email import Email
 
 
 class User:

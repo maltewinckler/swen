@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
-    from swen_identity.domain.user import User
+    from swen_identity.domain import User
 
 
 class UserContext(BaseModel):

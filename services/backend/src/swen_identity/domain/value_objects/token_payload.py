@@ -1,8 +1,4 @@
-"""Identity schemas and data structures.
-
-These are simple data classes used for transferring identity
-data between components.
-"""
+"""Decoded JWT token payload value object."""
 
 from datetime import datetime
 from uuid import UUID

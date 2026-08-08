@@ -7,12 +7,10 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from swen.domain.shared.time import utc_now
+from swen_identity.domain.aggregates import PasswordResetToken
+from swen_identity.domain.repositories import PasswordResetTokenRepository
 from swen_identity.infrastructure.persistence.sqlalchemy.models import (
     PasswordResetTokenModel,
-)
-from swen_identity.repositories import (
-    PasswordResetTokenData,
-    PasswordResetTokenRepository,
 )
 
 
@@ -39,9 +37,7 @@ class PasswordResetTokenRepositorySQLAlchemy(PasswordResetTokenRepository):
         await self._session.flush()
         return token_id
 
-    async def find_valid_by_hash(
-        self, token_hash: str
-    ) -> PasswordResetTokenData | None:
+    async def find_valid_by_hash(self, token_hash: str) -> PasswordResetToken | None:
         now = utc_now()
         stmt = select(PasswordResetTokenModel).where(
             PasswordResetTokenModel.token_hash == token_hash,
@@ -54,7 +50,7 @@ class PasswordResetTokenRepositorySQLAlchemy(PasswordResetTokenRepository):
         if model is None:
             return None
 
-        return PasswordResetTokenData(
+        return PasswordResetToken(
             id=UUID(model.id),
             user_id=UUID(model.user_id),
             token_hash=model.token_hash,

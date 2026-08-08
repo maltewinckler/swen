@@ -4,13 +4,13 @@ import secrets
 from datetime import timedelta
 
 from swen.domain.shared.time import utc_now
-from swen_identity.domain.user import UserRepository
-from swen_identity.exceptions import InvalidResetTokenError
-from swen_identity.infrastructure.email import EmailService
-from swen_identity.repositories import (
+from swen_identity.domain import (
     PasswordResetTokenRepository,
     UserCredentialRepository,
+    UserRepository,
 )
+from swen_identity.exceptions import InvalidResetTokenError
+from swen_identity.infrastructure.email import EmailService
 from swen_identity.services import PasswordHashingService
 
 logger = logging.getLogger(__name__)

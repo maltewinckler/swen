@@ -141,7 +141,7 @@ convention = "numpy"
     "S104",     # Possible binding to all interfaces
 ]
 # Identity: token_type field names trigger false positive password detection
-"src/swen_identity/schemas.py" = [
+"src/swen_identity/domain/value_objects/token_payload.py" = [
     "S105",     # token_type field name
 ]
 "src/swen_identity/services/jwt_service.py" = [

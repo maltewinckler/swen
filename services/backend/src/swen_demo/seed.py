@@ -62,7 +62,7 @@ from swen_demo.data import (
     MonthlyDistribution,
 )
 from swen_identity import PasswordHashingService
-from swen_identity.domain.user import User, UserRole
+from swen_identity.domain import User, UserRole
 from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,

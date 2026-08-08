@@ -8,23 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
-
-
-class UserCredentialData(BaseModel):
-    """Immutable credential data returned by repository.
-
-    This is a pure data transfer object that decouples the domain
-    from persistence implementation details.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    user_id: str
-    password_hash: str
-    failed_login_attempts: int
-    locked_until: datetime | None
-    last_login_at: datetime | None
+from swen_identity.domain.aggregates.user_credential import UserCredential
 
 
 class UserCredentialRepository(ABC):
@@ -42,7 +26,7 @@ class UserCredentialRepository(ABC):
     LOCKOUT_DURATION_MINUTES: int = 15
 
     @abstractmethod
-    async def save(self, user_id: UUID, password_hash: str) -> UserCredentialData:
+    async def save(self, user_id: UUID, password_hash: str) -> UserCredential:
         """Create or update credentials for a user.
 
         Parameters
@@ -58,7 +42,7 @@ class UserCredentialRepository(ABC):
         """
 
     @abstractmethod
-    async def find_by_user_id(self, user_id: UUID) -> UserCredentialData | None:
+    async def find_by_user_id(self, user_id: UUID) -> UserCredential | None:
         """Find credentials by user ID.
 
         Parameters

@@ -7,7 +7,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from swen_identity.domain.user.exceptions import InvalidEmailError
+from swen_identity.domain.exceptions import InvalidEmailError
 
 # Simple but effective email regex
 # Validates: user@domain.tld (minimum requirements)

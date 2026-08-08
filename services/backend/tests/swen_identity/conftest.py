@@ -7,7 +7,7 @@ This conftest provides fixtures specific to the swen_identity domain
 
 import pytest
 
-from swen_identity.domain.user import User, UserRole
+from swen_identity.domain import User, UserRole
 
 
 @pytest.fixture

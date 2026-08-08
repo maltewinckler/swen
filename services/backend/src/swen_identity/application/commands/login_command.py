@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from swen_identity.application.ports.unit_of_work import UnitOfWork
 from swen_identity.application.services import AuthenticationService
-from swen_identity.domain.user import User
+from swen_identity.domain import User
 from swen_identity.exceptions import AccountLockedError, InvalidCredentialsError
 from swen_identity.services import JWTService, PasswordHashingService
 

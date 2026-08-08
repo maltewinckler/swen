@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from swen_identity.domain.user import (
+from swen_identity.domain import (
     EmailAlreadyExistsError,
+    TokenPayload,
     User,
+    UserCredentialRepository,
     UserRepository,
     UserRole,
 )
@@ -16,8 +18,6 @@ from swen_identity.exceptions import (
     InvalidCredentialsError,
     InvalidTokenError,
 )
-from swen_identity.repositories import UserCredentialRepository
-from swen_identity.schemas import TokenPayload
 from swen_identity.services import JWTService, PasswordHashingService
 
 logger = logging.getLogger(__name__)

@@ -8,8 +8,8 @@ from uuid import UUID
 
 import jwt
 
+from swen_identity.domain.value_objects import TokenPayload
 from swen_identity.exceptions import InvalidTokenError
-from swen_identity.schemas import TokenPayload
 
 
 class JWTService:

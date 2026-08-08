@@ -17,13 +17,18 @@ from swen_identity.application.services import (
     AuthenticationService,
     PasswordResetService,
 )
-from swen_identity.domain.user import (
+from swen_identity.domain import (
     CannotDeleteSelfError,
     CannotDemoteSelfError,
     Email,
     EmailAlreadyExistsError,
     InvalidEmailError,
+    PasswordResetToken,
+    PasswordResetTokenRepository,
+    TokenPayload,
     User,
+    UserCredential,
+    UserCredentialRepository,
     UserNotFoundError,
     UserRepository,
     UserRole,
@@ -39,13 +44,6 @@ from swen_identity.exceptions import (
     RefreshTokenExpiredError,
     WeakPasswordError,
 )
-from swen_identity.repositories import (
-    PasswordResetTokenData,
-    PasswordResetTokenRepository,
-    UserCredentialData,
-    UserCredentialRepository,
-)
-from swen_identity.schemas import TokenPayload
 from swen_identity.services import (
     JWTService,
     PasswordHashingService,
@@ -58,7 +56,12 @@ __all__ = [
     "Email",
     "EmailAlreadyExistsError",
     "InvalidEmailError",
+    "PasswordResetToken",
+    "PasswordResetTokenRepository",
+    "TokenPayload",
     "User",
+    "UserCredential",
+    "UserCredentialRepository",
     "UserNotFoundError",
     "UserRepository",
     "UserRole",
@@ -72,13 +75,6 @@ __all__ = [
     "PasswordResetRateLimitError",
     "RefreshTokenExpiredError",
     "WeakPasswordError",
-    # Repositories
-    "PasswordResetTokenData",
-    "PasswordResetTokenRepository",
-    "UserCredentialData",
-    "UserCredentialRepository",
-    # Schemas
-    "TokenPayload",
     # Services
     "JWTService",
     "PasswordHashingService",

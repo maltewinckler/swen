@@ -133,7 +133,7 @@ class SyncEventPublisher(Protocol):
 
 ### CounterAccountProposalPort
 
-The `CounterAccountProposalPort` (defined in `application/ports/ml_service.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `MLServicePort` (which handles training example submission and account embeddings).
+The `CounterAccountProposalPort` (defined in `domain/integration/ports/counter_account_proposal_port.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `AccountClassifierTrainingPort` (defined in `application/ports/account_classifier_training.py`, which handles training example submission and account embeddings) — a future rule-based resolver could implement `CounterAccountProposalPort` without touching the classifier training port at all.
 
 
 ## Anti-Corruption Layer: GeldstromAdapter

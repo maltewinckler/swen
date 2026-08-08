@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from swen_identity.domain.user import User, UserRole
+from swen_identity.domain import User, UserRole
 from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserRepositorySQLAlchemy,
 )
