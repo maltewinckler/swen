@@ -13,12 +13,12 @@ from swen_identity.domain import (
     UserRepository,
     UserRole,
 )
+from swen_identity.domain.ports import PasswordHashingPort, TokenHandlingPort
 from swen_identity.exceptions import (
     AccountLockedError,
     InvalidCredentialsError,
     InvalidTokenError,
 )
-from swen_identity.services import JWTService, PasswordHashingService
 
 logger = logging.getLogger(__name__)
 
@@ -37,20 +37,20 @@ class AuthenticationService:
         self,
         user_repository: UserRepository,
         credential_repository: UserCredentialRepository,
-        password_service: PasswordHashingService,
-        jwt_service: JWTService,
+        password_hashing_port: PasswordHashingPort,
+        token_handling_port: TokenHandlingPort,
     ):
         self._user_repo = user_repository
         self._credential_repo = credential_repository
-        self._password_service = password_service
-        self._jwt_service = jwt_service
+        self._password_hashing_port = password_hashing_port
+        self._token_handling_port = token_handling_port
 
     def _create_token_pair(self, user: User) -> tuple[str, str]:
-        access_token = self._jwt_service.create_access_token(
+        access_token = self._token_handling_port.create_access_token(
             user_id=user.id,
             email=user.email,
         )
-        refresh_token = self._jwt_service.create_refresh_token(
+        refresh_token = self._token_handling_port.create_refresh_token(
             user_id=user.id,
             email=user.email,
         )
@@ -69,7 +69,7 @@ class AuthenticationService:
         user_count = await self._user_repo.count()
         role = UserRole.ADMIN if user_count == 0 else UserRole.USER
 
-        password_hash = self._password_service.hash(password)
+        password_hash = self._password_hashing_port.hash(password)
         user = User.create(email, role=role)
         await self._user_repo.save(user)
         await self._credential_repo.save(user_id=user.id, password_hash=password_hash)
@@ -99,7 +99,7 @@ class AuthenticationService:
         if credential is None:
             raise InvalidCredentialsError
 
-        if not self._password_service.verify(password, credential.password_hash):
+        if not self._password_hashing_port.verify(password, credential.password_hash):
             await self._credential_repo.increment_failed_attempts(user.id)
             raise InvalidCredentialsError
 
@@ -112,7 +112,7 @@ class AuthenticationService:
         return user, access_token, refresh_token
 
     async def refresh_token(self, refresh_token: str) -> tuple[str, str]:
-        payload = self._jwt_service.verify_token(refresh_token)
+        payload = self._token_handling_port.verify_token(refresh_token)
 
         if not payload.is_refresh_token():
             msg = "Not a refresh token"
@@ -137,17 +137,17 @@ class AuthenticationService:
         if credential is None:
             msg = "User credentials not found"
             raise InvalidCredentialsError(msg)
-        if not self._password_service.verify(
+        if not self._password_hashing_port.verify(
             current_password,
             credential.password_hash,
         ):
             msg = "Current password is incorrect"
             raise InvalidCredentialsError(msg)
 
-        new_hash = self._password_service.hash(new_password)
+        new_hash = self._password_hashing_port.hash(new_password)
         await self._credential_repo.save(user_id=user_id, password_hash=new_hash)
 
         logger.info("Password changed for user: %s", user_id)
 
     def verify_token(self, token: str) -> TokenPayload:
-        return self._jwt_service.verify_token(token)
+        return self._token_handling_port.verify_token(token)

@@ -1,4 +1,6 @@
-# ruff: noqa: E501 - HTML email templates require inline styles
+# ruff: noqa: E501
+"""SMTP-backed implementation of EmailNotificationPort."""
+
 import logging
 import smtplib
 import ssl
@@ -6,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from swen_config.settings import Settings
+from swen_identity.domain.ports.email_notification_port import EmailNotificationPort
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +52,8 @@ RESET_EMAIL_HTML = """
 """
 
 
-class EmailService:
-    """Service for sending emails via SMTP."""
+class SmtpEmailNotificationAdapter(EmailNotificationPort):
+    """Sends identity-related transactional emails via SMTP."""
 
     def __init__(self, settings: Settings):
         self._settings = settings

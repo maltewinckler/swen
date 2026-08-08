@@ -50,8 +50,8 @@ presentation ──► application ──► domain
 ```
 
 ### MUST
-- **Domain depends on nothing else** in the project. No SQLAlchemy, no FastAPI, no infra imports.
-- **Application depends only on `domain` and on its own `application/ports/`**. It must NOT import from `infrastructure` or `presentation`. The only exception is the FinTS concerns (which is strictly speaking infrastructure) in the `RepositoryFactory` in `application/factories/repository_factory.py`. This simplifies our code significantly.
+- **Domain depends on nothing else** in the project, with one exception: `swen_config` (Pydantic `Settings`) is allowed everywhere, including `domain/`. It's a dependency-free leaf package — it imports nothing from `swen`/`swen_identity`, so injecting `Settings` doesn't create a real layering violation, just a plain config value. No SQLAlchemy, no FastAPI, no third party packages that are not explicitly allowed, no other infra imports.
+- **Application depends only on `domain`, its own `application/ports/`, and `swen_config`**. It must NOT import from `infrastructure` or `presentation`. Two exceptions: the FinTS concerns (which is strictly speaking infrastructure) in the `RepositoryFactory` in `application/factories/repository_factory.py`, and `swen_config.Settings` where a use case genuinely needs a config value (e.g. `forgot_password_command.py`/`reset_password_command.py` need `frontend_base_url` to build a reset link). This simplifies our code significantly.
 - **Infrastructure implements interfaces declared in `domain/.../repositories/` or `application/ports/`**.
 - **Presentation wires things up** (dependencies.py / FastAPI `Depends`) and translates HTTP and application DTOs.
 - **Cross-bounded-context** (`swen` and `swen_identity`): only via well-defined ports/DTOs in `application/ports/identity` and `application/context/`. Don't reach into the other context's domain/infra directly.
@@ -246,7 +246,7 @@ remaining `@dataclass` holdouts listed above.
 5. **Don't log** PIN, password, full tokens, or `request.body` containing credentials. The FinTS path is especially sensitive.
 6. **State-changing endpoints**: POST/PUT/DELETE only. SameSite cookie + bearer token is the CSRF strategy — don't add cookie-only state-changing GETs.
 7. **External URLs from settings** (e.g. `ML_SERVICE_URL`) should not become user-controllable inputs. Treat them as trusted only at startup.
-8. **Password hashing**: bcrypt via the existing `PasswordService` — do not introduce another hasher. Validation today is length-only; if you change it, update tests.
+8. **Password hashing**: bcrypt via the existing `BcryptPasswordHashingAdapter` (implements `swen_identity.domain.ports.PasswordHashingPort`) — do not introduce another hasher. Validation today is length-only; if you change it, update tests.
 9. **Rate limiting / token revocation are not yet implemented.** Don't claim they are; if you add an endpoint that needs them, flag it.
 
 ## 6. Known Debt (don't accidentally "fix" by deleting)
@@ -256,7 +256,7 @@ These are tracked weak spots; if you touch them, fix don't paper over.
 - `swen.domain.accounting.services.account_hierarchy_service` imports `application.factories` (layer violation).
 - `swen.application.commands.integration.transaction_sync_command` imports infrastructure dispatcher / ML client directly.
 - `swen.application.factories.repository_factory` imports concrete `FinTSConfigRepository` / `GeldstromApiConfigRepository` from `swen.infrastructure` — should be ports.
-- `swen_identity.domain.user.aggregates.user` imports `swen.domain.shared.time.utc_now` (cross-BC).
+- `swen_identity.domain.aggregates.user` imports `swen.domain.shared.time.utc_now` (cross-BC).
 - `swen.presentation.api.dependencies.get_current_user` imports `swen_identity.domain` directly and instantiates `UserRepositorySQLAlchemy(session)` in-place (no ACL yet; the FastAPI dependency is where "get current user" lives — there is no `application/queries/user/` module). Note the ACL *does* now run one level up, in `get_repository_factory` (`IdentityAdapter.to_current_user(UserContext.create(user))`) — this bullet is about `get_current_user` itself, which still returns a raw `swen_identity.User`.
 - `Transaction` aggregate carries ML classification fields (`merchant`, `is_recurring`, `recurring_pattern`) that should be a separate VO.
 - `ml_service_url` and similar external URLs lack validation.

@@ -61,8 +61,8 @@ from swen_demo.data import (
     AssetAccountDef,
     MonthlyDistribution,
 )
-from swen_identity import PasswordHashingService
 from swen_identity.domain import User, UserRole
+from swen_identity.infrastructure.adapters import BcryptPasswordHashingAdapter
 from swen_identity.infrastructure.persistence.sqlalchemy import (
     UserCredentialRepositorySQLAlchemy,
     UserRepositorySQLAlchemy,
@@ -102,7 +102,7 @@ async def create_demo_user(session: AsyncSession) -> User:
     """
     user_repo = UserRepositorySQLAlchemy(session)
     credential_repo = UserCredentialRepositorySQLAlchemy(session)
-    password_service = PasswordHashingService()
+    password_service = BcryptPasswordHashingAdapter()
 
     existing = await user_repo.find_by_email(DEMO_USER_EMAIL)
 
@@ -125,7 +125,7 @@ async def create_demo_admin(session: AsyncSession) -> User:
     """Create demo admin user, deleting any existing one first."""
     user_repo = UserRepositorySQLAlchemy(session)
     credential_repo = UserCredentialRepositorySQLAlchemy(session)
-    password_service = PasswordHashingService()
+    password_service = BcryptPasswordHashingAdapter()
 
     existing = await user_repo.find_by_email(DEMO_ADMIN_EMAIL)
     if existing:
@@ -188,9 +188,7 @@ async def create_asset_accounts(
     return accounts
 
 
-async def create_default_category_accounts(
-    factory: SQLAlchemyRepositoryFactory,
-) -> int:
+async def create_default_category_accounts(factory: SQLAlchemyRepositoryFactory) -> int:
     """Create default income/expense accounts using the minimal template."""
     command = GenerateDefaultAccountsCommand.from_factory(factory)
     result = await command.execute()

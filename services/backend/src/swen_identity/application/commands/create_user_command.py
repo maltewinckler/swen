@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from swen_identity.application.ports.unit_of_work import UnitOfWork
 from swen_identity.domain import (
     EmailAlreadyExistsError,
     User,
@@ -10,10 +9,11 @@ from swen_identity.domain import (
     UserRepository,
     UserRole,
 )
-from swen_identity.services import PasswordHashingService
+from swen_identity.domain.ports import PasswordHashingPort
 
 if TYPE_CHECKING:
-    from swen_identity.application.factories import RepositoryFactory
+    from swen_identity.application.factories import AdapterFactory, RepositoryFactory
+    from swen_identity.application.ports.unit_of_work import UnitOfWork
 
 
 class CreateUserCommand:
@@ -23,24 +23,24 @@ class CreateUserCommand:
         self,
         user_repository: UserRepository,
         credential_repository: UserCredentialRepository,
-        password_service: PasswordHashingService,
+        password_hashing_port: PasswordHashingPort,
         uow: UnitOfWork,
     ):
         self._user_repo = user_repository
         self._credential_repo = credential_repository
-        self._password_service = password_service
+        self._password_hashing_port = password_hashing_port
         self._uow = uow
 
     @classmethod
     def from_factory(
         cls,
         factory: RepositoryFactory,
-        password_service: PasswordHashingService,
+        adapter_factory: AdapterFactory,
     ) -> CreateUserCommand:
         return cls(
             user_repository=factory.user_repository(),
             credential_repository=factory.user_credential_repository(),
-            password_service=password_service,
+            password_hashing_port=adapter_factory.password_hashing_port(),
             uow=factory.unit_of_work(),
         )
 
@@ -56,11 +56,12 @@ class CreateUserCommand:
                 raise EmailAlreadyExistsError(email)
 
             user = User.create(email, role=role)
-            password_hash = self._password_service.hash(password)
+            password_hash = self._password_hashing_port.hash(password)
 
             await self._user_repo.save(user)
             await self._credential_repo.save(
-                user_id=user.id, password_hash=password_hash
+                user_id=user.id,
+                password_hash=password_hash,
             )
 
             return user

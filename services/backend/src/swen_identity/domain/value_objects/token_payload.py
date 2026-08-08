@@ -36,8 +36,8 @@ class TokenPayload(BaseModel):
 
     def is_access_token(self) -> bool:
         """Check if this is an access token."""
-        return self.token_type == "access"
+        return self.token_type == "access"  # noqa: S105
 
     def is_refresh_token(self) -> bool:
         """Check if this is a refresh token."""
-        return self.token_type == "refresh"
+        return self.token_type == "refresh"  # noqa: S105

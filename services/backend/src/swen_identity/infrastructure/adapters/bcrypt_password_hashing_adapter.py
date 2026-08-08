@@ -1,27 +1,23 @@
-"""Password hashing service using bcrypt.
-
-Provides secure password hashing and verification with configurable
-strength validation.
-"""
+"""Bcrypt-backed implementation of PasswordHashingPort."""
 
 import bcrypt
 
+from swen_identity.domain.ports.password_hashing_port import PasswordHashingPort
 from swen_identity.exceptions import WeakPasswordError
 
 
-class PasswordHashingService:
-    """Service for secure password hashing and verification.
+class BcryptPasswordHashingAdapter(PasswordHashingPort):
+    """Secure password hashing and verification using bcrypt.
 
-    Uses bcrypt for password hashing with configurable work factor.
     Also provides password strength validation.
 
     Examples
     --------
-    >>> service = PasswordHashingService()
-    >>> hash = service.hash("my_secure_password")
-    >>> service.verify("my_secure_password", hash)
+    >>> adapter = BcryptPasswordHashingAdapter()
+    >>> hash = adapter.hash("my_secure_password")
+    >>> adapter.verify("my_secure_password", hash)
     True
-    >>> service.verify("wrong_password", hash)
+    >>> adapter.verify("wrong_password", hash)
     False
     """
 
@@ -30,7 +26,7 @@ class PasswordHashingService:
     MAX_LENGTH = 128
 
     def __init__(self, rounds: int = 12):
-        """Initialize the password hashing service.
+        """Initialize the adapter.
 
         Parameters
         ----------
@@ -44,15 +40,6 @@ class PasswordHashingService:
     def hash(self, password: str) -> str:
         """Hash a plaintext password.
 
-        Parameters
-        ----------
-        password
-            The plaintext password to hash
-
-        Returns
-        -------
-        The bcrypt hash as a string
-
         Raises
         ------
         WeakPasswordError
@@ -64,19 +51,7 @@ class PasswordHashingService:
         return hashed.decode("utf-8")
 
     def verify(self, password: str, password_hash: str) -> bool:
-        """Verify a password against a hash.
-
-        Parameters
-        ----------
-        password
-            The plaintext password to check
-        password_hash
-            The bcrypt hash to verify against
-
-        Returns
-        -------
-        True if password matches, False otherwise
-        """
+        """Verify a password against a hash."""
         try:
             return bcrypt.checkpw(
                 password.encode("utf-8"),
@@ -92,11 +67,6 @@ class PasswordHashingService:
         Current requirements:
         - Minimum 8 characters
         - Maximum 128 characters
-
-        Parameters
-        ----------
-        password
-            The password to validate
 
         Raises
         ------

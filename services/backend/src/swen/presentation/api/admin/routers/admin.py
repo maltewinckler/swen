@@ -1,8 +1,7 @@
 import logging
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from swen.presentation.api.admin.routers.admin_fints_config import (
     router as fints_config_router,
@@ -18,14 +17,13 @@ from swen.presentation.api.admin.schemas.admin import (
 from swen.presentation.api.dependencies import (
     AdminUserDep,
     DBSessionDep,
+    IdentityAdapterFactoryDep,
     IdentityRepoFactoryDep,
-    get_password_service,
 )
 from swen_identity import (
     CannotDeleteSelfError,
     CannotDemoteSelfError,
     EmailAlreadyExistsError,
-    PasswordHashingService,
     UserNotFoundError,
     UserRole,
 )
@@ -39,8 +37,6 @@ from swen_identity.infrastructure.persistence.sqlalchemy import (
 )
 
 logger = logging.getLogger(__name__)
-
-PasswordService = Annotated[PasswordHashingService, Depends(get_password_service)]
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -92,7 +88,7 @@ async def create_user(
     request: CreateUserRequest,
     admin: AdminUserDep,
     factory: IdentityRepoFactoryDep,
-    password_service: PasswordService,
+    identity_adapter_factory: IdentityAdapterFactoryDep,
 ) -> UserSummaryResponse:
     """Create a new user."""
     try:
@@ -103,7 +99,7 @@ async def create_user(
             detail=f"Invalid role: {request.role}. Must be 'user' or 'admin'",
         ) from e
 
-    command = CreateUserCommand.from_factory(factory, password_service)
+    command = CreateUserCommand.from_factory(factory, identity_adapter_factory)
 
     try:
         user = await command.execute(
