@@ -55,7 +55,9 @@ class CreateAccountCommand:
     ) -> CreateAccountCommand:
         return cls(
             account_repository=factory.account_repository(),
-            account_hierarchy_service=AccountHierarchyService.from_factory(factory),
+            account_hierarchy_service=AccountHierarchyService(
+                factory.account_repository()
+            ),
             current_user=factory.current_user,
             uow=factory.unit_of_work(),
             ml_port=ml_port,

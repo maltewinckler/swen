@@ -253,10 +253,7 @@ remaining `@dataclass` holdouts listed above.
 
 These are tracked weak spots; if you touch them, fix don't paper over.
 
-- `swen.domain.accounting.services.account_hierarchy_service` imports `application.factories` (layer violation).
 - `swen.application.commands.integration.transaction_sync_command` imports infrastructure dispatcher / ML client directly.
-- `swen.application.factories.repository_factory` imports concrete `FinTSConfigRepository` / `GeldstromApiConfigRepository` from `swen.infrastructure` — should be ports.
-- `swen_identity.domain.aggregates.user` imports `swen.domain.shared.time.utc_now` (cross-BC).
 - `swen.presentation.api.dependencies.get_current_user` imports `swen_identity.domain` directly and instantiates `UserRepositorySQLAlchemy(session)` in-place (no ACL yet; the FastAPI dependency is where "get current user" lives — there is no `application/queries/user/` module). Note the ACL *does* now run one level up, in `get_repository_factory` (`IdentityAdapter.to_current_user(UserContext.create(user))`) — this bullet is about `get_current_user` itself, which still returns a raw `swen_identity.User`.
 - `Transaction` aggregate carries ML classification fields (`merchant`, `is_recurring`, `recurring_pattern`) that should be a separate VO.
 - `ml_service_url` and similar external URLs lack validation.
