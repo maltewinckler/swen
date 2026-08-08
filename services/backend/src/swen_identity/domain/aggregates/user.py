@@ -14,7 +14,7 @@ class User:
     User aggregate root.
 
     Manages user identity only. Preferences/settings are handled separately
-    by the swen.domain.settings module.
+    by the swen_config module.
     """
 
     def __init__(
