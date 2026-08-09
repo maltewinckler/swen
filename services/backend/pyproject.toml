@@ -9,22 +9,22 @@ dependencies = [
     "pydantic>=2.11.7",
     "sqlalchemy>=2.0.42",
     "sqlmodel>=0.0.24",
-    "pydantic-settings>=2.10.1",
+    "pydantic-settings>=2.15.0",
     "PyYAML>=6.0.2",
     "tenacity>=9.1.2",
     "aiosqlite>=0.21.0",
     "greenlet>=3.2.4",
-    "cryptography>=46.0.3",
+    "cryptography>=50.0.0",
     "typer>=0.20.0",
     "rich>=13.7.0",
     "geldstrom==0.1.2",
     # Authentication (swen_auth)
     "bcrypt>=4.0.0",
-    "PyJWT>=2.8.0",
+    "PyJWT>=2.13.0",
     # REST API
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    "python-multipart>=0.0.12",  # For form data support
+    "python-multipart>=0.0.32",  # For form data support
     "email-validator>=2.0.0",    # For Pydantic EmailStr
     # Excel export
     "openpyxl>=3.1.0",

@@ -8,7 +8,7 @@ dependencies = [
     "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
     "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
+    "pydantic-settings>=2.15.0",
     # Embeddings
     "sentence-transformers>=2.2.0",
     # NLI / Zero-shot classification
