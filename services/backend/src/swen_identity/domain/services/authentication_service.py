@@ -111,6 +111,19 @@ class AuthenticationService:
         logger.info("User logged in: %s", email)
         return user, access_token, refresh_token
 
+    async def get_authenticated_user(self, access_token: str) -> User:
+        payload = self._token_handling_port.verify_token(access_token)
+
+        if not payload.is_access_token():
+            msg = "Invalid token type"
+            raise InvalidTokenError(msg)
+        user = await self._user_repo.find_by_id(payload.user_id)
+        if user is None:
+            msg = "User not found"
+            raise InvalidTokenError(msg)
+
+        return user
+
     async def refresh_token(self, refresh_token: str) -> tuple[str, str]:
         payload = self._token_handling_port.verify_token(refresh_token)
 
