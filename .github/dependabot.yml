@@ -40,9 +40,14 @@ updates:
       - dependency-name: "@eslint/js"
         update-types: ["version-update:semver-major"]
     groups:
+      # Only bundle minor/patch bumps together; majors get their own PR
+      # each so a breaking change doesn't get buried in a 40-package batch.
       npm-dependencies:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
