@@ -2,27 +2,41 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
+
+from swen_identity.domain.value_objects import UserRole
 
 if TYPE_CHECKING:
     from swen_identity.domain import User
 
 
 class UserContext(BaseModel):
-    """Immutable context for the current authenticated user."""
+    """The public, immutable representation of the current authenticated user."""
 
     model_config = ConfigDict(frozen=True)
 
     user_id: UUID
     email: str
-    is_admin: bool = False
+    role: UserRole
+    created_at: datetime
+
+    @computed_field
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN
 
     @classmethod
     def create(cls, user: User) -> UserContext:
-        return cls(user_id=user.id, email=user.email, is_admin=user.is_admin)
+        return cls(
+            user_id=user.id,
+            email=user.email,
+            role=user.role,
+            created_at=user.created_at,
+        )
 
     def __str__(self) -> str:
         return f"UserContext({self.email})"
@@ -30,5 +44,5 @@ class UserContext(BaseModel):
     def __repr__(self) -> str:
         return (
             f"UserContext(user_id={self.user_id}, "
-            f"email={self.email!r}, is_admin={self.is_admin})"
+            f"email={self.email!r}, role={self.role!r})"
         )

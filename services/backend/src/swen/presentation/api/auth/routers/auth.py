@@ -275,7 +275,7 @@ async def get_me(user: AuthenticatedUserDep) -> UserResponse:
     Requires a valid access token in the Authorization header.
     """
     return UserResponse(
-        id=user.id,
+        id=user.user_id,
         email=user.email,
         role=user.role.value,
         created_at=user.created_at,
@@ -308,7 +308,7 @@ async def change_password(
 
     try:
         await command.execute(
-            user_id=user.id,
+            user_id=user.user_id,
             current_password=request.current_password,
             new_password=request.new_password,
         )

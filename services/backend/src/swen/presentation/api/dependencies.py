@@ -26,6 +26,7 @@ from swen.application.ports import AccountClassifierTrainingPort
 from swen.domain.integration.ports.counter_account_proposal_port import (
     CounterAccountProposalPort,
 )
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.adapters.identity import IdentityAdapter
 from swen.infrastructure.integration import (
     MLAccountClassifierTrainingAdapter,
@@ -38,10 +39,8 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
 from swen_config.settings import Settings, get_settings
-from swen_identity import (
-    InvalidTokenError,
-    User,
-)
+from swen_identity import InvalidTokenError
+from swen_identity.application.context import UserContext
 from swen_identity.application.factories import AdapterFactory
 from swen_identity.application.factories import (
     RepositoryFactory as IdentityRepositoryFactory,
@@ -184,7 +183,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_db_session),
     identity_adapter_factory: AdapterFactory = Depends(get_identity_adapter_factory),
-) -> User:
+) -> UserContext:
     """
     FastAPI dependency to get the current authenticated user from JWT.
 
@@ -202,7 +201,7 @@ async def get_current_user(
 
     Returns
     -------
-    The authenticated User
+    The authenticated user's public representation (swen_identity ACL boundary)
 
     Raises
     ------
@@ -252,10 +251,10 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return user
+    return UserContext.create(user)
 
 
-async def require_admin(user: User = Depends(get_current_user)) -> User:
+async def require_admin(user: UserContext = Depends(get_current_user)) -> UserContext:
     """Require admin user."""
     if not user.is_admin:
         raise HTTPException(
@@ -270,14 +269,18 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
 # -----------------------------------------------------------------------------
 
 
+async def get_current_user_swen_acl(
+    user: UserContext = Depends(get_current_user),
+) -> CurrentUser:
+    """Adapt swen_identity's UserContext to swen's own CurrentUser (ACL boundary)."""
+    return IdentityAdapter.to_current_user(user)
+
+
 async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
-    user: User = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user_swen_acl),
 ) -> RepositoryFactory:
     """Get repository factory for the current user."""
-    from swen_identity import UserContext  # noqa: PLC0415
-
-    current_user = IdentityAdapter.to_current_user(UserContext.create(user))
     return SQLAlchemyRepositoryFactory(
         session=session,
         current_user=current_user,
@@ -333,8 +336,8 @@ IdentityAdapterFactoryDep = Annotated[
 ]
 
 # User + Admin auth dependencies
-AuthenticatedUserDep = Annotated[User, Depends(get_current_user)]
-AdminUserDep = Annotated[User, Depends(require_admin)]
+AuthenticatedUserDep = Annotated[UserContext, Depends(get_current_user)]
+AdminUserDep = Annotated[UserContext, Depends(require_admin)]
 
 # Repository factories
 RepoFactoryDep = Annotated[RepositoryFactory, Depends(get_repository_factory)]
