@@ -142,7 +142,7 @@ async def delete_user(
     command = DeleteUserCommand.from_factory(factory)
 
     try:
-        await command.execute(user_id=user_id, requesting_admin_id=admin.id)
+        await command.execute(user_id=user_id, requesting_admin_id=admin.user_id)
     except CannotDeleteSelfError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -188,7 +188,7 @@ async def update_user_role(
         user = await command.execute(
             user_id=user_id,
             new_role=new_role,
-            requesting_admin_id=admin.id,
+            requesting_admin_id=admin.user_id,
         )
     except CannotDemoteSelfError as e:
         raise HTTPException(

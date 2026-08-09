@@ -26,6 +26,7 @@ from swen.application.ports import AccountClassifierTrainingPort
 from swen.domain.integration.ports.counter_account_proposal_port import (
     CounterAccountProposalPort,
 )
+from swen.domain.shared.current_user import CurrentUser
 from swen.infrastructure.adapters.identity import IdentityAdapter
 from swen.infrastructure.integration import (
     MLAccountClassifierTrainingAdapter,
@@ -38,18 +39,14 @@ from swen.infrastructure.persistence.sqlalchemy.repositories import (
     SQLAlchemyRepositoryFactory,
 )
 from swen_config.settings import Settings, get_settings
-from swen_identity import (
-    InvalidTokenError,
-    User,
-)
+from swen_identity import InvalidTokenError
+from swen_identity.application.context import UserContext
 from swen_identity.application.factories import AdapterFactory
 from swen_identity.application.factories import (
     RepositoryFactory as IdentityRepositoryFactory,
 )
+from swen_identity.application.queries import GetCurrentUserQuery
 from swen_identity.infrastructure.adapters import AdapterFactoryDefault
-from swen_identity.infrastructure.persistence.sqlalchemy import (
-    UserRepositorySQLAlchemy,  # necessary as repo factory is user scoped
-)
 from swen_identity.infrastructure.persistence.sqlalchemy.repository_factory import (
     RepositoryFactorySQLAlchemy as IdentityRepositoryFactorySQLAlchemy,
 )
@@ -175,6 +172,13 @@ def get_identity_adapter_factory(
     )
 
 
+async def get_identity_repository_factory(
+    session: AsyncSession = Depends(get_db_session),
+) -> IdentityRepositoryFactory:
+    """Get swen_identity's repository factory for the current request."""
+    return IdentityRepositoryFactorySQLAlchemy(session=session)
+
+
 # -----------------------------------------------------------------------------
 # Current User (JWT Authentication)
 # -----------------------------------------------------------------------------
@@ -182,27 +186,29 @@ def get_identity_adapter_factory(
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    session: AsyncSession = Depends(get_db_session),
+    identity_repo_factory: IdentityRepositoryFactory = Depends(
+        get_identity_repository_factory,
+    ),
     identity_adapter_factory: AdapterFactory = Depends(get_identity_adapter_factory),
-) -> User:
+) -> UserContext:
     """
     FastAPI dependency to get the current authenticated user from JWT.
 
     Extracts and validates the JWT token from the Authorization header,
-    then loads the corresponding User from the database.
+    then resolves the corresponding user
 
     Parameters
     ----------
     credentials
         Bearer token from Authorization header
-    session
-        Database session
+    identity_repo_factory
+        swen_identity's repository factory
     identity_adapter_factory
-        Adapter factory providing the token handling port for verification
+        Adapter factory providing the token handling port
 
     Returns
     -------
-    The authenticated User
+    The authenticated user's public representation (swen_identity ACL boundary)
 
     Raises
     ------
@@ -216,46 +222,23 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
+    query = GetCurrentUserQuery.from_factory(
+        factory=identity_repo_factory,
+        adapter_factory=identity_adapter_factory,
+    )
 
     try:
-        payload = identity_adapter_factory.token_handling_port().verify_token(token)
+        return await query.execute(credentials.credentials)
     except InvalidTokenError as e:
-        logger.warning("Invalid token: %s", e)
+        logger.warning("Authentication failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
-    # Reject refresh tokens - they should only be used at /auth/refresh
-    if not payload.is_access_token():
-        logger.warning(
-            "Refresh token used as access token for user: %s",
-            payload.user_id,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
-    # Load user from database
-    user_repo = UserRepositorySQLAlchemy(session)
-    user = await user_repo.find_by_id(payload.user_id)
-
-    if user is None:
-        logger.warning("User not found for token: %s", payload.user_id)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return user
-
-
-async def require_admin(user: User = Depends(get_current_user)) -> User:
+async def require_admin(user: UserContext = Depends(get_current_user)) -> UserContext:
     """Require admin user."""
     if not user.is_admin:
         raise HTTPException(
@@ -265,31 +248,28 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+async def get_current_user_swen_acl(
+    user: UserContext = Depends(get_current_user),
+) -> CurrentUser:
+    """Adapt swen_identity's UserContext to swen's own CurrentUser (ACL boundary)."""
+    return IdentityAdapter.to_current_user(user)
+
+
 # -----------------------------------------------------------------------------
-# User Context & Repository Factory
+# Swen user scoped Repository Factory
 # -----------------------------------------------------------------------------
 
 
 async def get_repository_factory(
     session: AsyncSession = Depends(get_db_session),
-    user: User = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user_swen_acl),
 ) -> RepositoryFactory:
     """Get repository factory for the current user."""
-    from swen_identity import UserContext  # noqa: PLC0415
-
-    current_user = IdentityAdapter.to_current_user(UserContext.create(user))
     return SQLAlchemyRepositoryFactory(
         session=session,
         current_user=current_user,
         encryption_key=get_encryption_key(),
     )
-
-
-async def get_identity_repository_factory(
-    session: AsyncSession = Depends(get_db_session),
-) -> IdentityRepositoryFactory:
-    """Get swen_identity's repository factory for the current request."""
-    return IdentityRepositoryFactorySQLAlchemy(session=session)
 
 
 # -----------------------------------------------------------------------------
@@ -333,8 +313,8 @@ IdentityAdapterFactoryDep = Annotated[
 ]
 
 # User + Admin auth dependencies
-AuthenticatedUserDep = Annotated[User, Depends(get_current_user)]
-AdminUserDep = Annotated[User, Depends(require_admin)]
+AuthenticatedUserDep = Annotated[UserContext, Depends(get_current_user)]
+AdminUserDep = Annotated[UserContext, Depends(require_admin)]
 
 # Repository factories
 RepoFactoryDep = Annotated[RepositoryFactory, Depends(get_repository_factory)]

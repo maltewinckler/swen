@@ -12,7 +12,7 @@ from uuid import UUID
 class CurrentUser:
     """Immutable representation of the current authenticated user.
 
-    This is swen's own type — it has no dependency on swen_identity.
+    This is swen's own type. It has no dependency on swen_identity.
     The adapter layer translates from swen_identity.UserContext to this.
     """
 

@@ -1,12 +1,8 @@
 """Sync transactions across mapped bank accounts (single use-case Command).
 
-Replaces ``BatchSyncCommand``. Resolves syncable mappings, prepares the date
-range and ``auto_post``, fans out to ``BankAccountSyncService``, refreshes
-per-BLZ balances after writes, and publishes a terminal ``SyncResultEvent``
-with aggregated counts.
-
-See `.kiro/specs/transaction-sync-modularization/design.md` — section
-"`SyncBankAccountsCommand` (replaces `BatchSyncCommand`)".
+Resolves syncable mappings, prepares the date range and ``auto_post``,
+fans out to ``BankAccountSyncService``, refreshes per-BLZ balances after writes,
+and publishes a terminal ``SyncResultEvent`` with aggregated counts.
 """
 
 from __future__ import annotations
