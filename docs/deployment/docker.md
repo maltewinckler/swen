@@ -5,7 +5,7 @@ The recommended way to run SWEN in production or on a homelab.
 ## Prerequisites
 
 - Docker Engine 24+ with Compose V2 (`docker compose version`)
-- A reverse proxy in front of SWEN (nginx, Caddy, Traefik — or use SWEN's bundled proxy for quick tests)
+- A reverse proxy in front of SWEN (nginx, Caddy, Traefik: or use SWEN's bundled proxy for quick tests)
 
 ## 1 · Clone the Repository
 
@@ -44,7 +44,7 @@ docker compose up -d
 
 Open `http://localhost:3000` (or your reverse proxy URL).
 
-<!-- SCREENSHOT: onboarding.png — First-run onboarding wizard (step 1 or account mapping step) -->
+<!-- SCREENSHOT: onboarding.png: First-run onboarding wizard (step 1 or account mapping step) -->
 ![Onboarding](../assets/screenshots/onboarding.png)
 
 !!! tip "First user = admin"
@@ -64,7 +64,7 @@ graph TD
     class backend,postgres,ml,searxng internal
 ```
 
-Only port **3000** is exposed to the host. All other services communicate over the internal `swen_network` Docker network.
+Only port **3000** is exposed to the host. All other services communicate over the internal `swenetwork` Docker network.
 
 ## API Router Structure
 
@@ -72,11 +72,14 @@ Routers are organized by bounded context:
 
 | Path | Responsibility |
 |---|---|
-| `presentation/api/accounting/routers/` | Account management, stats, hierarchy |
-| `presentation/api/integration/routers/` | Sync, reconciliation, bank account setup |
-| `presentation/api/credentials/` | Credential management (moved from legacy `routers/credentials.py`) |
-| `presentation/api/analytics/` | Dashboard, reporting, exports |
-| `presentation/api/sync/` | Sync status and progress endpoints |
+| `presentation/api/accounting/routers/` | Accounts, transactions, chart-of-accounts initialization |
+| `presentation/api/admin/routers/` | Admin user management, FinTS provider/config |
+| `presentation/api/analytics/routers/` | Dashboard, reporting, exports |
+| `presentation/api/auth/routers/` | Login, registration, tokens |
+| `presentation/api/banking/routers/` | Bank credentials, account discovery, account setup |
+| `presentation/api/integration/routers/` | Sync, reconciliation, bank account mappings, imports |
+| `presentation/api/onboarding/routers/` | First-run onboarding wizard |
+| `presentation/api/settings/routers/` | User preferences |
 
 The old flat `presentation/api/routers/` structure has been replaced with context-scoped packages. Each router module registers its routes under `/api/v1/` prefixes.
 
@@ -85,12 +88,12 @@ The old flat `presentation/api/routers/` structure has been replaced with contex
 | Volume | Contents | Notes |
 |---|---|---|
 | `postgres-data` | All your financial data | Back this up! |
-| `ml-model-cache` | Downloaded HuggingFace model (~1.5 GB) | Survives container updates |
+| `ml-model-cache` | Downloaded HuggingFace model (~470 MB default) | Survives container updates |
 | `./config` | `config/.env` and `fints_institute.csv` | Read-only inside containers |
 
 ## Reverse Proxy Setup
 
-Route traffic to the `frontend` container (port 3000). The frontend's nginx proxy handles forwarding `/api/*` and `/health` to the backend internally — **you only need to point your proxy at port 3000**.
+Route traffic to the `frontend` container (port 3000). The frontend's nginx proxy handles forwarding `/api/*` and `/health` to the backend internally: **you only need to point your proxy at port 3000**.
 
 === "nginx"
 
@@ -131,17 +134,17 @@ Route traffic to the `frontend` container (port 3000). The frontend's nginx prox
 
 ## Importing Bank Transactions
 
-<!-- SCREENSHOT: import-flow.png — Bank sync modal / import progress screen -->
+<!-- SCREENSHOT: import-flow.png: Bank sync modal / import progress screen -->
 ![Import flow](../assets/screenshots/import-flow.png)
 
 Once FinTS is configured:
 
 1. Go to **Bank Accounts** → select an account → **Sync**
 2. SWEN fetches the last 90 days (configurable) from your bank
-3. New transactions appear as **Draft** — review and post them
+3. New transactions appear as **Draft**: review and post them
 
 !!! note "First ML model download"
-    On first startup the ML service downloads its configured sentence encoder from HuggingFace (default: `sentence-transformers/all-MiniLM-L12-v2`, ~250 MB; larger models like `deutsche-telekom/gbert-large-paraphrase-cosine` can be ~1.5 GB). Classification is unavailable until the download completes. Watch the ML container log: `docker compose logs -f ml`.
+    On first startup the ML service downloads its configured sentence encoder from HuggingFace (default: `paraphrase-multilingual-MiniLM-L12-v2`, ~470 MB; larger models like `deutsche-telekom/gbert-large-paraphrase-cosine` can be ~1.5 GB). Classification is unavailable until the download completes. Watch the ML container log: `docker compose logs -f ml`.
 
 ## Updating SWEN
 

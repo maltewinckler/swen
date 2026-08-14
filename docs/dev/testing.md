@@ -6,11 +6,11 @@ SWEN has a layered test suite following the **test pyramid**: many fast unit tes
 
 ```
           ┌──────────┐
-          │ External │  ~2 tests — real bank connections (never in CI)
+          │ External │  ~2 tests: real bank connections (never in CI)
           ├──────────┤
-          │  Integr. │  ~25% — Testcontainers, ephemeral PostgreSQL
+          │  Integr. │  ~25%: Testcontainers, ephemeral PostgreSQL
           ├──────────────────────────┤
-          │         Unit             │  ~70% — pure Python, all I/O mocked
+          │         Unit             │  ~70%: pure Python, all I/O mocked
           └──────────────────────────┘
 ```
 
@@ -101,7 +101,7 @@ docker.errors.DockerException: Error while fetching server API version:
 
 ## Unit Tests
 
-Unit tests have **zero I/O** — no database, no HTTP, no file system. All external dependencies are mocked with `pytest-mock`.
+Unit tests have **zero I/O**: no database, no HTTP, no file system. All external dependencies are mocked with `pytest-mock`.
 
 ```python
 def test_transaction_must_balance():
@@ -110,9 +110,9 @@ def test_transaction_must_balance():
         Transaction.create(journal_entries=[...])  # unbalanced entries
 ```
 
-## Integration Tests — Testcontainers
+## Integration Tests: Testcontainers
 
-Integration tests spin up an **ephemeral PostgreSQL container** per test session using [Testcontainers](https://testcontainers.com/). The container is destroyed after the session — no cleanup required, no shared state between runs.
+Integration tests spin up an **ephemeral PostgreSQL container** per test session using [Testcontainers](https://testcontainers.com/). The container is destroyed after the session: no cleanup required, no shared state between runs.
 
 ```python
 @pytest.mark.integration

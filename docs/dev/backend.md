@@ -61,10 +61,11 @@ Application commands and queries implement `from_factory(factory: RepositoryFact
 
 ## Settings
 
-Settings are loaded by `swen_config` using `pydantic-settings`. The loader discovers the env file by checking:
+Settings are loaded by `swen_config` using `pydantic-settings`. The loader discovers the env file by checking, in order:
 
-1. `APP_ENV` environment variable (`development` → `config/.env.dev`, otherwise `config/.env`)
-2. The `config/` directory mounted at `/app/config` in Docker
+1. `SWEN_ENV_FILE` environment variable (absolute path to a `.env` file)
+2. `config/.env.dev`, if it exists
+3. `config/.env` otherwise
 
 Key settings groups:
 
@@ -75,7 +76,7 @@ Key settings groups:
 | CORS | `API_CORS_ORIGINS` |
 | SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_ENABLED` |
 | Registration | `REGISTRATION_MODE` (`open` / `admin_only`) |
-| ML | `SWEN_ML_SERVICE_URL` |
+| ML | `ML_SERVICE_URL` |
 
 ## JWT Authentication
 
@@ -83,8 +84,8 @@ SWEN uses a **dual-token** JWT strategy:
 
 | Token | Lifetime | Storage | Purpose |
 |---|---|---|---|
-| Access token | 24 hours | In-memory (JavaScript) | API authentication |
-| Refresh token | 30 days | HttpOnly cookie | Silent token refresh |
+| Access token | 1 hour | In-memory (JavaScript) | API authentication |
+| Refresh token | 7 days | HttpOnly cookie | Silent token refresh |
 
 The access token is passed as a `Bearer` header. The refresh token is set as a `Set-Cookie: refresh_token=...; HttpOnly; SameSite=Strict` response on login and used by the `/auth/refresh` endpoint to issue a new access token without re-entering credentials.
 
@@ -116,6 +117,6 @@ Defined in `pyproject.toml` `[project.scripts]`:
 | `swen setup` | Interactive guided setup wizard (generates secrets, writes `.env` for Docker or `.env.dev` for bare metal based on environment selection, runs db-init) |
 | `swen secrets generate` | Prints three freshly-generated secrets (Fernet key, JWT key, DB password) |
 | `db-init` | Creates all database tables (idempotent) |
-| `db-drop` | Drops all database tables (destructive — no reset, just drop) |
+| `db-drop` | Drops all database tables (destructive: no reset, just drop) |
 | `db-reset` | Drops and recreates all tables (destructive) |
 | `seed-demo` | Creates a demo user + sample accounts + ~200 transactions |

@@ -18,13 +18,12 @@ SWEN generates a deterministic **content hash** for each `BankTransaction` from 
 
 ```
 hash = SHA-256(
-    bank_account_id,
+    account_iban,
     booking_date,
-    value_date,
-    amount_cents,
-    counterparty_iban,    # may be empty
-    counterparty_name,    # may be empty
-    purpose[:200]         # trimmed — some banks truncate differently
+    amount,
+    end_to_end_reference,  # may be empty
+    applicant_iban,        # may be empty
+    purpose[:50]            # trimmed
 )
 ```
 
@@ -32,11 +31,11 @@ If a transaction with the same hash already exists, the new record is considered
 
 ### The Sequence Field
 
-When two transactions on the **same day** have identical amounts and counterparties (e.g. two €50 ATM withdrawals on the same day), their hashes collide. SWEN breaks the tie with a **sequence number** appended to the hash:
+When two transactions on the **same day** have identical amounts and counterparties (e.g. two €50 ATM withdrawals on the same day), their hashes collide. SWEN breaks the tie with a **sequence number** stored alongside the hash:
 
 ```
-hash + "_0"   ← first occurrence
-hash + "_1"   ← second occurrence
+hash_sequence = 1   ← first occurrence
+hash_sequence = 2   ← second occurrence
 ```
 
 A full-day sync is required to reliably reconstruct the correct sequence for a given day.
@@ -49,7 +48,7 @@ SWEN always fetches **complete days** from the bank, even if you are only intere
 2. A partial sync (e.g. "last 3 transactions") cannot reconstruct the correct sequence number for same-day duplicates
 3. Reversals and corrections sometimes arrive with the same booking date as the original
 
-SWEN fetches from `max(last_import_date - 1 day, account_open_date)` to account for late-arriving corrections.
+SWEN fetches from the day after the last successfully imported booking date, capped at today. If there is no prior successful import, it falls back to the last 90 days.
 
 ## Idempotency
 
@@ -63,7 +62,7 @@ Importing the same date range twice is safe. On the second call:
 
 ### Same-Day Same-Amount Transfers
 
-Two identical ATM withdrawals on the same day → sequence `_0` and `_1`. If the bank only returns one on a re-import, SWEN discards it correctly (hash `_0` already exists).
+Two identical ATM withdrawals on the same day get `hash_sequence` 1 and 2. If the bank only returns one on a re-import, SWEN discards it correctly (sequence 1 already exists).
 
 ### Bank Sends Partial Days
 
@@ -75,4 +74,4 @@ FinTS distinguishes "pending" (not yet booked) from "booked" transactions. SWEN 
 
 ### Reversal Transactions
 
-A bank reversal often appears as a new `BankTransaction` with the opposite amount and the same purpose. SWEN does **not** automatically cancel the original — it appears as a new Draft transaction for you to review and post.
+A bank reversal often appears as a new `BankTransaction` with the opposite amount and the same purpose. SWEN does **not** automatically cancel the original: it appears as a new Draft transaction for you to review and post.

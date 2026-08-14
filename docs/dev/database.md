@@ -31,7 +31,7 @@ docker compose run --rm backend db-init
 make db-init
 ```
 
-This is **idempotent** — running it twice does not drop existing data. It only creates tables that don't yet exist.
+This is **idempotent**: running it twice does not drop existing data. It only creates tables that don't yet exist.
 
 !!! warning "Known limitation: no migrations"
     Schema changes between versions are applied manually. When upgrading SWEN, check the release notes for any required schema changes. Full Alembic migration support is planned for a future release.
@@ -42,20 +42,20 @@ This is **idempotent** — running it twice does not drop existing data. It only
 
 | Table | Description |
 |---|---|
-| `accounts` | Chart of accounts (Asset, Liability, Equity, Income, Expense) |
-| `transactions` | Double-entry transactions (Draft / Posted) |
+| `accounting_accounts` | Chart of accounts (Asset, Liability, Equity, Income, Expense) |
+| `accounting_transactions` | Double-entry transactions (Draft / Posted) |
 | `journal_entries` | Individual debit/credit lines belonging to a Transaction |
 | `bank_accounts` | IBAN-linked bank accounts |
 | `bank_transactions` | Raw statement lines from FinTS |
 | `account_mappings` | BankAccount → Account linkage |
 | `users` | User records (ID, email, is_admin) |
 | `user_credentials` | Hashed passwords (separate table from users) |
-| `fints_credentials` | Encrypted FinTS login credentials (Fernet) |
-| `fints_config` | Product ID + institute CSV config (per tenant/admin) |
+| `stored_credentials` | Encrypted FinTS login credentials (Fernet) |
+| `fints_configuration` | Product ID + institute CSV config (per tenant/admin) |
 
 ### Multi-tenancy
 
-Every table that contains user data has a `user_id` foreign key. All repository queries include `WHERE user_id = :user_id` automatically via the `RepositoryFactory` pattern — repositories are constructed with the current user's ID and all queries are scoped internally.
+Every table that contains user data has a `user_id` foreign key. All repository queries include `WHERE user_id = :user_id` automatically via the `RepositoryFactory` pattern: repositories are constructed with the current user's ID and all queries are scoped internally.
 
 ### Relationships (simplified)
 

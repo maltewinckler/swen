@@ -9,7 +9,7 @@ To connect SWEN to your German bank you need two things from Deutsche Kreditwirt
 1. A **FinTS Product ID** (a short alphanumeric code)
 2. The **bank directory CSV** (`fints_institute.csv`) listing all participating banks
 
-Both are configured through the SWEN admin UI — no config file editing needed after the initial setup.
+Both are configured through the SWEN admin UI: no config file editing needed after the initial setup.
 
 ## Registration
 
@@ -24,7 +24,7 @@ Both are configured through the SWEN admin UI — no config file editing needed 
 
     - **Produktart**: "Privatanwender-Software" works fine for self-hosted use
 
-3. Submit — you will receive a confirmation email with your **Product ID** and a **CSV file** of bank routing data
+3. Submit: you will receive a confirmation email with your **Product ID** and a **CSV file** of bank routing data
 
 ## Configuration in SWEN
 
@@ -35,7 +35,7 @@ Once SWEN is running:
 3. Enter your **Product ID**
 4. Upload the **institute CSV** (`fints_institute.csv`)
 
-<!-- SCREENSHOT: settings-fints.png — FinTS configuration section in Settings -->
+<!-- SCREENSHOT: settings-fints.png: FinTS configuration section in Settings -->
 ![FinTS Settings](../assets/screenshots/settings-fints.png)
 
 After saving, go to **Bank Accounts → Add Bank Account** to connect your first account.
@@ -60,11 +60,11 @@ Unfortunately, not all German banks support FinTS (very young banks like N26 or 
 
 ### Visa Debit IBAN Ambiguity
 
-Some banks (notably ING) issue a separate IBAN for Visa Debit transactions that differs from your main IBAN. When mapping bank accounts in SWEN, you may see two accounts with very similar names. The correct one to use is your **main GIRO IBAN** — the Visa Debit transactions will still appear under the same account in most bank FinTS implementations.
+Some banks (notably ING) issue a separate IBAN for Visa Debit transactions that differs from your main IBAN. When mapping bank accounts in SWEN, you may see two accounts with very similar names. The correct one to use is your **main GIRO IBAN**: the Visa Debit transactions will still appear under the same account in most bank FinTS implementations.
 
 ### TAN Timeout
 
-FinTS TAN requests expire after ~120 seconds. If you do not approve the push notification in time, the import fails silently. Simply retry the sync — no data is lost.
+SWEN polls for TAN approval for up to 5 minutes. If you do not approve the push notification in time, the import fails silently. Simply retry the sync: no data is lost.
 
 ### Rate Limiting
 

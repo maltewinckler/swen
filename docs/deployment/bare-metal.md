@@ -1,6 +1,6 @@
 # Bare Metal / Dev Setup
 
-Run SWEN directly on your machine without Docker. This is the best approach for development — you get hot-reload on both the backend and frontend.
+Run SWEN directly on your machine without Docker. This is the best approach for development: you get hot-reload on both the backend and frontend.
 
 !!! warning "Not for production"
     The bare-metal setup is intentionally convenient and insecure (open registration, weak default secrets). Use [Docker Compose](docker.md) for any real deployment.
@@ -30,7 +30,7 @@ make install
 swen setup
 ```
 
-Choose **Development** when prompted. The wizard generates `config/.env.dev` with all secrets pre-filled and sensible local defaults (`POSTGRES_HOST=localhost`, `REGISTRATION_MODE=open`, etc.).
+Choose **Development** when prompted. The wizard generates `config/.env.dev` with all secrets pre-filled and sensible local defaults (`POSTGRES_HOST=localhost`, etc.), and asks you to choose a registration mode (`admin_only` is recommended).
 
 !!! tip
     You can also copy the example manually and edit by hand:
@@ -46,13 +46,13 @@ Make sure PostgreSQL is running, then:
 make db-init
 ```
 
-This creates the `swen` and `swen_ml` schemas (tables, indexes, initial data).
+This creates the `swen` and `swen_ml` databases (tables, indexes, initial data).
 
 ## 4 · Run the Services
 
 Open three terminals (or use `tmux`):
 
-=== "Terminal 1 — Backend"
+=== "Terminal 1: Backend"
 
     ```bash
     make backend
@@ -60,14 +60,14 @@ Open three terminals (or use `tmux`):
     # → API docs at http://127.0.0.1:8000/docs
     ```
 
-=== "Terminal 2 — Frontend"
+=== "Terminal 2: Frontend"
 
     ```bash
     make frontend
     # → http://localhost:5173 (Vite HMR)
     ```
 
-=== "Terminal 3 — ML (optional)"
+=== "Terminal 3: ML (optional)"
 
     ```bash
     make ml
@@ -85,7 +85,7 @@ To populate realistic demo data for development:
 make seed-demo
 ```
 
-This creates a demo user (`demo@example.com` / `demo`) with sample accounts, bank accounts, and ~200 transactions in various states.
+This creates a demo user (`demo@example.com` / `demo1234`) with sample accounts, bank accounts, and ~200 transactions in various states.
 
 ## Makefile Reference
 
@@ -123,4 +123,4 @@ Run `make help` for the full list. Common targets:
 | `config/.env.dev` | Bare metal (Makefile) | `localhost` |
 | `config/.env` | Docker Compose | `postgres` (service name) |
 
-SWEN's pydantic-settings loader automatically picks the right file — `.env.dev` when `APP_ENV=development` (the Makefile default), `.env` otherwise.
+SWEN's pydantic-settings loader picks `config/.env.dev` if it exists, otherwise falls back to `config/.env`. Set `SWEN_ENV_FILE` to point at a different file explicitly.

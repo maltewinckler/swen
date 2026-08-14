@@ -1,13 +1,13 @@
 # Contributing
 
-SWEN is a personal project, but contributions are welcome — especially bug fixes, documentation improvements, and small self-contained features.
+SWEN is a personal project, but contributions are welcome: especially bug fixes, documentation improvements, and small self-contained features.
 
 ## How to Contribute
 
 1. **Bug reports** → [Open a GitHub Issue](https://github.com/maltewinckler/swen/issues) with steps to reproduce, expected vs actual behaviour, and your deployment method (Docker / bare metal).
 2. **Feature requests** → Open an issue for discussion first. Large features may not align with the project scope.
 3. **Code contributions** → Fork, branch, implement, open a PR against `main`. See [Dev Setup](setup.md) and [Conventions](conventions.md).
-4. **Documentation** → Any improvements to `/docs/` are always welcome — open a PR directly.
+4. **Documentation** → Any improvements to `/docs/` are always welcome: open a PR directly.
 
 ## Code of Conduct
 

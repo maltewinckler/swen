@@ -37,7 +37,7 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_HOST=localhost
 ```
 
-Relaxed security settings are pre-enabled in the example (`API_COOKIE_SECURE=false`, `REGISTRATION_MODE=open`).
+Relaxed security settings are pre-enabled in the example (`API_COOKIE_SECURE=false`).
 
 ## 3 · Start Postgres
 
@@ -67,18 +67,18 @@ make db-init
 make pre-commit-install
 ```
 
-This installs Ruff, detect-secrets, and end-of-file fixers as pre-commit hooks that run before every commit.
+This installs Ruff, ESLint/TypeScript checks, and file-hygiene hooks (end-of-file-fixer, trailing-whitespace, etc.) as pre-commit hooks that run before every commit.
 
 ## 6 · Run the Services
 
 ```bash
-# Terminal 1 — backend (port 8000, hot-reload)
+# Terminal 1: backend (port 8000, hot-reload)
 make backend
 
-# Terminal 2 — frontend (port 5173, Vite HMR)
+# Terminal 2: frontend (port 5173, Vite HMR)
 make frontend
 
-# Terminal 3 — ML service (port 8001, optional)
+# Terminal 3: ML service (port 8001, optional)
 make ml
 ```
 
@@ -90,7 +90,7 @@ Open **http://localhost:5173**, register (first user = admin), and start explori
 make seed-demo
 ```
 
-Creates `demo@example.com` / `demo` with ~200 sample transactions.
+Creates `demo@example.com` / `demo1234` with ~200 sample transactions.
 
 ## Running Tests
 
@@ -139,5 +139,5 @@ export TESTCONTAINERS_RYUK_DISABLED=true
 |---|---|
 | `uv sync` fails on `geldstrom` | Ensure git is installed and GitHub is reachable |
 | Port 5432 already in use | Stop local Postgres or change `POSTGRES_PORT` |
-| Frontend blank screen | Check browser console — may be a CORS / backend not running issue |
+| Frontend blank screen | Check browser console: may be a CORS / backend not running issue |
 | `db-init` fails | Verify Postgres is running and credentials match `.env.dev` |

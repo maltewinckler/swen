@@ -25,7 +25,7 @@ git status  # should be clean
 
 ### 2 · Verify CI is Green
 
-Check the [GitHub Actions tab](https://github.com/maltewinckler/swen/actions) — all CI jobs must pass on the latest `main` commit before tagging.
+Check the [GitHub Actions tab](https://github.com/maltewinckler/swen/actions): all CI jobs must pass on the latest `main` commit before tagging.
 
 ### 3 · Create a GitHub Release
 
@@ -42,7 +42,7 @@ Watch the **Actions** tab. Three parallel jobs (backend / frontend / ml) should 
 
 ### 5 · Verify Docker Hub
 
-Check [hub.docker.com/r/maltewin](https://hub.docker.com/r/maltewin) — all three images should have the new version tag and an updated `latest`.
+Check [hub.docker.com/r/maltewin](https://hub.docker.com/r/maltewin): all three images should have the new version tag and an updated `latest`.
 
 ---
 
@@ -89,7 +89,7 @@ This pulls all three images (backend, frontend, ml) and restarts only the contai
 
 ## Pre-releases
 
-Tag as `v1.2.3-rc1` — `docker/metadata-action` will create:
+Tag as `v1.2.3-rc1`: `docker/metadata-action` will create:
 
 ```
 maltewin/swen-backend:1.2.3-rc1
@@ -112,7 +112,7 @@ git tag v1.2.1
 git push origin v1.2.1
 ```
 
-Then create a GitHub Release from tag `v1.2.1`. Note: `latest` will **not** be updated if `v1.2.1 < v1.3.0` — `docker/metadata-action` only updates `latest` for the highest semver tag.
+Then create a GitHub Release from tag `v1.2.1`. Note: `latest` will **not** be updated if `v1.2.1 < v1.3.0`: `docker/metadata-action` only updates `latest` for the highest semver tag.
 
 ---
 

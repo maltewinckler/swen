@@ -10,13 +10,13 @@ These concepts are concerned with the banking side of things.
 
 A real-world bank account identified by an **IBAN**. Corresponds to a single account at a single bank. Each `BankAccount` in SWEN is linked to exactly one bookkeeping `Account` (of type Asset) that records its running balance.
 
-**Key fields:** `iban`, `bic`, `account_name`, `bank_name`, `linked_account_id`
+**Key fields:** `iban`, `bic`, `owner_name`, `bank_name`. The link to a bookkeeping `Account` lives on `AccountMapping`, not on `BankAccount` itself.
 
 ### BankTransaction
 
 A raw transaction record fetched from the bank represents a **bank statement line**. Our business logic includes a **solid de-duplication logic** which many other similar software products dont. A `BankTransaction` is **not** a double-entry record. It becomes one when SWEN creates a linked `Transaction` (Draft or Posted).
 
-**Key fields:** `bank_account_id`, `amount`, `value_date`, `booking_date`, `purpose`, `counterparty_name`, `counterparty_iban`, `transaction_hash`
+**Key fields:** `account_id`, `amount`, `value_date`, `booking_date`, `purpose`, `applicant_name`, `applicant_iban`, `identity_hash`
 
 
 ### Counterparty
@@ -39,7 +39,7 @@ A bookkeeping **ledger account**. Not a bank account! Has a **type** (Asset, Lia
 
 Accounts form a **tree** (chart of accounts). Each leaf account accumulates a running balance.
 
-**Key fields:** `name`, `account_type`, `parent_id`, `is_system`
+**Key fields:** `name`, `account_type`, `parent_id`, `is_active`
 
 ### Counter-Account
 
@@ -51,7 +51,7 @@ A double-entry transaction consisting of two or more `JournalEntry` lines that s
 
 ### JournalEntry
 
-A single line in a `Transaction`. Specifies an `Account`, an `amount`, and a `side` (debit or credit). A valid Transaction always has at least two JournalEntries with equal debit and credit totals.
+A single line in a `Transaction`. Specifies an `Account` and either a `debit` or a `credit` amount. A valid Transaction always has at least two JournalEntries with equal debit and credit totals.
 
 ---
 
