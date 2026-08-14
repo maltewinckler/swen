@@ -46,7 +46,7 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
 
 -   :robot: **ML Classification**
 
-    A multi-tier ML pipeline (preprocessing → user-history k-NN → enrichment + keywords → account embedding similarity → fallback) automatically assigns counter-accounts. Learns from your corrections.
+    A four-stage ML pipeline (preprocessing → example matching → enrichment + keywords → anchor embedding similarity) automatically assigns counter-accounts, falling back to manual review when nothing matches. Learns from your corrections.
 
 -   :house: **Fully Self-Hosted**
 
