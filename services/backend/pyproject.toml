@@ -3,7 +3,7 @@ name = "swen-backend"
 version = "0.1.0"
 description = "SWEN - Personal finance management backend"
 authors = [{ name = "Malte Winckler", email = "malte@nichts-ist-einfach.de" }]
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "python-dotenv>=1.2.1",
     "pydantic>=2.11.7",
