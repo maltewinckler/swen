@@ -14,27 +14,27 @@ flowchart TD
     example -->|"similarity ≥ threshold"| result1["✅ Resolved\ntier: example"]
     example -->|"below threshold"| enrich
 
-    enrich["Stage 3: Enrichment\n(keywords + SearXNG — optional)"]
+    enrich["Stage 3: Enrichment\n(keywords + SearXNG: optional)"]
     enrich --> anchor
 
     anchor{"Stage 4\nAnchor Classifier"}
     anchor -->|"similarity ≥ threshold"| result2["✅ Resolved\ntier: anchor"]
-    anchor -->|"below threshold"| unresolved["⚠️ Unresolved\ntier: unresolved — manual review"]
+    anchor -->|"below threshold"| unresolved["⚠️ Unresolved\ntier: unresolved: manual review"]
 ```
 
-## Stage 1 — Preprocessing
+## Stage 1: Preprocessing
 
 **Always runs** on every transaction before any classifier.
 
 The `TextCleaner` performs:
 
-- **Payment provider stripping** — removes payment intermediary prefixes (`PAYPAL`, `SUMUP`, `ZETTLE`, `STRIPE`, `KLARNA`) from the counterparty name to expose the underlying merchant
-- **Separator normalisation** — converts `.`, `/`, `*` to spaces
-- **Noise filtering** — an IDF-based noise model learns which tokens are boilerplate for a user's bank (e.g. `KARTE`, `UHR`, reference numbers). High-frequency boilerplate tokens are stripped before embeddings are built.
+- **Payment provider stripping**: removes payment intermediary prefixes (`PAYPAL`, `SUMUP`, `ZETTLE`, `STRIPE`, `KLARNA`) from the counterparty name to expose the underlying merchant
+- **Separator normalisation**: converts `.`, `/`, `*` to spaces
+- **Noise filtering**: an IDF-based noise model learns which tokens are boilerplate for a user's bank (e.g. `KARTE`, `UHR`, reference numbers). High-frequency boilerplate tokens are stripped before embeddings are built.
 
 Preprocessing writes `cleaned_counterparty` and `cleaned_purpose` into the transaction context for all downstream stages.
 
-## Stage 2 — Example Classifier
+## Stage 2: Example Classifier
 
 **Fires when:** The user's example store is non-empty.
 
@@ -46,7 +46,7 @@ The transaction's cleaned text (`cleaned_counterparty` + `cleaned_purpose`) is e
 |---|---|
 | Top similarity ≥ **0.85** (high confidence) | Accepted |
 | Top similarity ≥ **0.70** *and* margin vs 2nd-best ≥ **0.10** | Accepted |
-| Otherwise | Not resolved — passes to Stage 3 |
+| Otherwise | Not resolved: passes to Stage 3 |
 
 **Cold start behaviour:** If the example store is empty, this stage is skipped entirely.
 
@@ -60,24 +60,24 @@ Stored:   "REWE SAGT DANKE 123"     → embedding [0.11, 0.84, ...]
                                         similarity = 0.93 → "Groceries"
 ```
 
-## Stage 3 — Enrichment
+## Stage 3: Enrichment
 
 **Runs on:** Transactions not resolved by Stage 2.
 
 The enrichment stage appends extra context to sparse transaction descriptions before the Anchor Classifier runs. Two methods are tried in order:
 
-1. **Keyword enrichment** — each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match appends a descriptive phrase (e.g. `rewe` → `"REWE Lebensmittel Supermarkt"`). Fast O(m) lookup with no network call required.
-2. **Search enrichment** — if no keyword match and SearXNG is configured and reachable, a web search is performed for the counterparty name. The top result's title and first sentence are appended.
+1. **Keyword enrichment**: each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match appends a descriptive phrase (e.g. `rewe` → `"REWE Lebensmittel Supermarkt"`). Fast O(m) lookup with no network call required.
+2. **Search enrichment**: if no keyword match and SearXNG is configured and reachable, a web search is performed for the counterparty name. The top result's title and first sentence are appended.
 
 The enriched text is stored in the transaction context and used only by Stage 4.
 
 See [Web Enrichment](enrichment.md) for configuration details.
 
-## Stage 4 — Anchor Classifier
+## Stage 4: Anchor Classifier
 
 **Fires on:** Transactions still unresolved after Stage 3.
 
-Each account has a pre-computed **anchor embedding** — a vector of the account's name and description. The transaction's enriched text (counterparty + purpose + enrichment) is encoded and compared against all anchor embeddings using cosine similarity.
+Each account has a pre-computed **anchor embedding**: a vector of the account's name and description. The transaction's enriched text (counterparty + purpose + enrichment) is encoded and compared against all anchor embeddings using cosine similarity.
 
 If the best similarity exceeds the configured threshold (default **0.35**), that account is returned.
 
@@ -87,11 +87,11 @@ If the best similarity exceeds the configured threshold (default **0.35**), that
 
 ## Unresolved
 
-If no stage produces a match above threshold, the pipeline returns `tier: "unresolved"` with `confidence: 0.0`. The transaction is marked **Needs review** — no account is suggested and the user assigns it manually. Every manual assignment becomes a new example for Stage 2.
+If no stage produces a match above threshold, the pipeline returns `tier: "unresolved"` with `confidence: 0.0`. The transaction is marked **Needs review**: no account is suggested and the user assigns it manually. Every manual assignment becomes a new example for Stage 2.
 
 ## The Feedback Loop
 
-Every transaction imported with a **non-fallback** counter-account is automatically added to the example store and improves Stage 2 on future similar transactions. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped — the ML model should not learn to use them.
+Every transaction imported with a **non-fallback** counter-account is automatically added to the example store and improves Stage 2 on future similar transactions. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped: the ML model should not learn to use them.
 
 ```mermaid
 sequenceDiagram
@@ -104,9 +104,8 @@ sequenceDiagram
     MLService-->>Backend: {account: "Groceries", confidence: 0.82, tier: "example"}
     Backend->>Backend: Import transaction with suggested account
     Backend->>MLService: POST /examples (transaction + "Groceries")
-    Note over MLService: New example stored — improves Stage 2 next time
-    Note over Backend: Submitted after import if counter-account
-                        was not a fallback account
+    Note over MLService: New example stored: improves Stage 2 next time
+    Note over Backend: Submitted after import if counter-account<br/>was not a fallback account
 ```
 
 ## ClassificationOrchestrator

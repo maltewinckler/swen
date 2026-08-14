@@ -57,11 +57,11 @@ services/ml/swen_ml/
 
 On startup, the ML service performs the following steps in order (FastAPI `lifespan`):
 
-1. **DB init** — Create all tables via `Base.metadata.create_all` (uses `AsyncEngine`)
-2. **Encoder load** — Load the configured sentence encoder via `create_encoder(settings)` from HuggingFace (or local cache); default: `paraphrase-multilingual-MiniLM-L12-v2`
-3. **Warm-up** — Call `encoder.warmup()` to compile CUDA/CPU kernels
-4. **Enrichment init** — Instantiate `SearXNGAdapter` and `FileKeywordAdapter` (if enrichment is enabled in settings); no connectivity check is performed
-5. **SharedInfrastructure** — Assemble the shared object and attach `ClassificationOrchestrator` to `app.state`
+1. **DB init**: Create all tables via `Base.metadata.create_all` (uses `AsyncEngine`)
+2. **Encoder load**: Load the configured sentence encoder via `create_encoder(settings)` from HuggingFace (or local cache); default: `paraphrase-multilingual-MiniLM-L12-v2`
+3. **Warm-up**: Call `encoder.warmup()` to compile CUDA/CPU kernels
+4. **Enrichment init**: Instantiate `SearXNGAdapter` and `FileKeywordAdapter` (if enrichment is enabled in settings); no connectivity check is performed
+5. **SharedInfrastructure**: Assemble the shared object and attach `ClassificationOrchestrator` to `app.state`
 
 Until the encoder is loaded, the `/health` endpoint returns `{"status": "degraded"}` with HTTP 503. The backend waits for a healthy ML service before sending classification requests.
 
@@ -114,7 +114,7 @@ sequenceDiagram
     Note over MLService: Available for ExampleClassifier on next classify request
 ```
 
-The backend submits a training example via `ExampleEmbeddingService.store_example()` (constructed via `from_factory(encoder, repository_factory)`) whenever a transaction is imported with a **non-fallback** counter-account. This happens at import time, not at post time. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped — the ML model should not learn to use them.
+The backend submits a training example via `ExampleEmbeddingService.store_example()` (constructed via `from_factory(encoder, repository_factory)`) whenever a transaction is imported with a **non-fallback** counter-account. This happens at import time, not at post time. Fallback accounts (Sonstiges, Sonstige Einnahmen) are intentionally skipped: the ML model should not learn to use them.
 
 ## Evaluation Tooling
 

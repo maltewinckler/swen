@@ -1,6 +1,6 @@
 # Bare Metal / Dev Setup
 
-Run SWEN directly on your machine without Docker. This is the best approach for development — you get hot-reload on both the backend and frontend.
+Run SWEN directly on your machine without Docker. This is the best approach for development: you get hot-reload on both the backend and frontend.
 
 !!! warning "Not for production"
     The bare-metal setup is intentionally convenient and insecure (open registration, weak default secrets). Use [Docker Compose](docker.md) for any real deployment.
@@ -52,7 +52,7 @@ This creates the `swen` and `swen_ml` schemas (tables, indexes, initial data).
 
 Open three terminals (or use `tmux`):
 
-=== "Terminal 1 — Backend"
+=== "Terminal 1: Backend"
 
     ```bash
     make backend
@@ -60,14 +60,14 @@ Open three terminals (or use `tmux`):
     # → API docs at http://127.0.0.1:8000/docs
     ```
 
-=== "Terminal 2 — Frontend"
+=== "Terminal 2: Frontend"
 
     ```bash
     make frontend
     # → http://localhost:5173 (Vite HMR)
     ```
 
-=== "Terminal 3 — ML (optional)"
+=== "Terminal 3: ML (optional)"
 
     ```bash
     make ml
@@ -123,4 +123,4 @@ Run `make help` for the full list. Common targets:
 | `config/.env.dev` | Bare metal (Makefile) | `localhost` |
 | `config/.env` | Docker Compose | `postgres` (service name) |
 
-SWEN's pydantic-settings loader automatically picks the right file — `.env.dev` when `APP_ENV=development` (the Makefile default), `.env` otherwise.
+SWEN's pydantic-settings loader automatically picks the right file: `.env.dev` when `APP_ENV=development` (the Makefile default), `.env` otherwise.

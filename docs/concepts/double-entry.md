@@ -1,6 +1,6 @@
 # Double-Entry Bookkeeping
 
-SWEN records every transaction using **double-entry bookkeeping** — the same system banks, businesses, and accountants have used for 500 years. In this section we try to explain the basics that can help a personal user.
+SWEN records every transaction using **double-entry bookkeeping**: the same system banks, businesses, and accountants have used for 500 years. In this section we try to explain the basics that can help a personal user.
 
 ## The Core Rule
 
@@ -10,7 +10,7 @@ $$
 \sum \text{Debits} = \sum \text{Credits}
 $$
 
-Money does not appear or disappear — it moves *from* one account *to* another. This makes errors self-revealing: if the books don't balance, something is wrong.
+Money does not appear or disappear: it moves *from* one account *to* another. This makes errors self-revealing: if the books don't balance, something is wrong.
 
 ## Account Types
 
@@ -39,14 +39,14 @@ You pay €7.80 at Starbucks (if you can drink that 'coffee'). Your bank account
 
 In SWEN this looks like:
 
-<!-- SCREENSHOT: transaction-detail.png — Transaction detail modal showing journal entries (debit + credit lines) -->
+<!-- SCREENSHOT: transaction-detail.png: Transaction detail modal showing journal entries (debit + credit lines) -->
 ![Transaction detail](../assets/screenshots/transaction-detail.png)
 
 ## SWEN's Account Hierarchy
 
 In the UI, the accounts are grouped under their respective types.
 
-<!-- SCREENSHOT: accounts-chart-of-accounts.png — Chart of accounts tree (Asset / Liability / Equity / Income / Expense) -->
+<!-- SCREENSHOT: accounts-chart-of-accounts.png: Chart of accounts tree (Asset / Liability / Equity / Income / Expense) -->
 ![Chart of accounts](../assets/screenshots/accounts-chart-of-accounts.png)
 
 ## BankAccount vs Account

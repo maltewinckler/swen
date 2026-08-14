@@ -4,7 +4,7 @@ SWEN is built on three principles: **Domain-Driven Design (DDD)**, **Hexagonal A
 
 ## Why DDD?
 
-Personal finance has a rich, precise domain with its own language (see [Domain Model](../concepts/domain-model.md)). DDD enforces that **the domain owns the business rules** — the `Account`, `Transaction`, and `JournalEntry` classes contain invariants (e.g. "a Transaction must balance"), not the HTTP controllers or the database layer.
+Personal finance has a rich, precise domain with its own language (see [Domain Model](../concepts/domain-model.md)). DDD enforces that **the domain owns the business rules**: the `Account`, `Transaction`, and `JournalEntry` classes contain invariants (e.g. "a Transaction must balance"), not the HTTP controllers or the database layer.
 
 This means:
 
@@ -112,7 +112,7 @@ All application commands and queries should have a `.from_factory` method such t
 
 ### Unit of Work
 
-All write operations use a Unit of Work pattern via `infrastructure/persistence/sqlalchemy/unit_of_work.py`. The `UnitOfWork` wraps the SQLAlchemy `AsyncSession`, managing transaction boundaries across multiple repositories. Commands use it as an async context manager — `commit()` is called on clean exit, `rollback()` on exception.
+All write operations use a Unit of Work pattern via `infrastructure/persistence/sqlalchemy/unit_of_work.py`. The `UnitOfWork` wraps the SQLAlchemy `AsyncSession`, managing transaction boundaries across multiple repositories. Commands use it as an async context manager: `commit()` is called on clean exit, `rollback()` on exception.
 
 ```python
 async with self._uow:
@@ -123,7 +123,7 @@ async with self._uow:
 
 ### SyncEventPublisher Port
 
-The `SyncEventPublisher` (defined in `application/ports/integration/sync_event_publisher.py`) is an abstract interface for SSE event delivery. The infrastructure implementation `SseSyncEventPublisher` uses a queue-backed async iterator to stream events to connected clients. This decouples event emission from the sync orchestration — application services publish events without knowing about SSE, HTTP, or the frontend.
+The `SyncEventPublisher` (defined in `application/ports/integration/sync_event_publisher.py`) is an abstract interface for SSE event delivery. The infrastructure implementation `SseSyncEventPublisher` uses a queue-backed async iterator to stream events to connected clients. This decouples event emission from the sync orchestration: application services publish events without knowing about SSE, HTTP, or the frontend.
 
 ```python
 class SyncEventPublisher(Protocol):
@@ -133,7 +133,7 @@ class SyncEventPublisher(Protocol):
 
 ### CounterAccountProposalPort
 
-The `CounterAccountProposalPort` (defined in `domain/integration/ports/counter_account_proposal_port.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `AccountClassifierTrainingPort` (defined in `application/ports/account_classifier_training.py`, which handles training example submission and account embeddings) — a future rule-based resolver could implement `CounterAccountProposalPort` without touching the classifier training port at all.
+The `CounterAccountProposalPort` (defined in `domain/integration/ports/counter_account_proposal_port.py`) is the protocol that the ML service implements for batch counter-account classification. The `MLCounterAccountAdapter` is the concrete implementation that sends batch classification requests to the ML service. This port is separate from `AccountClassifierTrainingPort` (defined in `application/ports/account_classifier_training.py`, which handles training example submission and account embeddings): a future rule-based resolver could implement `CounterAccountProposalPort` without touching the classifier training port at all.
 
 
 ## Anti-Corruption Layer: GeldstromAdapter

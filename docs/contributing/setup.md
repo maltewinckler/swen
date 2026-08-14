@@ -72,13 +72,13 @@ This installs Ruff, detect-secrets, and end-of-file fixers as pre-commit hooks t
 ## 6 · Run the Services
 
 ```bash
-# Terminal 1 — backend (port 8000, hot-reload)
+# Terminal 1: backend (port 8000, hot-reload)
 make backend
 
-# Terminal 2 — frontend (port 5173, Vite HMR)
+# Terminal 2: frontend (port 5173, Vite HMR)
 make frontend
 
-# Terminal 3 — ML service (port 8001, optional)
+# Terminal 3: ML service (port 8001, optional)
 make ml
 ```
 
@@ -139,5 +139,5 @@ export TESTCONTAINERS_RYUK_DISABLED=true
 |---|---|
 | `uv sync` fails on `geldstrom` | Ensure git is installed and GitHub is reachable |
 | Port 5432 already in use | Stop local Postgres or change `POSTGRES_PORT` |
-| Frontend blank screen | Check browser console — may be a CORS / backend not running issue |
+| Frontend blank screen | Check browser console: may be a CORS / backend not running issue |
 | `db-init` fails | Verify Postgres is running and credentials match `.env.dev` |

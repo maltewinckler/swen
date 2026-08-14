@@ -1,15 +1,15 @@
 # Web Enrichment
 
-Many bank transaction purposes are cryptic abbreviations like `KARTE 09.05 UM 14:35 UHR` — not enough text for the embedding model to find a good match. **Web enrichment** solves this by looking up the counterparty name online before classification.
+Many bank transaction purposes are cryptic abbreviations like `KARTE 09.05 UM 14:35 UHR`: not enough text for the embedding model to find a good match. **Web enrichment** solves this by looking up the counterparty name online before classification.
 
 ## What Enrichment Does
 
-Enrichment runs as **Stage 3** of the classification pipeline — after the Example Classifier and before the Anchor Classifier. It only processes transactions that were not resolved by the Example Classifier.
+Enrichment runs as **Stage 3** of the classification pipeline: after the Example Classifier and before the Anchor Classifier. It only processes transactions that were not resolved by the Example Classifier.
 
 When a transaction requires enrichment, two methods are tried in order:
 
-1. **Keyword lookup** — each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match immediately appends a descriptive phrase (e.g. `edeka` → `"EDEKA Lebensmittel Supermarkt"`) with no network call.
-2. **Web search** — if no keyword match, and SearXNG is configured and reachable, a search is performed for the counterparty name. The top result's title and first sentence are appended to the transaction text.
+1. **Keyword lookup**: each token in the transaction text is matched against a built-in German keyword map (`keywords_de.txt`). A match immediately appends a descriptive phrase (e.g. `edeka` → `"EDEKA Lebensmittel Supermarkt"`) with no network call.
+2. **Web search**: if no keyword match, and SearXNG is configured and reachable, a search is performed for the counterparty name. The top result's title and first sentence are appended to the transaction text.
 
 The enriched text is then passed to the Anchor Classifier (Stage 4) only.
 
@@ -17,18 +17,18 @@ The enriched text is then passed to the Anchor Classifier (Stage 4) only.
 
 | Without enrichment | With enrichment |
 |---|---|
-| `KARTE 09.05 EDEKA` | `KARTE 09.05 EDEKA — EDEKA ist ein deutsches Lebensmittelnetz...` |
+| `KARTE 09.05 EDEKA` | `KARTE 09.05 EDEKA: EDEKA ist ein deutsches Lebensmittelnetz...` |
 
 The embedding for the enriched version clusters much closer to other "Groceries" examples.
 
-## SearXNG — Why Self-Hosted
+## SearXNG: Why Self-Hosted
 
-SWEN uses [SearXNG](https://docs.searxng.org/) — a self-hosted, privacy-respecting meta-search engine. Reasons:
+SWEN uses [SearXNG](https://docs.searxng.org/): a self-hosted, privacy-respecting meta-search engine. Reasons:
 
-- **No API key needed** — SearXNG aggregates public search engines, no paid subscription
-- **No data leakage** — your transaction counterparty names never reach Google or Bing directly
-- **Configurable** — you can point SearXNG at specific search engines or disable it entirely
-- **Runs alongside SWEN** — included in `docker-compose.yml`, no extra setup
+- **No API key needed**: SearXNG aggregates public search engines, no paid subscription
+- **No data leakage**: your transaction counterparty names never reach Google or Bing directly
+- **Configurable**: you can point SearXNG at specific search engines or disable it entirely
+- **Runs alongside SWEN**: included in `docker-compose.yml`, no extra setup
 
 ## Configuration
 

@@ -47,7 +47,7 @@ services/frontend/src/
 
 ## Routing
 
-TanStack Router uses **file-based routing** — the folder structure under `routes/` maps directly to URL paths. The route tree is auto-generated at build time (`routeTree.gen.ts`).
+TanStack Router uses **file-based routing**: the folder structure under `routes/` maps directly to URL paths. The route tree is auto-generated at build time (`routeTree.gen.ts`).
 
 All routes are protected by an auth guard in `__root.tsx` that checks for a valid access token and redirects to `/login` if missing.
 

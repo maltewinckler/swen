@@ -18,7 +18,7 @@ The encoder model is **configurable** via the `SWEN_ML_ENCODER_MODEL` environmen
 
 ### Why a paraphrase model?
 
-FinTS transaction purposes (`Verwendungszweck`) contain many variations of the same merchant — `REWE MARKT 123 HAMBURG`, `REWE SAGT DANKE 456`. A paraphrase-optimised model is explicitly trained to embed such variations close to each other, making cosine similarity a reliable clustering signal.
+FinTS transaction purposes (`Verwendungszweck`) contain many variations of the same merchant: `REWE MARKT 123 HAMBURG`, `REWE SAGT DANKE 456`. A paraphrase-optimised model is explicitly trained to embed such variations close to each other, making cosine similarity a reliable clustering signal.
 
 ### Custom models
 
@@ -53,7 +53,7 @@ SWEN supports two encoder backends, selected via `SWEN_ML_ENCODER_BACKEND`:
 
 | Backend | `SWEN_ML_ENCODER_BACKEND` value | Notes |
 |---|---|---|
-| `sentence-transformers` | `sentence-transformers` | Recommended — automatic pooling and normalisation |
+| `sentence-transformers` | `sentence-transformers` | Recommended: automatic pooling and normalisation |
 | HuggingFace `transformers` | `huggingface` | Manual pooling via `SWEN_ML_ENCODER_POOLING` (`mean` / `cls` / `max`) |
 
 **`sentence-transformers` example:**
@@ -79,7 +79,7 @@ $$
 \text{similarity}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}
 $$
 
-Since embeddings are already L2-normalised (`normalize_embeddings=True`), this reduces to a simple dot product — fast and numerically stable.
+Since embeddings are already L2-normalised (`normalize_embeddings=True`), this reduces to a simple dot product: fast and numerically stable.
 
 The **top-2** nearest neighbours are compared. A match is accepted when:
 

@@ -116,6 +116,6 @@ Defined in `pyproject.toml` `[project.scripts]`:
 | `swen setup` | Interactive guided setup wizard (generates secrets, writes `.env` for Docker or `.env.dev` for bare metal based on environment selection, runs db-init) |
 | `swen secrets generate` | Prints three freshly-generated secrets (Fernet key, JWT key, DB password) |
 | `db-init` | Creates all database tables (idempotent) |
-| `db-drop` | Drops all database tables (destructive — no reset, just drop) |
+| `db-drop` | Drops all database tables (destructive: no reset, just drop) |
 | `db-reset` | Drops and recreates all tables (destructive) |
 | `seed-demo` | Creates a demo user + sample accounts + ~200 transactions |

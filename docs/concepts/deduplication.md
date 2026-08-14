@@ -24,7 +24,7 @@ hash = SHA-256(
     amount_cents,
     counterparty_iban,    # may be empty
     counterparty_name,    # may be empty
-    purpose[:200]         # trimmed — some banks truncate differently
+    purpose[:200]         # trimmed: some banks truncate differently
 )
 ```
 
@@ -75,4 +75,4 @@ FinTS distinguishes "pending" (not yet booked) from "booked" transactions. SWEN 
 
 ### Reversal Transactions
 
-A bank reversal often appears as a new `BankTransaction` with the opposite amount and the same purpose. SWEN does **not** automatically cancel the original — it appears as a new Draft transaction for you to review and post.
+A bank reversal often appears as a new `BankTransaction` with the opposite amount and the same purpose. SWEN does **not** automatically cancel the original: it appears as a new Draft transaction for you to review and post.

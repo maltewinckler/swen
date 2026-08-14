@@ -55,7 +55,7 @@ uv run pytest services/backend/tests/swen/unit/ services/backend/tests/swen_iden
 
 #### `test-backend-integration`
 
-Runs integration tests using Testcontainers. Requires Docker-in-Docker — GitHub's `ubuntu-latest` runner provides Docker out of the box.
+Runs integration tests using Testcontainers. Requires Docker-in-Docker: GitHub's `ubuntu-latest` runner provides Docker out of the box.
 
 Hardcoded test secrets are injected so the app starts correctly without real credentials:
 
@@ -100,7 +100,7 @@ Triggers when a **GitHub Release** is published.
 
 ### Matrix Strategy
 
-Three images are built in parallel (`fail-fast: false` — a failed ML build doesn't cancel the others):
+Three images are built in parallel (`fail-fast: false`: a failed ML build doesn't cancel the others):
 
 | Service | Image | Dockerfile |
 |---|---|---|
@@ -110,10 +110,10 @@ Three images are built in parallel (`fail-fast: false` — a failed ML build doe
 
 ### Steps
 
-1. **Semver validation** — Ensures the tag matches `vX.Y.Z` before doing any work
-2. **Log in to Docker Hub** — Uses `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` repository secrets
-3. **`docker/metadata-action`** — Generates tags: `X.Y.Z`, `X.Y`, `X`, `latest`
-4. **`docker/build-push-action`** — Builds the image with GHA layer cache, pushes to Docker Hub
+1. **Semver validation**: Ensures the tag matches `vX.Y.Z` before doing any work
+2. **Log in to Docker Hub**: Uses `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` repository secrets
+3. **`docker/metadata-action`**: Generates tags: `X.Y.Z`, `X.Y`, `X`, `latest`
+4. **`docker/build-push-action`**: Builds the image with GHA layer cache, pushes to Docker Hub
 
 ### Produced Tags
 
@@ -143,9 +143,9 @@ Dependabot runs **weekly** (Mondays) and opens grouped PRs:
 
 | Ecosystem | Directory | Group Name | Ignored |
 |---|---|---|---|
-| `pip` | `/services/backend` | `python-dependencies` | — |
+| `pip` | `/services/backend` | `python-dependencies` | - |
 | `npm` | `/services/frontend` | `npm-dependencies` | ESLint & `@eslint/js` major versions |
-| `github-actions` | `/` | `github-actions-dependencies` | — |
+| `github-actions` | `/` | `github-actions-dependencies` | - |
 
 Grouped PRs mean you get one `[pip] Bump dependencies` PR per week rather than dozens of individual ones.
 

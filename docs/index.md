@@ -50,7 +50,7 @@ SWEN is a privacy-first personal finance application you run on your own hardwar
 
 -   :house: **Fully Self-Hosted**
 
-    Ships as a single `docker compose up` command. All data stays on your machine — no SaaS subscription, no data sharing, full transparency with open source.
+    Ships as a single `docker compose up` command. All data stays on your machine: no SaaS subscription, no data sharing, full transparency with open source.
 
 </div>
 

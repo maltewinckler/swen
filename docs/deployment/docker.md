@@ -5,7 +5,7 @@ The recommended way to run SWEN in production or on a homelab.
 ## Prerequisites
 
 - Docker Engine 24+ with Compose V2 (`docker compose version`)
-- A reverse proxy in front of SWEN (nginx, Caddy, Traefik — or use SWEN's bundled proxy for quick tests)
+- A reverse proxy in front of SWEN (nginx, Caddy, Traefik: or use SWEN's bundled proxy for quick tests)
 
 ## 1 · Clone the Repository
 
@@ -44,7 +44,7 @@ docker compose up -d
 
 Open `http://localhost:3000` (or your reverse proxy URL).
 
-<!-- SCREENSHOT: onboarding.png — First-run onboarding wizard (step 1 or account mapping step) -->
+<!-- SCREENSHOT: onboarding.png: First-run onboarding wizard (step 1 or account mapping step) -->
 ![Onboarding](../assets/screenshots/onboarding.png)
 
 !!! tip "First user = admin"
@@ -90,7 +90,7 @@ The old flat `presentation/api/routers/` structure has been replaced with contex
 
 ## Reverse Proxy Setup
 
-Route traffic to the `frontend` container (port 3000). The frontend's nginx proxy handles forwarding `/api/*` and `/health` to the backend internally — **you only need to point your proxy at port 3000**.
+Route traffic to the `frontend` container (port 3000). The frontend's nginx proxy handles forwarding `/api/*` and `/health` to the backend internally: **you only need to point your proxy at port 3000**.
 
 === "nginx"
 
@@ -131,14 +131,14 @@ Route traffic to the `frontend` container (port 3000). The frontend's nginx prox
 
 ## Importing Bank Transactions
 
-<!-- SCREENSHOT: import-flow.png — Bank sync modal / import progress screen -->
+<!-- SCREENSHOT: import-flow.png: Bank sync modal / import progress screen -->
 ![Import flow](../assets/screenshots/import-flow.png)
 
 Once FinTS is configured:
 
 1. Go to **Bank Accounts** → select an account → **Sync**
 2. SWEN fetches the last 90 days (configurable) from your bank
-3. New transactions appear as **Draft** — review and post them
+3. New transactions appear as **Draft**: review and post them
 
 !!! note "First ML model download"
     On first startup the ML service downloads its configured sentence encoder from HuggingFace (default: `sentence-transformers/all-MiniLM-L12-v2`, ~250 MB; larger models like `deutsche-telekom/gbert-large-paraphrase-cosine` can be ~1.5 GB). Classification is unavailable until the download completes. Watch the ML container log: `docker compose logs -f ml`.

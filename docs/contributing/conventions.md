@@ -38,9 +38,9 @@ Use the **[ubiquitous language](../concepts/domain-model.md)** in code. Specific
 
 ### Architecture Rules
 
-- **No business logic in presentation layer** — routers only call application layer use cases
-- **No framework imports in domain** — domain entities must not import FastAPI, SQLAlchemy, etc.
-- **Repository interfaces in domain** — concrete implementations live in infrastructure
+- **No business logic in presentation layer**: routers only call application layer use cases
+- **No framework imports in domain**: domain entities must not import FastAPI, SQLAlchemy, etc.
+- **Repository interfaces in domain**: concrete implementations live in infrastructure
 - **Commands return nothing** (or just an ID); **Queries return DTOs**
 
 ---
@@ -70,7 +70,7 @@ No enforced format, but the convention used in this repo is:
 ```
 [Type] Short description (present tense, ≤ 72 chars)
 
-Optional body explaining why (not what — the diff shows what).
+Optional body explaining why (not what: the diff shows what).
 ```
 
 Common types: `[Feat]`, `[Fix]`, `[Refactor]`, `[Docs]`, `[Test]`, `[Chore]`, `[Perf]`, `[Style]`, `[CI]`, `[Deps]`, `[Security]`, `[Hotfix]`, `[Revert]`, `[WIP]`
@@ -110,6 +110,6 @@ Use the format `[Type] Short description`:
 
 - Write in plain, clear English
 - Use admonitions (`!!! note`, `!!! warning`, `!!! tip`) for callouts
-- Use Mermaid for diagrams (not images — they stay in sync with the text)
-- Screenshot placeholders: `<!-- SCREENSHOT: filename.png — description -->` above each image tag
+- Use Mermaid for diagrams (not images: they stay in sync with the text)
+- Screenshot placeholders: `<!-- SCREENSHOT: filename.png: description -->` above each image tag
 - Run `make docs-serve` to preview locally before submitting a docs PR

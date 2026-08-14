@@ -48,4 +48,4 @@ SWEN can be deployed two ways. Choose the path that fits your use case:
 
 !!! note "ARM64 / Apple Silicon"
     All images are published for both `linux/amd64` and `linux/arm64`.
-    Podman users: alias `docker` → `podman` — everything works the same way.
+    Podman users: alias `docker` → `podman`: everything works the same way.
