@@ -142,19 +142,6 @@ wheels = [
 ]
 
 [[package]]
-name = "bleach"
-version = "5.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-    { name = "webencodings" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/5d/d5d45a38163ede3342d6ac1ca01b5d387329daadf534a25718f9a9ba818c/bleach-5.0.1.tar.gz", hash = "sha256:0d03255c47eb9bd2f26aa9bb7f2107732e7e8fe195ca2f64709fcf3b0a4a085c", size = 199642, upload-time = "2022-06-27T14:40:08.177Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/87/508104336a2bc0c4cfdbdceedc0f44dc72da3abc0460c57e323ddd1b3257/bleach-5.0.1-py3-none-any.whl", hash = "sha256:085f7f33c15bd408dd9b17a4ad77c577db66d76203e5984b1bd59baeee948b2a", size = 160897, upload-time = "2022-06-27T14:39:57.276Z" },
-]
-
-[[package]]
 name = "certifi"
 version = "2026.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -468,17 +455,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.9.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "python-dotenv" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/b7/545d2c10c1fc15e48653c91efde329a790f2eecfbbf2bd16003b5db2bab0/dotenv-0.9.9-py2.py3-none-any.whl", hash = "sha256:29cf74a087b31dafdb5a446b6d7e11cbce8ed2741540e2339c69fbef92c94ce9", size = 1892, upload-time = "2025-02-19T22:15:01.647Z" },
-]
-
-[[package]]
 name = "elementpath"
 version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -567,20 +543,18 @@ wheels = [
 
 [[package]]
 name = "geldstrom"
-version = "0.1.2"
+version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "bleach" },
-    { name = "dotenv" },
     { name = "enum-tools" },
     { name = "mt-940" },
     { name = "pydantic" },
     { name = "requests" },
     { name = "sepaxml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/47/a8bad9be38ff296e1636320d7ee3dac4a26be31c6748b8b8ce6d1678f673/geldstrom-0.1.2.tar.gz", hash = "sha256:6ef2c11c56b07d0a56ba72771c934570dc1f153bb347336a7e0e6a13aa5c83d6", size = 85155, upload-time = "2026-04-14T10:50:52.173Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/c2/f34567f41c2bd13df63538b6f3e3745ce8b7414d34b83a51eecef6034a3f/geldstrom-0.1.5.tar.gz", hash = "sha256:af107fa381c12b9995da03b0b881e86d9b11b109829369ece7bb9a7a2bbf6c57", size = 85898, upload-time = "2026-08-14T06:59:00.62Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/fe/7c842f6791219a69196f1d0519d96ab0eb5f5379ee3bcc57dcf8be1bdead/geldstrom-0.1.2-py3-none-any.whl", hash = "sha256:171f1e0df54692a12c7516304bd6e611033129af4bcf5952ed1ecede1f066fb2", size = 127286, upload-time = "2026-04-14T10:50:50.606Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/59/e9e5f8d0d18e3ac001edf3329cd1eb0a73443bb83cee4c3a00b132287322/geldstrom-0.1.5-py3-none-any.whl", hash = "sha256:ec498a3fdfeee328dbfeaa503471ad56780398b833eb07447144d00131caa19a", size = 127866, upload-time = "2026-08-14T06:58:59.284Z" },
 ]
 
 [[package]]
@@ -1913,7 +1887,7 @@ requires-dist = [
     { name = "detect-secrets", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "geldstrom", specifier = "==0.1.2" },
+    { name = "geldstrom", specifier = "==0.1.5" },
     { name = "greenlet", specifier = ">=3.2.4" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
@@ -2381,15 +2355,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/24/30/6b0809f4510673dc723187aeaf24c7f5459922d01e2f794277a3dfb90345/wcwidth-0.2.14.tar.gz", hash = "sha256:4d478375d31bc5395a3c55c40ccdf3354688364cd61c4f6adacaa9215d0b3605", size = 102293, upload-time = "2025-09-22T16:29:53.023Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/af/b5/123f13c975e9f27ab9c0770f514345bd406d0e8d3b7a0723af9d43f710af/wcwidth-0.2.14-py2.py3-none-any.whl", hash = "sha256:a7bb560c8aee30f9957e5f9895805edd20602f2d7f720186dfd906e82b4982e1", size = 37286, upload-time = "2025-09-22T16:29:51.641Z" },
-]
-
-[[package]]
-name = "webencodings"
-version = "0.5.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/02/ae6ceac1baeda530866a85075641cec12989bd8d31af6d5ab4a3e8c92f47/webencodings-0.5.1.tar.gz", hash = "sha256:b36a1c245f2d304965eb4e0a82848379241dc04b865afcc4aab16748587e1923", size = 9721, upload-time = "2017-04-05T20:21:34.189Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl", hash = "sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78", size = 11774, upload-time = "2017-04-05T20:21:32.581Z" },
 ]
 
 [[package]]
