@@ -51,7 +51,7 @@ build-backend = "hatchling.build"
 packages = ["swen_ml"]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 typeCheckingMode = "basic"
 
 [tool.pytest.ini_options]

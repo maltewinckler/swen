@@ -3,7 +3,7 @@ name = "swen-workspace"
 version = "0.0.0"
 description = "SWEN - Personal finance management system"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 # Virtual root package with no direct dependencies, everything comes from workspace members
 dependencies = []
 
@@ -51,5 +51,5 @@ exclude = ["_deprecated"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 typeCheckingMode = "basic"
