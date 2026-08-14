@@ -6,6 +6,8 @@ export interface SelectOption {
   value: string
   label: string
   disabled?: boolean
+  /** Render this option's label in muted text, e.g. for a "None" default. */
+  muted?: boolean
 }
 
 export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
@@ -29,12 +31,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           onChange={handleChange}
           disabled={disabled}
           className={cn(
-            'flex h-10 w-full appearance-none rounded-lg border px-3 pr-10 py-2 text-sm',
-            'bg-bg-base border-border-subtle text-text-primary',
-            'focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:border-accent-primary',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-bg-hover',
-            'transition-colors cursor-pointer',
-            error && 'border-accent-danger focus:ring-accent-danger/50 focus:border-accent-danger',
+            'flex h-10 w-full appearance-none rounded-lg border bg-bg-elevated px-3 pr-10 py-2 text-sm',
+            'border-border-default text-text-primary',
+            'transition-colors duration-fast cursor-pointer',
+            'focus:outline-none focus:ring-1 focus:border-accent-primary focus:ring-accent-primary',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            error && 'border-accent-danger focus:border-accent-danger focus:ring-accent-danger',
             className
           )}
           {...props}
@@ -45,7 +47,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           )}
           {options.map((option) => (
-            <option key={option.value} value={option.value} disabled={option.disabled}>
+            <option
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+              style={option.muted ? { color: 'var(--text-muted)' } : undefined}
+            >
               {option.label}
             </option>
           ))}

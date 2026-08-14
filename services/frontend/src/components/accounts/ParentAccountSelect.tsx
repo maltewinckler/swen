@@ -11,8 +11,8 @@ import { Select } from '@/components/ui'
 import type { AccountType } from '@/types/api'
 
 interface ParentAccountSelectProps {
-  /** Current account ID (to exclude from options) */
-  accountId: string
+  /** Current account ID (to exclude from options). Omit when creating a new account. */
+  accountId?: string
   /** Account type to filter by (only same-type accounts can be parents) */
   accountType: AccountType
   /** Currently selected parent ID (null = no parent) */
@@ -49,7 +49,7 @@ export function ParentAccountSelect({
 
   // Build options for Select component
   const options = [
-    { value: '', label: '(None - Top Level)' },
+    { value: '', label: 'None', muted: true },
     ...eligibleParents.map((account) => ({
       value: account.id,
       label: `${account.account_number} - ${account.name}`,
@@ -69,6 +69,7 @@ export function ParentAccountSelect({
       disabled={disabled || isLoading}
       placeholder={isLoading ? 'Loading...' : undefined}
       error={hasError}
+      className={!value ? 'text-text-muted' : undefined}
     />
   )
 }
