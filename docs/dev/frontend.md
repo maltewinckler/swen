@@ -1,6 +1,6 @@
 # Frontend
 
-The frontend is a **React 18 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
+The frontend is a **React 19 + TypeScript** single-page application, bundled by Vite and served by nginx in production.
 
 !!! note "AI-generated code"
     The frontend was largely written with AI assistance. It works well in practice, but hasn't been through a full human code review. Contributions are welcome!
@@ -9,14 +9,14 @@ The frontend is a **React 18 + TypeScript** single-page application, bundled by 
 
 | Tool | Version | Role |
 |---|---|---|
-| React | 18 | UI rendering |
+| React | 19 | UI rendering |
 | TypeScript | 5.9 | Type safety |
 | Vite | 7 | Dev server + production bundler |
 | TanStack Router | latest | File-based routing, type-safe URLs |
 | TanStack Query | latest | Server state, caching, invalidation |
 | Zustand | latest | Client state (auth store) |
 | Radix UI | latest | Accessible UI primitives |
-| Tailwind CSS | 4 | Utility-first styling |
+| Tailwind CSS | 3 | Utility-first styling |
 
 ## Project Layout
 
@@ -83,7 +83,7 @@ sequenceDiagram
     nginx->>Backend: proxy
     Backend-->>Browser: 200 OK
 
-    Note over Browser: access_token expires after 24h
+    Note over Browser: access_token expires after 1h
     Browser->>nginx: POST /api/v1/auth/refresh (cookie auto-sent)
     nginx->>Backend: proxy
     Backend-->>Browser: new access_token

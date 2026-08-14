@@ -54,7 +54,7 @@ Enrichment is skipped (gracefully) when:
 
 - `SWEN_ML_ENRICHMENT_ENABLED=false`
 - The SearXNG service is unreachable (connection refused, DNS failure)
-- The lookup takes longer than `SWEN_ML_ENRICHMENT_TIMEOUT_SECONDS`
+- The lookup takes longer than `SWEN_ML_ENRICHMENT_SEARCH_TIMEOUT`
 - No meaningful counterparty name could be extracted
 - The result is already cached from a previous lookup
 
@@ -62,7 +62,7 @@ In all these cases, classification falls through to Tier 1 with the un-enriched 
 
 ## Caching
 
-Enrichment results are cached in the ML service's SQLite database keyed by the (normalised) counterparty name. The default TTL is 7 days. This means:
+Enrichment results are cached in the ML service's PostgreSQL database keyed by the (normalised) counterparty name. The default TTL is 7 days. This means:
 
 - `REWE MARKT HAMBURG` only triggers one SearXNG lookup, then uses the cached description for all future REWE transactions
 - The cache warms up quickly after the first few hundred transactions

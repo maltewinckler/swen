@@ -37,7 +37,7 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_HOST=localhost
 ```
 
-Relaxed security settings are pre-enabled in the example (`API_COOKIE_SECURE=false`, `REGISTRATION_MODE=open`).
+Relaxed security settings are pre-enabled in the example (`API_COOKIE_SECURE=false`).
 
 ## 3 · Start Postgres
 
@@ -67,7 +67,7 @@ make db-init
 make pre-commit-install
 ```
 
-This installs Ruff, detect-secrets, and end-of-file fixers as pre-commit hooks that run before every commit.
+This installs Ruff, ESLint/TypeScript checks, and file-hygiene hooks (end-of-file-fixer, trailing-whitespace, etc.) as pre-commit hooks that run before every commit.
 
 ## 6 · Run the Services
 
@@ -90,7 +90,7 @@ Open **http://localhost:5173**, register (first user = admin), and start explori
 make seed-demo
 ```
 
-Creates `demo@example.com` / `demo` with ~200 sample transactions.
+Creates `demo@example.com` / `demo1234` with ~200 sample transactions.
 
 ## Running Tests
 

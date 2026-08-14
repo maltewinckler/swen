@@ -100,10 +100,10 @@ sequenceDiagram
     participant MLService
 
     User->>Backend: POST /sync/run/stream
-    Backend->>MLService: POST /classify (transaction)
+    Backend->>MLService: POST /classify/batch (transaction)
     MLService-->>Backend: {account: "Groceries", confidence: 0.82, tier: "example"}
     Backend->>Backend: Import transaction with suggested account
-    Backend->>MLService: POST /examples (transaction + "Groceries")
+    Backend->>MLService: POST /users/{user_id}/examples (transaction + "Groceries")
     Note over MLService: New example stored: improves Stage 2 next time
     Note over Backend: Submitted after import if counter-account<br/>was not a fallback account
 ```

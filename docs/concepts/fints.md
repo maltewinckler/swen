@@ -64,7 +64,7 @@ Some banks (notably ING) issue a separate IBAN for Visa Debit transactions that 
 
 ### TAN Timeout
 
-FinTS TAN requests expire after ~120 seconds. If you do not approve the push notification in time, the import fails silently. Simply retry the sync: no data is lost.
+SWEN polls for TAN approval for up to 5 minutes. If you do not approve the push notification in time, the import fails silently. Simply retry the sync: no data is lost.
 
 ### Rate Limiting
 

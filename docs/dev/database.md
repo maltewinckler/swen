@@ -42,16 +42,16 @@ This is **idempotent**: running it twice does not drop existing data. It only cr
 
 | Table | Description |
 |---|---|
-| `accounts` | Chart of accounts (Asset, Liability, Equity, Income, Expense) |
-| `transactions` | Double-entry transactions (Draft / Posted) |
+| `accounting_accounts` | Chart of accounts (Asset, Liability, Equity, Income, Expense) |
+| `accounting_transactions` | Double-entry transactions (Draft / Posted) |
 | `journal_entries` | Individual debit/credit lines belonging to a Transaction |
 | `bank_accounts` | IBAN-linked bank accounts |
 | `bank_transactions` | Raw statement lines from FinTS |
 | `account_mappings` | BankAccount → Account linkage |
 | `users` | User records (ID, email, is_admin) |
 | `user_credentials` | Hashed passwords (separate table from users) |
-| `fints_credentials` | Encrypted FinTS login credentials (Fernet) |
-| `fints_config` | Product ID + institute CSV config (per tenant/admin) |
+| `stored_credentials` | Encrypted FinTS login credentials (Fernet) |
+| `fints_configuration` | Product ID + institute CSV config (per tenant/admin) |
 
 ### Multi-tenancy
 

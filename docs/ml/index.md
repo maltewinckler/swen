@@ -41,11 +41,11 @@ Thresholds are configurable via environment variables (see [ML Service internals
 
 ## Architecture Overview
 
-The ML service is a separate **FastAPI** microservice that the backend calls over HTTP. It maintains its own SQLite database of training examples and a loaded sentence-transformer model.
+The ML service is a separate **FastAPI** microservice that the backend calls over HTTP. It maintains its own PostgreSQL database of training examples and a loaded sentence-transformer model.
 
 ```mermaid
 graph LR
-    backend["Backend<br>(FastAPI)"] -->|"POST /classify"| ml["ML Service<br>(FastAPI :8100)"]
+    backend["Backend<br>(FastAPI)"] -->|"POST /classify/batch"| ml["ML Service<br>(FastAPI :8100)"]
     ml --> pre["Preprocessing<br>(text cleaning)"]
     pre --> example["Example Classifier<br>(embedding similarity)"]
     example -->|unresolved| enrich["Enrichment<br>(keywords + SearXNG)"]
