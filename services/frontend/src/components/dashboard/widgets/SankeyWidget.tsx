@@ -86,6 +86,8 @@ function transformToEChartsFormat(data: SankeyResponse): EChartsCoreOption {
     series: [
       {
         type: 'sankey',
+        left: '20%',
+        right: '3%',
         emphasis: {
           focus: 'adjacency',
         },
@@ -98,10 +100,14 @@ function transformToEChartsFormat(data: SankeyResponse): EChartsCoreOption {
         links: links,
         label: {
           show: true,
-          position: 'right',
+          position: 'left',
           color: '#a0a0a0',
           fontSize: 12,
-          formatter: (params: { name: string }) => labelMap[params.name] || params.name,
+          formatter: (params: { name: string; value?: number }) => {
+            const name = labelMap[params.name] || params.name
+            const amount = typeof params.value === 'number' ? formatCurrency(params.value) : null
+            return amount ? `${name} ${amount}` : name
+          },
         },
         lineStyle: {
           color: 'gradient',
@@ -223,7 +229,7 @@ export default function SankeyWidget({ settings }: WidgetProps) {
         <CardHeader>
           <CardTitle>Cash Flow</CardTitle>
         </CardHeader>
-        <CardContent className="h-96 flex items-center justify-center">
+        <CardContent className="h-[480px] flex items-center justify-center">
           <Spinner size="lg" />
         </CardContent>
       </Card>
@@ -236,7 +242,7 @@ export default function SankeyWidget({ settings }: WidgetProps) {
         <CardHeader>
           <CardTitle>Cash Flow</CardTitle>
         </CardHeader>
-        <CardContent className="h-96 flex flex-col items-center justify-center text-text-muted">
+        <CardContent className="h-[480px] flex flex-col items-center justify-center text-text-muted">
           <AlertCircle className="h-8 w-8 mb-2" />
           <p>Failed to load cash flow data</p>
         </CardContent>
@@ -250,7 +256,7 @@ export default function SankeyWidget({ settings }: WidgetProps) {
         <CardHeader>
           <CardTitle>Cash Flow</CardTitle>
         </CardHeader>
-        <CardContent className="h-96 flex items-center justify-center text-text-muted">
+        <CardContent className="h-[480px] flex items-center justify-center text-text-muted">
           No data available for this period
         </CardContent>
       </Card>
@@ -264,9 +270,7 @@ export default function SankeyWidget({ settings }: WidgetProps) {
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
           <CardTitle>Cash Flow</CardTitle>
-          <p className="text-sm text-text-muted mt-1">
-            {data.period_label} • {formatCurrency(parseFloat(data.total_income))} income
-          </p>
+          <p className="text-sm text-text-muted mt-1">{data.period_label}</p>
         </div>
         <div className="flex gap-2 items-center">
           {exportSuccess && (
@@ -324,35 +328,10 @@ export default function SankeyWidget({ settings }: WidgetProps) {
             ref={echartsRef}
             echarts={echarts}
             option={chartOptions}
-            style={{ height: '350px', width: '100%' }}
+            style={{ height: '480px', width: '100%' }}
             opts={{ renderer: 'canvas' }}
             notMerge={true}
           />
-        </div>
-        {/* Summary stats below chart */}
-        <div className="grid grid-cols-3 gap-4 mt-4 text-center">
-          <div>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Income</p>
-            <p className="text-lg font-semibold text-green-500">
-              {formatCurrency(parseFloat(data.total_income))}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Expenses</p>
-            <p className="text-lg font-semibold text-orange-500">
-              {formatCurrency(parseFloat(data.total_expenses))}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Savings</p>
-            <p
-              className={`text-lg font-semibold ${
-                parseFloat(data.net_savings) >= 0 ? 'text-green-500' : 'text-red-500'
-              }`}
-            >
-              {formatCurrency(parseFloat(data.net_savings))}
-            </p>
-          </div>
         </div>
       </CardContent>
     </Card>
