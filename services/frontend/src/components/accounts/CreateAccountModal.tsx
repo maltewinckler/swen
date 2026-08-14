@@ -25,6 +25,7 @@ import { createAccount, createExternalAccount } from '@/api'
 import type { AccountType } from '@/types/api'
 import { cn } from '@/lib/utils'
 import { IBANInput, accountTypeLabels, normalizeAccountType } from '@/components/accounts'
+import { ParentAccountSelect } from './ParentAccountSelect'
 
 type CreateStep = 'form' | 'success'
 
@@ -35,6 +36,7 @@ type CreateFormState = {
   account_number: string
   currency: string
   description: string
+  parent_id: string | null
 }
 
 type CreateResult = {
@@ -56,6 +58,7 @@ const INITIAL_FORM: CreateFormState = {
   account_number: '',
   currency: 'EUR',
   description: '',
+  parent_id: null,
 }
 
 function supportsIban(type: AccountType) {
@@ -98,6 +101,7 @@ export function CreateAccountModal({ isOpen, onClose }: CreateAccountModalProps)
         account_type: data.account_type,
         currency,
         description: data.description?.trim() || undefined,
+        parent_id: data.parent_id ?? undefined,
       })
       return {
         accountName: data.name.trim(),
@@ -145,6 +149,8 @@ export function CreateAccountModal({ isOpen, onClose }: CreateAccountModalProps)
 
     createAccountMutation.mutate(form)
   }
+
+  const willCreateExternal = supportsIban(form.account_type) && form.iban.trim().length > 0
 
   return (
     <Modal
@@ -215,7 +221,7 @@ export function CreateAccountModal({ isOpen, onClose }: CreateAccountModalProps)
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setForm({ ...form, account_type: type, iban: '' })}
+                    onClick={() => setForm({ ...form, account_type: type, iban: '', parent_id: null })}
                     className={cn(
                       'p-3 rounded-lg border-2 text-left transition-all',
                       form.account_type === type
@@ -273,6 +279,20 @@ export function CreateAccountModal({ isOpen, onClose }: CreateAccountModalProps)
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Keywords for AI classification..."
                   maxLength={500}
+                />
+              </FormField>
+            )}
+
+            {!willCreateExternal && (
+              <FormField
+                label="Parent Account"
+                helperText="Organize accounts in a hierarchy (max 3 levels). Optional."
+              >
+                <ParentAccountSelect
+                  accountType={form.account_type}
+                  value={form.parent_id}
+                  onChange={(parentId) => setForm({ ...form, parent_id: parentId })}
+                  disabled={createAccountMutation.isPending}
                 />
               </FormField>
             )}
